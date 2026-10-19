@@ -1,0 +1,24 @@
+{
+  "name": "Contrata Legal - Flutter (Codespaces)",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {}
+  },
+  "postCreateCommand": "git clone https://github.com/flutter/flutter.git -b stable --depth 1 $HOME/flutter && echo 'export PATH=\"$PATH:$HOME/flutter/bin\"' >> ~/.bashrc && $HOME/flutter/bin/flutter config --enable-web && $HOME/flutter/bin/flutter pub get",
+  "forwardPorts": [8080],
+  "portsAttributes": {
+    "8080": {
+      "label": "Flutter Web Server",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "Dart-Code.dart-code",
+        "Dart-Code.flutter"
+      ]
+    }
+  }
+}
+

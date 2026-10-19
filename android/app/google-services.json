@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "285099748488",
+    "project_id": "secop-ia",
+    "storage_bucket": "secop-ia.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:285099748488:android:39c7ffdbb5213e0415033d",
+        "android_client_info": {
+          "package_name": "com.example.app_secop"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAHJuUgnLxZs7iEi35xlMQd2wmObF5MyRQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
