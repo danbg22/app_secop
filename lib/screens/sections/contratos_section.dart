@@ -78,9 +78,20 @@ class _ContratosSectionState extends State<ContratosSection> {
   static const Color _azulOscuro = Color(0xFF1A2B4C);
   static const Color _azulPrimario = Color(0xFF1D4ED8);
   static const int _pageSize = 4;
+  static const int _initialResultsLimit = 500;
+  static const int _searchResultsLimit = 5000;
+  static const String _secopSelectFields =
+      'id_contrato,referencia_del_contrato,proceso_de_compra,nombre_entidad,'
+      'orden,departamento,ciudad,sector,estado_contrato,'
+      'modalidad_de_contratacion,tipo_de_contrato,valor_del_contrato,'
+      'proveedor_adjudicado,tipodocproveedor,documento_proveedor,'
+      'fecha_de_firma,fecha_de_inicio_del_contrato,fecha_de_fin_del_contrato,'
+      'objeto_del_contrato,descripcion_del_proceso,urlproceso';
 
   final TextEditingController _contractsSearchController =
       TextEditingController();
+  Timer? _searchDebounce;
+  int _latestRequestId = 0;
 
   // Todos los filtros inician en blanco para que el usuario elija libremente qué consultar
   String _selectedOrden = '';
@@ -390,6 +401,7 @@ class _ContratosSectionState extends State<ContratosSection> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _contractsSearchController.dispose();
     super.dispose();
   }
@@ -865,7 +877,8 @@ class _ContratosSectionState extends State<ContratosSection> {
         .replaceAll('Í', 'I')
         .replaceAll('Ó', 'O')
         .replaceAll('Ú', 'U')
-        .replaceAll('Ü', 'U');
+        .replaceAll('Ü', 'U')
+        .replaceAll('Ñ', 'N');
   }
 
   String _conTildeComun(String tokenSinTilde) {
@@ -878,7 +891,36 @@ class _ContratosSectionState extends State<ContratosSection> {
         .replaceAll('TECNIC', 'TÉCNIC')
         .replaceAll('JURIDIC', 'JURÍDIC')
         .replaceAll('MEDICO', 'MÉDICO')
-        .replaceAll('MEDICA', 'MÉDICA');
+        .replaceAll('MEDICA', 'MÉDICA')
+        .replaceAll('RAMIREZ', 'RAMÍREZ')
+        .replaceAll('DIAZ', 'DÍAZ')
+        .replaceAll('GOMEZ', 'GÓMEZ')
+        .replaceAll('LOPEZ', 'LÓPEZ')
+        .replaceAll('PEREZ', 'PÉREZ')
+        .replaceAll('RODRIGUEZ', 'RODRÍGUEZ')
+        .replaceAll('MARTINEZ', 'MARTÍNEZ')
+        .replaceAll('HERNANDEZ', 'HERNÁNDEZ')
+        .replaceAll('GONZALEZ', 'GONZÁLEZ')
+        .replaceAll('SANCHEZ', 'SÁNCHEZ')
+        .replaceAll('JIMENEZ', 'JIMÉNEZ')
+        .replaceAll('GUTIERREZ', 'GUTIÉRREZ')
+        .replaceAll('SUAREZ', 'SUÁREZ')
+        .replaceAll('ALVAREZ', 'ÁLVAREZ')
+        .replaceAll('VASQUEZ', 'VÁSQUEZ')
+        .replaceAll('VELASQUEZ', 'VELÁSQUEZ')
+        .replaceAll('CORDOBA', 'CÓRDOBA')
+        .replaceAll('BOLIVAR', 'BOLÍVAR')
+        .replaceAll('BOGOTA', 'BOGOTÁ')
+        .replaceAll('MEDELLIN', 'MEDELLÍN')
+        .replaceAll('CUCUTA', 'CÚCUTA')
+        .replaceAll('IBAGUE', 'IBAGUÉ')
+        .replaceAll('POPAYAN', 'POPAYÁN')
+        .replaceAll('NARINO', 'NARIÑO')
+        .replaceAll('BOLANO', 'BOLAÑO')
+        .replaceAll('MUNOZ', 'MUÑOZ')
+        .replaceAll('PENA', 'PEÑA')
+        .replaceAll('CASTANO', 'CASTAÑO')
+        .replaceAll('PATINO', 'PATIÑO');
   }
 
   String _formatCop(double val) {
@@ -920,37 +962,71 @@ class _ContratosSectionState extends State<ContratosSection> {
     }).join(' AND ');
   }
 
-  String? _buildSearchSoqlClause(String rawQuery) {
+  List<String> _extractSearchTokens(String rawQuery) {
     final cleaned = rawQuery.replaceAll("'", '').trim();
-    if (cleaned.isEmpty) return null;
-
-    final tokens = cleaned
+    if (cleaned.isEmpty) return const [];
+    return cleaned
         .split(RegExp(r'\s+'))
-        .where((t) => t.trim().isNotEmpty)
+        .map((t) => t.trim())
+        .where(
+          (t) =>
+              t.isNotEmpty &&
+              !{'C.C.', 'CC', 'C.C', 'NIT', 'NIT.'}.contains(t.toUpperCase()),
+        )
         .toList();
+  }
+
+  String? _buildSearchSoqlClause(String rawQuery) {
+    final tokens = _extractSearchTokens(rawQuery);
     if (tokens.isEmpty) return null;
 
     final tokenClauses = <String>[];
     for (final rawToken in tokens) {
+      final hasDigits = RegExp(r'\d').hasMatch(rawToken);
+      final digitsOnly = rawToken.replaceAll(RegExp(r'[^0-9]'), '');
+      final isFormattedDoc =
+          hasDigits &&
+          digitsOnly.length >= 5 &&
+          RegExp(r'^[0-9.\-]+$').hasMatch(rawToken);
+
       final tNorm = _normalizar(rawToken);
       final tOrig = rawToken.toUpperCase();
       final tTilde = _conTildeComun(tNorm);
 
-      final variants = <String>{tNorm, tOrig, tTilde}
-          .where((v) => v.isNotEmpty)
-          .toList();
+      final variants = <String>{
+        tNorm,
+        tOrig,
+        tTilde,
+        if (isFormattedDoc) digitsOnly,
+      }.where((v) => v.isNotEmpty).toList();
+
       final fieldChecks = <String>[];
       for (final v in variants) {
-        fieldChecks.addAll([
-          "upper(descripcion_del_proceso) LIKE '%$v%'",
-          "upper(objeto_del_contrato) LIKE '%$v%'",
-          "upper(proveedor_adjudicado) LIKE '%$v%'",
-          "upper(documento_proveedor) LIKE '%$v%'",
-          "upper(nombre_entidad) LIKE '%$v%'",
-          "upper(referencia_del_contrato) LIKE '%$v%'",
-          "upper(proceso_de_compra) LIKE '%$v%'",
-          "upper(id_contrato) LIKE '%$v%'",
-        ]);
+        if (isFormattedDoc && v == digitsOnly) {
+          fieldChecks.addAll([
+            "documento_proveedor LIKE '%$v%'",
+            "upper(referencia_del_contrato) LIKE '%$v%'",
+            "upper(proceso_de_compra) LIKE '%$v%'",
+            "upper(id_contrato) LIKE '%$v%'",
+          ]);
+        } else if (hasDigits) {
+          fieldChecks.addAll([
+            "documento_proveedor LIKE '%$v%'",
+            "upper(referencia_del_contrato) LIKE '%$v%'",
+            "upper(proceso_de_compra) LIKE '%$v%'",
+            "upper(id_contrato) LIKE '%$v%'",
+            "upper(proveedor_adjudicado) LIKE '%$v%'",
+            "upper(nombre_entidad) LIKE '%$v%'",
+            "upper(objeto_del_contrato) LIKE '%$v%'",
+          ]);
+        } else {
+          fieldChecks.addAll([
+            "upper(proveedor_adjudicado) LIKE '%$v%'",
+            "upper(nombre_entidad) LIKE '%$v%'",
+            "upper(objeto_del_contrato) LIKE '%$v%'",
+            "upper(descripcion_del_proceso) LIKE '%$v%'",
+          ]);
+        }
       }
       tokenClauses.add('(${fieldChecks.join(' OR ')})');
     }
@@ -958,11 +1034,82 @@ class _ContratosSectionState extends State<ContratosSection> {
     return tokenClauses.join(' AND ');
   }
 
+  bool _matchesSearchQuery(Map<String, dynamic> raw, String rawQuery) {
+    final tokens = _extractSearchTokens(rawQuery);
+    if (tokens.isEmpty) return true;
+
+    final searchableText = _normalizar(
+      '${raw['proveedor_adjudicado'] ?? ''} '
+      '${raw['documento_proveedor'] ?? ''} '
+      '${raw['nombre_entidad'] ?? ''} '
+      '${raw['objeto_del_contrato'] ?? ''} '
+      '${raw['descripcion_del_proceso'] ?? ''} '
+      '${raw['referencia_del_contrato'] ?? ''} '
+      '${raw['proceso_de_compra'] ?? ''} '
+      '${raw['id_contrato'] ?? ''} '
+      '${raw['ciudad'] ?? ''} '
+      '${raw['departamento'] ?? ''}',
+    );
+    final rawDocDigits =
+        (raw['documento_proveedor'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '');
+
+    for (final token in tokens) {
+      final tNorm = _normalizar(token);
+      final digitsOnly = token.replaceAll(RegExp(r'[^0-9]'), '');
+      final matchesText = searchableText.contains(tNorm);
+      final matchesDigits =
+          digitsOnly.length >= 5 && rawDocDigits.contains(digitsOnly);
+      if (!matchesText && !matchesDigits) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  String _contractUniqueKey(ContractRecord record) {
+    final raw = record.rawSecopJson;
+    final idContrato = (raw['id_contrato'] ?? '').toString().trim();
+    if (idContrato.isNotEmpty) return idContrato;
+    final proceso = (raw['proceso_de_compra'] ?? '').toString().trim();
+    final ref = (raw['referencia_del_contrato'] ?? '').toString().trim();
+    if (proceso.isNotEmpty || ref.isNotEmpty) {
+      return '$proceso|$ref|${record.contractorId}';
+    }
+    return '${record.processCode}|${record.contractor}|${record.numericValue}';
+  }
+
+  String _contractRawIsoDate(ContractRecord record) {
+    final raw = record.rawSecopJson;
+    return (raw['fecha_de_firma'] ??
+            raw['fecha_de_inicio_del_contrato'] ??
+            '')
+        .toString();
+  }
+
+  List<ContractRecord> _mergeAndDeduplicateRecords(
+    List<ContractRecord> primary,
+    List<ContractRecord> secondary,
+  ) {
+    final map = <String, ContractRecord>{};
+    for (final item in primary) {
+      map[_contractUniqueKey(item)] = item;
+    }
+    for (final item in secondary) {
+      map.putIfAbsent(_contractUniqueKey(item), () => item);
+    }
+    final merged = map.values.toList()
+      ..sort(
+        (a, b) => _contractRawIsoDate(b).compareTo(_contractRawIsoDate(a)),
+      );
+    return merged;
+  }
+
   Future<void> _fetchLiveSecopContracts({
     String? customQuery,
     bool silent = false,
   }) async {
     if (!mounted) return;
+    final int requestId = ++_latestRequestId;
     setState(() {
       _isLoadingSecop = true;
     });
@@ -970,12 +1117,17 @@ class _ContratosSectionState extends State<ContratosSection> {
     try {
       final queryText =
           (customQuery ?? _contractsSearchController.text).trim();
+      final bool hasSearchOrFilter =
+          queryText.isNotEmpty || _activeFiltersCount > 0;
+      final int queryLimit =
+          hasSearchOrFilter ? _searchResultsLimit : _initialResultsLimit;
 
-      Future<List<ContractRecord>> runSoqlQuery({
+      List<String> buildBaseWhereClauses({
         required bool applyYearFilter,
-      }) async {
+        required bool requireFechaFirma,
+      }) {
         final whereClauses = <String>[
-          'fecha_de_firma IS NOT NULL',
+          if (requireFechaFirma) 'fecha_de_firma IS NOT NULL',
           'valor_del_contrato > 0',
           "proveedor_adjudicado != 'No Definido'",
           "documento_proveedor != 'No Definido'",
@@ -1110,26 +1262,20 @@ class _ContratosSectionState extends State<ContratosSection> {
           );
         }
 
-        if (queryText.isNotEmpty) {
-          final searchClause = _buildSearchSoqlClause(queryText);
-          if (searchClause != null) {
-            whereClauses.add(searchClause);
-          }
-        }
+        return whereClauses;
+      }
 
-        final whereParam = Uri.encodeComponent(whereClauses.join(' AND '));
-        final url = Uri.parse(
-          'https://www.datos.gov.co/resource/jbjy-vk9h.json?\$limit=120&\$order=fecha_de_firma%20DESC&\$where=$whereParam',
-        );
-
-        final response =
-            await http.get(url).timeout(const Duration(seconds: 14));
-        if (response.statusCode != 200) return [];
-
-        final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
+      List<ContractRecord> parseJsonResponse(
+        String responseBody, {
+        bool verifyQueryTokens = false,
+      }) {
+        final List<dynamic> data = jsonDecode(responseBody) as List<dynamic>;
         final parsed = <ContractRecord>[];
         for (var i = 0; i < data.length; i++) {
           final raw = Map<String, dynamic>.from(data[i] as Map);
+          if (verifyQueryTokens && !_matchesSearchQuery(raw, queryText)) {
+            continue;
+          }
           final record = _parseSecopJsonToRecord(raw, i);
           if (record != null) {
             parsed.add(record);
@@ -1138,16 +1284,131 @@ class _ContratosSectionState extends State<ContratosSection> {
         return parsed;
       }
 
+      Future<List<ContractRecord>> runSoqlQuery({
+        required bool applyYearFilter,
+      }) async {
+        // Cuando no hay texto de búsqueda, hacemos una consulta directa optimizada
+        if (queryText.isEmpty) {
+          final baseClauses = buildBaseWhereClauses(
+            applyYearFilter: applyYearFilter,
+            requireFechaFirma: true,
+          );
+          final uri = Uri.https(
+            'www.datos.gov.co',
+            '/resource/jbjy-vk9h.json',
+            <String, String>{
+              r'$select': _secopSelectFields,
+              r'$limit': '$queryLimit',
+              r'$order': 'fecha_de_firma DESC',
+              r'$where': baseClauses.join(' AND '),
+            },
+          );
+          final response =
+              await http.get(uri).timeout(const Duration(seconds: 18));
+          if (response.statusCode != 200) return [];
+          return parseJsonResponse(response.body);
+        }
+
+        // Cuando hay texto de búsqueda:
+        // 1) Consulta rápida indexada ($q de Socrata) que responde en <1s incluso en caché fría
+        // 2) Consulta SoQL LIKE ($where) para capturar coincidencias parciales o variaciones de tilde
+        final baseClauses = buildBaseWhereClauses(
+          applyYearFilter: applyYearFilter,
+          requireFechaFirma: false,
+        );
+        final searchClause = _buildSearchSoqlClause(queryText);
+
+        Future<List<ContractRecord>> fetchWithFullTextIndex() async {
+          try {
+            final cleanQ = _extractSearchTokens(queryText).join(' ');
+            final uri = Uri.https(
+              'www.datos.gov.co',
+              '/resource/jbjy-vk9h.json',
+              <String, String>{
+                r'$select': _secopSelectFields,
+                r'$limit': '$queryLimit',
+                r'$order': 'fecha_de_firma DESC',
+                r'$q': cleanQ.isNotEmpty ? cleanQ : queryText,
+                r'$where': baseClauses.join(' AND '),
+              },
+            );
+            final response =
+                await http.get(uri).timeout(const Duration(seconds: 16));
+            if (response.statusCode != 200) return [];
+            final fastParsed = parseJsonResponse(
+              response.body,
+              verifyQueryTokens: true,
+            );
+            // Renderizado inmediato apenas responde el índice rápido
+            if (fastParsed.isNotEmpty &&
+                mounted &&
+                requestId == _latestRequestId) {
+              setState(() {
+                _secopContracts = fastParsed;
+                _currentPage = 1;
+              });
+            }
+            return fastParsed;
+          } catch (_) {
+            return [];
+          }
+        }
+
+        Future<List<ContractRecord>> fetchWithSoqlLike() async {
+          if (searchClause == null) return [];
+          try {
+            final likeClauses = <String>[...baseClauses, searchClause];
+            final uri = Uri.https(
+              'www.datos.gov.co',
+              '/resource/jbjy-vk9h.json',
+              <String, String>{
+                r'$select': _secopSelectFields,
+                r'$limit': '$queryLimit',
+                r'$order': 'fecha_de_firma DESC',
+                r'$where': likeClauses.join(' AND '),
+              },
+            );
+            final response =
+                await http.get(uri).timeout(const Duration(seconds: 22));
+            if (response.statusCode != 200) return [];
+            return parseJsonResponse(response.body);
+          } catch (_) {
+            return [];
+          }
+        }
+
+        final both = await Future.wait<List<ContractRecord>>([
+          fetchWithFullTextIndex(),
+          fetchWithSoqlLike(),
+        ]);
+
+        var merged = _mergeAndDeduplicateRecords(both[1], both[0]);
+
+        // Reintento automático si ambos fallaron por congestión temporal de red
+        if (merged.isEmpty) {
+          await Future<void>.delayed(const Duration(milliseconds: 350));
+          if (!mounted || requestId != _latestRequestId) return [];
+          final retryFast = await fetchWithFullTextIndex();
+          if (retryFast.isNotEmpty) {
+            merged = retryFast;
+          }
+        }
+
+        return merged;
+      }
+
       var results = await runSoqlQuery(applyYearFilter: true);
+      if (!mounted || requestId != _latestRequestId) return;
 
       if (results.isEmpty && _selectedAnio.isNotEmpty) {
         results = await runSoqlQuery(applyYearFilter: false);
+        if (!mounted || requestId != _latestRequestId) return;
         if (results.isNotEmpty && mounted) {
           setState(() => _selectedAnio = '');
         }
       }
 
-      if (!mounted) return;
+      if (!mounted || requestId != _latestRequestId) return;
       setState(() {
         if (results.isNotEmpty ||
             queryText.isNotEmpty ||
@@ -1158,7 +1419,7 @@ class _ContratosSectionState extends State<ContratosSection> {
         _currentPage = 1;
       });
 
-      if (!silent && mounted) {
+      if (!silent && mounted && requestId == _latestRequestId) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -1171,7 +1432,7 @@ class _ContratosSectionState extends State<ContratosSection> {
         );
       }
     } catch (_) {
-      if (mounted) {
+      if (mounted && requestId == _latestRequestId) {
         setState(() => _isLoadingSecop = false);
       }
     }
@@ -1257,14 +1518,17 @@ class _ContratosSectionState extends State<ContratosSection> {
     return all.sublist(startIndex, endIndex);
   }
 
-  void _executeContractSearch() {
+  void _executeContractSearch({bool silent = false}) {
+    _searchDebounce?.cancel();
     setState(() => _currentPage = 1);
     _fetchLiveSecopContracts(
       customQuery: _contractsSearchController.text.trim(),
+      silent: silent,
     );
   }
 
   void _resetAllFilters() {
+    _searchDebounce?.cancel();
     setState(() {
       _selectedOrden = '';
       _selectedDepartamento = '';
@@ -2268,8 +2532,15 @@ class _ContratosSectionState extends State<ContratosSection> {
                   height: 38,
                   child: TextField(
                     controller: _contractsSearchController,
-                    onChanged: (_) => setState(() {}),
-                    onSubmitted: (_) => _executeContractSearch(),
+                    onChanged: (_) {
+                      setState(() {});
+                      _searchDebounce?.cancel();
+                      _searchDebounce = Timer(
+                        const Duration(milliseconds: 500),
+                        () => _executeContractSearch(silent: true),
+                      );
+                    },
+                    onSubmitted: (_) => _executeContractSearch(silent: false),
                     style: const TextStyle(fontSize: 12.5, color: _azulOscuro),
                     decoration: InputDecoration(
                       hintText:
@@ -2290,7 +2561,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                           ? IconButton(
                               onPressed: () {
                                 _contractsSearchController.clear();
-                                _executeContractSearch();
+                                _executeContractSearch(silent: true);
                               },
                               icon: const Icon(Icons.clear, size: 16),
                             )
@@ -2319,7 +2590,7 @@ class _ContratosSectionState extends State<ContratosSection> {
               SizedBox(
                 height: 38,
                 child: ElevatedButton.icon(
-                  onPressed: _executeContractSearch,
+                  onPressed: () => _executeContractSearch(silent: false),
                   icon: _isLoadingSecop
                       ? const SizedBox(
                           width: 14,

@@ -41,18 +41,20 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
     final query = widget.query.trim();
     if (query.isEmpty) return [];
 
-    final isNumeric = RegExp(r'^[0-9]+$').hasMatch(query);
-    final queryWords = _quitarTildesYNies(query)
+    final digitsOnly = query.replaceAll(RegExp(r'[^0-9]'), '');
+    final isNumeric =
+        digitsOnly.length >= 5 && RegExp(r'^[0-9.\-\s]+$').hasMatch(query);
+    final queryWords = _quitarTildesYNies(query.replaceAll("'", ''))
         .split(RegExp(r'\s+'))
         .where((p) => p.isNotEmpty)
         .toList();
 
     final secopParams = <String, String>{
       r'$select': 'proveedor_adjudicado, documento_proveedor',
-      r'$limit': '2000',
+      r'$limit': '5000',
     };
     if (isNumeric) {
-      secopParams[r'$where'] = "documento_proveedor = '$query'";
+      secopParams[r'$where'] = "documento_proveedor LIKE '%$digitsOnly%'";
     } else {
       secopParams[r'$q'] = query;
     }
@@ -62,31 +64,59 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
       secopParams,
     );
 
+    Uri? secopLikeUri;
+    if (!isNumeric && queryWords.isNotEmpty) {
+      final likeClauses = queryWords
+          .map((w) => "upper(proveedor_adjudicado) LIKE '%$w%'")
+          .join(' AND ');
+      secopLikeUri = Uri.https(
+        'www.datos.gov.co',
+        '/resource/jbjy-vk9h.json',
+        <String, String>{
+          r'$select': 'proveedor_adjudicado, documento_proveedor',
+          r'$group': 'proveedor_adjudicado, documento_proveedor',
+          r'$where': likeClauses,
+          r'$limit': '5000',
+        },
+      );
+    }
+
     final sources = await Future.wait<List<Map<String, dynamic>>>([
       _buscarSecop(secopUri).catchError((e) {
         debugPrint('SECOP Error: $e');
         return <Map<String, dynamic>>[];
       }),
+      if (secopLikeUri != null)
+        _buscarSecop(secopLikeUri).catchError((e) {
+          debugPrint('SECOP LIKE Error: $e');
+          return <Map<String, dynamic>>[];
+        })
+      else
+        Future.value(<Map<String, dynamic>>[]),
       SigepService.buscarListaServidores(query).catchError((e) {
         debugPrint('SIGEP Error: $e');
         return <Map<String, dynamic>>[];
       }),
     ]);
 
-    final secopRecords = sources[0];
-    final sigepRecords = sources[1];
+    final secopRecords = <Map<String, dynamic>>[...sources[0], ...sources[1]];
+    final sigepRecords = sources[2];
     final resultsByName = <String, _ResultadoPersona>{};
 
     bool cumpleFiltro(Map<String, dynamic> record, String nameCrudo) {
       if (isNumeric) {
-        final docSecop = record['documento_proveedor']?.toString() ?? '';
-        final docSigep1 = record['identificacion']?.toString() ?? '';
-        final docSigep2 = record['numero_documento']?.toString() ?? '';
-        final docSigep3 = record['documento']?.toString() ?? '';
-        return docSecop == query ||
-            docSigep1 == query ||
-            docSigep2 == query ||
-            docSigep3 == query;
+        final docSecop = (record['documento_proveedor']?.toString() ?? '')
+            .replaceAll(RegExp(r'[^0-9]'), '');
+        final docSigep1 = (record['identificacion']?.toString() ?? '')
+            .replaceAll(RegExp(r'[^0-9]'), '');
+        final docSigep2 = (record['numero_documento']?.toString() ?? '')
+            .replaceAll(RegExp(r'[^0-9]'), '');
+        final docSigep3 = (record['documento']?.toString() ?? '')
+            .replaceAll(RegExp(r'[^0-9]'), '');
+        return docSecop.contains(digitsOnly) ||
+            docSigep1.contains(digitsOnly) ||
+            docSigep2.contains(digitsOnly) ||
+            docSigep3.contains(digitsOnly);
       }
 
       final nameNormalizado = _quitarTildesYNies(nameCrudo);
