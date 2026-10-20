@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/colombia_secop_catalog.dart';
 import '../../utils/csv_exporter.dart';
+import '../../widgets/user_profile_header_action.dart';
 import '../detalle_screen.dart';
 import '../perfil_contratista_screen.dart';
 
@@ -3114,6 +3115,8 @@ class _ContratosSectionState extends State<ContratosSection> {
             ),
           ),
         ),
+        const SizedBox(width: 16),
+        UserProfileHeaderAction(onLogout: widget.onLogout),
       ],
     );
   }

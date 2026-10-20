@@ -99,7 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case 3:
         return const EntidadesSection();
       case 4:
-        return const ContratistasSection();
+        return ContratistasSection(onLogout: _cerrarSesion);
       case 5:
         return const EstadisticasSection();
       case 7:

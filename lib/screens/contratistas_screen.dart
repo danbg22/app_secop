@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 
 import '../services/sigep_service.dart';
 import '../utils/csv_exporter.dart';
+import '../widgets/user_profile_header_action.dart';
 import 'perfil_contratista_screen.dart';
 
 /// Estado de clasificación frente al cruce con SIGEP II.
@@ -80,10 +81,6 @@ class _ContratistasPersistenceStore {
   static String searchText = '';
   static List<String> activeBulkTerms = const [];
   static List<ContractorSummaryRecord>? cachedContractors;
-  static String selectedPersonType = '';
-  static String selectedSector = '';
-  static String selectedValueRange = '';
-  static String selectedYear = '';
   static String sortBy = 'Mayor valor contratado';
   static int currentPage = 1;
   static bool hasExecutedCustomSearch = false;
@@ -93,9 +90,11 @@ class ContratistasScreen extends StatefulWidget {
   const ContratistasScreen({
     super.key,
     this.isEmbeddedInDashboard = true,
+    this.onLogout,
   });
 
   final bool isEmbeddedInDashboard;
+  final VoidCallback? onLogout;
 
   @override
   State<ContratistasScreen> createState() => _ContratistasScreenState();
@@ -116,10 +115,6 @@ class _ContratistasScreenState extends State<ContratistasScreen>
   bool _isLoading = false;
   int _latestRequestId = 0;
 
-  String _selectedPersonType = '';
-  String _selectedSector = '';
-  String _selectedValueRange = '';
-  String _selectedYear = '';
   String _sortBy = 'Mayor valor contratado';
   int _currentPage = 1;
 
@@ -289,10 +284,6 @@ class _ContratistasScreenState extends State<ContratistasScreen>
       text: _ContratistasPersistenceStore.searchText,
     );
     _activeBulkTerms = _ContratistasPersistenceStore.activeBulkTerms;
-    _selectedPersonType = _ContratistasPersistenceStore.selectedPersonType;
-    _selectedSector = _ContratistasPersistenceStore.selectedSector;
-    _selectedValueRange = _ContratistasPersistenceStore.selectedValueRange;
-    _selectedYear = _ContratistasPersistenceStore.selectedYear;
     _sortBy = _ContratistasPersistenceStore.sortBy;
     _currentPage = _ContratistasPersistenceStore.currentPage;
 
@@ -319,10 +310,6 @@ class _ContratistasScreenState extends State<ContratistasScreen>
     _ContratistasPersistenceStore.searchText = _searchController.text;
     _ContratistasPersistenceStore.activeBulkTerms = _activeBulkTerms;
     _ContratistasPersistenceStore.cachedContractors = _contractors;
-    _ContratistasPersistenceStore.selectedPersonType = _selectedPersonType;
-    _ContratistasPersistenceStore.selectedSector = _selectedSector;
-    _ContratistasPersistenceStore.selectedValueRange = _selectedValueRange;
-    _ContratistasPersistenceStore.selectedYear = _selectedYear;
     _ContratistasPersistenceStore.sortBy = _sortBy;
     _ContratistasPersistenceStore.currentPage = _currentPage;
   }
@@ -603,10 +590,6 @@ class _ContratistasScreenState extends State<ContratistasScreen>
     _searchController.clear();
     setState(() {
       _activeBulkTerms = const [];
-      _selectedPersonType = '';
-      _selectedSector = '';
-      _selectedValueRange = '';
-      _selectedYear = '';
       _currentPage = 1;
       _contractors = List<ContractorSummaryRecord>.from(
         _initialSeedContractors,
@@ -622,30 +605,6 @@ class _ContratistasScreenState extends State<ContratistasScreen>
           !_ContratistasPersistenceStore.hasExecutedCustomSearch &&
           !_matchesAnyBulkTerm(c, _activeBulkTerms)) {
         return false;
-      }
-      if (_selectedPersonType.isNotEmpty &&
-          c.personType != _selectedPersonType) {
-        return false;
-      }
-      if (_selectedSector.isNotEmpty && c.sector != _selectedSector) {
-        return false;
-      }
-      if (_selectedYear.isNotEmpty && c.year != _selectedYear) {
-        return false;
-      }
-      if (_selectedValueRange.isNotEmpty) {
-        if (_selectedValueRange == 'Hasta \$50 M' &&
-            c.totalValue > 50000000) {
-          return false;
-        }
-        if (_selectedValueRange == '\$50 M - \$500 M' &&
-            (c.totalValue < 50000000 || c.totalValue > 500000000)) {
-          return false;
-        }
-        if (_selectedValueRange == 'Más de \$500 M' &&
-            c.totalValue <= 500000000) {
-          return false;
-        }
       }
       return true;
     }).toList();
@@ -712,200 +671,7 @@ class _ContratistasScreenState extends State<ContratistasScreen>
     );
   }
 
-  void _showAdvancedFiltersModal() {
-    String tempPersonType = _selectedPersonType;
-    String tempSector = _selectedSector;
-    String tempRange = _selectedValueRange;
-    String tempYear = _selectedYear;
 
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          Widget dropdownField({
-            required String label,
-            required String value,
-            required List<String> options,
-            required ValueChanged<String?> onChanged,
-          }) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      color: _azulTexto,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
-                    initialValue: options.contains(value) ? value : '',
-                    isDense: true,
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: _cremaFondo,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: Color(0xFFE6DEC8)),
-                      ),
-                    ),
-                    items: [
-                      for (final opt in options)
-                        DropdownMenuItem(
-                          value: opt,
-                          child: Text(
-                            opt.isEmpty ? 'Todos' : opt,
-                            style: const TextStyle(
-                              fontSize: 12.5,
-                              color: _azulTexto,
-                            ),
-                          ),
-                        ),
-                    ],
-                    onChanged: onChanged,
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return Dialog(
-            backgroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
-              child: Padding(
-                padding: const EdgeInsets.all(22),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.filter_list, color: _azulOscuro),
-                        const SizedBox(width: 8),
-                        const Expanded(
-                          child: Text(
-                            'Filtros avanzados de contratistas',
-                            style: TextStyle(
-                              color: _azulTexto,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.pop(dialogContext),
-                          icon: const Icon(Icons.close, size: 18),
-                        ),
-                      ],
-                    ),
-                    const Divider(height: 20),
-                    dropdownField(
-                      label: 'Tipo de persona',
-                      value: tempPersonType,
-                      options: const [
-                        '',
-                        'Persona jurídica',
-                        'Persona natural',
-                      ],
-                      onChanged: (v) =>
-                          setDialogState(() => tempPersonType = v ?? ''),
-                    ),
-                    dropdownField(
-                      label: 'Sector',
-                      value: tempSector,
-                      options: const [
-                        '',
-                        'Obras',
-                        'Salud',
-                        'Educación',
-                        'Tecnología',
-                        'Seguridad',
-                        'Ambiente',
-                        'Servicios',
-                      ],
-                      onChanged: (v) =>
-                          setDialogState(() => tempSector = v ?? ''),
-                    ),
-                    dropdownField(
-                      label: 'Rango de valor contratado',
-                      value: tempRange,
-                      options: const [
-                        '',
-                        'Hasta \$50 M',
-                        '\$50 M - \$500 M',
-                        'Más de \$500 M',
-                      ],
-                      onChanged: (v) =>
-                          setDialogState(() => tempRange = v ?? ''),
-                    ),
-                    dropdownField(
-                      label: 'Año de último contrato',
-                      value: tempYear,
-                      options: const ['', '2026', '2025', '2024', '2023'],
-                      onChanged: (v) =>
-                          setDialogState(() => tempYear = v ?? ''),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: () {
-                            setDialogState(() {
-                              tempPersonType = '';
-                              tempSector = '';
-                              tempRange = '';
-                              tempYear = '';
-                            });
-                          },
-                          child: const Text('Limpiar'),
-                        ),
-                        const SizedBox(width: 8),
-                        ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              _selectedPersonType = tempPersonType;
-                              _selectedSector = tempSector;
-                              _selectedValueRange = tempRange;
-                              _selectedYear = tempYear;
-                              _currentPage = 1;
-                            });
-                            _syncStateToPersistenceStore();
-                            Navigator.pop(dialogContext);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _azulOscuro,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: const Text('Aplicar filtros'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
 
   static String _formatCopCurrency(double value) {
     final rounded = value.round();
@@ -1020,10 +786,6 @@ class _ContratistasScreenState extends State<ContratistasScreen>
     final filtered = _filteredAndSortedContractors;
     final bool isDefaultView =
         !_ContratistasPersistenceStore.hasExecutedCustomSearch &&
-        _selectedPersonType.isEmpty &&
-        _selectedSector.isEmpty &&
-        _selectedValueRange.isEmpty &&
-        _selectedYear.isEmpty &&
         _activeBulkTerms.isEmpty;
 
     // Métricas KPI: muestran los totales globales del mockup por defecto
@@ -1130,50 +892,18 @@ class _ContratistasScreenState extends State<ContratistasScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const ContratistasHeader(
+                      ContratistasHeader(
                         titleColor: _azulTexto,
                         accentColor: _dorado,
+                        onLogout: widget.onLogout,
                       ),
                       const SizedBox(height: 18),
                       ContratistasBulkSearchBar(
                         controller: _searchController,
                         isLoading: _isLoading,
                         activeBulkTerms: _activeBulkTerms,
-                        selectedPersonType: _selectedPersonType,
-                        selectedSector: _selectedSector,
-                        selectedValueRange: _selectedValueRange,
-                        selectedYear: _selectedYear,
                         onSearchTriggered: _executeBulkSearch,
                         onClearSearch: _clearSearchManually,
-                        onPersonTypeChanged: (val) {
-                          setState(() {
-                            _selectedPersonType = val;
-                            _currentPage = 1;
-                          });
-                          _syncStateToPersistenceStore();
-                        },
-                        onSectorChanged: (val) {
-                          setState(() {
-                            _selectedSector = val;
-                            _currentPage = 1;
-                          });
-                          _syncStateToPersistenceStore();
-                        },
-                        onValueRangeChanged: (val) {
-                          setState(() {
-                            _selectedValueRange = val;
-                            _currentPage = 1;
-                          });
-                          _syncStateToPersistenceStore();
-                        },
-                        onYearChanged: (val) {
-                          setState(() {
-                            _selectedYear = val;
-                            _currentPage = 1;
-                          });
-                          _syncStateToPersistenceStore();
-                        },
-                        onOpenAdvancedFilters: _showAdvancedFiltersModal,
                       ),
                       const SizedBox(height: 18),
                       ContratistasKpiRow(
@@ -1240,59 +970,70 @@ class _ContratistasScreenState extends State<ContratistasScreen>
 }
 
 /// ---------------------------------------------------------------------------
-/// 1. COMPONENTE: Header (Cabecera limpia fiel al mockup)
+/// 1. COMPONENTE: Header (Cabecera limpia fiel al mockup con perfil de usuario)
 /// ---------------------------------------------------------------------------
 class ContratistasHeader extends StatelessWidget {
   const ContratistasHeader({
     super.key,
     required this.titleColor,
     required this.accentColor,
+    this.onLogout,
   });
 
   final Color titleColor;
   final Color accentColor;
+  final VoidCallback? onLogout;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 38,
-          height: 4,
-          decoration: BoxDecoration(
-            color: accentColor,
-            borderRadius: BorderRadius.circular(2),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 38,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: accentColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Contratistas',
+                style: TextStyle(
+                  color: titleColor,
+                  fontSize: 38,
+                  fontWeight: FontWeight.w800,
+                  height: 1.05,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Conoce quiénes ejecutan los contratos con el Estado\ny revisa su trayectoria contractual.',
+                style: TextStyle(
+                  color: Color(0xFF475569),
+                  fontSize: 15,
+                  height: 1.35,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 10),
-        Text(
-          'Contratistas',
-          style: TextStyle(
-            color: titleColor,
-            fontSize: 38,
-            fontWeight: FontWeight.w800,
-            height: 1.05,
-            letterSpacing: -0.5,
-          ),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Conoce quiénes ejecutan los contratos con el Estado\ny revisa su trayectoria contractual.',
-          style: TextStyle(
-            color: Color(0xFF475569),
-            fontSize: 15,
-            height: 1.35,
-            fontWeight: FontWeight.w400,
-          ),
-        ),
+        const SizedBox(width: 16),
+        UserProfileHeaderAction(onLogout: onLogout),
       ],
     );
   }
 }
 
 /// ---------------------------------------------------------------------------
-/// 2. COMPONENTE: BulkSearchBar (Leyenda sombreada + Búsqueda múltiple por coma + Filtros)
+/// 2. COMPONENTE: BulkSearchBar (Leyenda sombreada + Búsqueda por cédula/NIT)
 /// ---------------------------------------------------------------------------
 class ContratistasBulkSearchBar extends StatelessWidget {
   const ContratistasBulkSearchBar({
@@ -1300,33 +1041,15 @@ class ContratistasBulkSearchBar extends StatelessWidget {
     required this.controller,
     required this.isLoading,
     required this.activeBulkTerms,
-    required this.selectedPersonType,
-    required this.selectedSector,
-    required this.selectedValueRange,
-    required this.selectedYear,
     required this.onSearchTriggered,
     required this.onClearSearch,
-    required this.onPersonTypeChanged,
-    required this.onSectorChanged,
-    required this.onValueRangeChanged,
-    required this.onYearChanged,
-    required this.onOpenAdvancedFilters,
   });
 
   final TextEditingController controller;
   final bool isLoading;
   final List<String> activeBulkTerms;
-  final String selectedPersonType;
-  final String selectedSector;
-  final String selectedValueRange;
-  final String selectedYear;
   final VoidCallback onSearchTriggered;
   final VoidCallback onClearSearch;
-  final ValueChanged<String> onPersonTypeChanged;
-  final ValueChanged<String> onSectorChanged;
-  final ValueChanged<String> onValueRangeChanged;
-  final ValueChanged<String> onYearChanged;
-  final VoidCallback onOpenAdvancedFilters;
 
   static const Color _azulOscuro = Color(0xFF0F2747);
   static const Color _azulTexto = Color(0xFF1A2B4C);
@@ -1395,282 +1118,105 @@ class ContratistasBulkSearchBar extends StatelessWidget {
             ],
           ),
         ),
-        // Fila de Barra de Búsqueda + Filtros laterales iguales al Mockup
-        LayoutBuilder(
-          builder: (context, constraints) {
-            return Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                // Contenedor de búsqueda con botón "Buscar" integrado adentro a la derecha
-                SizedBox(
-                  width: constraints.maxWidth > 980
-                      ? constraints.maxWidth * 0.42
-                      : constraints.maxWidth,
-                  height: 46,
-                  child: Container(
-                    padding: const EdgeInsets.only(left: 12, right: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(11),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: _azulTexto.withValues(alpha: 0.04),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.search,
-                          color: _azulTexto,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: ValueListenableBuilder<TextEditingValue>(
-                            valueListenable: controller,
-                            builder: (context, value, _) {
-                              return TextField(
-                                controller: controller,
-                                onSubmitted: (_) => onSearchTriggered(),
-                                style: const TextStyle(
-                                  color: _azulTexto,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText:
-                                      'Buscar contratista por nombre, NIT o razón social...',
-                                  hintStyle: const TextStyle(
-                                    color: Color(0xFF94A3B8),
-                                    fontSize: 13,
-                                  ),
-                                  border: InputBorder.none,
-                                  isDense: true,
-                                  suffixIcon: value.text.isNotEmpty
-                                      ? IconButton(
-                                          tooltip: 'Borrar búsqueda',
-                                          onPressed: onClearSearch,
-                                          icon: const Icon(
-                                            Icons.close_rounded,
-                                            size: 17,
-                                            color: Color(0xFF64748B),
-                                          ),
-                                        )
-                                      : null,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        SizedBox(
-                          height: 36,
-                          child: ElevatedButton(
-                            onPressed: isLoading ? null : onSearchTriggered,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _azulOscuro,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: isLoading
-                                ? const SizedBox(
-                                    width: 15,
-                                    height: 15,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Text(
-                                    'Buscar',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                // Dropdowns laterales del Mockup
-                _FilterDropdownPill(
-                  placeholder: 'Tipo de persona',
-                  value: selectedPersonType,
-                  options: const ['Persona jurídica', 'Persona natural'],
-                  onSelected: onPersonTypeChanged,
-                ),
-                _FilterDropdownPill(
-                  placeholder: 'Sector',
-                  value: selectedSector,
-                  options: const [
-                    'Obras',
-                    'Salud',
-                    'Educación',
-                    'Tecnología',
-                    'Seguridad',
-                    'Ambiente',
-                    'Servicios',
-                  ],
-                  onSelected: onSectorChanged,
-                ),
-                _FilterDropdownPill(
-                  placeholder: 'Rango de valor',
-                  value: selectedValueRange,
-                  options: const [
-                    'Hasta \$50 M',
-                    '\$50 M - \$500 M',
-                    'Más de \$500 M',
-                  ],
-                  onSelected: onValueRangeChanged,
-                ),
-                _FilterDropdownPill(
-                  placeholder: 'Año',
-                  value: selectedYear,
-                  options: const ['2026', '2025', '2024', '2023'],
-                  onSelected: onYearChanged,
-                ),
-                // Botón Filtros avanzados con el tono crema/dorado del mockup
-                SizedBox(
-                  height: 46,
-                  child: OutlinedButton.icon(
-                    onPressed: onOpenAdvancedFilters,
-                    icon: const Icon(
-                      Icons.filter_alt_outlined,
-                      size: 17,
-                      color: _azulTexto,
-                    ),
-                    label: const Text(
-                      'Filtros avanzados',
-                      style: TextStyle(
+        // Barra de Búsqueda limpia y directa sin filtros
+        Container(
+          height: 48,
+          padding: const EdgeInsets.only(left: 14, right: 6),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: [
+              BoxShadow(
+                color: _azulTexto.withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.search,
+                color: _azulTexto,
+                size: 21,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: controller,
+                  builder: (context, value, _) {
+                    return TextField(
+                      controller: controller,
+                      onSubmitted: (_) => onSearchTriggered(),
+                      style: const TextStyle(
                         color: _azulTexto,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w500,
                       ),
+                      decoration: InputDecoration(
+                        hintText:
+                            'Buscar contratista por NIT o cédula (o sepáralos por coma)...',
+                        hintStyle: const TextStyle(
+                          color: Color(0xFF94A3B8),
+                          fontSize: 13,
+                        ),
+                        border: InputBorder.none,
+                        isDense: true,
+                        suffixIcon: value.text.isNotEmpty
+                            ? IconButton(
+                                tooltip: 'Borrar búsqueda',
+                                onPressed: onClearSearch,
+                                icon: const Icon(
+                                  Icons.close_rounded,
+                                  size: 18,
+                                  color: Color(0xFF64748B),
+                                ),
+                              )
+                            : null,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                height: 38,
+                child: ElevatedButton(
+                  onPressed: isLoading ? null : onSearchTriggered,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _azulOscuro,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22,
                     ),
-                    style: OutlinedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFAF0D7),
-                      side: const BorderSide(color: Color(0xFFE9D8A6)),
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(11),
-                      ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(9),
                     ),
                   ),
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Buscar',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
-              ],
-            );
-          },
+              ),
+            ],
+          ),
         ),
       ],
-    );
-  }
-}
-
-class _FilterDropdownPill extends StatelessWidget {
-  const _FilterDropdownPill({
-    required this.placeholder,
-    required this.value,
-    required this.options,
-    required this.onSelected,
-  });
-
-  final String placeholder;
-  final String value;
-  final List<String> options;
-  final ValueChanged<String> onSelected;
-
-  static const Color _azulTexto = Color(0xFF1A2B4C);
-
-  @override
-  Widget build(BuildContext context) {
-    final bool hasSelection = value.isNotEmpty;
-    return PopupMenuButton<String>(
-      tooltip: placeholder,
-      onSelected: (selected) {
-        if (selected == '__CLEAR__') {
-          onSelected('');
-        } else {
-          onSelected(selected);
-        }
-      },
-      itemBuilder: (context) => [
-        PopupMenuItem<String>(
-          value: '__CLEAR__',
-          child: Text(
-            'Todos ($placeholder)',
-            style: const TextStyle(
-              fontSize: 12.5,
-              color: Color(0xFF64748B),
-            ),
-          ),
-        ),
-        for (final opt in options)
-          PopupMenuItem<String>(
-            value: opt,
-            child: Text(
-              opt,
-              style: TextStyle(
-                fontSize: 12.5,
-                color: _azulTexto,
-                fontWeight:
-                    value == opt ? FontWeight.w700 : FontWeight.w500,
-              ),
-            ),
-          ),
-      ],
-      child: Container(
-        height: 46,
-        padding: const EdgeInsets.symmetric(horizontal: 13),
-        decoration: BoxDecoration(
-          color: hasSelection ? const Color(0xFFEFF6FF) : Colors.white,
-          borderRadius: BorderRadius.circular(11),
-          border: Border.all(
-            color: hasSelection
-                ? const Color(0xFF93C5FD)
-                : const Color(0xFFE2E8F0),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: _azulTexto.withValues(alpha: 0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              hasSelection ? value : placeholder,
-              style: TextStyle(
-                color: _azulTexto,
-                fontSize: 12.5,
-                fontWeight: hasSelection ? FontWeight.w700 : FontWeight.w500,
-              ),
-            ),
-            const SizedBox(width: 6),
-            const Icon(
-              Icons.keyboard_arrow_down_rounded,
-              size: 18,
-              color: _azulTexto,
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
