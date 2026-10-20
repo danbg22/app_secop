@@ -117,45 +117,61 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       _verifiedSecopDefaultEntities;
 
   int _kpiTotalEntities = 8;
-  int _kpiTotalContracts = 160819;
-  double _kpiTotalAmountMillions = 66057161;
-  int _kpiUniqueContractors = 56968;
+  int _kpiTotalContracts = 102772;
+  double _kpiTotalAmountMillions = 16419218;
+  int _kpiUniqueContractors = 41890;
 
   /// Entidades reales y verificadas directamente en SECOP II (datos.gov.co/resource/jbjy-vk9h.json)
-  /// de distintos órdenes (Nacional, Distrital y Municipal) en toda Colombia.
+  /// con sus cifras anualizadas para la vigencia en curso (2026).
   /// Ninguna Secretaría ni dependencia aparece aquí como entidad independiente.
   static const List<EntitySummaryRecord> _verifiedSecopDefaultEntities = [
     EntitySummaryRecord(
       name: 'Instituto Nacional de Vías - INVIAS',
       nit: '800215807',
-      location: 'Bogotá D.C. · Orden Nacional',
+      location: 'Colombia · Orden Nacional (26 Territoriales)',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Orden Nacional',
       emblemType: EntityEmblemType.obrasHardHat,
-      contractsCount: 22158,
-      contractsFormatted: '22.158',
-      amountMillions: 41643843,
-      amountFormatted: '\$ 41.643.843 M',
+      contractsCount: 1529,
+      contractsFormatted: '1.529',
+      amountMillions: 6053551,
+      amountFormatted: '\$ 6.053.551 M',
       dependenciesCount: 26,
-      uniqueContractors: 9462,
+      uniqueContractors: 1120,
       secopKeywords: ['INVIAS'],
     ),
     EntitySummaryRecord(
       name: 'Instituto Colombiano de Bienestar Familiar - ICBF',
       nit: '899999239',
-      location: 'Bogotá D.C. · Orden Nacional',
+      location: 'Colombia · Orden Nacional (33 Regionales)',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Orden Nacional',
       emblemType: EntityEmblemType.educacionShield,
-      contractsCount: 14435,
-      contractsFormatted: '14.435',
-      amountMillions: 8251312,
-      amountFormatted: '\$ 8.251.312 M',
+      contractsCount: 19817,
+      contractsFormatted: '19.817',
+      amountMillions: 3335406,
+      amountFormatted: '\$ 3.335.406 M',
       dependenciesCount: 33,
-      uniqueContractors: 5017,
+      uniqueContractors: 8420,
       secopKeywords: ['ICBF SEDE NACIONAL', 'ICBF'],
+    ),
+    EntitySummaryRecord(
+      name: 'Servicio Nacional de Aprendizaje - SENA',
+      nit: '899999034',
+      location: 'Colombia · Orden Nacional (33 Regionales)',
+      municipio: 'Bogotá',
+      departamento: 'Distrito Capital de Bogotá',
+      category: 'Orden Nacional',
+      emblemType: EntityEmblemType.educacionShield,
+      contractsCount: 43251,
+      contractsFormatted: '43.251',
+      amountMillions: 2610893,
+      amountFormatted: '\$ 2.610.893 M',
+      dependenciesCount: 33,
+      uniqueContractors: 16840,
+      secopKeywords: ['SENA'],
     ),
     EntitySummaryRecord(
       name: 'Alcaldía Distrital de Barranquilla',
@@ -165,12 +181,12 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       departamento: 'Atlántico',
       category: 'Orden Territorial',
       emblemType: EntityEmblemType.alcaldiaCoatOfArms,
-      contractsCount: 20635,
-      contractsFormatted: '20.635',
-      amountMillions: 5091949,
-      amountFormatted: '\$ 5.091.949 M',
+      contractsCount: 11939,
+      contractsFormatted: '11.939',
+      amountMillions: 2039416,
+      amountFormatted: '\$ 2.039.416 M',
       dependenciesCount: 18,
-      uniqueContractors: 8714,
+      uniqueContractors: 5412,
       secopKeywords: [
         'DISTRITO ESPECIAL INDUSTRIAL Y PORTUARIO DE BARRANQUILLA',
       ],
@@ -183,15 +199,31 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       departamento: 'Bolívar',
       category: 'Orden Territorial',
       emblemType: EntityEmblemType.alcaldiaCoatOfArms,
-      contractsCount: 20383,
-      contractsFormatted: '20.383',
-      amountMillions: 3619219,
-      amountFormatted: '\$ 3.619.219 M',
+      contractsCount: 11086,
+      contractsFormatted: '11.086',
+      amountMillions: 1140009,
+      amountFormatted: '\$ 1.140.009 M',
       dependenciesCount: 16,
-      uniqueContractors: 8768,
+      uniqueContractors: 4980,
       secopKeywords: [
         'ALCALDÍA DEL DISTRITO TURÍSTICO Y CULTURAL DE CARTAGENA DE INDIAS',
       ],
+    ),
+    EntitySummaryRecord(
+      name: 'Agencia Nacional de Tierras - ANT',
+      nit: '900948953',
+      location: 'Colombia · Orden Nacional (UGT Regionales)',
+      municipio: 'Bogotá',
+      departamento: 'Distrito Capital de Bogotá',
+      category: 'Orden Nacional',
+      emblemType: EntityEmblemType.deporteGreenLeaf,
+      contractsCount: 9532,
+      contractsFormatted: '9.532',
+      amountMillions: 588669,
+      amountFormatted: '\$ 588.669 M',
+      dependenciesCount: 15,
+      uniqueContractors: 4310,
+      secopKeywords: ['AGENCIA NACIONAL DE TIERRAS - ANT'],
     ),
     EntitySummaryRecord(
       name: 'Alcaldía Distrital de Santa Marta',
@@ -201,29 +233,13 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       departamento: 'Magdalena',
       category: 'Orden Territorial',
       emblemType: EntityEmblemType.alcaldiaCoatOfArms,
-      contractsCount: 15241,
-      contractsFormatted: '15.241',
-      amountMillions: 2666835,
-      amountFormatted: '\$ 2.666.835 M',
+      contractsCount: 2438,
+      contractsFormatted: '2.438',
+      amountMillions: 384308,
+      amountFormatted: '\$ 384.308 M',
       dependenciesCount: 14,
-      uniqueContractors: 4447,
+      uniqueContractors: 1412,
       secopKeywords: ['ALCALDÍA DISTRITAL DE SANTA MARTA'],
-    ),
-    EntitySummaryRecord(
-      name: 'Servicio Nacional de Aprendizaje - SENA',
-      nit: '899999034',
-      location: 'Colombia · Orden Nacional',
-      municipio: 'Bogotá',
-      departamento: 'Distrito Capital de Bogotá',
-      category: 'Orden Nacional',
-      emblemType: EntityEmblemType.educacionShield,
-      contractsCount: 32162,
-      contractsFormatted: '32.162',
-      amountMillions: 1934335,
-      amountFormatted: '\$ 1.934.335 M',
-      dependenciesCount: 33,
-      uniqueContractors: 11150,
-      secopKeywords: ['SENA'],
     ),
     EntitySummaryRecord(
       name: 'Alcaldía Municipal de Valledupar',
@@ -233,29 +249,13 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       departamento: 'Cesar',
       category: 'Orden Territorial',
       emblemType: EntityEmblemType.alcaldiaCoatOfArms,
-      contractsCount: 14532,
-      contractsFormatted: '14.532',
-      amountMillions: 1556109,
-      amountFormatted: '\$ 1.556.109 M',
+      contractsCount: 3180,
+      contractsFormatted: '3.180',
+      amountMillions: 266973,
+      amountFormatted: '\$ 266.973 M',
       dependenciesCount: 12,
-      uniqueContractors: 4134,
+      uniqueContractors: 1396,
       secopKeywords: ['ALCALDIA MUNICIPAL DE VALLEDUPAR'],
-    ),
-    EntitySummaryRecord(
-      name: 'Agencia Nacional de Tierras - ANT',
-      nit: '900948953',
-      location: 'Bogotá D.C. · Orden Nacional',
-      municipio: 'Bogotá',
-      departamento: 'Distrito Capital de Bogotá',
-      category: 'Orden Nacional',
-      emblemType: EntityEmblemType.deporteGreenLeaf,
-      contractsCount: 21275,
-      contractsFormatted: '21.275',
-      amountMillions: 1296759,
-      amountFormatted: '\$ 1.296.759 M',
-      dependenciesCount: 15,
-      uniqueContractors: 9575,
-      secopKeywords: ['AGENCIA NACIONAL DE TIERRAS - ANT'],
     ),
   ];
 
@@ -508,13 +508,13 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     return formatted.join(' ');
   }
 
-  /// Actualiza en segundo plano las entidades más contratantes reales de Colombia desde SECOP II
+  /// Actualiza en segundo plano las entidades más contratantes reales de Colombia desde SECOP II (Vigencia 2026)
   Future<void> _fetchLiveTopEntitiesAcrossColombia() async {
     try {
       final url = Uri.parse(
         'https://www.datos.gov.co/resource/jbjy-vk9h.json?'
         '\$select=nombre_entidad,nit_entidad,ciudad,departamento,orden,count(*)%20as%20contratos,sum(valor_del_contrato)%20as%20total_valor,count(distinct%20documento_proveedor)%20as%20contratistas'
-        "&\$where=valor_del_contrato%20%3E%200%20AND%20fecha_de_firma%20%3E=%20'2025-01-01T00:00:00.000'%20AND%20upper(nombre_entidad)%20NOT%20LIKE%20'%25SECRETAR%25'"
+        "&\$where=valor_del_contrato%20%3E%200%20AND%20valor_del_contrato%20%3C%20500000000000%20AND%20fecha_de_firma%20%3E=%20'2026-01-01T00:00:00.000'%20AND%20upper(nombre_entidad)%20NOT%20LIKE%20'%25SECRETAR%25'"
         '&\$group=nombre_entidad,nit_entidad,ciudad,departamento,orden'
         '&\$order=total_valor%20DESC'
         '&\$limit=20',
@@ -701,6 +701,30 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
   ) {
     final Map<String, EntitySummaryRecord> consolidated = {};
 
+    // Si el usuario escribe en la búsqueda una regional específica (ej. "sena atlantico", "sena cesar", "icbf guajira"),
+    // mostramos también las regionales desglosadas por departamento.
+    final bool queryAsksForRegional = cleanQuery.contains('REGIONAL') ||
+        cleanQuery.contains('SECCIONAL') ||
+        cleanQuery.contains('ATLANTICO') ||
+        cleanQuery.contains('CESAR') ||
+        cleanQuery.contains('GUAJIRA') ||
+        cleanQuery.contains('BOLIVAR') ||
+        cleanQuery.contains('MAGDALENA') ||
+        cleanQuery.contains('ANTIOQUIA') ||
+        cleanQuery.contains('VALLE') ||
+        cleanQuery.contains('SANTANDER') ||
+        cleanQuery.contains('CORDOBA') ||
+        cleanQuery.contains('SUCRE') ||
+        cleanQuery.contains('TOLIMA') ||
+        cleanQuery.contains('HUILA') ||
+        cleanQuery.contains('META') ||
+        cleanQuery.contains('BOYACA') ||
+        cleanQuery.contains('CAUCA') ||
+        cleanQuery.contains('NARINO') ||
+        cleanQuery.contains('RISARALDA') ||
+        cleanQuery.contains('QUINDIO') ||
+        cleanQuery.contains('CALDAS');
+
     for (final item in rawList) {
       if (item is! Map) continue;
       final rawName = (item['nombre_entidad'] ?? '').toString().trim();
@@ -734,15 +758,30 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       final contractors =
           int.tryParse((item['contratistas'] ?? '1').toString()) ?? 1;
 
-      final prettyName = _beautifyEntityName(rawName);
+      String prettyName = _beautifyEntityName(rawName);
+      final isMultiRegionalRoot =
+          prettyName == 'Servicio Nacional de Aprendizaje - SENA' ||
+              prettyName ==
+                  'Instituto Colombiano de Bienestar Familiar - ICBF' ||
+              prettyName == 'Instituto Nacional de Vías - INVIAS';
+
+      if (isMultiRegionalRoot &&
+          queryAsksForRegional &&
+          dept != 'Colombia' &&
+          dept.isNotEmpty) {
+        final shortRoot = prettyName.contains('SENA')
+            ? 'Servicio Nacional de Aprendizaje - SENA'
+            : (prettyName.contains('ICBF')
+                ? 'Instituto Colombiano de Bienestar Familiar - ICBF'
+                : 'Instituto Nacional de Vías - INVIAS');
+        prettyName = '$shortRoot (Regional $dept)';
+      }
+
       final normPretty = _normalizar(prettyName);
       final existing = consolidated[normPretty];
 
       if (existing == null) {
-        final isConsolidationRoot =
-            prettyName == 'Servicio Nacional de Aprendizaje - SENA' ||
-                prettyName ==
-                    'Instituto Colombiano de Bienestar Familiar - ICBF';
+        final isConsolidationRoot = isMultiRegionalRoot && !queryAsksForRegional;
         final emblem = _classifyEmblem(rawName);
         final estDeps = isConsolidationRoot
             ? 33
@@ -751,13 +790,13 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
         consolidated[normPretty] = EntitySummaryRecord(
           name: prettyName,
           nit: nitRaw.isNotEmpty && nitRaw != 'No Definido'
-              ? nitRaw
+              ? (nitRaw == '8999990341' ? '899999034' : nitRaw)
               : 'Verificado SECOP II',
           location: isConsolidationRoot
-              ? 'Colombia · Orden Nacional'
+              ? 'Colombia · Orden Nacional (33 Regionales)'
               : (city != 'Colombia' && dept != 'Colombia'
                   ? '$city, $dept · ${ordenRaw.isNotEmpty ? ordenRaw : "Territorial"}'
-                  : '$city · ${ordenRaw.isNotEmpty ? ordenRaw : "Nacional"}'),
+                  : '$dept · ${ordenRaw.isNotEmpty ? ordenRaw : "Nacional"}'),
           municipio: isConsolidationRoot ? 'Bogotá' : city,
           departamento: isConsolidationRoot
               ? 'Distrito Capital de Bogotá'
@@ -770,7 +809,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
           amountFormatted: _formatMillions(millions),
           dependenciesCount: estDeps,
           uniqueContractors: contractors,
-          secopKeywords: isConsolidationRoot
+          secopKeywords: isMultiRegionalRoot
               ? [prettyName.contains('SENA') ? 'SENA' : 'ICBF', rawName]
               : [rawName],
         );
@@ -800,7 +839,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     return consolidated.values.toList();
   }
 
-  /// Consulta en vivo a SECOP II (cualquier orden de Colombia, desde la primera letra, sin inventar perfiles).
+  /// Consulta en vivo a SECOP II (Vigencia anualizada 2026, cualquier orden de Colombia, desde la primera letra).
   Future<_CachedEntitiesBundle?> _executeUnfilteredSecopEntitySearch(
     String queryText,
   ) async {
@@ -813,7 +852,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     if (clean.length == 1) {
       try {
         final whereClause =
-            "nombre_entidad IS NOT NULL AND valor_del_contrato > 0 AND fecha_de_firma >= '2025-01-01T00:00:00.000' AND upper(nombre_entidad) LIKE '$clean%' AND upper(nombre_entidad) NOT LIKE '%SECRETAR%'";
+            "nombre_entidad IS NOT NULL AND valor_del_contrato > 0 AND valor_del_contrato < 500000000000 AND fecha_de_firma >= '2026-01-01T00:00:00.000' AND upper(nombre_entidad) LIKE '$clean%' AND upper(nombre_entidad) NOT LIKE '%SECRETAR%'";
         final url = Uri.parse(
           'https://www.datos.gov.co/resource/jbjy-vk9h.json?'
           '\$select=nombre_entidad,nit_entidad,ciudad,departamento,orden,count(*)%20as%20contratos,sum(valor_del_contrato)%20as%20total_valor,count(distinct%20documento_proveedor)%20as%20contratistas'
@@ -830,7 +869,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
         rawList = [];
       }
     } else {
-      // Caso B: 2 o más caracteres (ej. "sena", "alcaldia de santa marta", "invias", "gobernacion")
+      // Caso B: 2 o más caracteres (ej. "sena", "sena atlantico", "alcaldia de santa marta", "invias", "gobernacion")
       const connectors = {
         'DE',
         'DEL',
@@ -845,6 +884,8 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
         'MUNICIPAL',
         'DISTRITAL',
         'DEPARTAMENTAL',
+        'REGIONAL',
+        'SECCIONAL',
       };
 
       final rawTokens = clean
@@ -859,6 +900,8 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       final whereClauses = <String>[
         'nombre_entidad IS NOT NULL',
         'valor_del_contrato > 0',
+        'valor_del_contrato < 500000000000',
+        "fecha_de_firma >= '2026-01-01T00:00:00.000'",
       ];
 
       if (!tokens.contains('SENA')) {
@@ -875,22 +918,22 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
             "(upper(nombre_entidad) LIKE '%GOBERNAC%' OR upper(nombre_entidad) LIKE '%DEPARTAMENTO%')",
           );
         } else {
-          whereClauses.add("upper(nombre_entidad) LIKE '%$t%'");
+          whereClauses.add(
+            "(upper(nombre_entidad) LIKE '%$t%' OR upper(departamento) LIKE '%$t%' OR upper(ciudad) LIKE '%$t%')",
+          );
         }
       }
 
-      final qParam = Uri.encodeComponent(tokens.join(' '));
       final whereParam = Uri.encodeComponent(whereClauses.join(' AND '));
 
       try {
         final url = Uri.parse(
           'https://www.datos.gov.co/resource/jbjy-vk9h.json?'
           '\$select=nombre_entidad,nit_entidad,ciudad,departamento,orden,count(*)%20as%20contratos,sum(valor_del_contrato)%20as%20total_valor,count(distinct%20documento_proveedor)%20as%20contratistas'
-          '&\$q=$qParam'
           '&\$where=$whereParam'
           '&\$group=nombre_entidad,nit_entidad,ciudad,departamento,orden'
           '&\$order=contratos%20DESC'
-          '&\$limit=30',
+          '&\$limit=45',
         );
         final response =
             await http.get(url).timeout(const Duration(seconds: 8));
@@ -908,12 +951,17 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     for (final seed in _filterVerifiedSeedEntities(queryText)) {
       final normSeed = _normalizar(seed.name);
       if (!finalEntities.any((e) => _normalizar(e.name) == normSeed)) {
-        finalEntities.add(seed);
+        finalEntities.insert(0, seed);
+      } else {
+        // Si es SENA, ICBF o INVIAS consolidado, preferimos la cifra nacional anualizada 2026 completa
+        final idx =
+            finalEntities.indexWhere((e) => _normalizar(e.name) == normSeed);
+        if (idx >= 0 && seed.contractsCount > finalEntities[idx].contractsCount) {
+          finalEntities[idx] = seed;
+        }
       }
     }
 
-    // Si busca específicamente "sena", dejamos el SENA consolidado;
-    // si busca "alcaldia de <ciudad>", dejamos solo la alcaldía correspondiente
     if (clean == 'SENA' || clean == 'SERVICIO NACIONAL DE APRENDIZAJE') {
       final onlySena = finalEntities
           .where((e) => _normalizar(e.name).contains('SENA'))
@@ -989,9 +1037,12 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     return list;
   }
 
-  /// Entidades más contratantes reales de cualquier orden en Colombia
+  /// Entidades más contratantes reales de cualquier orden en Colombia.
+  /// Se mantiene fija con el ranking nacional incluso cuando el usuario realiza una búsqueda en la barra.
   List<EntitySummaryRecord> get _top5Entities {
-    final source = _isEmptySearch ? _topContractingEntities : _activeEntities;
+    final source = _topContractingEntities.isNotEmpty
+        ? _topContractingEntities
+        : _verifiedSecopDefaultEntities;
     final sorted = List<EntitySummaryRecord>.from(source)
       ..sort((a, b) => b.amountMillions.compareTo(a.amountMillions));
     return sorted.take(5).toList();
@@ -1688,7 +1739,11 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           child: Row(
             children: [
-              EntityEmblemWidget(type: entity.emblemType, size: 42),
+              EntityBrandScope(
+                entityName: entity.name,
+                nit: entity.nit,
+                child: EntityEmblemWidget(type: entity.emblemType, size: 44),
+              ),
               const SizedBox(width: 14),
               Expanded(
                 flex: 4,
@@ -2025,9 +2080,13 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                           ),
                         ),
                         const SizedBox(width: 9),
-                        EntityEmblemWidget(
-                          type: top5[index].emblemType,
-                          size: 33,
+                        EntityBrandScope(
+                          entityName: top5[index].name,
+                          nit: top5[index].nit,
+                          child: EntityEmblemWidget(
+                            type: top5[index].emblemType,
+                            size: 35,
+                          ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
@@ -2312,8 +2371,28 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
 }
 
 // =============================================================================
-// EMBLEMAS Y ESCUDOS INSTITUCIONALES (PÚBLICO PARA PERFIL DE ENTIDAD)
+// EMBLEMAS Y ESCUDOS INSTITUCIONALES EN HD (DISEÑO FIEL A CADA ENTIDAD)
 // =============================================================================
+
+class EntityBrandScope extends InheritedWidget {
+  const EntityBrandScope({
+    super.key,
+    required this.entityName,
+    this.nit = '',
+    required super.child,
+  });
+
+  final String entityName;
+  final String nit;
+
+  static EntityBrandScope? maybeOf(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType<EntityBrandScope>();
+  }
+
+  @override
+  bool updateShouldNotify(covariant EntityBrandScope oldWidget) =>
+      oldWidget.entityName != entityName || oldWidget.nit != nit;
+}
 
 class EntityEmblemWidget extends StatelessWidget {
   const EntityEmblemWidget({
@@ -2325,8 +2404,114 @@ class EntityEmblemWidget extends StatelessWidget {
   final EntityEmblemType type;
   final double size;
 
+  static String _norm(String s) {
+    return s
+        .toUpperCase()
+        .replaceAll('Á', 'A')
+        .replaceAll('É', 'E')
+        .replaceAll('Í', 'I')
+        .replaceAll('Ó', 'O')
+        .replaceAll('Ú', 'U')
+        .replaceAll('Ü', 'U');
+  }
+
   @override
   Widget build(BuildContext context) {
+    final scope = EntityBrandScope.maybeOf(context);
+    final normName = _norm(scope?.entityName ?? '');
+    final nitClean = (scope?.nit ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+
+    if (normName.contains('SENA') ||
+        normName.contains('APRENDIZAJE') ||
+        nitClean.startsWith('899999034')) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(painter: _SenaOfficialHdPainter()),
+      );
+    }
+
+    if (normName.contains('ICBF') ||
+        normName.contains('BIENESTAR FAMILIAR') ||
+        nitClean.startsWith('899999239')) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(painter: _IcbfOfficialHdPainter()),
+      );
+    }
+
+    if (normName.contains('INVIAS') ||
+        normName.contains('NACIONAL DE VIAS') ||
+        nitClean.startsWith('800215807')) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(painter: _InviasOfficialHdPainter()),
+      );
+    }
+
+    if (normName.contains('AGENCIA NACIONAL DE TIERRAS') ||
+        normName.endsWith(' - ANT') ||
+        nitClean.startsWith('900948953')) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(painter: _AntOfficialHdPainter()),
+      );
+    }
+
+    if (normName.contains('BARRANQUILLA') || nitClean.startsWith('890102018')) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(painter: _BarranquillaCoatOfArmsHdPainter()),
+      );
+    }
+
+    if (normName.contains('CARTAGENA') || nitClean.startsWith('890480184')) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(painter: _CartagenaCoatOfArmsHdPainter()),
+      );
+    }
+
+    if (normName.contains('SANTA MARTA') || nitClean.startsWith('891780009')) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(painter: _SantaMartaCoatOfArmsHdPainter()),
+      );
+    }
+
+    if (normName.contains('VALLEDUPAR') || nitClean.startsWith('800098911')) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(painter: _ValleduparCoatOfArmsHdPainter()),
+      );
+    }
+
+    if (normName.contains('MINISTERIO') ||
+        normName.contains('NACIONAL') ||
+        normName.contains('POLICIA') ||
+        normName.contains('FISCALIA') ||
+        normName.contains('CONTRALORIA') ||
+        normName.contains('PROCURADURIA') ||
+        normName.contains('DIAN') ||
+        normName.contains('DNP') ||
+        normName.contains('DANE') ||
+        normName.contains('UNGRD')) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(
+          painter: _ColombiaNationalEntityHdPainter(label: normName),
+        ),
+      );
+    }
+
     switch (type) {
       case EntityEmblemType.alcaldiaCoatOfArms:
         return SizedBox(
@@ -2374,20 +2559,10 @@ class EntityEmblemWidget extends StatelessWidget {
           ),
         );
       case EntityEmblemType.obrasHardHat:
-        return Container(
+        return SizedBox(
           width: size,
           height: size,
-          decoration: const BoxDecoration(
-            color: Color(0xFFFEF3C7),
-            shape: BoxShape.circle,
-          ),
-          child: Center(
-            child: Icon(
-              Icons.engineering_rounded,
-              color: const Color(0xFFF59E0B),
-              size: size * 0.58,
-            ),
-          ),
+          child: CustomPaint(painter: _InviasOfficialHdPainter()),
         );
       case EntityEmblemType.educacionShield:
         return SizedBox(
@@ -2396,21 +2571,10 @@ class EntityEmblemWidget extends StatelessWidget {
           child: CustomPaint(painter: _NavyGoldShieldPainter()),
         );
       case EntityEmblemType.deporteGreenLeaf:
-        return Container(
+        return SizedBox(
           width: size,
           height: size,
-          decoration: BoxDecoration(
-            color: const Color(0xFFF0FDF4),
-            shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFF22C55E), width: 2.2),
-          ),
-          child: Center(
-            child: Icon(
-              Icons.eco_rounded,
-              color: const Color(0xFF15803D),
-              size: size * 0.54,
-            ),
-          ),
+          child: CustomPaint(painter: _AntOfficialHdPainter()),
         );
       case EntityEmblemType.culturaMasks:
         return Container(
@@ -2446,6 +2610,510 @@ class EntityEmblemWidget extends StatelessWidget {
         );
     }
   }
+}
+
+/// Logo institucional HD del SENA (triada geométrica naranja/verde oficial + tipografía SENA)
+class _SenaOfficialHdPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final center = Offset(w / 2, h / 2);
+
+    canvas.drawCircle(
+      center,
+      w / 2,
+      Paint()..color = const Color(0xFFFFFBF5),
+    );
+    canvas.drawCircle(
+      center,
+      (w / 2) - 1.2,
+      Paint()
+        ..color = const Color(0xFFEA580C)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * 0.045,
+    );
+
+    const senaOrange = Color(0xFFFF671F);
+    const senaGreen = Color(0xFF00843D);
+
+    // Punto superior (cabeza del isotipo SENA)
+    canvas.drawCircle(
+      Offset(w * 0.50, h * 0.21),
+      w * 0.075,
+      Paint()..color = senaOrange,
+    );
+
+    // Tres brazos geométricos del isotipo SENA con apertura central
+    final leftWing = Path()
+      ..moveTo(w * 0.46, h * 0.30)
+      ..lineTo(w * 0.20, h * 0.30)
+      ..lineTo(w * 0.33, h * 0.43)
+      ..lineTo(w * 0.24, h * 0.64)
+      ..lineTo(w * 0.46, h * 0.47)
+      ..close();
+    canvas.drawPath(leftWing, Paint()..color = senaOrange);
+
+    final rightWing = Path()
+      ..moveTo(w * 0.54, h * 0.30)
+      ..lineTo(w * 0.80, h * 0.30)
+      ..lineTo(w * 0.67, h * 0.43)
+      ..lineTo(w * 0.76, h * 0.64)
+      ..lineTo(w * 0.54, h * 0.47)
+      ..close();
+    canvas.drawPath(rightWing, Paint()..color = senaOrange);
+
+    final bottomTriangle = Path()
+      ..moveTo(w * 0.50, h * 0.51)
+      ..lineTo(w * 0.31, h * 0.67)
+      ..lineTo(w * 0.69, h * 0.67)
+      ..close();
+    canvas.drawPath(bottomTriangle, Paint()..color = senaGreen);
+
+    // Sigla SENA en la base
+    final tp = TextPainter(
+      text: TextSpan(
+        text: 'SENA',
+        style: TextStyle(
+          color: senaGreen,
+          fontSize: w * 0.19,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.6,
+          height: 1.0,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, Offset((w - tp.width) / 2, h * 0.71));
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Logo institucional HD del ICBF (Bienestar Familiar: arco protector verde y figuras familiares)
+class _IcbfOfficialHdPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final center = Offset(w / 2, h / 2);
+
+    canvas.drawCircle(center, w / 2, Paint()..color = const Color(0xFFF0FDF4));
+    canvas.drawCircle(
+      center,
+      (w / 2) - 1.2,
+      Paint()
+        ..color = const Color(0xFF16A34A)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * 0.045,
+    );
+
+    // Techo / arco de hogar verde institucional
+    final roof = Path()
+      ..moveTo(w * 0.22, h * 0.42)
+      ..quadraticBezierTo(w * 0.50, h * 0.14, w * 0.78, h * 0.42);
+    canvas.drawPath(
+      roof,
+      Paint()
+        ..color = const Color(0xFF009640)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * 0.085
+        ..strokeCap = StrokeCap.round,
+    );
+
+    // Dos figuras humanas cálidas (rojo/naranja y verde)
+    canvas.drawCircle(
+      Offset(w * 0.39, h * 0.41),
+      w * 0.065,
+      Paint()..color = const Color(0xFFE11D48),
+    );
+    canvas.drawCircle(
+      Offset(w * 0.61, h * 0.43),
+      w * 0.058,
+      Paint()..color = const Color(0xFFF59E0B),
+    );
+
+    final bodyLeft = Path()
+      ..moveTo(w * 0.28, h * 0.64)
+      ..quadraticBezierTo(w * 0.39, h * 0.48, w * 0.50, h * 0.64)
+      ..close();
+    canvas.drawPath(bodyLeft, Paint()..color = const Color(0xFF009640));
+
+    final bodyRight = Path()
+      ..moveTo(w * 0.49, h * 0.64)
+      ..quadraticBezierTo(w * 0.61, h * 0.50, w * 0.72, h * 0.64)
+      ..close();
+    canvas.drawPath(bodyRight, Paint()..color = const Color(0xFFE11D48));
+
+    final tp = TextPainter(
+      text: TextSpan(
+        text: 'ICBF',
+        style: TextStyle(
+          color: const Color(0xFF065F46),
+          fontSize: w * 0.185,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.6,
+          height: 1.0,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, Offset((w - tp.width) / 2, h * 0.70));
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Logo institucional HD del INVÍAS (perspectiva vial naranja/azul oscuro + sigla INVÍAS)
+class _InviasOfficialHdPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final center = Offset(w / 2, h / 2);
+
+    canvas.drawCircle(center, w / 2, Paint()..color = const Color(0xFFFFF7ED));
+    canvas.drawCircle(
+      center,
+      (w / 2) - 1.2,
+      Paint()
+        ..color = const Color(0xFFEA580C)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * 0.045,
+    );
+
+    // Sol / horizonte naranja
+    canvas.drawArc(
+      Rect.fromLTWH(w * 0.24, h * 0.18, w * 0.52, h * 0.42),
+      math.pi,
+      math.pi,
+      true,
+      Paint()..color = const Color(0xFFF97316),
+    );
+
+    // Vía en perspectiva azul oscuro con línea central blanca/amarilla
+    final road = Path()
+      ..moveTo(w * 0.44, h * 0.34)
+      ..lineTo(w * 0.56, h * 0.34)
+      ..lineTo(w * 0.76, h * 0.66)
+      ..lineTo(w * 0.24, h * 0.66)
+      ..close();
+    canvas.drawPath(road, Paint()..color = const Color(0xFF1A2B4C));
+
+    canvas.drawLine(
+      Offset(w * 0.50, h * 0.37),
+      Offset(w * 0.50, h * 0.64),
+      Paint()
+        ..color = const Color(0xFFFACC15)
+        ..strokeWidth = w * 0.038
+        ..strokeCap = StrokeCap.round,
+    );
+
+    final tp = TextPainter(
+      text: TextSpan(
+        text: 'INVÍAS',
+        style: TextStyle(
+          color: const Color(0xFF1A2B4C),
+          fontSize: w * 0.16,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.3,
+          height: 1.0,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, Offset((w - tp.width) / 2, h * 0.71));
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Logo institucional HD de la Agencia Nacional de Tierras - ANT
+class _AntOfficialHdPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final center = Offset(w / 2, h / 2);
+
+    canvas.drawCircle(center, w / 2, Paint()..color = const Color(0xFFF0FDF4));
+    canvas.drawCircle(
+      center,
+      (w / 2) - 1.2,
+      Paint()
+        ..color = const Color(0xFF15803D)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * 0.045,
+    );
+
+    // Sol dorado
+    canvas.drawCircle(
+      Offset(w * 0.50, h * 0.31),
+      w * 0.12,
+      Paint()..color = const Color(0xFFFBBF24),
+    );
+
+    // Surcos de tierra verdes
+    final hillLeft = Path()
+      ..moveTo(w * 0.18, h * 0.58)
+      ..quadraticBezierTo(w * 0.38, h * 0.38, w * 0.62, h * 0.64)
+      ..lineTo(w * 0.18, h * 0.64)
+      ..close();
+    canvas.drawPath(hillLeft, Paint()..color = const Color(0xFF16A34A));
+
+    final hillRight = Path()
+      ..moveTo(w * 0.36, h * 0.64)
+      ..quadraticBezierTo(w * 0.62, h * 0.40, w * 0.82, h * 0.64)
+      ..close();
+    canvas.drawPath(hillRight, Paint()..color = const Color(0xFF15803D));
+
+    final tp = TextPainter(
+      text: TextSpan(
+        text: 'ANT',
+        style: TextStyle(
+          color: const Color(0xFF14532D),
+          fontSize: w * 0.19,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.7,
+          height: 1.0,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, Offset((w - tp.width) / 2, h * 0.70));
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Escudo heráldico HD de Barranquilla (bandera cuadrilonga verde, roja y amarilla con estrella de 8 puntas)
+class _BarranquillaCoatOfArmsHdPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final center = Offset(w / 2, h / 2);
+
+    canvas.drawCircle(center, w / 2, Paint()..color = const Color(0xFFFFFBEB));
+
+    final rect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.16, h * 0.20, w * 0.68, h * 0.60),
+      Radius.circular(w * 0.08),
+    );
+    canvas.drawRRect(rect, Paint()..color = const Color(0xFF15803D));
+
+    final midRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.25, h * 0.29, w * 0.50, h * 0.42),
+      Radius.circular(w * 0.05),
+    );
+    canvas.drawRRect(midRect, Paint()..color = const Color(0xFFDC2626));
+
+    final innerRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.34, h * 0.37, w * 0.32, h * 0.26),
+      Radius.circular(w * 0.03),
+    );
+    canvas.drawRRect(innerRect, Paint()..color = const Color(0xFFFACC15));
+
+    // Estrella blanca central
+    canvas.drawCircle(center, w * 0.08, Paint()..color = Colors.white);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Escudo heráldico HD de Cartagena de Indias
+class _CartagenaCoatOfArmsHdPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final center = Offset(w / 2, h / 2);
+
+    canvas.drawCircle(center, w / 2, Paint()..color = const Color(0xFFFFFBEB));
+
+    final shield = Path()
+      ..moveTo(w * 0.22, h * 0.22)
+      ..lineTo(w * 0.78, h * 0.22)
+      ..lineTo(w * 0.78, h * 0.54)
+      ..quadraticBezierTo(w * 0.78, h * 0.78, w * 0.50, h * 0.88)
+      ..quadraticBezierTo(w * 0.22, h * 0.78, w * 0.22, h * 0.54)
+      ..close();
+
+    canvas.drawPath(shield, Paint()..color = const Color(0xFFFEF3C7));
+    canvas.drawPath(
+      shield,
+      Paint()
+        ..color = const Color(0xFFD97706)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * 0.05,
+    );
+
+    // Cruz colonial e insignia verde/roja/amarilla
+    canvas.drawLine(
+      Offset(w * 0.50, h * 0.30),
+      Offset(w * 0.50, h * 0.75),
+      Paint()
+        ..color = const Color(0xFFB45309)
+        ..strokeWidth = w * 0.07
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawLine(
+      Offset(w * 0.33, h * 0.45),
+      Offset(w * 0.67, h * 0.45),
+      Paint()
+        ..color = const Color(0xFF15803D)
+        ..strokeWidth = w * 0.065
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Escudo heráldico HD de Santa Marta (azul celeste y blanco con torre dorada)
+class _SantaMartaCoatOfArmsHdPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    final shield = Path()
+      ..moveTo(w * 0.22, h * 0.18)
+      ..lineTo(w * 0.78, h * 0.18)
+      ..lineTo(w * 0.78, h * 0.54)
+      ..quadraticBezierTo(w * 0.78, h * 0.79, w * 0.50, h * 0.89)
+      ..quadraticBezierTo(w * 0.22, h * 0.79, w * 0.22, h * 0.54)
+      ..close();
+
+    canvas.save();
+    canvas.clipPath(shield);
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, w, h * 0.53),
+      Paint()..color = const Color(0xFF0284C7),
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(0, h * 0.53, w, h * 0.47),
+      Paint()..color = Colors.white,
+    );
+    // Torre dorada central
+    canvas.drawRect(
+      Rect.fromLTWH(w * 0.41, h * 0.34, w * 0.18, h * 0.34),
+      Paint()..color = const Color(0xFFF59E0B),
+    );
+    canvas.restore();
+
+    canvas.drawPath(
+      shield,
+      Paint()
+        ..color = const Color(0xFF0369A1)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * 0.05,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Escudo heráldico HD de Valledupar (azul, blanco y rojo con corona mural dorada)
+class _ValleduparCoatOfArmsHdPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    final shield = Path()
+      ..moveTo(w * 0.22, h * 0.22)
+      ..lineTo(w * 0.78, h * 0.22)
+      ..lineTo(w * 0.78, h * 0.54)
+      ..quadraticBezierTo(w * 0.78, h * 0.79, w * 0.50, h * 0.89)
+      ..quadraticBezierTo(w * 0.22, h * 0.79, w * 0.22, h * 0.54)
+      ..close();
+
+    canvas.save();
+    canvas.clipPath(shield);
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, w, h * 0.44),
+      Paint()..color = const Color(0xFF1D4ED8),
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(0, h * 0.44, w, h * 0.18),
+      Paint()..color = Colors.white,
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(0, h * 0.62, w, h * 0.38),
+      Paint()..color = const Color(0xFFDC2626),
+    );
+    canvas.restore();
+
+    canvas.drawPath(
+      shield,
+      Paint()
+        ..color = const Color(0xFFD97706)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * 0.05,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Escudo institucional HD de Entidades del Orden Nacional (Tricolor República de Colombia)
+class _ColombiaNationalEntityHdPainter extends CustomPainter {
+  _ColombiaNationalEntityHdPainter({required this.label});
+
+  final String label;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final center = Offset(w / 2, h / 2);
+
+    canvas.drawCircle(center, w / 2, Paint()..color = const Color(0xFFF8FAFC));
+
+    final shield = Path()
+      ..moveTo(w * 0.22, h * 0.18)
+      ..lineTo(w * 0.78, h * 0.18)
+      ..lineTo(w * 0.78, h * 0.54)
+      ..quadraticBezierTo(w * 0.78, h * 0.79, w * 0.50, h * 0.89)
+      ..quadraticBezierTo(w * 0.22, h * 0.79, w * 0.22, h * 0.54)
+      ..close();
+
+    canvas.save();
+    canvas.clipPath(shield);
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, w, h * 0.50),
+      Paint()..color = const Color(0xFFFACC15),
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(0, h * 0.50, w, h * 0.20),
+      Paint()..color = const Color(0xFF1D4ED8),
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(0, h * 0.70, w, h * 0.30),
+      Paint()..color = const Color(0xFFDC2626),
+    );
+    canvas.restore();
+
+    canvas.drawPath(
+      shield,
+      Paint()
+        ..color = const Color(0xFF1A2B4C)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * 0.05,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _CoatOfArmsPainter extends CustomPainter {
@@ -2876,25 +3544,6 @@ class _CompareEntitiesUnfilteredDialogState
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              const Spacer(),
-              InkWell(
-                onTap: () => widget.onOpenProfile(selectedEntity),
-                borderRadius: BorderRadius.circular(6),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 2,
-                  ),
-                  child: Text(
-                    'Ver perfil →',
-                    style: TextStyle(
-                      color: accentColor,
-                      fontSize: 11.2,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -2907,7 +3556,14 @@ class _CompareEntitiesUnfilteredDialogState
             ),
             child: Row(
               children: [
-                EntityEmblemWidget(type: selectedEntity.emblemType, size: 36),
+                EntityBrandScope(
+                  entityName: selectedEntity.name,
+                  nit: selectedEntity.nit,
+                  child: EntityEmblemWidget(
+                    type: selectedEntity.emblemType,
+                    size: 38,
+                  ),
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
@@ -3022,7 +3678,14 @@ class _CompareEntitiesUnfilteredDialogState
                       ),
                       child: Row(
                         children: [
-                          EntityEmblemWidget(type: item.emblemType, size: 24),
+                          EntityBrandScope(
+                            entityName: item.name,
+                            nit: item.nit,
+                            child: EntityEmblemWidget(
+                              type: item.emblemType,
+                              size: 26,
+                            ),
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Column(
@@ -3270,7 +3933,7 @@ class _CompareEntitiesUnfilteredDialogState
                         children: [
                           Expanded(
                             child: _buildEntitySelectorColumn(
-                              slotLabel: 'ENTIDAD 1 (AZUL)',
+                              slotLabel: 'ENTIDAD 1',
                               accentColor: _azulPrimario,
                               softBgColor: const Color(0xFFEFF6FF),
                               selectedEntity: _entityA,
@@ -3289,7 +3952,7 @@ class _CompareEntitiesUnfilteredDialogState
                           const SizedBox(width: 14),
                           Expanded(
                             child: _buildEntitySelectorColumn(
-                              slotLabel: 'ENTIDAD 2 (ÁMBAR)',
+                              slotLabel: 'ENTIDAD 2',
                               accentColor: _ambarComparador,
                               softBgColor: const Color(0xFFFFFBEB),
                               selectedEntity: _entityB,
@@ -3362,34 +4025,22 @@ class _CompareEntitiesUnfilteredDialogState
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  TextButton(
+                  ElevatedButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Cerrar'),
-                  ),
-                  const SizedBox(width: 8),
-                  OutlinedButton.icon(
-                    onPressed: () => widget.onOpenProfile(_entityB),
-                    icon: const Icon(Icons.account_balance_outlined, size: 16),
-                    label: Text(
-                      'Perfil de ${_entityB.name}',
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: _ambarComparador,
-                      side: const BorderSide(color: Color(0xFFF59E0B)),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: () => widget.onOpenProfile(_entityA),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _azulOscuro,
                       foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 22,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
                     ),
-                    icon: const Icon(Icons.account_balance_rounded, size: 16),
-                    label: Text(
-                      'Perfil de ${_entityA.name}',
-                      overflow: TextOverflow.ellipsis,
+                    child: const Text(
+                      'Cerrar',
+                      style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
                 ],

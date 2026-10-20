@@ -207,96 +207,133 @@ class CollapsibleSideMenu extends StatelessWidget {
                 ],
               ),
             ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
+          if (!isCollapsed)
+            Padding(
+              padding: const EdgeInsets.only(left: 12, bottom: 8),
+              child: Text(
+                'MENÚ PRINCIPAL',
+                style: TextStyle(
+                  color: _azulOscuro.withValues(alpha: 0.48),
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.9,
+                ),
+              ),
+            ),
           Expanded(
-            child: ListView.builder(
-              itemCount: opcionesMenu.length,
-              itemBuilder: (context, index) {
-                final opcion = opcionesMenu[index];
-                final seleccionado = index == selectedIndex;
-                final IconData icono = (index == 2 && seleccionado)
-                    ? Icons.description
-                    : opcion.icono;
+            child: Builder(
+              builder: (context) {
+                // Se ocultan visualmente Explorar (1), Estadísticas (5) y Alertas (6)
+                // dejando habilitadas únicamente: Inicio (0), Contratos (2), Entidades (3), Contratistas (4) y Favoritos (7).
+                const visibleIndices = <int>[0, 2, 3, 4, 7];
+                return ListView.builder(
+                  padding: const EdgeInsets.only(top: 2),
+                  itemCount: visibleIndices.length,
+                  itemBuilder: (context, pos) {
+                    final index = visibleIndices[pos];
+                    final opcion = opcionesMenu[index];
+                    final seleccionado = index == selectedIndex;
+                    final IconData icono = (index == 2 && seleccionado)
+                        ? Icons.description
+                        : (index == 7 && seleccionado)
+                            ? Icons.bookmark_rounded
+                            : opcion.icono;
 
-                if (isCollapsed) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Center(
-                      child: _SideMenuHoverBubble(
-                        key: ValueKey('menu-item-$index'),
-                        label: opcion.titulo,
-                        child: Material(
-                          color:
-                              seleccionado ? _tileSelected : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(12),
-                            onTap: () => onItemSelected(index),
-                            child: SizedBox(
-                              width: 42,
-                              height: 42,
-                              child: Icon(
-                                icono,
-                                color: _azulOscuro,
-                                size: 21,
-                                weight: seleccionado ? 700 : 400,
+                    if (isCollapsed) {
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (index == 7)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 8,
+                              ),
+                              child: Divider(
+                                height: 1,
+                                color: _azulOscuro.withValues(alpha: 0.10),
+                              ),
+                            ),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Center(
+                              child: _SideMenuHoverBubble(
+                                key: ValueKey('menu-item-$index'),
+                                label: opcion.titulo,
+                                child: Material(
+                                  color: seleccionado
+                                      ? _tileSelected
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(12),
+                                    onTap: () => onItemSelected(index),
+                                    child: SizedBox(
+                                      width: 42,
+                                      height: 42,
+                                      child: Icon(
+                                        icono,
+                                        color: _azulOscuro,
+                                        size: 21,
+                                        weight: seleccionado ? 700 : 400,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                    ),
-                  );
-                }
+                        ],
+                      );
+                    }
 
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: ListTile(
-                    dense: true,
-                    visualDensity: const VisualDensity(vertical: -0.5),
-                    selected: seleccionado,
-                    selectedTileColor: _tileSelected,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    leading: Icon(
-                      icono,
-                      color: _azulOscuro,
-                      size: 21,
-                      weight: seleccionado ? 700 : 400,
-                    ),
-                    title: Text(
-                      opcion.titulo,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: _azulOscuro,
-                        fontSize: 14,
-                        fontWeight:
-                            seleccionado ? FontWeight.w700 : FontWeight.w500,
-                      ),
-                    ),
-                    trailing: index == 6
-                        ? Container(
-                            width: 20,
-                            height: 20,
-                            alignment: Alignment.center,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFEF4444),
-                              shape: BoxShape.circle,
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (index == 7)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
+                            child: Divider(
+                              height: 1,
+                              color: _azulOscuro.withValues(alpha: 0.10),
                             ),
-                            child: const Text(
-                              '3',
+                          ),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: ListTile(
+                            dense: true,
+                            visualDensity: const VisualDensity(vertical: -0.2),
+                            selected: seleccionado,
+                            selectedTileColor: _tileSelected,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            leading: Icon(
+                              icono,
+                              color: _azulOscuro,
+                              size: 21,
+                              weight: seleccionado ? 700 : 400,
+                            ),
+                            title: Text(
+                              opcion.titulo,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w800,
+                                color: _azulOscuro,
+                                fontSize: 14,
+                                fontWeight: seleccionado
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
                               ),
                             ),
-                          )
-                        : null,
-                    onTap: () => onItemSelected(index),
-                  ),
+                            onTap: () => onItemSelected(index),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 );
               },
             ),
