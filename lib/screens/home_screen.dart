@@ -131,7 +131,9 @@ class _HomeScreenState extends State<HomeScreen> {
           Expanded(
             child: Column(
               children: [
-                if (_selectedIndex == 0 || _selectedIndex == 2)
+                if (_selectedIndex == 0 ||
+                    _selectedIndex == 2 ||
+                    _selectedIndex == 3)
                   _buildCurrentView()
                 else ...[
                   DashboardTopBar(

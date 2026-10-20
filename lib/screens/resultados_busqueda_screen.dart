@@ -145,8 +145,9 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
     final response = await http.get(uri);
     if (response.statusCode != 200) return [];
     final decoded = json.decode(response.body);
-    if (decoded is List)
+    if (decoded is List) {
       return decoded.whereType<Map<String, dynamic>>().toList();
+    }
     return [];
   }
 

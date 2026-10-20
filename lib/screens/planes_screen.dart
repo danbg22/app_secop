@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/payment_service.dart';
 
 class PlanesScreen extends StatefulWidget {
-  const PlanesScreen({Key? key}) : super(key: key);
+  const PlanesScreen({super.key});
 
   @override
   _PlanesScreenState createState() => _PlanesScreenState();
@@ -93,7 +93,7 @@ class _PlanesScreenState extends State<PlanesScreen> {
                           Switch(
                             value: _pagoAnual,
                             onChanged: (val) => setState(() => _pagoAnual = val),
-                            activeColor: Colors.yellow[700],
+                            activeThumbColor: Colors.yellow[700],
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -249,7 +249,7 @@ class _TarjetaPlan extends StatelessWidget {
                       Expanded(child: Text(b, style: const TextStyle(fontSize: 13))),
                     ],
                   ),
-                )).toList(),
+                )),
                 const SizedBox(height: 32),
                 SizedBox(
                   width: double.infinity,

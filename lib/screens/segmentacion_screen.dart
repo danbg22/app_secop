@@ -172,7 +172,7 @@ class _SegmentacionScreenState extends State<SegmentacionScreen> {
                       prefixIcon: const Icon(Icons.map_outlined),
                     ),
                     hint: const Text('Ej. Cesar'),
-                    value: departamentoSeleccionado,
+                    initialValue: departamentoSeleccionado,
                     items: departamentos.map((String depto) {
                       return DropdownMenuItem(value: depto, child: Text(depto));
                     }).toList(),
@@ -198,7 +198,7 @@ class _SegmentacionScreenState extends State<SegmentacionScreen> {
                       prefixIcon: const Icon(Icons.location_on_outlined),
                     ),
                     hint: const Text('Ej. Valledupar'),
-                    value: municipioSeleccionado,
+                    initialValue: municipioSeleccionado,
                     items: departamentoSeleccionado == null 
                       ? [] 
                       : (municipiosPorDepto[departamentoSeleccionado!] ?? []).map((String muni) {

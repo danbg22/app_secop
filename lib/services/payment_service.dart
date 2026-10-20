@@ -17,7 +17,7 @@ class PaymentService {
     }
 
     print('Conectando con la pasarela bancaria...');
-    print('Intentando cobrar \$${montoACobrar} a la tarjeta terminada en ${numeroTarjeta.substring(numeroTarjeta.length - 4)}');
+    print('Intentando cobrar \$$montoACobrar a la tarjeta terminada en ${numeroTarjeta.substring(numeroTarjeta.length - 4)}');
     
     // Simulamos el tiempo de respuesta del banco (2 segundos)
     await Future.delayed(const Duration(seconds: 2));

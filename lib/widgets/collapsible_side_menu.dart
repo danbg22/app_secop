@@ -276,6 +276,25 @@ class CollapsibleSideMenu extends StatelessWidget {
                             seleccionado ? FontWeight.w700 : FontWeight.w500,
                       ),
                     ),
+                    trailing: index == 6
+                        ? Container(
+                            width: 20,
+                            height: 20,
+                            alignment: Alignment.center,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFEF4444),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Text(
+                              '3',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          )
+                        : null,
                     onTap: () => onItemSelected(index),
                   ),
                 );

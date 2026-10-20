@@ -23,7 +23,7 @@ class ResultadosScreen extends StatefulWidget {
   final String? nombreContratista;
 
   const ResultadosScreen({
-    Key? key,
+    super.key,
     required this.nivel,
     this.municipio,
     this.departamento,
@@ -31,7 +31,7 @@ class ResultadosScreen extends StatefulWidget {
     required this.dependencia,
     this.nitContratista,
     this.nombreContratista,
-  }) : super(key: key);
+  });
 
   @override
   _ResultadosScreenState createState() => _ResultadosScreenState();
@@ -207,7 +207,14 @@ class _ResultadosScreenState extends State<ResultadosScreen> {
           .toUpperCase();
 
       String entFuzzy = entLimpia.replaceAll(' ', '%');
-      queryConditions.add("upper(nombre_entidad) like '%$entFuzzy%'");
+      queryConditions.add(
+        "(upper(nombre_entidad) like '%$entFuzzy%' OR upper(nombre_entidad) like '%${widget.entidad.toUpperCase().replaceAll(' ', '%')}%')",
+      );
+      if (widget.municipio != null && widget.municipio!.isNotEmpty) {
+        queryConditions.add(
+          "upper(ciudad) like '%${widget.municipio!.toUpperCase()}%'",
+        );
+      }
     } else {
       // Si desde el Home enviamos nivel = 'Todos', se ignoran estos 3 IFs y se busca en toda Colombia
       if (widget.nivel == 'Municipal' && widget.municipio != null) {
@@ -234,7 +241,10 @@ class _ResultadosScreenState extends State<ResultadosScreen> {
           .replaceAll('ó', 'o')
           .replaceAll('ú', 'u')
           .toUpperCase();
-      queryConditions.add("upper(descripcion_del_proceso) like '%$depLimpia%'");
+      String depOrig = widget.dependencia.toUpperCase();
+      queryConditions.add(
+        "(upper(descripcion_del_proceso) like '%$depLimpia%' OR upper(objeto_del_contrato) like '%$depLimpia%' OR upper(nombre_entidad) like '%$depLimpia%' OR upper(descripcion_del_proceso) like '%$depOrig%' OR upper(nombre_entidad) like '%$depOrig%')",
+      );
     }
 
     // 4. Filtro de Due Diligence (NIT del Contratista)
@@ -272,57 +282,43 @@ class _ResultadosScreenState extends State<ResultadosScreen> {
 
   Future<void> _calcularPresupuestoGlobal() async {
     try {
-      // Reemplaza la línea de urlStr en _calcularPresupuestoGlobal por esta:
+      // Consulta agregada en el servidor (SoQL $group) para evitar descargar 50.000 registros y reprocesarlos en memoria
       final urlStr =
-          '${_construirUrlBase()}\$select=valor_del_contrato,descripcion_del_proceso,nombre_entidad,tipo_de_contrato&\$limit=50000';
-      final respuesta = await http.get(Uri.parse(urlStr));
+          '${_construirUrlBase()}\$select=tipo_de_contrato,sum(valor_del_contrato)%20as%20total_valor&\$group=tipo_de_contrato';
+      final respuesta = await http
+          .get(Uri.parse(urlStr))
+          .timeout(const Duration(seconds: 10));
 
       if (respuesta.statusCode == 200) {
         final List<dynamic> data = json.decode(respuesta.body);
-
-        var datosFiltrados = data;
-        if (widget.dependencia != 'Todas las dependencias') {
-          final keyword = _normalizarTexto(widget.dependencia);
-          datosFiltrados = data.where((contrato) {
-            final descripcion = _normalizarTexto(
-              (contrato['descripcion_del_proceso'] ?? '').toString(),
-            );
-            final entidad = _normalizarTexto(
-              (contrato['nombre_entidad'] ?? '').toString(),
-            );
-            return descripcion.contains(keyword) || entidad.contains(keyword);
-          }).toList();
-        }
-
         double sumaTotal = 0;
-        Map<String, double> distribucionGastos =
-            {}; // NUEVO: Mapa para el gráfico
+        final Map<String, double> distribucionGastos = {};
 
-        for (var contrato in datosFiltrados) {
-          if (contrato['valor_del_contrato'] != null) {
-            double valorContrato =
-                double.tryParse(contrato['valor_del_contrato'].toString()) ?? 0;
-
-            if (valorContrato < 50000000000) {
-              sumaTotal += valorContrato;
-
-              // Agrupamos el gasto por tipo de contrato para el gráfico
-              String tipo = contrato['tipo_de_contrato'] ?? 'Otros';
+        for (final fila in data) {
+          if (fila is Map) {
+            final double valorGrupo =
+                double.tryParse((fila['total_valor'] ?? '0').toString()) ?? 0;
+            if (valorGrupo > 0) {
+              sumaTotal += valorGrupo;
+              final String tipo =
+                  (fila['tipo_de_contrato'] ?? 'Otros').toString();
               distribucionGastos[tipo] =
-                  (distribucionGastos[tipo] ?? 0) + valorContrato;
+                  (distribucionGastos[tipo] ?? 0) + valorGrupo;
             }
           }
         }
 
+        if (!mounted) return;
         setState(() {
           totalGastadoGlobal = sumaTotal;
-          // Guardamos el mapa en una variable de la clase para que el Widget Build la use
-          this.distribucionActual = distribucionGastos;
+          distribucionActual = distribucionGastos;
           isLoadingPresupuesto = false;
         });
+      } else {
+        if (mounted) setState(() => isLoadingPresupuesto = false);
       }
     } catch (e) {
-      setState(() => isLoadingPresupuesto = false);
+      if (mounted) setState(() => isLoadingPresupuesto = false);
     }
   }
 
@@ -330,17 +326,20 @@ class _ResultadosScreenState extends State<ResultadosScreen> {
     final estadoLower = estado.toLowerCase();
     if (estadoLower.contains('celebrado') ||
         estadoLower.contains('liquidado') ||
-        estadoLower.contains('terminado'))
+        estadoLower.contains('terminado')) {
       return Colors.green;
+    }
     if (estadoLower.contains('enviado') ||
         estadoLower.contains('convocado') ||
         estadoLower.contains('evaluaci') ||
-        estadoLower.contains('adjudicado'))
+        estadoLower.contains('adjudicado')) {
       return Colors.orange;
+    }
     if (estadoLower.contains('borrador') ||
         estadoLower.contains('descartado') ||
-        estadoLower.contains('cancelado'))
+        estadoLower.contains('cancelado')) {
       return Colors.grey;
+    }
     return Colors.blue;
   }
 
@@ -406,10 +405,11 @@ class _ResultadosScreenState extends State<ResultadosScreen> {
         setState(() {
           contratos.addAll(datosProcesados);
           offsetActual += limitePagina;
-          if (limpiar)
+          if (limpiar) {
             isLoading = false;
-          else
+          } else {
             cargandoMas = false;
+          }
         });
         aplicarFiltros();
       } else {
@@ -555,10 +555,10 @@ class _ResultadosScreenState extends State<ResultadosScreen> {
         ),
       ),
       selected: isSelected,
-      selectedColor: colorBase.withOpacity(0.15),
+      selectedColor: colorBase.withValues(alpha: 0.15),
       backgroundColor: Colors.white,
       side: BorderSide(
-        color: isSelected ? colorBase.withOpacity(0.5) : Colors.grey.shade300,
+        color: isSelected ? colorBase.withValues(alpha: 0.5) : Colors.grey.shade300,
       ),
       onSelected: (bool selected) {
         setState(() => filtroEstado = etiqueta);
@@ -594,13 +594,14 @@ class _ResultadosScreenState extends State<ResultadosScreen> {
   }
 
   List<Widget> _generarLeyendas() {
-    if (distribucionActual.isEmpty)
+    if (distribucionActual.isEmpty) {
       return [
         const Text(
           'Sin datos calculables',
           style: TextStyle(color: Colors.grey),
         ),
       ];
+    }
 
     int index = 0;
     // Ordenamos de mayor a menor para que el gráfico tenga más sentido
@@ -614,8 +615,9 @@ class _ResultadosScreenState extends State<ResultadosScreen> {
 
       // Acortamos textos muy largos (ej. "Prestación de Servicios" a 22 letras)
       String nombreTipo = entry.key;
-      if (nombreTipo.length > 22)
+      if (nombreTipo.length > 22) {
         nombreTipo = '${nombreTipo.substring(0, 22)}...';
+      }
 
       return Padding(
         padding: const EdgeInsets.only(bottom: 6.0),
@@ -696,10 +698,10 @@ class _ResultadosScreenState extends State<ResultadosScreen> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.blue.withOpacity(0.1)),
+              border: Border.all(color: Colors.blue.withValues(alpha: 0.1)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.02),
+                  color: Colors.black.withValues(alpha: 0.02),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -915,11 +917,12 @@ class _ResultadosScreenState extends State<ResultadosScreen> {
                     vertical: 8,
                   ),
                   itemBuilder: (context, index) {
-                    if (index == contratosFiltrados.length)
+                    if (index == contratosFiltrados.length) {
                       return const Padding(
                         padding: EdgeInsets.symmetric(vertical: 32.0),
                         child: Center(child: CircularProgressIndicator()),
                       );
+                    }
                     final contrato = contratosFiltrados[index];
                     final idUnico =
                         (contrato['proceso_de_compra'] ??

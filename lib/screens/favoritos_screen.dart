@@ -362,10 +362,10 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: colorEstado.withOpacity(0.9),
+                            color: colorEstado.withValues(alpha: 0.9),
                           ),
                         ),
-                        backgroundColor: colorEstado.withOpacity(0.1),
+                        backgroundColor: colorEstado.withValues(alpha: 0.1),
                         side: BorderSide.none,
                       ),
                     ],
