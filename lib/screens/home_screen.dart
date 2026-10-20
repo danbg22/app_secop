@@ -133,7 +133,8 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 if (_selectedIndex == 0 ||
                     _selectedIndex == 2 ||
-                    _selectedIndex == 3)
+                    _selectedIndex == 3 ||
+                    _selectedIndex == 4)
                   _buildCurrentView()
                 else ...[
                   DashboardTopBar(
