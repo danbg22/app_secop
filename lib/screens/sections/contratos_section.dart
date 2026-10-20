@@ -8,7 +8,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/colombia_secop_catalog.dart';
 import '../../utils/csv_exporter.dart';
-import '../../widgets/dashboard_top_bar.dart';
 import '../detalle_screen.dart';
 import '../perfil_contratista_screen.dart';
 
@@ -77,7 +76,11 @@ class ContratosSection extends StatefulWidget {
 class _ContratosSectionState extends State<ContratosSection> {
   static const Color _azulOscuro = Color(0xFF1A2B4C);
   static const Color _azulPrimario = Color(0xFF1D4ED8);
-  static const int _pageSize = 4;
+  static const Color _doradoPlataforma = Color(0xFFF5B82E);
+  static const Color _cremaFondo = Color(0xFFFAF5EA);
+  static const Color _cremaTarjeta = Color(0xFFFFFDF8);
+  static const Color _bordeCalido = Color(0xFFE6DEC8);
+  static const int _pageSize = 10;
   static const int _initialResultsLimit = 500;
   static const int _searchResultsLimit = 5000;
   static const String _secopSelectFields =
@@ -94,6 +97,7 @@ class _ContratosSectionState extends State<ContratosSection> {
   int _latestRequestId = 0;
 
   // Todos los filtros inician en blanco para que el usuario elija libremente qué consultar
+  String _selectedSector = '';
   String _selectedOrden = '';
   String _selectedDepartamento = '';
   String _selectedMunicipio = '';
@@ -110,6 +114,173 @@ class _ContratosSectionState extends State<ContratosSection> {
   bool _isLoadingSecop = false;
   List<ContractRecord> _secopContracts = [];
   Set<String> _favoriteIds = {};
+
+  static const List<
+      ({
+        String id,
+        String label,
+        String subtitle,
+        IconData icon,
+        Color accentColor,
+        Color softBg,
+        List<String> soqlKeywords,
+      })> _sectorMacroOptions = [
+    (
+      id: '',
+      label: 'Todos',
+      subtitle: 'Todos los sectores',
+      icon: Icons.apps_rounded,
+      accentColor: Color(0xFFF5B82E),
+      softBg: Color(0xFFFFF4D6),
+      soqlKeywords: [],
+    ),
+    (
+      id: 'Salud',
+      label: 'Salud',
+      subtitle: 'Hospitales y salud pública',
+      icon: Icons.local_hospital_outlined,
+      accentColor: Color(0xFFDC2626),
+      softBg: Color(0xFFFEE2E2),
+      soqlKeywords: [
+        'SALUD',
+        'HOSPITAL',
+        'CLINICA',
+        'MEDICAMENT',
+        'SANIDAD',
+        'ENFERMER',
+        'ODONTOLOG',
+        'EPIDEMIOLOG',
+        'E.S.E',
+      ],
+    ),
+    (
+      id: 'Educación',
+      label: 'Educación',
+      subtitle: 'Colegios, PAE y universidades',
+      icon: Icons.school_outlined,
+      accentColor: Color(0xFF2563EB),
+      softBg: Color(0xFFDBEAFE),
+      soqlKeywords: [
+        'EDUCACION',
+        'EDUCACIÓN',
+        'ESCOLAR',
+        'COLEGIO',
+        'UNIVERSIDAD',
+        'SENA',
+        'DOCENTE',
+        'ESTUDIANT',
+        'ALIMENTACION ESCOLAR',
+        'INSTITUCION EDUCATIVA',
+      ],
+    ),
+    (
+      id: 'Obras',
+      label: 'Obras',
+      subtitle: 'Infraestructura y vías',
+      icon: Icons.construction_rounded,
+      accentColor: Color(0xFFD97706),
+      softBg: Color(0xFFFEF3C7),
+      soqlKeywords: [
+        'OBRA',
+        'INFRAESTRUCTURA',
+        'PAVIMENT',
+        'MALLA VIAL',
+        'CONSTRUCCION',
+        'CONSTRUCCIÓN',
+        'ADECUACION',
+        'ADECUACIÓN',
+        'MANTENIMIENTO VIAL',
+        'ALCANTARILLADO',
+        'ACUEDUCTO',
+        'INTERVENTORIA',
+      ],
+    ),
+    (
+      id: 'Seguridad',
+      label: 'Seguridad',
+      subtitle: 'Defensa, policía y convivencia',
+      icon: Icons.shield_outlined,
+      accentColor: Color(0xFF1E3A8A),
+      softBg: Color(0xFFE0E7FF),
+      soqlKeywords: [
+        'SEGURIDAD',
+        'DEFENSA',
+        'POLICIA',
+        'POLICÍA',
+        'EJERCITO',
+        'EJÉRCITO',
+        'CONVIVENCIA',
+        'VIGILANCIA',
+        'JUSTICIA',
+        'BOMBEROS',
+        'RIESGO',
+        'TRANSITO',
+        'TRÁNSITO',
+      ],
+    ),
+    (
+      id: 'Tecnología',
+      label: 'Tecnología',
+      subtitle: 'TIC, software y sistemas',
+      icon: Icons.computer_rounded,
+      accentColor: Color(0xFF7C3AED),
+      softBg: Color(0xFFF3E8FF),
+      soqlKeywords: [
+        'TECNOLOG',
+        'SISTEMAS',
+        'SOFTWARE',
+        'COMPUTO',
+        'CÓMPUTO',
+        'CONECTIVIDAD',
+        'INTERNET',
+        'DIGITAL',
+        'INFORMATIC',
+        'INFORMÁTIC',
+      ],
+    ),
+    (
+      id: 'Ambiente',
+      label: 'Ambiente',
+      subtitle: 'Sostenibilidad y agro',
+      icon: Icons.eco_outlined,
+      accentColor: Color(0xFF16A34A),
+      softBg: Color(0xFFDCFCE7),
+      soqlKeywords: [
+        'AMBIENT',
+        'SOSTENIBLE',
+        'FORESTAL',
+        'ARBORIZACION',
+        'ZONAS VERDES',
+        'AGROPECUARI',
+        'GANADER',
+        'AGRICOL',
+        'AGRÍCOL',
+        'DAGMA',
+        'CORPO',
+      ],
+    ),
+    (
+      id: 'Social y Cultura',
+      label: 'Social y Cultura',
+      subtitle: 'Deporte, cultura y bienestar',
+      icon: Icons.diversity_3_rounded,
+      accentColor: Color(0xFFDB2777),
+      softBg: Color(0xFFFCE7F3),
+      soqlKeywords: [
+        'SOCIAL',
+        'CULTUR',
+        'DEPORT',
+        'RECREAC',
+        'FAMILIA',
+        'ICBF',
+        'JUVENTUD',
+        'VICTIMAS',
+        'VÍCTIMAS',
+        'MUJER',
+        'ADULTO MAYOR',
+      ],
+    ),
+  ];
 
   static const List<String> _dependenciaOptions = [
     'Secretaría General',
@@ -408,6 +579,7 @@ class _ContratosSectionState extends State<ContratosSection> {
 
   int get _activeFiltersCount {
     var count = 0;
+    if (_selectedSector.isNotEmpty) count++;
     if (_selectedOrden.isNotEmpty) count++;
     if (_selectedDepartamento.isNotEmpty) count++;
     if (_selectedMunicipio.isNotEmpty) count++;
@@ -419,6 +591,44 @@ class _ContratosSectionState extends State<ContratosSection> {
     if (_minValueFilter != null) count++;
     if (_maxValueFilter != null) count++;
     return count;
+  }
+
+  String? _buildSectorSoqlClause(String sectorId) {
+    if (sectorId.isEmpty) return null;
+    final match =
+        _sectorMacroOptions.where((s) => s.id == sectorId).firstOrNull;
+    if (match == null || match.soqlKeywords.isEmpty) return null;
+
+    final conditions = <String>[];
+    for (final kw in match.soqlKeywords) {
+      conditions.add("upper(sector) LIKE '%$kw%'");
+      conditions.add("upper(objeto_del_contrato) LIKE '%$kw%'");
+      conditions.add("upper(nombre_entidad) LIKE '%$kw%'");
+    }
+    if (sectorId == 'Obras') {
+      conditions.add("upper(tipo_de_contrato) LIKE '%OBRA%'");
+    }
+    return '(${conditions.join(' OR ')})';
+  }
+
+  bool _matchesSectorMacroFilter(ContractRecord contract, String sectorId) {
+    if (sectorId.isEmpty) return true;
+    final match =
+        _sectorMacroOptions.where((s) => s.id == sectorId).firstOrNull;
+    if (match == null || match.soqlKeywords.isEmpty) return true;
+
+    final raw = contract.rawSecopJson;
+    final combined = _normalizar(
+      '${contract.title} ${contract.entity} ${contract.department} '
+      '${raw['sector'] ?? ''} ${raw['tipo_de_contrato'] ?? ''} '
+      '${raw['objeto_del_contrato'] ?? ''} ${raw['descripcion_del_proceso'] ?? ''}',
+    );
+    for (final kw in match.soqlKeywords) {
+      if (combined.contains(_normalizar(kw))) {
+        return true;
+      }
+    }
+    return false;
   }
 
   List<ContractRecord> _buildContractsFromRawList(
@@ -1190,6 +1400,12 @@ class _ContratosSectionState extends State<ContratosSection> {
           if (entClause != null) whereClauses.add(entClause);
         }
 
+        // Macrofiltro por Sector (Salud, Educación, Obras, Seguridad, etc.)
+        if (_selectedSector.isNotEmpty) {
+          final sectorClause = _buildSectorSoqlClause(_selectedSector);
+          if (sectorClause != null) whereClauses.add(sectorClause);
+        }
+
         // Filtro por Año
         if (applyYearFilter && _selectedAnio.isNotEmpty) {
           whereClauses.add(
@@ -1476,6 +1692,10 @@ class _ContratosSectionState extends State<ContratosSection> {
 
   List<ContractRecord> get _filteredContracts {
     final list = _secopContracts.where((c) {
+      if (_selectedSector.isNotEmpty &&
+          !_matchesSectorMacroFilter(c, _selectedSector)) {
+        return false;
+      }
       if (_selectedDependencia.isNotEmpty &&
           !_normalizar(c.department).contains(_normalizar(_selectedDependencia))) {
         return false;
@@ -1530,6 +1750,7 @@ class _ContratosSectionState extends State<ContratosSection> {
   void _resetAllFilters() {
     _searchDebounce?.cancel();
     setState(() {
+      _selectedSector = '';
       _selectedOrden = '';
       _selectedDepartamento = '';
       _selectedMunicipio = '';
@@ -1838,6 +2059,7 @@ class _ContratosSectionState extends State<ContratosSection> {
   }
 
   void _showAdvancedFiltersDialog() {
+    String tempSector = _selectedSector;
     String tempOrden = _selectedOrden;
     String tempDepto = _selectedDepartamento;
     String tempMuni = _selectedMunicipio;
@@ -1887,6 +2109,87 @@ class _ContratosSectionState extends State<ContratosSection> {
       });
     }
 
+    Widget sectionCard({
+      required String number,
+      required String title,
+      required String subtitle,
+      required IconData icon,
+      required Widget child,
+    }) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _bordeCalido),
+          boxShadow: [
+            BoxShadow(
+              color: _azulOscuro.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 26,
+                  height: 26,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: _azulOscuro,
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  child: Text(
+                    number,
+                    style: const TextStyle(
+                      color: _doradoPlataforma,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 9),
+                Icon(icon, size: 17, color: _azulOscuro),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: _azulOscuro,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 10),
+              child: Divider(height: 1, color: Color(0xFFEDE6D6)),
+            ),
+            child,
+          ],
+        ),
+      );
+    }
+
     showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -1919,39 +2222,83 @@ class _ContratosSectionState extends State<ContratosSection> {
                   .where((e) => _normalizar(e).contains(filterQuery))
                   .toList();
 
+          final sectorNames = <String>[
+            '',
+            for (final s in _sectorMacroOptions)
+              if (s.id.isNotEmpty) s.id,
+          ];
+
           return Dialog(
+            backgroundColor: _cremaFondo,
+            clipBehavior: Clip.antiAlias,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(18),
+              side: const BorderSide(color: _bordeCalido, width: 1.2),
             ),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
+              constraints: const BoxConstraints(maxWidth: 680, maxHeight: 760),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Cabecera con paleta institucional (Azul profundo + Dorado)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 15,
+                    ),
+                    decoration: const BoxDecoration(
+                      color: _azulOscuro,
+                      border: Border(
+                        bottom: BorderSide(color: _doradoPlataforma, width: 2.5),
+                      ),
+                    ),
+                    child: Row(
                       children: [
-                        const Icon(
-                          Icons.filter_alt_outlined,
-                          color: _azulPrimario,
-                          size: 21,
-                        ),
-                        const SizedBox(width: 8),
-                        const Expanded(
-                          child: Text(
-                            'Filtros avanzados · Base de Entidades SECOP II',
-                            style: TextStyle(
-                              color: _azulOscuro,
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: _doradoPlataforma.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: _doradoPlataforma.withValues(alpha: 0.6),
                             ),
                           ),
+                          child: const Icon(
+                            Icons.tune_rounded,
+                            color: _doradoPlataforma,
+                            size: 20,
+                          ),
                         ),
-                        TextButton(
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Filtros Avanzados · SECOP II',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Organiza tu búsqueda por ubicación, entidad, sector o condiciones contractuales',
+                                style: TextStyle(
+                                  color: Color(0xFFCBD5E1),
+                                  fontSize: 11.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        TextButton.icon(
                           onPressed: () {
                             setDialogState(() {
+                              tempSector = '';
                               tempOrden = '';
                               tempDepto = '';
                               tempMuni = '';
@@ -1966,410 +2313,684 @@ class _ContratosSectionState extends State<ContratosSection> {
                             });
                             refreshSecopEntities(setDialogState);
                           },
-                          child: const Text(
-                            'Dejar en blanco',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.pop(dialogContext),
-                          icon: const Icon(Icons.close, size: 19),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      '1. Orden de la entidad',
-                      style: TextStyle(
-                        color: _azulOscuro,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 7),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        ChoiceChip(
-                          label: const Text('Todos los órdenes'),
-                          selected: tempOrden.isEmpty,
-                          selectedColor: const Color(0xFFEAF2FF),
-                          labelStyle: TextStyle(
-                            color: tempOrden.isEmpty
-                                ? _azulPrimario
-                                : _azulOscuro,
-                            fontSize: 11.5,
-                            fontWeight: tempOrden.isEmpty
-                                ? FontWeight.w700
-                                : FontWeight.w500,
-                          ),
-                          onSelected: (_) {
-                            setDialogState(() => tempOrden = '');
-                            refreshSecopEntities(setDialogState);
-                          },
-                        ),
-                        for (final ord in ColombiaSecopCatalog.ordenesEntidad)
-                          ChoiceChip(
-                            label: Text('Orden $ord'),
-                            selected: tempOrden == ord,
-                            selectedColor: const Color(0xFFEAF2FF),
-                            labelStyle: TextStyle(
-                              color: tempOrden == ord
-                                  ? _azulPrimario
-                                  : _azulOscuro,
-                              fontSize: 11.5,
-                              fontWeight: tempOrden == ord
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
+                          style: TextButton.styleFrom(
+                            foregroundColor: _doradoPlataforma,
+                            backgroundColor:
+                                Colors.white.withValues(alpha: 0.08),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
                             ),
-                            onSelected: (_) {
-                              setDialogState(() => tempOrden = ord);
-                              refreshSecopEntities(setDialogState);
-                            },
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _dialogOptionalDropdown(
-                            label: '2. Departamento (Opcional)',
-                            placeholder: 'En blanco (Cualquier departamento)',
-                            value: tempDepto,
-                            items: deptoItems,
-                            onChanged: (v) {
-                              setDialogState(() {
-                                tempDepto = v ?? '';
-                                tempMuni = '';
-                              });
-                              refreshSecopEntities(setDialogState);
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _dialogOptionalDropdown(
-                            label: '3. Municipio / Ciudad (Opcional)',
-                            placeholder: tempDepto.isEmpty
-                                ? 'Selecciona primero un depto.'
-                                : 'En blanco (Todo $tempDepto)',
-                            value: tempMuni,
-                            items: muniItems,
-                            onChanged: (v) {
-                              setDialogState(() => tempMuni = v ?? '');
-                              refreshSecopEntities(setDialogState);
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            '4. Entidad pública (Nacional, Departamental o Municipal)',
+                          icon: const Icon(Icons.restart_alt, size: 15),
+                          label: const Text(
+                            'Limpiar todo',
                             style: TextStyle(
-                              color: _azulOscuro,
-                              fontSize: 12,
+                              fontSize: 11.5,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
-                        if (isLoadingEntities)
-                          const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                        const SizedBox(width: 6),
+                        IconButton(
+                          onPressed: () => Navigator.pop(dialogContext),
+                          icon: const Icon(
+                            Icons.close,
+                            size: 19,
+                            color: Colors.white,
                           ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: entitySearchCtrl,
-                            onChanged: (val) {
-                              setDialogState(() => tempEntidad = val.trim());
-                            },
-                            onSubmitted: (_) =>
-                                refreshSecopEntities(setDialogState),
-                            style: const TextStyle(
-                              fontSize: 12.5,
-                              color: _azulOscuro,
-                            ),
-                            decoration: InputDecoration(
-                              hintText:
-                                  'En blanco o escribe el nombre de cualquier entidad de Colombia...',
-                              hintStyle: const TextStyle(fontSize: 12),
-                              isDense: true,
-                              filled: true,
-                              fillColor: const Color(0xFFFBFCFD),
-                              prefixIcon: const Icon(
-                                Icons.account_balance_outlined,
-                                size: 17,
-                                color: _azulOscuro,
-                              ),
-                              suffixIcon: entitySearchCtrl.text.isNotEmpty
-                                  ? IconButton(
-                                      onPressed: () {
-                                        entitySearchCtrl.clear();
-                                        setDialogState(() => tempEntidad = '');
-                                        refreshSecopEntities(setDialogState);
-                                      },
-                                      icon: const Icon(Icons.clear, size: 16),
-                                    )
-                                  : null,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 11,
-                                vertical: 10,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(9),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        SizedBox(
-                          height: 38,
-                          child: OutlinedButton.icon(
-                            onPressed: () =>
-                                refreshSecopEntities(setDialogState),
-                            icon: const Icon(Icons.cloud_sync_outlined, size: 16),
-                            label: const Text(
-                              'Consultar SECOP',
-                              style: TextStyle(fontSize: 11.5),
-                            ),
-                          ),
+                          visualDensity: VisualDensity.compact,
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Container(
-                      height: 135,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                      ),
-                      child: visibleEntities.isEmpty
-                          ? const Center(
-                              child: Padding(
-                                padding: EdgeInsets.all(12),
-                                child: Text(
-                                  'Pulsa "Consultar SECOP" para buscar ese nombre directamente en SECOP II o escribe libremente la entidad.',
-                                  textAlign: TextAlign.center,
+                  ),
+                  // Cuerpo organizado por tarjetas temáticas
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 6),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          sectionCard(
+                            number: '1',
+                            title: 'Nivel Territorial y Ubicación Geográfica',
+                            subtitle:
+                                'Filtra por orden administrativo, departamento y municipio',
+                            icon: Icons.location_on_outlined,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Orden de la entidad',
                                   style: TextStyle(
-                                    color: Color(0xFF64748B),
+                                    color: _azulOscuro,
                                     fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
-                              ),
-                            )
-                          : ListView.separated(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              itemCount: visibleEntities.length,
-                              separatorBuilder: (_, _) => const Divider(
-                                height: 1,
-                                color: Color(0xFFEEF2F6),
-                              ),
-                              itemBuilder: (context, idx) {
-                                final entName = visibleEntities[idx];
-                                final isSelected =
-                                    _normalizar(tempEntidad) ==
-                                        _normalizar(entName);
-                                return InkWell(
-                                  onTap: () {
-                                    setDialogState(() {
-                                      tempEntidad = entName;
-                                      entitySearchCtrl.text = entName;
-                                    });
-                                  },
-                                  child: Container(
-                                    color: isSelected
-                                        ? const Color(0xFFEAF2FF)
-                                        : Colors.transparent,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 7,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          isSelected
-                                              ? Icons.check_circle
-                                              : Icons.account_balance_outlined,
-                                          size: 14,
-                                          color: isSelected
-                                              ? _azulPrimario
-                                              : const Color(0xFF64748B),
+                                const SizedBox(height: 7),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    for (final item in <String>[
+                                      '',
+                                      ...ColombiaSecopCatalog.ordenesEntidad,
+                                    ])
+                                      InkWell(
+                                        onTap: () {
+                                          setDialogState(() => tempOrden = item);
+                                          refreshSecopEntities(setDialogState);
+                                        },
+                                        borderRadius: BorderRadius.circular(9),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 7,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: tempOrden == item
+                                                ? _azulOscuro
+                                                : _cremaFondo,
+                                            borderRadius:
+                                                BorderRadius.circular(9),
+                                            border: Border.all(
+                                              color: tempOrden == item
+                                                  ? _doradoPlataforma
+                                                  : _bordeCalido,
+                                              width: tempOrden == item ? 1.4 : 1,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              if (tempOrden == item) ...[
+                                                const Icon(
+                                                  Icons.check_circle,
+                                                  size: 13,
+                                                  color: _doradoPlataforma,
+                                                ),
+                                                const SizedBox(width: 5),
+                                              ],
+                                              Text(
+                                                item.isEmpty
+                                                    ? 'Todos los órdenes'
+                                                    : 'Orden $item',
+                                                style: TextStyle(
+                                                  color: tempOrden == item
+                                                      ? Colors.white
+                                                      : _azulOscuro,
+                                                  fontSize: 11.5,
+                                                  fontWeight: tempOrden == item
+                                                      ? FontWeight.w700
+                                                      : FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            entName,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _dialogOptionalDropdown(
+                                        label: 'Departamento',
+                                        placeholder: 'Todos los departamentos',
+                                        value: tempDepto,
+                                        items: deptoItems,
+                                        onChanged: (v) {
+                                          setDialogState(() {
+                                            tempDepto = v ?? '';
+                                            tempMuni = '';
+                                          });
+                                          refreshSecopEntities(setDialogState);
+                                        },
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: _dialogOptionalDropdown(
+                                        label: 'Municipio / Ciudad',
+                                        placeholder: tempDepto.isEmpty
+                                            ? 'Selecciona un departamento'
+                                            : 'Todo $tempDepto',
+                                        value: tempMuni,
+                                        items: muniItems,
+                                        onChanged: (v) {
+                                          setDialogState(
+                                            () => tempMuni = v ?? '',
+                                          );
+                                          refreshSecopEntities(setDialogState);
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          sectionCard(
+                            number: '2',
+                            title: 'Entidad Pública, Sector y Dependencia',
+                            subtitle:
+                                'Selecciona una entidad oficial de SECOP II o segmenta por sector',
+                            icon: Icons.account_balance_outlined,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _dialogOptionalDropdown(
+                                        label: 'Sector (Macrofiltro)',
+                                        placeholder: 'Todos los sectores',
+                                        value: tempSector,
+                                        items: sectorNames,
+                                        onChanged: (v) => setDialogState(
+                                          () => tempSector = v ?? '',
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: _dialogOptionalDropdown(
+                                        label: 'Dependencia / Secretaría',
+                                        placeholder: 'Todas las dependencias',
+                                        value: tempDependencia,
+                                        items: const ['', ..._dependenciaOptions],
+                                        onChanged: (v) => setDialogState(
+                                          () => tempDependencia = v ?? '',
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    const Expanded(
+                                      child: Text(
+                                        'Entidad compradora en SECOP II',
+                                        style: TextStyle(
+                                          color: _azulOscuro,
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                    if (isLoadingEntities)
+                                      const SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: _doradoPlataforma,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextField(
+                                        controller: entitySearchCtrl,
+                                        onChanged: (val) {
+                                          setDialogState(
+                                            () => tempEntidad = val.trim(),
+                                          );
+                                        },
+                                        onSubmitted: (_) =>
+                                            refreshSecopEntities(setDialogState),
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: _azulOscuro,
+                                        ),
+                                        decoration: InputDecoration(
+                                          hintText:
+                                              'Escribe el nombre de la alcaldía, gobernación, hospital o ministerio...',
+                                          hintStyle: const TextStyle(
+                                            fontSize: 11.5,
+                                            color: Color(0xFF94A3B8),
+                                          ),
+                                          isDense: true,
+                                          filled: true,
+                                          fillColor: _cremaFondo,
+                                          prefixIcon: const Icon(
+                                            Icons.search,
+                                            size: 17,
+                                            color: _azulOscuro,
+                                          ),
+                                          suffixIcon:
+                                              entitySearchCtrl.text.isNotEmpty
+                                                  ? IconButton(
+                                                      onPressed: () {
+                                                        entitySearchCtrl.clear();
+                                                        setDialogState(
+                                                          () => tempEntidad = '',
+                                                        );
+                                                        refreshSecopEntities(
+                                                          setDialogState,
+                                                        );
+                                                      },
+                                                      icon: const Icon(
+                                                        Icons.clear,
+                                                        size: 15,
+                                                      ),
+                                                    )
+                                                  : null,
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                            horizontal: 11,
+                                            vertical: 9,
+                                          ),
+                                          border: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(9),
+                                            borderSide: const BorderSide(
+                                              color: _bordeCalido,
+                                            ),
+                                          ),
+                                          enabledBorder: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(9),
+                                            borderSide: const BorderSide(
+                                              color: _bordeCalido,
+                                            ),
+                                          ),
+                                          focusedBorder: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(9),
+                                            borderSide: const BorderSide(
                                               color: _azulOscuro,
-                                              fontSize: 11.5,
-                                              fontWeight: isSelected
-                                                  ? FontWeight.w700
-                                                  : FontWeight.w500,
+                                              width: 1.3,
                                             ),
                                           ),
                                         ),
-                                      ],
+                                      ),
                                     ),
+                                    const SizedBox(width: 8),
+                                    SizedBox(
+                                      height: 36,
+                                      child: ElevatedButton.icon(
+                                        onPressed: () =>
+                                            refreshSecopEntities(setDialogState),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              const Color(0xFFFFF4D6),
+                                          foregroundColor: _azulOscuro,
+                                          elevation: 0,
+                                          side: const BorderSide(
+                                            color: _doradoPlataforma,
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(9),
+                                          ),
+                                        ),
+                                        icon: const Icon(
+                                          Icons.cloud_sync_outlined,
+                                          size: 15,
+                                          color: _azulOscuro,
+                                        ),
+                                        label: const Text(
+                                          'Buscar entidad',
+                                          style: TextStyle(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Container(
+                                  height: 115,
+                                  decoration: BoxDecoration(
+                                    color: _cremaTarjeta,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: _bordeCalido),
                                   ),
-                                );
-                              },
+                                  child: visibleEntities.isEmpty
+                                      ? const Center(
+                                          child: Padding(
+                                            padding: EdgeInsets.all(12),
+                                            child: Text(
+                                              'Pulsa "Buscar entidad" para consultar en SECOP II o escribe libremente el nombre.',
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                color: Color(0xFF64748B),
+                                                fontSize: 11.5,
+                                              ),
+                                            ),
+                                          ),
+                                        )
+                                      : ListView.separated(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 4,
+                                          ),
+                                          itemCount: visibleEntities.length,
+                                          separatorBuilder: (_, _) =>
+                                              const Divider(
+                                            height: 1,
+                                            color: Color(0xFFEDE6D6),
+                                          ),
+                                          itemBuilder: (context, idx) {
+                                            final entName = visibleEntities[idx];
+                                            final isSelected =
+                                                _normalizar(tempEntidad) ==
+                                                    _normalizar(entName);
+                                            return InkWell(
+                                              onTap: () {
+                                                setDialogState(() {
+                                                  tempEntidad = entName;
+                                                  entitySearchCtrl.text =
+                                                      entName;
+                                                });
+                                              },
+                                              child: Container(
+                                                color: isSelected
+                                                    ? const Color(0xFFFFF4D6)
+                                                    : Colors.transparent,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 12,
+                                                  vertical: 6,
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    Icon(
+                                                      isSelected
+                                                          ? Icons.check_circle
+                                                          : Icons
+                                                              .account_balance_outlined,
+                                                      size: 14,
+                                                      color: isSelected
+                                                          ? _azulOscuro
+                                                          : const Color(
+                                                              0xFF64748B,
+                                                            ),
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Expanded(
+                                                      child: Text(
+                                                        entName,
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        style: TextStyle(
+                                                          color: _azulOscuro,
+                                                          fontSize: 11.5,
+                                                          fontWeight: isSelected
+                                                              ? FontWeight.w800
+                                                              : FontWeight.w500,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                ),
+                              ],
                             ),
+                          ),
+                          sectionCard(
+                            number: '3',
+                            title: 'Condiciones Contractuales y Cuantía',
+                            subtitle:
+                                'Modalidad de selección, estado actual, vigencia y rango de valor',
+                            icon: Icons.gavel_rounded,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 2,
+                                      child: _dialogOptionalDropdown(
+                                        label: 'Modalidad de contratación',
+                                        placeholder: 'Todas las modalidades',
+                                        value: tempModalidad,
+                                        items: const ['', ..._modalidadOptions],
+                                        onChanged: (v) => setDialogState(
+                                          () => tempModalidad = v ?? '',
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: _dialogOptionalDropdown(
+                                        label: 'Estado',
+                                        placeholder: 'Todos',
+                                        value: tempEstado,
+                                        items: const ['', ..._estadoOptions],
+                                        onChanged: (v) => setDialogState(
+                                          () => tempEstado = v ?? '',
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: _dialogOptionalDropdown(
+                                        label: 'Año de firma',
+                                        placeholder: 'Todos',
+                                        value: tempAnio,
+                                        items: const ['', ..._anioOptions],
+                                        onChanged: (v) => setDialogState(
+                                          () => tempAnio = v ?? '',
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const Text(
+                                  'Rango de valor del contrato en COP (Opcional)',
+                                  style: TextStyle(
+                                    color: _azulOscuro,
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextField(
+                                        controller: minCtrl,
+                                        keyboardType: TextInputType.number,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: _azulOscuro,
+                                        ),
+                                        decoration: InputDecoration(
+                                          hintText: 'Valor mínimo (ej. 10000000)',
+                                          hintStyle: const TextStyle(
+                                            fontSize: 11.5,
+                                            color: Color(0xFF94A3B8),
+                                          ),
+                                          prefixIcon: const Icon(
+                                            Icons.attach_money,
+                                            size: 16,
+                                            color: _azulOscuro,
+                                          ),
+                                          isDense: true,
+                                          filled: true,
+                                          fillColor: _cremaFondo,
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 9,
+                                          ),
+                                          border: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(9),
+                                            borderSide: const BorderSide(
+                                              color: _bordeCalido,
+                                            ),
+                                          ),
+                                          enabledBorder: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(9),
+                                            borderSide: const BorderSide(
+                                              color: _bordeCalido,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: maxCtrl,
+                                        keyboardType: TextInputType.number,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: _azulOscuro,
+                                        ),
+                                        decoration: InputDecoration(
+                                          hintText:
+                                              'Valor máximo (ej. 500000000)',
+                                          hintStyle: const TextStyle(
+                                            fontSize: 11.5,
+                                            color: Color(0xFF94A3B8),
+                                          ),
+                                          prefixIcon: const Icon(
+                                            Icons.attach_money,
+                                            size: 16,
+                                            color: _azulOscuro,
+                                          ),
+                                          isDense: true,
+                                          filled: true,
+                                          fillColor: _cremaFondo,
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 9,
+                                          ),
+                                          border: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(9),
+                                            borderSide: const BorderSide(
+                                              color: _bordeCalido,
+                                            ),
+                                          ),
+                                          enabledBorder: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(9),
+                                            borderSide: const BorderSide(
+                                              color: _bordeCalido,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 14),
-                    Row(
+                  ),
+                  // Pie de diálogo
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      border: Border(
+                        top: BorderSide(color: _bordeCalido),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        Expanded(
-                          child: _dialogOptionalDropdown(
-                            label: 'Dependencia / Área (Opcional)',
-                            placeholder: 'En blanco (Todas)',
-                            value: tempDependencia,
-                            items: const ['', ..._dependenciaOptions],
-                            onChanged: (v) => setDialogState(
-                              () => tempDependencia = v ?? '',
+                        OutlinedButton(
+                          onPressed: () => Navigator.pop(dialogContext),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: _azulOscuro,
+                            side: const BorderSide(color: _bordeCalido),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(9),
+                            ),
+                          ),
+                          child: const Text(
+                            'Cancelar',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
                         const SizedBox(width: 10),
-                        Expanded(
-                          child: _dialogOptionalDropdown(
-                            label: 'Modalidad (Opcional)',
-                            placeholder: 'En blanco (Todas)',
-                            value: tempModalidad,
-                            items: const ['', ..._modalidadOptions],
-                            onChanged: (v) =>
-                                setDialogState(() => tempModalidad = v ?? ''),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _dialogOptionalDropdown(
-                            label: 'Estado del contrato (Opcional)',
-                            placeholder: 'En blanco (Todos)',
-                            value: tempEstado,
-                            items: const ['', ..._estadoOptions],
-                            onChanged: (v) =>
-                                setDialogState(() => tempEstado = v ?? ''),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _dialogOptionalDropdown(
-                            label: 'Año de firma (Opcional)',
-                            placeholder: 'En blanco (Todos los años)',
-                            value: tempAnio,
-                            items: const ['', ..._anioOptions],
-                            onChanged: (v) =>
-                                setDialogState(() => tempAnio = v ?? ''),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Text(
-                      'Valor contratado en COP (Opcional)',
-                      style: TextStyle(
-                        color: _azulOscuro,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: minCtrl,
-                            keyboardType: TextInputType.number,
-                            style: const TextStyle(fontSize: 12),
-                            decoration: InputDecoration(
-                              hintText: 'Mínimo (ej. 10000000)',
-                              isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 10,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(9),
-                              ),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _selectedSector = tempSector;
+                              _selectedOrden = tempOrden;
+                              _selectedDepartamento = tempDepto;
+                              _selectedMunicipio = tempMuni;
+                              _selectedEntidad = entitySearchCtrl.text.trim();
+                              _selectedDependencia = tempDependencia;
+                              _selectedEstado = tempEstado;
+                              _selectedModalidad = tempModalidad;
+                              _selectedAnio = tempAnio;
+                              _minValueFilter =
+                                  double.tryParse(minCtrl.text.trim());
+                              _maxValueFilter =
+                                  double.tryParse(maxCtrl.text.trim());
+                              _currentPage = 1;
+                            });
+                            Navigator.pop(dialogContext);
+                            _fetchLiveSecopContracts();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _azulOscuro,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 11,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(9),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextField(
-                            controller: maxCtrl,
-                            keyboardType: TextInputType.number,
-                            style: const TextStyle(fontSize: 12),
-                            decoration: InputDecoration(
-                              hintText: 'Máximo (ej. 500000000)',
-                              isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 10,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(9),
-                              ),
+                          icon: const Icon(
+                            Icons.search,
+                            size: 16,
+                            color: _doradoPlataforma,
+                          ),
+                          label: const Text(
+                            'Aplicar filtros y consultar SECOP II',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 18),
-                    SizedBox(
-                      height: 42,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          setState(() {
-                            _selectedOrden = tempOrden;
-                            _selectedDepartamento = tempDepto;
-                            _selectedMunicipio = tempMuni;
-                            _selectedEntidad = entitySearchCtrl.text.trim();
-                            _selectedDependencia = tempDependencia;
-                            _selectedEstado = tempEstado;
-                            _selectedModalidad = tempModalidad;
-                            _selectedAnio = tempAnio;
-                            _minValueFilter =
-                                double.tryParse(minCtrl.text.trim());
-                            _maxValueFilter =
-                                double.tryParse(maxCtrl.text.trim());
-                            _currentPage = 1;
-                          });
-                          Navigator.pop(dialogContext);
-                          _fetchLiveSecopContracts();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _azulOscuro,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        icon: const Icon(Icons.search, size: 17),
-                        label: const Text(
-                          'Consultar en SECOP II',
-                          style: TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           );
@@ -2387,7 +3008,7 @@ class _ContratosSectionState extends State<ContratosSection> {
   }) {
     final safeValue = items.contains(value) ? value : '';
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2395,27 +3016,35 @@ class _ContratosSectionState extends State<ContratosSection> {
             label,
             style: const TextStyle(
               color: _azulOscuro,
-              fontSize: 12,
+              fontSize: 11.5,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           DropdownButtonFormField<String>(
             key: ValueKey('$label-$safeValue-${items.length}'),
             initialValue: safeValue,
             isDense: true,
             isExpanded: true,
-            style: const TextStyle(color: _azulOscuro, fontSize: 12.5),
+            style: const TextStyle(color: _azulOscuro, fontSize: 12),
             decoration: InputDecoration(
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 11,
-                vertical: 9,
+                vertical: 8,
               ),
               filled: true,
-              fillColor: const Color(0xFFFBFCFD),
+              fillColor: _cremaFondo,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(9),
-                borderSide: const BorderSide(color: Color(0xFFE3E8EE)),
+                borderSide: const BorderSide(color: _bordeCalido),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(9),
+                borderSide: const BorderSide(color: _bordeCalido),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(9),
+                borderSide: const BorderSide(color: _azulOscuro, width: 1.3),
               ),
             ),
             items: [
@@ -2429,7 +3058,10 @@ class _ContratosSectionState extends State<ContratosSection> {
                       color: item.isEmpty
                           ? const Color(0xFF94A3B8)
                           : _azulOscuro,
-                      fontSize: 12.5,
+                      fontSize: 12,
+                      fontWeight: item.isEmpty
+                          ? FontWeight.w400
+                          : FontWeight.w600,
                     ),
                   ),
                 ),
@@ -2442,31 +3074,241 @@ class _ContratosSectionState extends State<ContratosSection> {
   }
 
   Widget _buildHeaderSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          width: 36,
-          height: 4,
+          width: 6,
+          height: 32,
           decoration: BoxDecoration(
-            color: const Color(0xFFF5B82E),
-            borderRadius: BorderRadius.circular(2),
+            color: _doradoPlataforma,
+            borderRadius: BorderRadius.circular(3),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(width: 10),
         const Text(
           'Contratos',
           style: TextStyle(
             color: _azulOscuro,
-            fontSize: 38,
+            fontSize: 26,
             fontWeight: FontWeight.w800,
             height: 1.05,
           ),
         ),
-        const SizedBox(height: 6),
-        const Text(
-          'Explora y consulta todos los contratos del sector público.',
-          style: TextStyle(color: Color(0xFF475569), fontSize: 15.5),
+        const SizedBox(width: 12),
+        Container(
+          width: 1.5,
+          height: 18,
+          color: _bordeCalido,
+        ),
+        const SizedBox(width: 12),
+        const Expanded(
+          child: Text(
+            'Explora, filtra por sector y consulta procesos contractuales en tiempo real desde SECOP II.',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Color(0xFF475569),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectoresMacroFilter() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF4D6),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: _doradoPlataforma.withValues(alpha: 0.65),
+                ),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.category_outlined,
+                    size: 12.5,
+                    color: _azulOscuro,
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    'Sectores',
+                    style: TextStyle(
+                      color: _azulOscuro,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Selecciona un sector como macrofiltro para ver todos sus contratos relacionados:',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Color(0xFF64748B),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            if (_selectedSector.isNotEmpty)
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    _selectedSector = '';
+                    _currentPage = 1;
+                  });
+                  _fetchLiveSecopContracts(silent: true);
+                },
+                borderRadius: BorderRadius.circular(6),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  child: Text(
+                    'Ver todos los sectores',
+                    style: TextStyle(
+                      color: _azulPrimario,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (var i = 0; i < _sectorMacroOptions.length; i++) ...[
+                Builder(
+                  builder: (context) {
+                    final sec = _sectorMacroOptions[i];
+                    final bool isSelected = _selectedSector == sec.id;
+                    return InkWell(
+                      onTap: () {
+                        setState(() {
+                          if (_selectedSector == sec.id && sec.id.isNotEmpty) {
+                            _selectedSector = '';
+                          } else {
+                            _selectedSector = sec.id;
+                          }
+                          _currentPage = 1;
+                        });
+                        _fetchLiveSecopContracts(silent: true);
+                      },
+                      borderRadius: BorderRadius.circular(11),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 160),
+                        constraints: const BoxConstraints(minWidth: 132),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 11,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isSelected ? _azulOscuro : _cremaTarjeta,
+                          borderRadius: BorderRadius.circular(11),
+                          border: Border.all(
+                            color: isSelected ? _doradoPlataforma : _bordeCalido,
+                            width: isSelected ? 1.5 : 1,
+                          ),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: _azulOscuro.withValues(alpha: 0.14),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 30,
+                              height: 30,
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? _doradoPlataforma.withValues(alpha: 0.2)
+                                    : sec.softBg,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                sec.icon,
+                                size: 16,
+                                color: isSelected
+                                    ? _doradoPlataforma
+                                    : sec.accentColor,
+                              ),
+                            ),
+                            const SizedBox(width: 9),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      sec.label,
+                                      style: TextStyle(
+                                        color: isSelected
+                                            ? Colors.white
+                                            : _azulOscuro,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    if (isSelected) ...[
+                                      const SizedBox(width: 5),
+                                      const Icon(
+                                        Icons.check_circle,
+                                        size: 12,
+                                        color: _doradoPlataforma,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                const SizedBox(height: 1),
+                                Text(
+                                  sec.subtitle,
+                                  style: TextStyle(
+                                    color: isSelected
+                                        ? const Color(0xFFCBD5E1)
+                                        : const Color(0xFF64748B),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                if (i < _sectorMacroOptions.length - 1)
+                  const SizedBox(width: 8),
+              ],
+            ],
+          ),
         ),
       ],
     );
@@ -2479,10 +3321,13 @@ class _ContratosSectionState extends State<ContratosSection> {
 
     Widget activeFilterChip(String text, VoidCallback onRemove) {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
         decoration: BoxDecoration(
-          color: const Color(0xFFEAF2FF),
-          borderRadius: BorderRadius.circular(8),
+          color: const Color(0xFFFFF4D6),
+          borderRadius: BorderRadius.circular(7),
+          border: Border.all(
+            color: _doradoPlataforma.withValues(alpha: 0.6),
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -2491,11 +3336,11 @@ class _ContratosSectionState extends State<ContratosSection> {
               text,
               style: const TextStyle(
                 color: _azulOscuro,
-                fontSize: 11.5,
-                fontWeight: FontWeight.w500,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 5),
             InkWell(
               onTap: onRemove,
               child: const Icon(
@@ -2510,124 +3355,142 @@ class _ContratosSectionState extends State<ContratosSection> {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _bordeCalido.withValues(alpha: 0.7)),
         boxShadow: [
           BoxShadow(
-            color: _azulOscuro.withValues(alpha: 0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+            color: _azulOscuro.withValues(alpha: 0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Barra de búsqueda recogida (compacta) + Botón Buscar + Filtros avanzados
           Row(
             children: [
-              Expanded(
-                child: SizedBox(
-                  height: 38,
-                  child: TextField(
-                    controller: _contractsSearchController,
-                    onChanged: (_) {
-                      setState(() {});
-                      _searchDebounce?.cancel();
-                      _searchDebounce = Timer(
-                        const Duration(milliseconds: 500),
-                        () => _executeContractSearch(silent: true),
-                      );
-                    },
-                    onSubmitted: (_) => _executeContractSearch(silent: false),
-                    style: const TextStyle(fontSize: 12.5, color: _azulOscuro),
-                    decoration: InputDecoration(
-                      hintText:
-                          'Buscar por objeto, número de proceso, entidad, contratista o NIT/Cédula...',
-                      hintStyle: TextStyle(
-                        color: Colors.blueGrey.shade400,
-                        fontSize: 12.5,
-                      ),
-                      isDense: true,
-                      filled: true,
-                      fillColor: const Color(0xFFF3F6FA),
-                      prefixIcon: const Icon(
-                        Icons.search,
-                        color: _azulOscuro,
-                        size: 19,
-                      ),
-                      suffixIcon: _contractsSearchController.text.isNotEmpty
-                          ? IconButton(
-                              onPressed: () {
-                                _contractsSearchController.clear();
-                                _executeContractSearch(silent: true);
-                              },
-                              icon: const Icon(Icons.clear, size: 16),
-                            )
-                          : null,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 0,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(9),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(9),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(9),
-                        borderSide: const BorderSide(color: _azulOscuro),
+              Flexible(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 460),
+                  child: SizedBox(
+                    height: 36,
+                    child: TextField(
+                      controller: _contractsSearchController,
+                      onChanged: (_) {
+                        setState(() {});
+                        _searchDebounce?.cancel();
+                        _searchDebounce = Timer(
+                          const Duration(milliseconds: 500),
+                          () => _executeContractSearch(silent: true),
+                        );
+                      },
+                      onSubmitted: (_) => _executeContractSearch(silent: false),
+                      style: const TextStyle(fontSize: 12, color: _azulOscuro),
+                      decoration: InputDecoration(
+                        hintText:
+                            'Buscar proceso, contratista, NIT/Cédula o entidad...',
+                        hintStyle: TextStyle(
+                          color: Colors.blueGrey.shade400,
+                          fontSize: 12,
+                        ),
+                        isDense: true,
+                        filled: true,
+                        fillColor: _cremaFondo,
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          color: _azulOscuro,
+                          size: 18,
+                        ),
+                        suffixIcon: _contractsSearchController.text.isNotEmpty
+                            ? IconButton(
+                                onPressed: () {
+                                  _contractsSearchController.clear();
+                                  _executeContractSearch(silent: true);
+                                },
+                                icon: const Icon(Icons.clear, size: 15),
+                              )
+                            : null,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 0,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(9),
+                          borderSide: const BorderSide(color: _bordeCalido),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(9),
+                          borderSide: const BorderSide(color: _bordeCalido),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(9),
+                          borderSide: const BorderSide(
+                            color: _azulOscuro,
+                            width: 1.3,
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               SizedBox(
-                height: 38,
+                height: 36,
                 child: ElevatedButton.icon(
                   onPressed: () => _executeContractSearch(silent: false),
                   icon: _isLoadingSecop
                       ? const SizedBox(
-                          width: 14,
-                          height: 14,
+                          width: 13,
+                          height: 13,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            color: _doradoPlataforma,
                           ),
                         )
-                      : const Icon(Icons.search, size: 16, color: Colors.white),
+                      : const Icon(
+                          Icons.search,
+                          size: 15,
+                          color: _doradoPlataforma,
+                        ),
                   label: const Text(
                     'Buscar',
                     style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12.5,
                     ),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF13294B),
+                    backgroundColor: _azulOscuro,
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 22),
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(9),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               SizedBox(
-                height: 38,
-                child: TextButton(
+                height: 36,
+                child: OutlinedButton(
                   onPressed: _showAdvancedFiltersDialog,
-                  style: TextButton.styleFrom(
+                  style: OutlinedButton.styleFrom(
                     foregroundColor: _azulOscuro,
-                    backgroundColor: const Color(0xFFEDF2F9),
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    backgroundColor: activeCount > 0
+                        ? const Color(0xFFFFF4D6)
+                        : _cremaFondo,
+                    side: BorderSide(
+                      color: activeCount > 0 ? _doradoPlataforma : _bordeCalido,
+                      width: activeCount > 0 ? 1.4 : 1,
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(9),
                     ),
@@ -2636,128 +3499,33 @@ class _ContratosSectionState extends State<ContratosSection> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Icon(
-                        Icons.filter_alt_outlined,
-                        size: 16,
-                        color: _azulPrimario,
+                        Icons.tune_rounded,
+                        size: 15,
+                        color: _azulOscuro,
                       ),
-                      const SizedBox(width: 7),
+                      const SizedBox(width: 6),
                       Text(
                         activeCount > 0
                             ? 'Filtros avanzados ($activeCount)'
                             : 'Filtros avanzados',
                         style: const TextStyle(
                           color: _azulOscuro,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 4),
                       const Icon(
                         Icons.keyboard_arrow_down,
-                        size: 17,
+                        size: 16,
                         color: _azulOscuro,
                       ),
                     ],
                   ),
                 ),
               ),
-            ],
-          ),
-          if (hasAnyFilter) ...[
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: [
-                      const Text(
-                        'Filtros activos:',
-                        style: TextStyle(
-                          color: _azulOscuro,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      if (_selectedOrden.isNotEmpty)
-                        activeFilterChip(
-                          'Orden: $_selectedOrden',
-                          () {
-                            setState(() => _selectedOrden = '');
-                            _fetchLiveSecopContracts(silent: true);
-                          },
-                        ),
-                      if (_selectedDepartamento.isNotEmpty)
-                        activeFilterChip(
-                          'Depto: $_selectedDepartamento',
-                          () {
-                            setState(() {
-                              _selectedDepartamento = '';
-                              _selectedMunicipio = '';
-                            });
-                            _fetchLiveSecopContracts(silent: true);
-                          },
-                        ),
-                      if (_selectedMunicipio.isNotEmpty)
-                        activeFilterChip(
-                          'Municipio: $_selectedMunicipio',
-                          () {
-                            setState(() => _selectedMunicipio = '');
-                            _fetchLiveSecopContracts(silent: true);
-                          },
-                        ),
-                      if (_selectedEntidad.isNotEmpty)
-                        activeFilterChip(
-                          'Entidad: $_selectedEntidad',
-                          () {
-                            setState(() => _selectedEntidad = '');
-                            _fetchLiveSecopContracts(silent: true);
-                          },
-                        ),
-                      if (_selectedAnio.isNotEmpty)
-                        activeFilterChip(
-                          'Año: $_selectedAnio',
-                          () {
-                            setState(() => _selectedAnio = '');
-                            _fetchLiveSecopContracts(silent: true);
-                          },
-                        ),
-                      if (_selectedModalidad.isNotEmpty)
-                        activeFilterChip(
-                          'Modalidad: $_selectedModalidad',
-                          () {
-                            setState(() => _selectedModalidad = '');
-                            _fetchLiveSecopContracts(silent: true);
-                          },
-                        ),
-                      if (_selectedEstado.isNotEmpty)
-                        activeFilterChip(
-                          'Estado: $_selectedEstado',
-                          () {
-                            setState(() => _selectedEstado = '');
-                            _fetchLiveSecopContracts(silent: true);
-                          },
-                        ),
-                      if (_selectedDependencia.isNotEmpty)
-                        activeFilterChip(
-                          'Dependencia: $_selectedDependencia',
-                          () {
-                            setState(() => _selectedDependencia = '');
-                          },
-                        ),
-                      if (_contractsSearchController.text.trim().isNotEmpty)
-                        activeFilterChip(
-                          'Búsqueda: "${_contractsSearchController.text.trim()}"',
-                          () {
-                            _contractsSearchController.clear();
-                            _executeContractSearch();
-                          },
-                        ),
-                    ],
-                  ),
-                ),
+              const Spacer(),
+              if (hasAnyFilter)
                 TextButton.icon(
                   onPressed: _resetAllFilters,
                   style: TextButton.styleFrom(
@@ -2767,18 +3535,120 @@ class _ContratosSectionState extends State<ContratosSection> {
                   ),
                   icon: const Icon(
                     Icons.refresh,
-                    size: 15,
-                    color: _azulPrimario,
+                    size: 14,
+                    color: _azulOscuro,
                   ),
                   label: const Text(
-                    'Limpiar filtros',
+                    'Limpiar todo',
                     style: TextStyle(
-                      color: _azulPrimario,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
+                      color: _azulOscuro,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Tarjetas de Sectores (Macrofiltro)
+          _buildSectoresMacroFilter(),
+          if (hasAnyFilter) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 6,
+              runSpacing: 5,
+              children: [
+                const Text(
+                  'Activos:',
+                  style: TextStyle(
+                    color: _azulOscuro,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                if (_selectedSector.isNotEmpty)
+                  activeFilterChip(
+                    'Sector: $_selectedSector',
+                    () {
+                      setState(() => _selectedSector = '');
+                      _fetchLiveSecopContracts(silent: true);
+                    },
+                  ),
+                if (_selectedOrden.isNotEmpty)
+                  activeFilterChip(
+                    'Orden: $_selectedOrden',
+                    () {
+                      setState(() => _selectedOrden = '');
+                      _fetchLiveSecopContracts(silent: true);
+                    },
+                  ),
+                if (_selectedDepartamento.isNotEmpty)
+                  activeFilterChip(
+                    'Depto: $_selectedDepartamento',
+                    () {
+                      setState(() {
+                        _selectedDepartamento = '';
+                        _selectedMunicipio = '';
+                      });
+                      _fetchLiveSecopContracts(silent: true);
+                    },
+                  ),
+                if (_selectedMunicipio.isNotEmpty)
+                  activeFilterChip(
+                    'Municipio: $_selectedMunicipio',
+                    () {
+                      setState(() => _selectedMunicipio = '');
+                      _fetchLiveSecopContracts(silent: true);
+                    },
+                  ),
+                if (_selectedEntidad.isNotEmpty)
+                  activeFilterChip(
+                    'Entidad: $_selectedEntidad',
+                    () {
+                      setState(() => _selectedEntidad = '');
+                      _fetchLiveSecopContracts(silent: true);
+                    },
+                  ),
+                if (_selectedAnio.isNotEmpty)
+                  activeFilterChip(
+                    'Año: $_selectedAnio',
+                    () {
+                      setState(() => _selectedAnio = '');
+                      _fetchLiveSecopContracts(silent: true);
+                    },
+                  ),
+                if (_selectedModalidad.isNotEmpty)
+                  activeFilterChip(
+                    'Modalidad: $_selectedModalidad',
+                    () {
+                      setState(() => _selectedModalidad = '');
+                      _fetchLiveSecopContracts(silent: true);
+                    },
+                  ),
+                if (_selectedEstado.isNotEmpty)
+                  activeFilterChip(
+                    'Estado: $_selectedEstado',
+                    () {
+                      setState(() => _selectedEstado = '');
+                      _fetchLiveSecopContracts(silent: true);
+                    },
+                  ),
+                if (_selectedDependencia.isNotEmpty)
+                  activeFilterChip(
+                    'Dependencia: $_selectedDependencia',
+                    () {
+                      setState(() => _selectedDependencia = '');
+                    },
+                  ),
+                if (_contractsSearchController.text.trim().isNotEmpty)
+                  activeFilterChip(
+                    'Búsqueda: "${_contractsSearchController.text.trim()}"',
+                    () {
+                      _contractsSearchController.clear();
+                      _executeContractSearch();
+                    },
+                  ),
               ],
             ),
           ],
@@ -2809,35 +3679,35 @@ class _ContratosSectionState extends State<ContratosSection> {
       required Color iconBackground,
       required String label,
       required String value,
-      String? trendText,
       String? subtitleText,
     }) {
       return Expanded(
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 11),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: _bordeCalido.withValues(alpha: 0.65)),
             boxShadow: [
               BoxShadow(
-                color: _azulOscuro.withValues(alpha: 0.05),
-                blurRadius: 14,
-                offset: const Offset(0, 4),
+                color: _azulOscuro.withValues(alpha: 0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
           child: Row(
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 30,
+                height: 30,
                 decoration: BoxDecoration(
                   color: iconBackground,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: iconColor, size: 25),
+                child: Icon(icon, color: iconColor, size: 16),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 9),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2849,60 +3719,46 @@ class _ContratosSectionState extends State<ContratosSection> {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Color(0xFF64748B),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        value,
-                        maxLines: 1,
-                        style: const TextStyle(
-                          color: _azulOscuro,
-                          fontSize: 23,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    if (trendText != null)
-                      RichText(
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        text: TextSpan(
-                          children: [
-                            TextSpan(
-                              text: trendText,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              value,
+                              maxLines: 1,
                               style: const TextStyle(
-                                color: Color(0xFF16A34A),
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w700,
+                                color: _azulOscuro,
+                                fontSize: 15.5,
+                                fontWeight: FontWeight.w800,
                               ),
                             ),
-                            TextSpan(
-                              text: ' ${subtitleText ?? 'SECOP II'}',
+                          ),
+                        ),
+                        if (subtitleText != null) ...[
+                          const SizedBox(width: 5),
+                          Flexible(
+                            child: Text(
+                              subtitleText,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: Color(0xFF64748B),
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w400,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
-                          ],
-                        ),
-                      )
-                    else if (subtitleText != null)
-                      Text(
-                        subtitleText,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF64748B),
-                          fontSize: 11.5,
-                        ),
-                      ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -2918,39 +3774,36 @@ class _ContratosSectionState extends State<ContratosSection> {
           icon: Icons.description_outlined,
           iconColor: const Color(0xFF2B7DE9),
           iconBackground: const Color(0xFFEAF3FF),
-          label: 'Total de contratos',
+          label: 'Total contratos',
           value: totalContractsText,
-          trendText: 'SECOP II',
-          subtitleText: 'en esta consulta',
+          subtitleText: 'SECOP II',
         ),
-        const SizedBox(width: 14),
+        const SizedBox(width: 10),
         kpi(
-          icon: Icons.monetization_on,
+          icon: Icons.monetization_on_outlined,
           iconColor: const Color(0xFF22A05B),
           iconBackground: const Color(0xFFE6F6EC),
           label: 'Valor contratado',
           value: totalValueText,
-          trendText: '100% real',
           subtitleText: 'acumulado',
         ),
-        const SizedBox(width: 14),
+        const SizedBox(width: 10),
         kpi(
-          icon: Icons.people,
+          icon: Icons.people_outline,
           iconColor: const Color(0xFF2563EB),
           iconBackground: const Color(0xFFEBF1FF),
           label: 'Contratistas',
           value: contractorsCountText,
-          trendText: 'Verificados',
-          subtitleText: 'con NIT / C.C.',
+          subtitleText: 'verificados',
         ),
-        const SizedBox(width: 14),
+        const SizedBox(width: 10),
         kpi(
-          icon: Icons.account_balance,
+          icon: Icons.account_balance_outlined,
           iconColor: const Color(0xFFE5A024),
           iconBackground: const Color(0xFFFFF6DA),
           label: 'Entidades',
           value: entitiesCountText,
-          subtitleText: 'en los resultados',
+          subtitleText: 'en consulta',
         ),
       ],
     );
@@ -2978,23 +3831,33 @@ class _ContratosSectionState extends State<ContratosSection> {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
               const Text(
                 'Resultados de búsqueda',
                 style: TextStyle(
                   color: _azulOscuro,
-                  fontSize: 19,
+                  fontSize: 17,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                countText,
-                style: const TextStyle(
-                  color: Color(0xFF475569),
-                  fontSize: 12.5,
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF4D6),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _doradoPlataforma.withValues(alpha: 0.65),
+                  ),
+                ),
+                child: Text(
+                  countText,
+                  style: const TextStyle(
+                    color: _azulOscuro,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
@@ -3004,25 +3867,25 @@ class _ContratosSectionState extends State<ContratosSection> {
           'Ordenar por:',
           style: TextStyle(
             color: Color(0xFF475569),
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(width: 8),
         Container(
-          height: 34,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          height: 32,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: _bordeCalido),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: _sortBy,
               isDense: true,
               icon: const Padding(
-                padding: EdgeInsets.only(left: 10),
+                padding: EdgeInsets.only(left: 8),
                 child: Icon(
                   Icons.keyboard_arrow_down,
                   size: 16,
@@ -3031,8 +3894,8 @@ class _ContratosSectionState extends State<ContratosSection> {
               ),
               style: const TextStyle(
                 color: _azulOscuro,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
               ),
               items: const [
                 DropdownMenuItem(
@@ -3059,29 +3922,29 @@ class _ContratosSectionState extends State<ContratosSection> {
             ),
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         SizedBox(
-          height: 34,
+          height: 32,
           child: OutlinedButton.icon(
             onPressed: _exportFilteredToCsv,
             icon: const Icon(
               Icons.download_rounded,
-              size: 16,
+              size: 15,
               color: _azulOscuro,
             ),
             label: const Text(
               'Exportar',
               style: TextStyle(
                 color: _azulOscuro,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
               ),
             ),
             style: OutlinedButton.styleFrom(
               backgroundColor: Colors.white,
               foregroundColor: _azulOscuro,
-              side: const BorderSide(color: Color(0xFFE2E8F0)),
-              padding: const EdgeInsets.symmetric(horizontal: 14),
+              side: const BorderSide(color: _bordeCalido),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -3094,7 +3957,7 @@ class _ContratosSectionState extends State<ContratosSection> {
 
   Widget _buildColumnTitles() {
     const titles = [
-      'Objeto del contrato',
+      'Proceso / Objeto contractual',
       'Entidad / Ubicación',
       'Contratista',
       'Valor',
@@ -3113,7 +3976,7 @@ class _ContratosSectionState extends State<ContratosSection> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
-                  vertical: 10,
+                  vertical: 9,
                 ),
                 child: Text(
                   titles[index],
@@ -3122,7 +3985,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                   style: const TextStyle(
                     color: _azulOscuro,
                     fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
@@ -3130,14 +3993,14 @@ class _ContratosSectionState extends State<ContratosSection> {
           const SizedBox(
             width: 148,
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 9),
               child: Text(
                 'Acciones',
                 maxLines: 1,
                 style: TextStyle(
                   color: _azulOscuro,
                   fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
@@ -3168,7 +4031,7 @@ class _ContratosSectionState extends State<ContratosSection> {
     Widget cell(int flex, Widget child) => Expanded(
           flex: flex,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
             child: child,
           ),
         );
@@ -3184,43 +4047,47 @@ class _ContratosSectionState extends State<ContratosSection> {
             child: Row(
               children: [
                 Container(
-                  width: 36,
-                  height: 36,
+                  width: 34,
+                  height: 34,
                   decoration: BoxDecoration(
                     color: contract.iconBg,
-                    borderRadius: BorderRadius.circular(9),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     contract.icon,
                     color: contract.color,
-                    size: 19,
+                    size: 18,
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 9),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        contract.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: _azulOscuro,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 11.5,
-                          height: 1.2,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
+                      // Número de proceso en negrilla arriba (prioridad visual)
                       Text(
                         contract.processCode,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
+                          color: _azulOscuro,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                          height: 1.15,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      // Objeto contractual abajo más pequeño
+                      Text(
+                        contract.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
                           color: Color(0xFF64748B),
+                          fontWeight: FontWeight.w400,
                           fontSize: 10.5,
+                          height: 1.2,
                         ),
                       ),
                     ],
@@ -3597,111 +4464,93 @@ class _ContratosSectionState extends State<ContratosSection> {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Column(
-        children: [
-          DashboardTopBar(
-            searchController: widget.topSearchController,
-            onSearchSubmitted: (value) {
-              _contractsSearchController.text = value;
-              _executeContractSearch();
-            },
-            onLogout: widget.onLogout,
-          ),
-          Expanded(
-            child: Container(
-              color: const Color(0xFFFAF5EA),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final double horizontalPad =
-                      constraints.maxWidth > 1220 ? 28.0 : 24.0;
-                  return SingleChildScrollView(
-                    child: Stack(
+      child: Container(
+        color: _cremaFondo,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final double horizontalPad =
+                constraints.maxWidth > 1220 ? 24.0 : 18.0;
+            return SingleChildScrollView(
+              child: Stack(
+                children: [
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 150,
+                    child: Image.asset(
+                      'assets/images/fondo_valledupar.jpg',
+                      fit: BoxFit.cover,
+                      alignment: const Alignment(0.0, -0.38),
+                      errorBuilder: (context, error, stackTrace) => Container(),
+                    ),
+                  ),
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 150,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [
+                            _cremaFondo,
+                            _cremaFondo.withValues(alpha: 0.92),
+                            _cremaFondo.withValues(alpha: 0.0),
+                          ],
+                          stops: const [0.0, 0.36, 0.65],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 100,
+                    left: 0,
+                    right: 0,
+                    height: 50,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            _cremaFondo.withValues(alpha: 0.0),
+                            _cremaFondo,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      horizontalPad,
+                      12,
+                      horizontalPad,
+                      14,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Positioned(
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          height: 215,
-                          child: Image.asset(
-                            'assets/images/fondo_valledupar.jpg',
-                            fit: BoxFit.cover,
-                            alignment: const Alignment(0.0, -0.38),
-                            errorBuilder: (context, error, stackTrace) =>
-                                Container(),
-                          ),
-                        ),
-                        Positioned(
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          height: 215,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                                colors: [
-                                  const Color(0xFFFAF5EA),
-                                  const Color(0xFFFAF5EA)
-                                      .withValues(alpha: 0.92),
-                                  const Color(0xFFFAF5EA)
-                                      .withValues(alpha: 0.0),
-                                ],
-                                stops: const [0.0, 0.36, 0.65],
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          top: 145,
-                          left: 0,
-                          right: 0,
-                          height: 70,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  const Color(0xFFFAF5EA)
-                                      .withValues(alpha: 0.0),
-                                  const Color(0xFFFAF5EA),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.fromLTRB(
-                            horizontalPad,
-                            18,
-                            horizontalPad,
-                            16,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              _buildHeaderSection(),
-                              const SizedBox(height: 14),
-                              _buildFiltersPanel(),
-                              const SizedBox(height: 12),
-                              _buildKPIsRow(),
-                              const SizedBox(height: 14),
-                              _buildTableHeader(),
-                              const SizedBox(height: 10),
-                              _buildContractsTable(),
-                              _buildPaginationRow(),
-                            ],
-                          ),
-                        ),
+                        _buildHeaderSection(),
+                        const SizedBox(height: 8),
+                        _buildFiltersPanel(),
+                        const SizedBox(height: 8),
+                        _buildKPIsRow(),
+                        const SizedBox(height: 9),
+                        _buildTableHeader(),
+                        const SizedBox(height: 7),
+                        _buildContractsTable(),
+                        _buildPaginationRow(),
                       ],
                     ),
-                  );
-                },
+                  ),
+                ],
               ),
-            ),
-          ),
-        ],
+            );
+          },
+        ),
       ),
     );
   }
