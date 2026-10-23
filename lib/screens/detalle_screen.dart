@@ -1303,7 +1303,7 @@ PREGUNTA DEL USUARIO: $cleanText
               children: [
                 _buildBulletPoint(
                   Icons.monetization_on_outlined,
-                  'Monto ($valorFormateado), objeto, número de proceso y partes.',
+                  'Monto ($_valorFormateado), objeto, número de proceso y partes.',
                 ),
                 const SizedBox(height: 8),
                 _buildBulletPoint(
