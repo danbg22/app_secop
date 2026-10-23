@@ -82,11 +82,12 @@ class _ContratosSectionState extends State<ContratosSection> {
   static const Color _cremaTarjeta = Color(0xFFFFFDF8);
   static const Color _bordeCalido = Color(0xFFE6DEC8);
   static const int _pageSize = 10;
-  static const int _initialResultsLimit = 500;
-  static const int _searchResultsLimit = 5000;
+  static const int _initialResultsLimit = 120;
+  static const int _searchResultsLimit = 160;
+  static final Map<String, List<ContractRecord>> _fastContractsQueryCache = {};
   static const String _secopSelectFields =
       'id_contrato,referencia_del_contrato,proceso_de_compra,nombre_entidad,'
-      'orden,departamento,ciudad,sector,estado_contrato,'
+      'nit_entidad,orden,departamento,ciudad,sector,estado_contrato,'
       'modalidad_de_contratacion,tipo_de_contrato,valor_del_contrato,'
       'proveedor_adjudicado,tipodocproveedor,documento_proveedor,'
       'fecha_de_firma,fecha_de_inicio_del_contrato,fecha_de_fin_del_contrato,'
@@ -1173,8 +1174,17 @@ class _ContratosSectionState extends State<ContratosSection> {
     }).join(' AND ');
   }
 
+  List<String> _extractCommaGroups(String rawQuery) {
+    return rawQuery
+        .split(',')
+        .map((g) => g.replaceAll("'", '').trim())
+        .where((g) => g.isNotEmpty)
+        .take(5)
+        .toList();
+  }
+
   List<String> _extractSearchTokens(String rawQuery) {
-    final cleaned = rawQuery.replaceAll("'", '').trim();
+    final cleaned = rawQuery.replaceAll("'", '').replaceAll(',', ' ').trim();
     if (cleaned.isEmpty) return const [];
     return cleaned
         .split(RegExp(r'\s+'))
@@ -1187,71 +1197,145 @@ class _ContratosSectionState extends State<ContratosSection> {
         .toList();
   }
 
-  String? _buildSearchSoqlClause(String rawQuery) {
-    final tokens = _extractSearchTokens(rawQuery);
-    if (tokens.isEmpty) return null;
+  String? _buildFastEntityOrDocIndexClause(String rawQuery) {
+    final groups = _extractCommaGroups(rawQuery);
+    if (groups.isEmpty) return null;
 
-    final tokenClauses = <String>[];
-    for (final rawToken in tokens) {
-      final hasDigits = RegExp(r'\d').hasMatch(rawToken);
-      final digitsOnly = rawToken.replaceAll(RegExp(r'[^0-9]'), '');
-      final isFormattedDoc =
-          hasDigits &&
-          digitsOnly.length >= 5 &&
-          RegExp(r'^[0-9.\-]+$').hasMatch(rawToken);
+    final groupClauses = <String>[];
+    for (final group in groups) {
+      final digitsOnly = group.replaceAll(RegExp(r'[^0-9]'), '');
+      final normGroup = _normalizar(group);
+      final isNumericDoc =
+          digitsOnly.length >= 3 &&
+          RegExp(r'^[0-9.\-\s]+$').hasMatch(
+            group.replaceAll(
+              RegExp(r'(C\.?C\.?|NIT\.?)', caseSensitive: false),
+              '',
+            ),
+          );
 
-      final tNorm = _normalizar(rawToken);
-      final tOrig = rawToken.toUpperCase();
-      final tTilde = _conTildeComun(tNorm);
-
-      final variants = <String>{
-        tNorm,
-        tOrig,
-        tTilde,
-        if (isFormattedDoc) digitsOnly,
-      }.where((v) => v.isNotEmpty).toList();
-
-      final fieldChecks = <String>[];
-      for (final v in variants) {
-        if (isFormattedDoc && v == digitsOnly) {
-          fieldChecks.addAll([
-            "documento_proveedor LIKE '%$v%'",
-            "upper(referencia_del_contrato) LIKE '%$v%'",
-            "upper(proceso_de_compra) LIKE '%$v%'",
-            "upper(id_contrato) LIKE '%$v%'",
-          ]);
-        } else if (hasDigits) {
-          fieldChecks.addAll([
-            "documento_proveedor LIKE '%$v%'",
-            "upper(referencia_del_contrato) LIKE '%$v%'",
-            "upper(proceso_de_compra) LIKE '%$v%'",
-            "upper(id_contrato) LIKE '%$v%'",
-            "upper(proveedor_adjudicado) LIKE '%$v%'",
-            "upper(nombre_entidad) LIKE '%$v%'",
-            "upper(objeto_del_contrato) LIKE '%$v%'",
-          ]);
-        } else {
-          fieldChecks.addAll([
-            "upper(proveedor_adjudicado) LIKE '%$v%'",
-            "upper(nombre_entidad) LIKE '%$v%'",
-            "upper(objeto_del_contrato) LIKE '%$v%'",
-            "upper(descripcion_del_proceso) LIKE '%$v%'",
-          ]);
-        }
+      if (isNumericDoc) {
+        final docSub = <String>[
+          "starts_with(documento_proveedor, '$digitsOnly')",
+          "starts_with(nit_entidad, '$digitsOnly')",
+          if (digitsOnly.length == 10 &&
+              (digitsOnly.startsWith('8') || digitsOnly.startsWith('9'))) ...[
+            "starts_with(documento_proveedor, '${digitsOnly.substring(0, 9)}')",
+            "starts_with(nit_entidad, '${digitsOnly.substring(0, 9)}')",
+          ],
+          if (digitsOnly.length >= 4)
+            "starts_with(referencia_del_contrato, '$digitsOnly')",
+        ];
+        groupClauses.add('(${docSub.join(' OR ')})');
+        continue;
       }
-      tokenClauses.add('(${fieldChecks.join(' OR ')})');
+
+      // Siglas de entidades nacionales con NIT indexado en SECOP II (respuesta en <200ms)
+      if (normGroup == 'SENA' || normGroup.contains('SERVICIO NACIONAL DE APRENDIZAJE')) {
+        groupClauses.add("(nit_entidad = '899999034' OR starts_with(nit_entidad, '899999034'))");
+        continue;
+      }
+      if (normGroup == 'ICBF' || normGroup.contains('BIENESTAR FAMILIAR')) {
+        groupClauses.add("(nit_entidad = '899999239' OR starts_with(nit_entidad, '899999239'))");
+        continue;
+      }
+      if (normGroup == 'INVIAS' || normGroup.contains('INSTITUTO NACIONAL DE VIAS')) {
+        groupClauses.add("(nit_entidad = '800215807' OR starts_with(nit_entidad, '800215807'))");
+        continue;
+      }
+      if (normGroup == 'UNGRD') {
+        groupClauses.add("(nit_entidad = '900476364' OR starts_with(nit_entidad, '900476364'))");
+        continue;
+      }
     }
 
-    return tokenClauses.join(' AND ');
+    if (groupClauses.length == groups.length && groupClauses.isNotEmpty) {
+      return '(${groupClauses.join(' OR ')})';
+    }
+    return null;
+  }
+
+  String? _buildSearchSoqlClause(String rawQuery) {
+    final groups = _extractCommaGroups(rawQuery);
+    if (groups.isEmpty) return null;
+
+    final groupClauses = <String>[];
+    for (final group in groups) {
+      final tokens = _extractSearchTokens(group);
+      if (tokens.isEmpty) continue;
+
+      final tokenClauses = <String>[];
+      for (final rawToken in tokens) {
+        final hasDigits = RegExp(r'\d').hasMatch(rawToken);
+        final digitsOnly = rawToken.replaceAll(RegExp(r'[^0-9]'), '');
+        final isFormattedDoc =
+            hasDigits &&
+            digitsOnly.length >= 3 &&
+            RegExp(r'^[0-9.\-]+$').hasMatch(rawToken);
+
+        final tNorm = _normalizar(rawToken);
+        final tOrig = rawToken.toUpperCase();
+        final tTilde = _conTildeComun(tNorm);
+
+        if (isFormattedDoc) {
+          final docChecks = <String>[
+            "starts_with(documento_proveedor, '$digitsOnly')",
+            "starts_with(nit_entidad, '$digitsOnly')",
+            if (digitsOnly.length == 10 &&
+                (digitsOnly.startsWith('8') || digitsOnly.startsWith('9')))
+              "starts_with(documento_proveedor, '${digitsOnly.substring(0, 9)}')",
+            "upper(referencia_del_contrato) LIKE '%$digitsOnly%'",
+            "upper(id_contrato) LIKE '%$digitsOnly%'",
+          ];
+          tokenClauses.add('(${docChecks.join(' OR ')})');
+          continue;
+        }
+
+        final variants = <String>{
+          tNorm,
+          tOrig,
+          tTilde,
+        }.where((v) => v.isNotEmpty).toList();
+
+        final fieldChecks = <String>[];
+        for (final v in variants) {
+          if (hasDigits) {
+            fieldChecks.addAll([
+              if (digitsOnly.length >= 3)
+                "starts_with(documento_proveedor, '$digitsOnly')",
+              "upper(referencia_del_contrato) LIKE '%$v%'",
+              "upper(proceso_de_compra) LIKE '%$v%'",
+              "upper(id_contrato) LIKE '%$v%'",
+              "upper(proveedor_adjudicado) LIKE '%$v%'",
+              "upper(nombre_entidad) LIKE '%$v%'",
+            ]);
+          } else {
+            fieldChecks.addAll([
+              "upper(proveedor_adjudicado) LIKE '%$v%'",
+              "upper(nombre_entidad) LIKE '%$v%'",
+              "upper(objeto_del_contrato) LIKE '%$v%'",
+            ]);
+          }
+        }
+        tokenClauses.add('(${fieldChecks.join(' OR ')})');
+      }
+      if (tokenClauses.isNotEmpty) {
+        groupClauses.add('(${tokenClauses.join(' AND ')})');
+      }
+    }
+
+    if (groupClauses.isEmpty) return null;
+    return '(${groupClauses.join(' OR ')})';
   }
 
   bool _matchesSearchQuery(Map<String, dynamic> raw, String rawQuery) {
-    final tokens = _extractSearchTokens(rawQuery);
-    if (tokens.isEmpty) return true;
+    final groups = _extractCommaGroups(rawQuery);
+    if (groups.isEmpty) return true;
 
     final searchableText = _normalizar(
       '${raw['proveedor_adjudicado'] ?? ''} '
       '${raw['documento_proveedor'] ?? ''} '
+      '${raw['nit_entidad'] ?? ''} '
       '${raw['nombre_entidad'] ?? ''} '
       '${raw['objeto_del_contrato'] ?? ''} '
       '${raw['descripcion_del_proceso'] ?? ''} '
@@ -1261,20 +1345,35 @@ class _ContratosSectionState extends State<ContratosSection> {
       '${raw['ciudad'] ?? ''} '
       '${raw['departamento'] ?? ''}',
     );
-    final rawDocDigits =
-        (raw['documento_proveedor'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '');
+    final rawDocDigits = (raw['documento_proveedor'] ?? '')
+        .toString()
+        .replaceAll(RegExp(r'[^0-9]'), '');
+    final rawEntityNitDigits = (raw['nit_entidad'] ?? '')
+        .toString()
+        .replaceAll(RegExp(r'[^0-9]'), '');
 
-    for (final token in tokens) {
-      final tNorm = _normalizar(token);
-      final digitsOnly = token.replaceAll(RegExp(r'[^0-9]'), '');
-      final matchesText = searchableText.contains(tNorm);
-      final matchesDigits =
-          digitsOnly.length >= 5 && rawDocDigits.contains(digitsOnly);
-      if (!matchesText && !matchesDigits) {
-        return false;
+    for (final group in groups) {
+      final tokens = _extractSearchTokens(group);
+      if (tokens.isEmpty) continue;
+      bool allGroupTokensMatch = true;
+      for (final token in tokens) {
+        final tNorm = _normalizar(token);
+        final digitsOnly = token.replaceAll(RegExp(r'[^0-9]'), '');
+        final matchesText = searchableText.contains(tNorm);
+        final matchesDigits =
+            digitsOnly.length >= 3 &&
+            (rawDocDigits.contains(digitsOnly) ||
+                rawEntityNitDigits.contains(digitsOnly) ||
+                (digitsOnly.length == 10 &&
+                    rawDocDigits.startsWith(digitsOnly.substring(0, 9))));
+        if (!matchesText && !matchesDigits) {
+          allGroupTokensMatch = false;
+          break;
+        }
       }
+      if (allGroupTokensMatch) return true;
     }
-    return true;
+    return false;
   }
 
   String _contractUniqueKey(ContractRecord record) {
@@ -1315,19 +1414,38 @@ class _ContratosSectionState extends State<ContratosSection> {
     return merged;
   }
 
+  String _buildQueryCacheKey(String queryText) {
+    return '${_normalizar(queryText)}|$_selectedSector|$_selectedOrden|'
+        '$_selectedDepartamento|$_selectedMunicipio|$_selectedEntidad|'
+        '$_selectedModalidad|$_selectedEstado|$_selectedAnio|'
+        '$_minValueFilter|$_maxValueFilter';
+  }
+
   Future<void> _fetchLiveSecopContracts({
     String? customQuery,
     bool silent = false,
   }) async {
     if (!mounted) return;
+    final queryText = (customQuery ?? _contractsSearchController.text).trim();
+    final cacheKey = _buildQueryCacheKey(queryText);
+
+    // Respuesta en 0ms si esta consulta ya está en la caché en memoria
+    final cachedList = _fastContractsQueryCache[cacheKey];
+    if (cachedList != null && cachedList.isNotEmpty) {
+      setState(() {
+        _secopContracts = cachedList;
+        _isLoadingSecop = false;
+        _currentPage = 1;
+      });
+      return;
+    }
+
     final int requestId = ++_latestRequestId;
     setState(() {
       _isLoadingSecop = true;
     });
 
     try {
-      final queryText =
-          (customQuery ?? _contractsSearchController.text).trim();
       final bool hasSearchOrFilter =
           queryText.isNotEmpty || _activeFiltersCount > 0;
       final int queryLimit =
@@ -1504,7 +1622,7 @@ class _ContratosSectionState extends State<ContratosSection> {
       Future<List<ContractRecord>> runSoqlQuery({
         required bool applyYearFilter,
       }) async {
-        // Cuando no hay texto de búsqueda, hacemos una consulta directa optimizada
+        // 1. Sin texto de búsqueda: consulta directa indexada con límite ágil
         if (queryText.isEmpty) {
           final baseClauses = buildBaseWhereClauses(
             applyYearFilter: applyYearFilter,
@@ -1521,23 +1639,21 @@ class _ContratosSectionState extends State<ContratosSection> {
             },
           );
           final response =
-              await http.get(uri).timeout(const Duration(seconds: 18));
+              await http.get(uri).timeout(const Duration(seconds: 10));
           if (response.statusCode != 200) return [];
           return parseJsonResponse(response.body);
         }
 
-        // Cuando hay texto de búsqueda:
-        // 1) Consulta rápida indexada ($q de Socrata) que responde en <1s incluso en caché fría
-        // 2) Consulta SoQL LIKE ($where) para capturar coincidencias parciales o variaciones de tilde
         final baseClauses = buildBaseWhereClauses(
           applyYearFilter: applyYearFilter,
           requireFechaFirma: false,
         );
-        final searchClause = _buildSearchSoqlClause(queryText);
 
-        Future<List<ContractRecord>> fetchWithFullTextIndex() async {
+        // 2. Ruta ultra-rápida por índice B-tree si busca Cédula, NIT o siglas conocidas (< 250ms)
+        final fastBtreeClause = _buildFastEntityOrDocIndexClause(queryText);
+        if (fastBtreeClause != null) {
           try {
-            final cleanQ = _extractSearchTokens(queryText).join(' ');
+            final indexedWhere = <String>[...baseClauses, fastBtreeClause];
             final uri = Uri.https(
               'www.datos.gov.co',
               '/resource/jbjy-vk9h.json',
@@ -1545,34 +1661,65 @@ class _ContratosSectionState extends State<ContratosSection> {
                 r'$select': _secopSelectFields,
                 r'$limit': '$queryLimit',
                 r'$order': 'fecha_de_firma DESC',
-                r'$q': cleanQ.isNotEmpty ? cleanQ : queryText,
+                r'$where': indexedWhere.join(' AND '),
+              },
+            );
+            final response =
+                await http.get(uri).timeout(const Duration(seconds: 8));
+            if (response.statusCode == 200) {
+              final indexedParsed = parseJsonResponse(response.body);
+              if (indexedParsed.isNotEmpty) {
+                return indexedParsed;
+              }
+            }
+          } catch (_) {}
+        }
+
+        // 3. Ruta rápida por índice Full-Text ($q) de Socrata (~250ms)
+        // Si hay varias combinaciones separadas por coma, las consultamos en paralelo con $q
+        final commaGroups = _extractCommaGroups(queryText);
+        Future<List<ContractRecord>> fetchSingleGroupQ(String groupText) async {
+          try {
+            final cleanQ = _extractSearchTokens(groupText).join(' ');
+            final uri = Uri.https(
+              'www.datos.gov.co',
+              '/resource/jbjy-vk9h.json',
+              <String, String>{
+                r'$select': _secopSelectFields,
+                r'$limit': '${(queryLimit / commaGroups.length.clamp(1, 5)).ceil().clamp(50, 160)}',
+                r'$order': 'fecha_de_firma DESC',
+                r'$q': cleanQ.isNotEmpty ? cleanQ : groupText,
                 r'$where': baseClauses.join(' AND '),
               },
             );
             final response =
-                await http.get(uri).timeout(const Duration(seconds: 16));
+                await http.get(uri).timeout(const Duration(seconds: 8));
             if (response.statusCode != 200) return [];
-            final fastParsed = parseJsonResponse(
+            return parseJsonResponse(
               response.body,
               verifyQueryTokens: true,
             );
-            // Renderizado inmediato apenas responde el índice rápido
-            if (fastParsed.isNotEmpty &&
-                mounted &&
-                requestId == _latestRequestId) {
-              setState(() {
-                _secopContracts = fastParsed;
-                _currentPage = 1;
-              });
-            }
-            return fastParsed;
           } catch (_) {
             return [];
           }
         }
 
-        Future<List<ContractRecord>> fetchWithSoqlLike() async {
-          if (searchClause == null) return [];
+        final groupLists = await Future.wait(
+          commaGroups.map(fetchSingleGroupQ),
+        );
+        var fastCombined = <ContractRecord>[];
+        for (final list in groupLists) {
+          fastCombined = _mergeAndDeduplicateRecords(fastCombined, list);
+        }
+
+        // Si el índice rápido $q encontró resultados, respondemos de inmediato sin esperar escaneos lentos
+        if (fastCombined.isNotEmpty) {
+          return fastCombined;
+        }
+
+        // 4. Fallback ligero SoQL ($limit=80) solo si $q no arrojó coincidencias (ej. fragmentos de palabra)
+        final searchClause = _buildSearchSoqlClause(queryText);
+        if (searchClause != null) {
           try {
             final likeClauses = <String>[...baseClauses, searchClause];
             final uri = Uri.https(
@@ -1580,38 +1727,20 @@ class _ContratosSectionState extends State<ContratosSection> {
               '/resource/jbjy-vk9h.json',
               <String, String>{
                 r'$select': _secopSelectFields,
-                r'$limit': '$queryLimit',
+                r'$limit': '80',
                 r'$order': 'fecha_de_firma DESC',
                 r'$where': likeClauses.join(' AND '),
               },
             );
             final response =
-                await http.get(uri).timeout(const Duration(seconds: 22));
-            if (response.statusCode != 200) return [];
-            return parseJsonResponse(response.body);
-          } catch (_) {
-            return [];
-          }
+                await http.get(uri).timeout(const Duration(seconds: 10));
+            if (response.statusCode == 200) {
+              return parseJsonResponse(response.body);
+            }
+          } catch (_) {}
         }
 
-        final both = await Future.wait<List<ContractRecord>>([
-          fetchWithFullTextIndex(),
-          fetchWithSoqlLike(),
-        ]);
-
-        var merged = _mergeAndDeduplicateRecords(both[1], both[0]);
-
-        // Reintento automático si ambos fallaron por congestión temporal de red
-        if (merged.isEmpty) {
-          await Future<void>.delayed(const Duration(milliseconds: 350));
-          if (!mounted || requestId != _latestRequestId) return [];
-          final retryFast = await fetchWithFullTextIndex();
-          if (retryFast.isNotEmpty) {
-            merged = retryFast;
-          }
-        }
-
-        return merged;
+        return [];
       }
 
       var results = await runSoqlQuery(applyYearFilter: true);
@@ -1626,6 +1755,9 @@ class _ContratosSectionState extends State<ContratosSection> {
       }
 
       if (!mounted || requestId != _latestRequestId) return;
+      if (results.isNotEmpty) {
+        _fastContractsQueryCache[cacheKey] = results;
+      }
       setState(() {
         if (results.isNotEmpty ||
             queryText.isNotEmpty ||
@@ -3075,6 +3207,7 @@ class _ContratosSectionState extends State<ContratosSection> {
   }
 
   Widget _buildHeaderSection() {
+    final isMobile = MediaQuery.sizeOf(context).width < 700;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -3087,35 +3220,38 @@ class _ContratosSectionState extends State<ContratosSection> {
           ),
         ),
         const SizedBox(width: 10),
-        const Text(
+        Text(
           'Contratos',
           style: TextStyle(
             color: _azulOscuro,
-            fontSize: 26,
+            fontSize: isMobile ? 22 : 26,
             fontWeight: FontWeight.w800,
             height: 1.05,
           ),
         ),
-        const SizedBox(width: 12),
-        Container(
-          width: 1.5,
-          height: 18,
-          color: _bordeCalido,
-        ),
-        const SizedBox(width: 12),
-        const Expanded(
-          child: Text(
-            'Explora, filtra por sector y consulta procesos contractuales en tiempo real desde SECOP II.',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: Color(0xFF475569),
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
+        if (!isMobile) ...[
+          const SizedBox(width: 12),
+          Container(
+            width: 1.5,
+            height: 18,
+            color: _bordeCalido,
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'Explora, filtra por sector y consulta procesos contractuales en tiempo real desde SECOP II.',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Color(0xFF475569),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
-        ),
-        const SizedBox(width: 16),
+        ] else
+          const Spacer(),
+        const SizedBox(width: 12),
         UserProfileHeaderAction(onLogout: widget.onLogout),
       ],
     );
@@ -3374,75 +3510,75 @@ class _ContratosSectionState extends State<ContratosSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Barra de búsqueda recogida (compacta) + Botón Buscar + Filtros avanzados
-          Row(
+          // Barra de búsqueda rápida en tiempo real + Botón Buscar + Filtros avanzados
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              Flexible(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 460),
-                  child: SizedBox(
-                    height: 36,
-                    child: TextField(
-                      controller: _contractsSearchController,
-                      onChanged: (_) {
-                        setState(() {});
-                        _searchDebounce?.cancel();
-                        _searchDebounce = Timer(
-                          const Duration(milliseconds: 500),
-                          () => _executeContractSearch(silent: true),
-                        );
-                      },
-                      onSubmitted: (_) => _executeContractSearch(silent: false),
-                      style: const TextStyle(fontSize: 12, color: _azulOscuro),
-                      decoration: InputDecoration(
-                        hintText:
-                            'Buscar proceso, contratista, NIT/Cédula o entidad...',
-                        hintStyle: TextStyle(
-                          color: Colors.blueGrey.shade400,
-                          fontSize: 12,
-                        ),
-                        isDense: true,
-                        filled: true,
-                        fillColor: _cremaFondo,
-                        prefixIcon: const Icon(
-                          Icons.search,
+              ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 230, maxWidth: 460),
+                child: SizedBox(
+                  height: 36,
+                  child: TextField(
+                    controller: _contractsSearchController,
+                    onChanged: (_) {
+                      setState(() {});
+                      _searchDebounce?.cancel();
+                      _searchDebounce = Timer(
+                        const Duration(milliseconds: 180),
+                        () => _executeContractSearch(silent: true),
+                      );
+                    },
+                    onSubmitted: (_) => _executeContractSearch(silent: false),
+                    style: const TextStyle(fontSize: 12, color: _azulOscuro),
+                    decoration: InputDecoration(
+                      hintText:
+                          'Buscar proceso, contratista, NIT/Cédula o entidad (o separa por coma)...',
+                      hintStyle: TextStyle(
+                        color: Colors.blueGrey.shade400,
+                        fontSize: 12,
+                      ),
+                      isDense: true,
+                      filled: true,
+                      fillColor: _cremaFondo,
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        color: _azulOscuro,
+                        size: 18,
+                      ),
+                      suffixIcon: _contractsSearchController.text.isNotEmpty
+                          ? IconButton(
+                              onPressed: () {
+                                _contractsSearchController.clear();
+                                _executeContractSearch(silent: true);
+                              },
+                              icon: const Icon(Icons.clear, size: 15),
+                            )
+                          : null,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 0,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(9),
+                        borderSide: const BorderSide(color: _bordeCalido),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(9),
+                        borderSide: const BorderSide(color: _bordeCalido),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(9),
+                        borderSide: const BorderSide(
                           color: _azulOscuro,
-                          size: 18,
-                        ),
-                        suffixIcon: _contractsSearchController.text.isNotEmpty
-                            ? IconButton(
-                                onPressed: () {
-                                  _contractsSearchController.clear();
-                                  _executeContractSearch(silent: true);
-                                },
-                                icon: const Icon(Icons.clear, size: 15),
-                              )
-                            : null,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 0,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(9),
-                          borderSide: const BorderSide(color: _bordeCalido),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(9),
-                          borderSide: const BorderSide(color: _bordeCalido),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(9),
-                          borderSide: const BorderSide(
-                            color: _azulOscuro,
-                            width: 1.3,
-                          ),
+                          width: 1.3,
                         ),
                       ),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
               SizedBox(
                 height: 36,
                 child: ElevatedButton.icon(
@@ -3479,7 +3615,6 @@ class _ContratosSectionState extends State<ContratosSection> {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
               SizedBox(
                 height: 36,
                 child: OutlinedButton(
@@ -3527,7 +3662,6 @@ class _ContratosSectionState extends State<ContratosSection> {
                   ),
                 ),
               ),
-              const Spacer(),
               if (hasAnyFilter)
                 TextButton.icon(
                   onPressed: _resetAllFilters,
@@ -3771,43 +3905,72 @@ class _ContratosSectionState extends State<ContratosSection> {
       );
     }
 
+    final kpiCards = [
+      kpi(
+        icon: Icons.description_outlined,
+        iconColor: const Color(0xFF2B7DE9),
+        iconBackground: const Color(0xFFEAF3FF),
+        label: 'Total contratos',
+        value: totalContractsText,
+        subtitleText: 'SECOP II',
+      ),
+      kpi(
+        icon: Icons.monetization_on_outlined,
+        iconColor: const Color(0xFF22A05B),
+        iconBackground: const Color(0xFFE6F6EC),
+        label: 'Valor contratado',
+        value: totalValueText,
+        subtitleText: 'acumulado',
+      ),
+      kpi(
+        icon: Icons.people_outline,
+        iconColor: const Color(0xFF2563EB),
+        iconBackground: const Color(0xFFEBF1FF),
+        label: 'Contratistas',
+        value: contractorsCountText,
+        subtitleText: 'verificados',
+      ),
+      kpi(
+        icon: Icons.account_balance_outlined,
+        iconColor: const Color(0xFFE5A024),
+        iconBackground: const Color(0xFFFFF6DA),
+        label: 'Entidades',
+        value: entitiesCountText,
+        subtitleText: 'en consulta',
+      ),
+    ];
+
+    if (MediaQuery.sizeOf(context).width < 750) {
+      return Column(
+        children: [
+          Row(
+            children: [
+              kpiCards[0],
+              const SizedBox(width: 8),
+              kpiCards[1],
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              kpiCards[2],
+              const SizedBox(width: 8),
+              kpiCards[3],
+            ],
+          ),
+        ],
+      );
+    }
+
     return Row(
       children: [
-        kpi(
-          icon: Icons.description_outlined,
-          iconColor: const Color(0xFF2B7DE9),
-          iconBackground: const Color(0xFFEAF3FF),
-          label: 'Total contratos',
-          value: totalContractsText,
-          subtitleText: 'SECOP II',
-        ),
+        kpiCards[0],
         const SizedBox(width: 10),
-        kpi(
-          icon: Icons.monetization_on_outlined,
-          iconColor: const Color(0xFF22A05B),
-          iconBackground: const Color(0xFFE6F6EC),
-          label: 'Valor contratado',
-          value: totalValueText,
-          subtitleText: 'acumulado',
-        ),
+        kpiCards[1],
         const SizedBox(width: 10),
-        kpi(
-          icon: Icons.people_outline,
-          iconColor: const Color(0xFF2563EB),
-          iconBackground: const Color(0xFFEBF1FF),
-          label: 'Contratistas',
-          value: contractorsCountText,
-          subtitleText: 'verificados',
-        ),
+        kpiCards[2],
         const SizedBox(width: 10),
-        kpi(
-          icon: Icons.account_balance_outlined,
-          iconColor: const Color(0xFFE5A024),
-          iconBackground: const Color(0xFFFFF6DA),
-          label: 'Entidades',
-          value: entitiesCountText,
-          subtitleText: 'en consulta',
-        ),
+        kpiCards[3],
       ],
     );
   }
@@ -3830,129 +3993,137 @@ class _ContratosSectionState extends State<ContratosSection> {
         ? 'Consultando SECOP II en tiempo real...'
         : '$count contratos encontrados';
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 10,
+      runSpacing: 8,
       children: [
-        Expanded(
-          child: Row(
-            children: [
-              const Text(
-                'Resultados de búsqueda',
-                style: TextStyle(
-                  color: _azulOscuro,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 10,
+          runSpacing: 6,
+          children: [
+            const Text(
+              'Resultados de búsqueda',
+              style: TextStyle(
+                color: _azulOscuro,
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF4D6),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _doradoPlataforma.withValues(alpha: 0.65),
                 ),
               ),
-              const SizedBox(width: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF4D6),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: _doradoPlataforma.withValues(alpha: 0.65),
-                  ),
+              child: Text(
+                countText,
+                style: const TextStyle(
+                  color: _azulOscuro,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
                 ),
-                child: Text(
-                  countText,
+              ),
+            ),
+          ],
+        ),
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            const Text(
+              'Ordenar por:',
+              style: TextStyle(
+                color: Color(0xFF475569),
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            Container(
+              height: 32,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: _bordeCalido),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _sortBy,
+                  isDense: true,
+                  icon: const Padding(
+                    padding: EdgeInsets.only(left: 8),
+                    child: Icon(
+                      Icons.keyboard_arrow_down,
+                      size: 16,
+                      color: _azulOscuro,
+                    ),
+                  ),
                   style: const TextStyle(
                     color: _azulOscuro,
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
                   ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'Más recientes',
+                      child: Text('Más recientes'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Mayor valor',
+                      child: Text('Mayor valor'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Menor valor',
+                      child: Text('Menor valor'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _sortBy = value;
+                        _currentPage = 1;
+                      });
+                    }
+                  },
                 ),
               ),
-            ],
-          ),
-        ),
-        const Text(
-          'Ordenar por:',
-          style: TextStyle(
-            color: Color(0xFF475569),
-            fontSize: 11.5,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Container(
-          height: 32,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: _bordeCalido),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: _sortBy,
-              isDense: true,
-              icon: const Padding(
-                padding: EdgeInsets.only(left: 8),
-                child: Icon(
-                  Icons.keyboard_arrow_down,
-                  size: 16,
+            ),
+            SizedBox(
+              height: 32,
+              child: OutlinedButton.icon(
+                onPressed: _exportFilteredToCsv,
+                icon: const Icon(
+                  Icons.download_rounded,
+                  size: 15,
                   color: _azulOscuro,
                 ),
-              ),
-              style: const TextStyle(
-                color: _azulOscuro,
-                fontSize: 11.5,
-                fontWeight: FontWeight.w700,
-              ),
-              items: const [
-                DropdownMenuItem(
-                  value: 'Más recientes',
-                  child: Text('Más recientes'),
+                label: const Text(
+                  'Exportar',
+                  style: TextStyle(
+                    color: _azulOscuro,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-                DropdownMenuItem(
-                  value: 'Mayor valor',
-                  child: Text('Mayor valor'),
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: _azulOscuro,
+                  side: const BorderSide(color: _bordeCalido),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
-                DropdownMenuItem(
-                  value: 'Menor valor',
-                  child: Text('Menor valor'),
-                ),
-              ],
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _sortBy = value;
-                    _currentPage = 1;
-                  });
-                }
-              },
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        SizedBox(
-          height: 32,
-          child: OutlinedButton.icon(
-            onPressed: _exportFilteredToCsv,
-            icon: const Icon(
-              Icons.download_rounded,
-              size: 15,
-              color: _azulOscuro,
-            ),
-            label: const Text(
-              'Exportar',
-              style: TextStyle(
-                color: _azulOscuro,
-                fontSize: 11.5,
-                fontWeight: FontWeight.w700,
               ),
             ),
-            style: OutlinedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: _azulOscuro,
-              side: const BorderSide(color: _bordeCalido),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
+          ],
         ),
       ],
     );
@@ -4296,54 +4467,71 @@ class _ContratosSectionState extends State<ContratosSection> {
           ),
         ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildColumnTitles(),
-          if (_isLoadingSecop)
-            const LinearProgressIndicator(
-              minHeight: 2.5,
-              color: _azulPrimario,
-              backgroundColor: Color(0xFFE2E8F0),
-            )
-          else
-            const Divider(height: 1, color: Color(0xFFE2E8F0)),
-          if (rows.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.search_off_rounded,
-                    size: 40,
-                    color: Color(0xFF94A3B8),
+      child: LayoutBuilder(
+        builder: (context, tableConstraints) {
+          final tableBody = Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildColumnTitles(),
+              if (_isLoadingSecop)
+                const LinearProgressIndicator(
+                  minHeight: 2.5,
+                  color: _azulPrimario,
+                  backgroundColor: Color(0xFFE2E8F0),
+                )
+              else
+                const Divider(height: 1, color: Color(0xFFE2E8F0)),
+              if (rows.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 36,
+                    horizontal: 20,
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'No se encontraron contratos con los filtros seleccionados.',
-                    style: TextStyle(
-                      color: _azulOscuro,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13.5,
-                    ),
+                  child: Column(
+                    children: [
+                      const Icon(
+                        Icons.search_off_rounded,
+                        size: 40,
+                        color: Color(0xFF94A3B8),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'No se encontraron contratos con los filtros seleccionados.',
+                        style: TextStyle(
+                          color: _azulOscuro,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13.5,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton.icon(
+                        onPressed: _resetAllFilters,
+                        icon: const Icon(Icons.refresh, size: 16),
+                        label: const Text(
+                          'Limpiar filtros y consultar SECOP II',
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  TextButton.icon(
-                    onPressed: _resetAllFilters,
-                    icon: const Icon(Icons.refresh, size: 16),
-                    label: const Text('Limpiar filtros y consultar SECOP II'),
-                  ),
+                )
+              else
+                for (var index = 0; index < rows.length; index++) ...[
+                  _buildTableRow(rows[index]),
+                  if (index < rows.length - 1)
+                    const Divider(height: 1, color: Color(0xFFEFF3F8)),
                 ],
-              ),
-            )
-          else
-            for (var index = 0; index < rows.length; index++) ...[
-              _buildTableRow(rows[index]),
-              if (index < rows.length - 1)
-                const Divider(height: 1, color: Color(0xFFEFF3F8)),
             ],
-        ],
+          );
+
+          if (tableConstraints.maxWidth < 820) {
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(width: 880, child: tableBody),
+            );
+          }
+          return tableBody;
+        },
       ),
     );
   }
@@ -4438,26 +4626,33 @@ class _ContratosSectionState extends State<ContratosSection> {
 
     return Padding(
       padding: const EdgeInsets.only(top: 10, bottom: 4, left: 4, right: 4),
-      child: Row(
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 8,
+        runSpacing: 8,
         children: [
-          Expanded(
-            child: Text(
-              'Mostrando $startItem - $endItem de $totalCount resultados (Página $safePage de $totalPages)',
-              style: const TextStyle(color: Color(0xFF475569), fontSize: 12),
-            ),
+          Text(
+            'Mostrando $startItem - $endItem de $totalCount resultados (Página $safePage de $totalPages)',
+            style: const TextStyle(color: Color(0xFF475569), fontSize: 12),
           ),
-          arrowButton(
-            Icons.chevron_left,
-            safePage > 1
-                ? () => setState(() => _currentPage = safePage - 1)
-                : null,
-          ),
-          ...pageButtons,
-          arrowButton(
-            Icons.chevron_right,
-            safePage < totalPages
-                ? () => setState(() => _currentPage = safePage + 1)
-                : null,
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              arrowButton(
+                Icons.chevron_left,
+                safePage > 1
+                    ? () => setState(() => _currentPage = safePage - 1)
+                    : null,
+              ),
+              ...pageButtons,
+              arrowButton(
+                Icons.chevron_right,
+                safePage < totalPages
+                    ? () => setState(() => _currentPage = safePage + 1)
+                    : null,
+              ),
+            ],
           ),
         ],
       ),

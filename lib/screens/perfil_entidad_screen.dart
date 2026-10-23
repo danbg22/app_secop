@@ -9,10 +9,7 @@ import 'perfil_contratista_screen.dart';
 import 'sections/entidades_section.dart';
 
 class PerfilEntidadScreen extends StatefulWidget {
-  const PerfilEntidadScreen({
-    super.key,
-    required this.entity,
-  });
+  const PerfilEntidadScreen({super.key, required this.entity});
 
   final EntitySummaryRecord entity;
 
@@ -179,8 +176,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     final safeContracted = baseContractedCop > 0 ? baseContractedCop : 0.0;
     const ratio = 0.76;
     _ejecutadoCop = safeContracted;
-    _presupuestoTotalCop =
-        safeContracted > 0 ? (safeContracted / ratio).roundToDouble() : 0.0;
+    _presupuestoTotalCop = safeContracted > 0
+        ? (safeContracted / ratio).roundToDouble()
+        : 0.0;
     _disponibleCop = math.max(0, _presupuestoTotalCop - _ejecutadoCop);
     _porcentajeEjecutado = 76;
 
@@ -189,20 +187,24 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     _contratistasUnicos = widget.entity.uniqueContractors;
     _nitEntidad =
         widget.entity.nit.isNotEmpty && widget.entity.nit != 'No Definido'
-            ? widget.entity.nit
-            : 'En consulta SECOP II';
+        ? widget.entity.nit
+        : 'En consulta SECOP II';
     _ordenEntidad =
         widget.entity.location.toLowerCase().contains('nacional') ||
-                _isNationalMultiRegionalEntity()
-            ? 'Nacional'
-            : 'Territorial';
+            _isNationalMultiRegionalEntity()
+        ? 'Nacional'
+        : 'Territorial';
   }
 
   /// Si el usuario entró desde una tarjeta de Regional específica (ej. "SENA - Regional Atlántico"),
   /// preseleccionamos esa regional pero cargamos todas las regionales para que pueda cambiar entre ellas.
   void _detectInitialRegionalFromEntityCard() {
-    final locNorm = _normalizar('${widget.entity.name} ${widget.entity.location}');
-    if (!locNorm.contains('REGIONAL') && !locNorm.contains('SECCIONAL') && !locNorm.contains('TERRITORIAL')) {
+    final locNorm = _normalizar(
+      '${widget.entity.name} ${widget.entity.location}',
+    );
+    if (!locNorm.contains('REGIONAL') &&
+        !locNorm.contains('SECCIONAL') &&
+        !locNorm.contains('TERRITORIAL')) {
       return;
     }
     const knownDepts = <String, String>{
@@ -287,9 +289,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
 
   static String _formatIntWithDots(int n) {
     return n.toString().replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]}.',
-        );
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]}.',
+    );
   }
 
   static String _formatCopFull(double cop) {
@@ -343,8 +345,8 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       clauses.add("fecha_de_firma <= '$targetYear-12-31T23:59:59.999'");
     }
 
-    final nitClean = (widget.entity.nit.isNotEmpty &&
-            widget.entity.nit != 'No Definido')
+    final nitClean =
+        (widget.entity.nit.isNotEmpty && widget.entity.nit != 'No Definido')
         ? widget.entity.nit.replaceAll(RegExp(r'[^0-9]'), '')
         : _nitEntidad.replaceAll(RegExp(r'[^0-9]'), '');
 
@@ -656,8 +658,8 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         final modData = jsonDecode(modResp.body) as List<dynamic>;
         for (final row in modData) {
           if (row is! Map) continue;
-          final rawModName =
-              (row['modalidad_de_contratacion'] ?? '').toString();
+          final rawModName = (row['modalidad_de_contratacion'] ?? '')
+              .toString();
           final normModName = _normalizeModalityLabel(rawModName);
           final cCount =
               int.tryParse((row['contratos'] ?? '0').toString()) ?? 0;
@@ -734,8 +736,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         if (rawProv.isNotEmpty && rawProv.toUpperCase() != 'NO DEFINIDO') {
           final doc = (c['documento_proveedor'] ?? 'Sin NIT').toString().trim();
           final safeVal = _parseSafeContractCop(c);
-          final fecha =
-              (c['fecha_de_firma'] ?? '').toString().split('T').first;
+          final fecha = (c['fecha_de_firma'] ?? '').toString().split('T').first;
           final mod = _normalizeModalityLabel(
             (c['modalidad_de_contratacion'] ?? '').toString(),
           );
@@ -772,7 +773,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         _activeBudgetYear = yearToUse;
         _regionalStats = builtRegionals;
         _entityContracts = fetchedContracts;
-        _pagedContractsList = fetchedContracts.take(_contractsPageSize).toList();
+        _pagedContractsList = fetchedContracts
+            .take(_contractsPageSize)
+            .toList();
         _modalityStats = builtModalities;
         _dependencyStats = builtDeps;
         if (builtDeps.isNotEmpty &&
@@ -797,19 +800,21 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           );
 
           // Presupuesto oficial anualizado de la vigencia en curso vs. ejecutado en contratos activos/celebrados
-          final effectiveExecuted =
-              executedCop > 0 ? executedCop : (aggTotalCop * 0.78);
+          final effectiveExecuted = executedCop > 0
+              ? executedCop
+              : (aggTotalCop * 0.78);
           // El presupuesto anual asignado de la vigencia cubre lo contratado más el saldo disponible de apropiación
-          final estimatedAnnualAppropriation = (aggTotalCop * 1.18).roundToDouble();
+          final estimatedAnnualAppropriation = (aggTotalCop * 1.18)
+              .roundToDouble();
           _ejecutadoCop = effectiveExecuted;
-          _presupuestoTotalCop =
-              math.max(aggTotalCop, estimatedAnnualAppropriation);
-          _disponibleCop =
-              math.max(0, _presupuestoTotalCop - _ejecutadoCop);
-          _porcentajeEjecutado =
-              ((_ejecutadoCop / _presupuestoTotalCop) * 100)
-                  .round()
-                  .clamp(1, 99);
+          _presupuestoTotalCop = math.max(
+            aggTotalCop,
+            estimatedAnnualAppropriation,
+          );
+          _disponibleCop = math.max(0, _presupuestoTotalCop - _ejecutadoCop);
+          _porcentajeEjecutado = ((_ejecutadoCop / _presupuestoTotalCop) * 100)
+              .round()
+              .clamp(1, 99);
         }
         _selectedModality = 'Todas';
         _contractsPage = 1;
@@ -870,8 +875,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         '&\$offset=$offset',
       );
 
-      final resp =
-          await http.get(pageUrl).timeout(const Duration(seconds: 10));
+      final resp = await http.get(pageUrl).timeout(const Duration(seconds: 10));
       if (resp.statusCode == 200 && mounted) {
         final rawList = jsonDecode(resp.body) as List<dynamic>;
         final rows = <Map<String, dynamic>>[];
@@ -946,7 +950,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
               int.tryParse((agg.first['contratos'] ?? '0').toString()) ?? 0;
           final v =
               double.tryParse((agg.first['total_valor'] ?? '0').toString()) ??
-                  0;
+              0;
           if (c > 0) {
             liveCount = c;
             liveCop = v;
@@ -966,8 +970,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
 
       if (!mounted) return;
       setState(() {
-        _liveDependencyContracts =
-            fetchedRows.isNotEmpty ? fetchedRows : dep.contracts;
+        _liveDependencyContracts = fetchedRows.isNotEmpty
+            ? fetchedRows
+            : dep.contracts;
         _liveDependencyTotalCount = liveCount;
         _liveDependencyTotalCop = liveCop;
         _isLoadingDependencyLive = false;
@@ -993,7 +998,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   }) {
     final isNational =
         _ordenEntidad.toUpperCase().contains('NACIONAL') ||
-            _isNationalMultiRegionalEntity();
+        _isNationalMultiRegionalEntity();
 
     final canonicalNames = <String>[
       isNational
@@ -1068,9 +1073,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           icon: style.$1,
           iconColor: style.$2,
           iconBg: style.$3,
-          contracts: list.isNotEmpty
-              ? list
-              : sampleContracts.take(6).toList(),
+          contracts: list.isNotEmpty ? list : sampleContracts.take(6).toList(),
         ),
       );
     }
@@ -1303,8 +1306,8 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   Widget _buildGenericPaletteHeader() {
     final activeScopeLabel = _selectedRegionalDept == null
         ? (_regionalStats.length > 1
-            ? 'Consolidado Nacional (${_regionalStats.length} Regionales / Seccionales)'
-            : widget.entity.location)
+              ? 'Consolidado Nacional (${_regionalStats.length} Regionales / Seccionales)'
+              : widget.entity.location)
         : '${_formatRegionalDisplayName(_selectedRegionalDept!)} · Colombia';
 
     return Container(
@@ -1362,7 +1365,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(32, 20, 32, 26),
+                  padding: _isMobile
+                      ? const EdgeInsets.fromLTRB(14, 14, 14, 18)
+                      : const EdgeInsets.fromLTRB(32, 20, 32, 26),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1406,42 +1411,43 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                             ),
                           ),
                           const Spacer(),
-                          Container(
-                            margin: const EdgeInsets.only(right: 10),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 7,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.9),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: const Color(0xFF15803D)
-                                    .withValues(alpha: 0.25),
+                          if (!_isMobile)
+                            Container(
+                              margin: const EdgeInsets.only(right: 10),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 7,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.9),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: const Color(0xFF15803D)
+                                      .withValues(alpha: 0.25),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.calendar_today_rounded,
+                                    size: 14,
+                                    color: Color(0xFF15803D),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    _onlyCurrentYear2026
+                                        ? 'Presupuesto Anualizado Vigencia $_activeBudgetYear'
+                                        : 'Consolidado Histórico SECOP II',
+                                    style: const TextStyle(
+                                      color: Color(0xFF15803D),
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.calendar_today_rounded,
-                                  size: 14,
-                                  color: Color(0xFF15803D),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  _onlyCurrentYear2026
-                                      ? 'Presupuesto Anualizado Vigencia $_activeBudgetYear'
-                                      : 'Consolidado Histórico SECOP II',
-                                  style: const TextStyle(
-                                    color: Color(0xFF15803D),
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
                           ElevatedButton.icon(
                             onPressed: () {
                               setState(() => _isFollowing = !_isFollowing);
@@ -1492,9 +1498,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Container(
-                            width: 96,
-                            height: 96,
-                            padding: const EdgeInsets.all(10),
+                            width: _isMobile ? 64 : 96,
+                            height: _isMobile ? 64 : 96,
+                            padding: EdgeInsets.all(_isMobile ? 7 : 10),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(20),
@@ -1514,11 +1520,11 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                               nit: _nitEntidad,
                               child: EntityEmblemWidget(
                                 type: widget.entity.emblemType,
-                                size: 72,
+                                size: _isMobile ? 48 : 72,
                               ),
                             ),
                           ),
-                          const SizedBox(width: 22),
+                          SizedBox(width: _isMobile ? 12 : 22),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1533,8 +1539,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                                         vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color:
-                                            Colors.white.withValues(alpha: 0.9),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.9,
+                                        ),
                                         borderRadius: BorderRadius.circular(14),
                                       ),
                                       child: Text(
@@ -1555,8 +1562,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                                         ),
                                         decoration: BoxDecoration(
                                           color: const Color(0xFF1D4ED8),
-                                          borderRadius:
-                                              BorderRadius.circular(14),
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
                                         ),
                                         child: Text(
                                           'FILTRADO POR: ${_formatRegionalDisplayName(_selectedRegionalDept!).toUpperCase()}',
@@ -1573,9 +1581,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                                 const SizedBox(height: 8),
                                 Text(
                                   widget.entity.name,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: _azulOscuro,
-                                    fontSize: 28,
+                                    fontSize: _isMobile ? 19 : 28,
                                     fontWeight: FontWeight.w900,
                                     height: 1.1,
                                   ),
@@ -1610,7 +1618,10 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           ),
           // Franja blanca de datos verificables de SECOP II debajo del banner
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 13),
+            padding: EdgeInsets.symmetric(
+              horizontal: _isMobile ? 14 : 32,
+              vertical: 13,
+            ),
             decoration: const BoxDecoration(
               color: Colors.white,
               border: Border(
@@ -1657,12 +1668,14 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       children: [
         Icon(icon, size: 17, color: _azulOscuro),
         const SizedBox(width: 7),
-        Text(
-          text,
-          style: const TextStyle(
-            color: Color(0xFF334155),
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
+        Flexible(
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: Color(0xFF334155),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],
@@ -1691,16 +1704,16 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     final visibleRegionals = queryNorm.isEmpty
         ? _regionalStats
         : _regionalStats
-            .where(
-              (r) =>
-                  _normalizar(r.label).contains(queryNorm) ||
-                  _normalizar(r.departmentRaw).contains(queryNorm),
-            )
-            .toList();
+              .where(
+                (r) =>
+                    _normalizar(r.label).contains(queryNorm) ||
+                    _normalizar(r.departmentRaw).contains(queryNorm),
+              )
+              .toList();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(_isMobile ? 14 : 20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -1736,7 +1749,10 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         const Text(
                           'Distribución por Regionales y Seccionales Territoriales',
@@ -1746,7 +1762,6 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                             fontWeight: FontWeight.w900,
                           ),
                         ),
-                        const SizedBox(width: 10),
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
@@ -1770,43 +1785,53 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                     const SizedBox(height: 3),
                     const Text(
                       'Selecciona cualquier Regional (ej. Regional Atlántico, Regional Cesar, Regional La Guajira) para discriminar su presupuesto 2026, contratos, modalidades y dependencias internas.',
-                      style: TextStyle(
-                        color: Color(0xFF64748B),
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
+              if (!_isMobile) const SizedBox(width: 12),
               SizedBox(
-                width: 220,
+                width: _isMobile ? 0 : 220,
                 height: 36,
-                child: TextField(
-                  onChanged: (v) => setState(() => _regionalSearchFilter = v),
-                  style: const TextStyle(fontSize: 12),
-                  decoration: InputDecoration(
-                    hintText: 'Filtrar regional (ej. Cesar, Atlántico)...',
-                    hintStyle: const TextStyle(
-                      fontSize: 11.5,
-                      color: Color(0xFF94A3B8),
-                    ),
-                    prefixIcon: const Icon(Icons.search_rounded, size: 16),
-                    filled: true,
-                    fillColor: const Color(0xFFF8FAFC),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                    ),
-                  ),
-                ),
+                child: _isMobile
+                    ? null
+                    : TextField(
+                        onChanged: (v) =>
+                            setState(() => _regionalSearchFilter = v),
+                        style: const TextStyle(fontSize: 12),
+                        decoration: InputDecoration(
+                          hintText:
+                              'Filtrar regional (ej. Cesar, Atlántico)...',
+                          hintStyle: const TextStyle(
+                            fontSize: 11.5,
+                            color: Color(0xFF94A3B8),
+                          ),
+                          prefixIcon: const Icon(
+                            Icons.search_rounded,
+                            size: 16,
+                          ),
+                          filled: true,
+                          fillColor: const Color(0xFFF8FAFC),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFE2E8F0),
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFE2E8F0),
+                            ),
+                          ),
+                        ),
+                      ),
               ),
-              if (_selectedRegionalDept != null) ...[
+              if (_selectedRegionalDept != null && !_isMobile) ...[
                 const SizedBox(width: 10),
                 TextButton.icon(
                   onPressed: () {
@@ -1822,6 +1847,35 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
               ],
             ],
           ),
+          if (_isMobile) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 38,
+              child: TextField(
+                onChanged: (v) => setState(() => _regionalSearchFilter = v),
+                style: const TextStyle(fontSize: 12),
+                decoration: InputDecoration(
+                  hintText: 'Filtrar regional (ej. Cesar, Atlántico)...',
+                  hintStyle: const TextStyle(
+                    fontSize: 11.5,
+                    color: Color(0xFF94A3B8),
+                  ),
+                  prefixIcon: const Icon(Icons.search_rounded, size: 16),
+                  filled: true,
+                  fillColor: const Color(0xFFF8FAFC),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 14),
           SizedBox(
             height: 68,
@@ -1940,95 +1994,95 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   // ===========================================================================
 
   Widget _buildProfileTabsBar() {
-    const tabs = [
-      'Resumen',
-      'Contratos',
-      'Dependencias',
-      'Contratistas',
-    ];
+    const tabs = ['Resumen', 'Contratos', 'Dependencias', 'Contratistas'];
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          bottom: BorderSide(color: Color(0xFFE2E8F0)),
-        ),
-      ),
-      child: Row(
-        children: [
-          for (var i = 0; i < tabs.length; i++)
-            InkWell(
-              onTap: () => setState(() => _selectedTabIndex = i),
-              child: Padding(
-                padding: const EdgeInsets.only(right: 28, top: 14),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      tabs[i],
-                      style: TextStyle(
-                        color: _selectedTabIndex == i
-                            ? _azulOscuro
-                            : const Color(0xFF64748B),
-                        fontSize: 13.5,
-                        fontWeight: _selectedTabIndex == i
-                            ? FontWeight.w800
-                            : FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 11),
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      height: 3,
-                      width: _selectedTabIndex == i ? 64 : 0,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF59E0B),
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          const Spacer(),
-          if (_isLoadingLive)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 10),
-              child: Row(
+    final tabsRow = Row(
+      children: [
+        for (var i = 0; i < tabs.length; i++)
+          InkWell(
+            onTap: () => setState(() => _selectedTabIndex = i),
+            child: Padding(
+              padding: const EdgeInsets.only(right: 28, top: 14),
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: _azulPrimario,
+                  Text(
+                    tabs[i],
+                    style: TextStyle(
+                      color: _selectedTabIndex == i
+                          ? _azulOscuro
+                          : const Color(0xFF64748B),
+                      fontSize: 13.5,
+                      fontWeight: _selectedTabIndex == i
+                          ? FontWeight.w800
+                          : FontWeight.w600,
                     ),
                   ),
-                  SizedBox(width: 8),
-                  Text(
-                    'Actualizando desde SECOP II...',
-                    style: TextStyle(
-                      color: Color(0xFF64748B),
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
+                  const SizedBox(height: 11),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    height: 3,
+                    width: _selectedTabIndex == i ? 64 : 0,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF59E0B),
+                      borderRadius: BorderRadius.circular(3),
                     ),
                   ),
                 ],
               ),
-            )
-          else
-            TextButton.icon(
-              onPressed: _fetchLiveEntityProfileData,
-              icon: const Icon(Icons.refresh_rounded, size: 16),
-              label: const Text(
-                'Actualizar datos',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-              ),
             ),
-        ],
+          ),
+        if (_isMobile) const SizedBox(width: 12) else const Spacer(),
+        if (_isLoadingLive)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: _azulPrimario,
+                  ),
+                ),
+                SizedBox(width: 8),
+                Text(
+                  'Actualizando desde SECOP II...',
+                  style: TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          TextButton.icon(
+            onPressed: _fetchLiveEntityProfileData,
+            icon: const Icon(Icons.refresh_rounded, size: 16),
+            label: const Text(
+              'Actualizar datos',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+          ),
+      ],
+    );
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: _isMobile ? 12 : 32),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
       ),
+      child: _isMobile
+          ? SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: tabsRow,
+            )
+          : tabsRow,
     );
   }
 
@@ -2043,13 +2097,17 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         ? ' (${_formatRegionalDisplayName(_selectedRegionalDept!)})'
         : '';
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Flex(
+      direction: _isMobile ? Axis.vertical : Axis.horizontal,
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: _isMobile
+          ? CrossAxisAlignment.stretch
+          : CrossAxisAlignment.start,
       children: [
         // COLUMNA IZQUIERDA DEL RESUMEN
-        Expanded(
-          flex: 68,
-          child: Column(
+        _flexOrFull(
+          68,
+          Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // TARJETA 1: Presupuesto y ejecución anualizado Vigencia 2026 (dinámica en cada consulta)
@@ -2094,38 +2152,43 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                             ],
                           ),
                         ),
-                        OutlinedButton.icon(
-                          onPressed: () =>
-                              setState(() => _selectedTabIndex = 1),
-                          icon: const Icon(
-                            Icons.bar_chart_rounded,
-                            size: 16,
-                            color: _azulOscuro,
-                          ),
-                          label: const Text(
-                            'Ver detalle del presupuesto →',
-                            style: TextStyle(
+                        if (!_isMobile)
+                          OutlinedButton.icon(
+                            onPressed: () =>
+                                setState(() => _selectedTabIndex = 1),
+                            icon: const Icon(
+                              Icons.bar_chart_rounded,
+                              size: 16,
                               color: _azulOscuro,
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
+                            ),
+                            label: const Text(
+                              'Ver detalle del presupuesto →',
+                              style: TextStyle(
+                                color: _azulOscuro,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Color(0xFFE2E8F0)),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 10,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFFE2E8F0)),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 10,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                     const SizedBox(height: 24),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                    Flex(
+                      direction: _isMobile ? Axis.vertical : Axis.horizontal,
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: _isMobile
+                          ? CrossAxisAlignment.stretch
+                          : CrossAxisAlignment.center,
                       children: [
                         // Gráfica circular dinámica (Donut)
                         SizedBox(
@@ -2164,9 +2227,10 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                             ],
                           ),
                         ),
-                        const SizedBox(width: 28),
-                        Expanded(
-                          child: Column(
+                        const SizedBox(width: 28, height: 18),
+                        _flexOrFull(
+                          1,
+                          Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
@@ -2212,15 +2276,16 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  Text(
-                                    'Ejecutado en vigencia $_activeBudgetYear',
-                                    style: const TextStyle(
-                                      color: Color(0xFF475569),
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
+                                  Expanded(
+                                    child: Text(
+                                      'Ejecutado en vigencia $_activeBudgetYear',
+                                      style: const TextStyle(
+                                        color: Color(0xFF475569),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
-                                  const Spacer(),
                                   Text(
                                     '${_formatCopFull(_ejecutadoCop)}  ($pctEjecutado%)',
                                     style: const TextStyle(
@@ -2243,15 +2308,16 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  Text(
-                                    'Disponible vigencia $_activeBudgetYear',
-                                    style: const TextStyle(
-                                      color: Color(0xFF475569),
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
+                                  Expanded(
+                                    child: Text(
+                                      'Disponible vigencia $_activeBudgetYear',
+                                      style: const TextStyle(
+                                        color: Color(0xFF475569),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
-                                  const Spacer(),
                                   Text(
                                     '${_formatCopFull(_disponibleCop)}  ($pctDisponible%)',
                                     style: const TextStyle(
@@ -2305,7 +2371,12 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                       ),
                     ),
                     const SizedBox(height: 18),
-                    Row(
+                    Flex(
+                      direction: _isMobile ? Axis.vertical : Axis.horizontal,
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: _isMobile
+                          ? CrossAxisAlignment.stretch
+                          : CrossAxisAlignment.center,
                       children: [
                         _summaryMetricMiniCard(
                           icon: Icons.description_outlined,
@@ -2316,7 +2387,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                           trend:
                               '${(_totalContratos / _contractsPageSize).ceil()} páginas en SECOP II',
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 12, height: 10),
                         _summaryMetricMiniCard(
                           icon: Icons.monetization_on_outlined,
                           iconColor: const Color(0xFF15803D),
@@ -2327,7 +2398,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                           ),
                           trend: '100% verificado SECOP II',
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 12, height: 10),
                         _summaryMetricMiniCard(
                           icon: Icons.person_outline_rounded,
                           iconColor: const Color(0xFF1D4ED8),
@@ -2336,7 +2407,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                           value: _formatIntWithDots(_contratistasUnicos),
                           trend: 'Proveedores adjudicados',
                         ),
-                        const SizedBox(width: 14),
+                        const SizedBox(width: 14, height: 12),
                         SizedBox(
                           height: 42,
                           child: ElevatedButton(
@@ -2346,8 +2417,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                               backgroundColor: _azulOscuro,
                               foregroundColor: Colors.white,
                               elevation: 0,
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 18),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 18,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(22),
                               ),
@@ -2369,11 +2441,11 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
             ],
           ),
         ),
-        const SizedBox(width: 22),
+        const SizedBox(width: 22, height: 18),
         // COLUMNA DERECHA DEL RESUMEN (Información general + Mapa de Procesos / Dependencias)
-        Expanded(
-          flex: 32,
-          child: Column(
+        _flexOrFull(
+          32,
+          Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Información general
@@ -2454,9 +2526,11 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    for (var i = 0;
-                        i < math.min(6, _dependencyStats.length);
-                        i++) ...[
+                    for (
+                      var i = 0;
+                      i < math.min(6, _dependencyStats.length);
+                      i++
+                    ) ...[
                       if (i > 0)
                         const Divider(height: 16, color: Color(0xFFF1F5F9)),
                       InkWell(
@@ -2541,8 +2615,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     required String value,
     required String trend,
   }) {
-    return Expanded(
-      child: Container(
+    return _flexOrFull(
+      1,
+      Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: const Color(0xFFF8FAFC),
@@ -2554,10 +2629,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
             Container(
               width: 40,
               height: 40,
-              decoration: BoxDecoration(
-                color: iconBg,
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
               child: Icon(icon, color: iconColor, size: 20),
             ),
             const SizedBox(width: 12),
@@ -2643,14 +2715,12 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   // ===========================================================================
 
   Widget _buildContratosTab() {
-    final totalContractsForActiveFilter =
-        _totalMatchingContractsForTable > 0
-            ? _totalMatchingContractsForTable
-            : _totalContratos;
-    final totalCopForActiveFilter =
-        _totalMatchingCopForTable > 0
-            ? _totalMatchingCopForTable
-            : _valorTotalContratadoCop;
+    final totalContractsForActiveFilter = _totalMatchingContractsForTable > 0
+        ? _totalMatchingContractsForTable
+        : _totalContratos;
+    final totalCopForActiveFilter = _totalMatchingCopForTable > 0
+        ? _totalMatchingCopForTable
+        : _valorTotalContratadoCop;
 
     final totalPages = totalContractsForActiveFilter <= 0
         ? 1
@@ -2684,10 +2754,16 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
+              Flex(
+                direction: _isMobile ? Axis.vertical : Axis.horizontal,
+                crossAxisAlignment: _isMobile
+                    ? CrossAxisAlignment.start
+                    : CrossAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: Column(
+                  _flexOrFull(
+                    1,
+                    Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
@@ -2709,79 +2785,84 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                       ],
                     ),
                   ),
+                  if (_isMobile) const SizedBox(height: 10),
                   // Selector rápido entre Vigencia 2026 (Año en curso) y Todo el historial SECOP II
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        InkWell(
-                          onTap: () {
-                            if (!_onlyCurrentYear2026) {
-                              setState(() => _onlyCurrentYear2026 = true);
-                              _fetchLiveEntityProfileData();
-                            }
-                          },
-                          borderRadius: BorderRadius.circular(9),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _onlyCurrentYear2026
-                                  ? _azulOscuro
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(9),
-                            ),
-                            child: Text(
-                              'Vigencia $_activeBudgetYear',
-                              style: TextStyle(
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          InkWell(
+                            onTap: () {
+                              if (!_onlyCurrentYear2026) {
+                                setState(() => _onlyCurrentYear2026 = true);
+                                _fetchLiveEntityProfileData();
+                              }
+                            },
+                            borderRadius: BorderRadius.circular(9),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
                                 color: _onlyCurrentYear2026
-                                    ? Colors.white
-                                    : const Color(0xFF475569),
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w800,
+                                    ? _azulOscuro
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(9),
+                              ),
+                              child: Text(
+                                'Vigencia $_activeBudgetYear',
+                                style: TextStyle(
+                                  color: _onlyCurrentYear2026
+                                      ? Colors.white
+                                      : const Color(0xFF475569),
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        InkWell(
-                          onTap: () {
-                            if (_onlyCurrentYear2026) {
-                              setState(() => _onlyCurrentYear2026 = false);
-                              _fetchLiveEntityProfileData();
-                            }
-                          },
-                          borderRadius: BorderRadius.circular(9),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: !_onlyCurrentYear2026
-                                  ? _azulOscuro
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(9),
-                            ),
-                            child: Text(
-                              'Todo el historial SECOP II',
-                              style: TextStyle(
+                          InkWell(
+                            onTap: () {
+                              if (_onlyCurrentYear2026) {
+                                setState(() => _onlyCurrentYear2026 = false);
+                                _fetchLiveEntityProfileData();
+                              }
+                            },
+                            borderRadius: BorderRadius.circular(9),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
                                 color: !_onlyCurrentYear2026
-                                    ? Colors.white
-                                    : const Color(0xFF475569),
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w800,
+                                    ? _azulOscuro
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(9),
+                              ),
+                              child: Text(
+                                'Todo el historial SECOP II',
+                                style: TextStyle(
+                                  color: !_onlyCurrentYear2026
+                                      ? Colors.white
+                                      : const Color(0xFF475569),
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -2880,26 +2961,28 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                   ],
                 ),
               ),
-              _buildContractsTableHeaderRow(),
-              if (pageItems.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(36),
-                  child: Center(
-                    child: Text(
-                      'No hay contratos registrados en esta página o modalidad.',
-                      style: TextStyle(
-                        color: Color(0xFF64748B),
-                        fontWeight: FontWeight.w600,
+              _responsiveTable([
+                _buildContractsTableHeaderRow(),
+                if (pageItems.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(36),
+                    child: Center(
+                      child: Text(
+                        'No hay contratos registrados en esta página o modalidad.',
+                        style: TextStyle(
+                          color: Color(0xFF64748B),
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                  ),
-                )
-              else
-                for (var i = 0; i < pageItems.length; i++) ...[
-                  _buildContractRowWidget(pageItems[i]),
-                  if (i < pageItems.length - 1)
-                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                ],
+                  )
+                else
+                  for (var i = 0; i < pageItems.length; i++) ...[
+                    _buildContractRowWidget(pageItems[i]),
+                    if (i < pageItems.length - 1)
+                      const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                  ],
+              ]),
               _buildFullHistoryPaginationFooter(
                 currentPage: safePage,
                 totalPages: totalPages,
@@ -2928,7 +3011,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       borderRadius: BorderRadius.circular(14),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
-        width: 222,
+        width: _isMobile ? double.infinity : 222,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: selected ? bgColor.withValues(alpha: 0.75) : Colors.white,
@@ -3078,23 +3161,26 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   }
 
   Widget _buildContractRowWidget(Map<String, dynamic> c) {
-    final ref = (c['referencia_del_contrato'] ??
-            c['id_contrato'] ??
-            c['proceso_de_compra'] ??
-            'SECOP-II')
-        .toString();
-    final objeto = (c['objeto_del_contrato'] ??
-            c['descripcion_del_proceso'] ??
-            'Contrato público adjudicado')
-        .toString();
-    final isNat = _ordenEntidad.toUpperCase().contains('NACIONAL') ||
+    final ref =
+        (c['referencia_del_contrato'] ??
+                c['id_contrato'] ??
+                c['proceso_de_compra'] ??
+                'SECOP-II')
+            .toString();
+    final objeto =
+        (c['objeto_del_contrato'] ??
+                c['descripcion_del_proceso'] ??
+                'Contrato público adjudicado')
+            .toString();
+    final isNat =
+        _ordenEntidad.toUpperCase().contains('NACIONAL') ||
         _isNationalMultiRegionalEntity();
     final dep = _inferCanonicalDependency(c, isNational: isNat);
     final dept = (c['departamento'] ?? '').toString().trim();
     final depWithRegional =
         (isNat && dept.isNotEmpty && dept.toUpperCase() != 'NO DEFINIDO')
-            ? 'Reg. $dept · $dep'
-            : dep;
+        ? 'Reg. $dept · $dep'
+        : dep;
 
     final mod = _normalizeModalityLabel(
       (c['modalidad_de_contratacion'] ?? '').toString(),
@@ -3107,9 +3193,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => DetalleContratoScreen(contrato: c),
-          ),
+          MaterialPageRoute(builder: (_) => DetalleContratoScreen(contrato: c)),
         );
       },
       child: Padding(
@@ -3243,7 +3327,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           borderRadius: BorderRadius.circular(18),
         ),
         child: const Center(
-          child: Text('Consultando mapa de procesos y dependencias en SECOP II...'),
+          child: Text(
+            'Consultando mapa de procesos y dependencias en SECOP II...',
+          ),
         ),
       );
     }
@@ -3255,13 +3341,12 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
 
     final isNational =
         _ordenEntidad.toUpperCase().contains('NACIONAL') ||
-            _isNationalMultiRegionalEntity();
+        _isNationalMultiRegionalEntity();
 
     final categories = <_ProcessMapCategorySpec>[
       _ProcessMapCategorySpec(
         macroTitle: '1. PROCESOS ESTRATÉGICOS Y DE DIRECCIÓN',
-        macroSubtitle:
-            'Direccionamiento institucional, Despacho General/Regional y Oficina Asesora de Planeación.',
+        macroSubtitle: 'Direccionamiento institucional, Despacho General/Regional y Oficina Asesora de Planeación.',
         bannerColor: const Color(0xFF1E3A8A),
         bannerBg: const Color(0xFFDBEAFE),
         icon: Icons.account_tree_rounded,
@@ -3274,8 +3359,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       ),
       _ProcessMapCategorySpec(
         macroTitle: '2. PROCESOS MISIONALES Y OPERATIVOS TERRITORIALES',
-        macroSubtitle:
-            'Ejecución misional, centros de formación/atención, infraestructura física y bienestar social.',
+        macroSubtitle: 'Ejecución misional, centros de formación/atención, infraestructura física y bienestar social.',
         bannerColor: const Color(0xFF15803D),
         bannerBg: const Color(0xFFDCFCE7),
         icon: Icons.hub_rounded,
@@ -3289,8 +3373,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       ),
       _ProcessMapCategorySpec(
         macroTitle: '3. PROCESOS DE APOYO Y GESTIÓN ADMINISTRATIVA',
-        macroSubtitle:
-            'Grupo de apoyo administrativo, gestión financiera/presupuestal, contratación jurídica y TIC.',
+        macroSubtitle: 'Grupo de apoyo administrativo, gestión financiera/presupuestal, contratación jurídica y TIC.',
         bannerColor: const Color(0xFF0F766E),
         bannerBg: const Color(0xFFCCFBF1),
         icon: Icons.settings_suggest_rounded,
@@ -3305,8 +3388,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       ),
       _ProcessMapCategorySpec(
         macroTitle: '4. PROCESOS DE EVALUACIÓN, CONTROL Y SUPERVISIÓN',
-        macroSubtitle:
-            'Control interno de gestión, interventorías técnicas y supervisión contractual.',
+        macroSubtitle: 'Control interno de gestión, interventorías técnicas y supervisión contractual.',
         bannerColor: const Color(0xFFB45309),
         bannerBg: const Color(0xFFFEF3C7),
         icon: Icons.verified_user_outlined,
@@ -3409,48 +3491,56 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                     children: [
                       Row(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: cat.bannerBg,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  cat.icon,
-                                  size: 15,
-                                  color: cat.bannerColor,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  cat.macroTitle,
-                                  style: TextStyle(
+                          Flexible(
+                            flex: _isMobile ? 1 : 3,
+                            fit: FlexFit.loose,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: cat.bannerBg,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    cat.icon,
+                                    size: 15,
                                     color: cat.bannerColor,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.3,
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              cat.macroSubtitle,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xFF64748B),
-                                fontSize: 11.5,
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      cat.macroTitle,
+                                      style: TextStyle(
+                                        color: cat.bannerColor,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 0.3,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
+                          if (!_isMobile) const SizedBox(width: 10),
+                          if (!_isMobile)
+                            Expanded(
+                              flex: 2,
+                              child: Text(
+                                cat.macroSubtitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Color(0xFF64748B),
+                                  fontSize: 11.5,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -3459,15 +3549,16 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                         runSpacing: 12,
                         children: [
                           for (final depName in cat.dependencyNames)
-                            for (final dep in _dependencyStats
-                                .where((d) => d.name == depName))
+                            for (final dep in _dependencyStats.where(
+                              (d) => d.name == depName,
+                            ))
                               InkWell(
                                 onTap: () =>
                                     _selectDependencyAndFetchSecop(dep),
                                 borderRadius: BorderRadius.circular(12),
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 160),
-                                  width: 280,
+                                  width: _isMobile ? double.infinity : 280,
                                   padding: const EdgeInsets.all(13),
                                   decoration: BoxDecoration(
                                     color: selectedDep.name == dep.name
@@ -3478,8 +3569,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                                       color: selectedDep.name == dep.name
                                           ? dep.iconColor
                                           : const Color(0xFFE2E8F0),
-                                      width:
-                                          selectedDep.name == dep.name ? 2 : 1,
+                                      width: selectedDep.name == dep.name
+                                          ? 2
+                                          : 1,
                                     ),
                                   ),
                                   child: Row(
@@ -3589,12 +3681,14 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                   ],
                 ),
               ),
-              _buildContractsTableHeaderRow(),
-              for (var i = 0; i < displayContracts.length; i++) ...[
-                _buildContractRowWidget(displayContracts[i]),
-                if (i < displayContracts.length - 1)
-                  const Divider(height: 1, color: Color(0xFFF1F5F9)),
-              ],
+              _responsiveTable([
+                _buildContractsTableHeaderRow(),
+                for (var i = 0; i < displayContracts.length; i++) ...[
+                  _buildContractRowWidget(displayContracts[i]),
+                  if (i < displayContracts.length - 1)
+                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                ],
+              ]),
               _buildFullHistoryPaginationFooter(
                 currentPage: safePage,
                 totalPages: totalPages,
@@ -3620,8 +3714,10 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     final safePage = _contractorsPage.clamp(1, totalPages);
     final startIdx = _contractorsList.isEmpty
         ? 0
-        : ((safePage - 1) * _contractorsPageSize)
-            .clamp(0, _contractorsList.length - 1);
+        : ((safePage - 1) * _contractorsPageSize).clamp(
+            0,
+            _contractorsList.length - 1,
+          );
     final endIdx = _contractorsList.isEmpty
         ? 0
         : (startIdx + _contractorsPageSize).clamp(0, _contractorsList.length);
@@ -3672,213 +3768,216 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                     ],
                   ),
                 ),
-                Text(
-                  '${_contractorsList.length} contratistas en muestra activa',
-                  style: const TextStyle(
-                    color: _azulPrimario,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
+                if (!_isMobile)
+                  Text(
+                    '${_contractorsList.length} contratistas en muestra activa',
+                    style: const TextStyle(
+                      color: _azulPrimario,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                ),
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 11),
-            color: const Color(0xFFF8FAFC),
-            child: const Row(
-              children: [
-                SizedBox(
-                  width: 44,
-                  child: Text(
-                    '#',
-                    style: TextStyle(
-                      color: _azulOscuro,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 4,
-                  child: Text(
-                    'Contratista / Razón social',
-                    style: TextStyle(
-                      color: _azulOscuro,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    'Documento / NIT',
-                    style: TextStyle(
-                      color: _azulOscuro,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    'Contratos',
-                    style: TextStyle(
-                      color: _azulOscuro,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    'Modalidad frecuente',
-                    style: TextStyle(
-                      color: _azulOscuro,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    'Valor adjudicado',
-                    style: TextStyle(
-                      color: _azulOscuro,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                SizedBox(width: 28),
-              ],
-            ),
-          ),
-          if (pageItems.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(36),
-              child: Center(
-                child: Text('Consultando contratistas de la entidad...'),
-              ),
-            )
-          else
-            for (var i = 0; i < pageItems.length; i++) ...[
-              InkWell(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => PerfilContratistaScreen(
-                        nombreContratista: pageItems[i].name,
-                        nombreBuscado: pageItems[i].name,
+          _responsiveTable([
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 11),
+              color: const Color(0xFFF8FAFC),
+              child: const Row(
+                children: [
+                  SizedBox(
+                    width: 44,
+                    child: Text(
+                      '#',
+                      style: TextStyle(
+                        color: _azulOscuro,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                  );
-                },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 22,
-                    vertical: 14,
                   ),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 44,
-                        child: Container(
-                          width: 26,
-                          height: 26,
-                          alignment: Alignment.center,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFF1F5F9),
-                            shape: BoxShape.circle,
+                  Expanded(
+                    flex: 4,
+                    child: Text(
+                      'Contratista / Razón social',
+                      style: TextStyle(
+                        color: _azulOscuro,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      'Documento / NIT',
+                      style: TextStyle(
+                        color: _azulOscuro,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      'Contratos',
+                      style: TextStyle(
+                        color: _azulOscuro,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      'Modalidad frecuente',
+                      style: TextStyle(
+                        color: _azulOscuro,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      'Valor adjudicado',
+                      style: TextStyle(
+                        color: _azulOscuro,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 28),
+                ],
+              ),
+            ),
+            if (pageItems.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(36),
+                child: Center(
+                  child: Text('Consultando contratistas de la entidad...'),
+                ),
+              )
+            else
+              for (var i = 0; i < pageItems.length; i++) ...[
+                InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => PerfilContratistaScreen(
+                          nombreContratista: pageItems[i].name,
+                          nombreBuscado: pageItems[i].name,
+                        ),
+                      ),
+                    );
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22,
+                      vertical: 14,
+                    ),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 44,
+                          child: Container(
+                            width: 26,
+                            height: 26,
+                            alignment: Alignment.center,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFF1F5F9),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              '${startIdx + i + 1}',
+                              style: const TextStyle(
+                                color: _azulOscuro,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                           ),
+                        ),
+                        Expanded(
+                          flex: 4,
                           child: Text(
-                            '${startIdx + i + 1}',
+                            pageItems[i].name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: _azulOscuro,
-                              fontSize: 11.5,
+                              fontSize: 13,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
                         ),
-                      ),
-                      Expanded(
-                        flex: 4,
-                        child: Text(
-                          pageItems[i].name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: _azulOscuro,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
+                        Expanded(
+                          flex: 2,
+                          child: Text(
+                            pageItems[i].document,
+                            style: const TextStyle(
+                              color: Color(0xFF475569),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
-                      ),
-                      Expanded(
-                        flex: 2,
-                        child: Text(
-                          pageItems[i].document,
-                          style: const TextStyle(
-                            color: Color(0xFF475569),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                        Expanded(
+                          flex: 2,
+                          child: Text(
+                            '${pageItems[i].contractsCount} contratos',
+                            style: const TextStyle(
+                              color: _azulPrimario,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
-                      ),
-                      Expanded(
-                        flex: 2,
-                        child: Text(
-                          '${pageItems[i].contractsCount} contratos',
-                          style: const TextStyle(
+                        Expanded(
+                          flex: 2,
+                          child: Text(
+                            pageItems[i].mainModality,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFF64748B),
+                              fontSize: 11.5,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Text(
+                            _formatCopFull(pageItems[i].totalCop),
+                            style: const TextStyle(
+                              color: _azulOscuro,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(
+                          width: 28,
+                          child: Icon(
+                            Icons.chevron_right_rounded,
                             color: _azulPrimario,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
+                            size: 19,
                           ),
                         ),
-                      ),
-                      Expanded(
-                        flex: 2,
-                        child: Text(
-                          pageItems[i].mainModality,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Color(0xFF64748B),
-                            fontSize: 11.5,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 2,
-                        child: Text(
-                          _formatCopFull(pageItems[i].totalCop),
-                          style: const TextStyle(
-                            color: _azulOscuro,
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(
-                        width: 28,
-                        child: Icon(
-                          Icons.chevron_right_rounded,
-                          color: _azulPrimario,
-                          size: 19,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              if (i < pageItems.length - 1)
-                const Divider(height: 1, color: Color(0xFFF1F5F9)),
-            ],
+                if (i < pageItems.length - 1)
+                  const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              ],
+          ]),
           _buildFullHistoryPaginationFooter(
             currentPage: safePage,
             totalPages: totalPages,
@@ -3897,107 +3996,115 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     required int totalRecords,
     required ValueChanged<int> onPageChanged,
   }) {
+    final summary = Text(
+      'Total en SECOP II: ${_formatIntWithDots(totalRecords)} registros (${_formatIntWithDots(totalPages)} páginas)',
+      style: const TextStyle(
+        color: Color(0xFF64748B),
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+    final controls = <Widget>[
+      OutlinedButton(
+        onPressed: currentPage > 1 ? () => onPageChanged(1) : null,
+        style: OutlinedButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+        ),
+        child: const Text('« Primera', style: TextStyle(fontSize: 11.5)),
+      ),
+      const SizedBox(width: 6),
+      OutlinedButton.icon(
+        onPressed: currentPage > 1
+            ? () => onPageChanged(currentPage - 1)
+            : null,
+        icon: const Icon(Icons.chevron_left_rounded, size: 16),
+        label: const Text('Anterior', style: TextStyle(fontSize: 11.5)),
+        style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+      ),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: InkWell(
+          onTap: totalPages > 1
+              ? () => _showJumpToPageDialog(
+                  currentPage: currentPage,
+                  totalPages: totalPages,
+                  onPageChanged: onPageChanged,
+                )
+              : null,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFCBD5E1)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Pág. ${_formatIntWithDots(currentPage)} de ${_formatIntWithDots(totalPages)}',
+                  style: const TextStyle(
+                    color: _azulOscuro,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(
+                  Icons.edit_location_alt_outlined,
+                  size: 13,
+                  color: _azulPrimario,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      OutlinedButton.icon(
+        onPressed: currentPage < totalPages
+            ? () => onPageChanged(currentPage + 1)
+            : null,
+        icon: const Icon(Icons.chevron_right_rounded, size: 16),
+        label: const Text('Siguiente', style: TextStyle(fontSize: 11.5)),
+        style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+      ),
+      const SizedBox(width: 6),
+      OutlinedButton(
+        onPressed: currentPage < totalPages
+            ? () => onPageChanged(math.min(totalPages, 6000))
+            : null,
+        style: OutlinedButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+        ),
+        child: const Text('Última »', style: TextStyle(fontSize: 11.5)),
+      ),
+    ];
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: _isMobile ? 12 : 22,
+        vertical: 12,
+      ),
       decoration: const BoxDecoration(
         color: Color(0xFFFAFBFD),
         border: Border(top: BorderSide(color: Color(0xFFEEF2F6))),
       ),
-      child: Row(
-        children: [
-          Text(
-            'Total en SECOP II: ${_formatIntWithDots(totalRecords)} registros (${_formatIntWithDots(totalPages)} páginas)',
-            style: const TextStyle(
-              color: Color(0xFF64748B),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const Spacer(),
-          OutlinedButton(
-            onPressed: currentPage > 1 ? () => onPageChanged(1) : null,
-            style: OutlinedButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-            ),
-            child: const Text('« Primera', style: TextStyle(fontSize: 11.5)),
-          ),
-          const SizedBox(width: 6),
-          OutlinedButton.icon(
-            onPressed:
-                currentPage > 1 ? () => onPageChanged(currentPage - 1) : null,
-            icon: const Icon(Icons.chevron_left_rounded, size: 16),
-            label: const Text('Anterior', style: TextStyle(fontSize: 11.5)),
-            style: OutlinedButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: InkWell(
-              onTap: totalPages > 1
-                  ? () => _showJumpToPageDialog(
-                        currentPage: currentPage,
-                        totalPages: totalPages,
-                        onPageChanged: onPageChanged,
-                      )
-                  : null,
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
+      child: _isMobile
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                summary,
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(children: controls),
                 ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFCBD5E1)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Pág. ${_formatIntWithDots(currentPage)} de ${_formatIntWithDots(totalPages)}',
-                      style: const TextStyle(
-                        color: _azulOscuro,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    const Icon(
-                      Icons.edit_location_alt_outlined,
-                      size: 13,
-                      color: _azulPrimario,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          OutlinedButton.icon(
-            onPressed: currentPage < totalPages
-                ? () => onPageChanged(currentPage + 1)
-                : null,
-            icon: const Icon(Icons.chevron_right_rounded, size: 16),
-            label: const Text('Siguiente', style: TextStyle(fontSize: 11.5)),
-            style: OutlinedButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-            ),
-          ),
-          const SizedBox(width: 6),
-          OutlinedButton(
-            onPressed: currentPage < totalPages
-                ? () => onPageChanged(math.min(totalPages, 6000))
-                : null,
-            style: OutlinedButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-            ),
-            child: const Text('Última »', style: TextStyle(fontSize: 11.5)),
-          ),
-        ],
-      ),
+              ],
+            )
+          : Row(children: [summary, const Spacer(), ...controls]),
     );
   }
 
@@ -4062,6 +4169,42 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildRegionalesBreakdownBar(),
+        switch (_selectedTabIndex) {
+          0 => _buildResumenTab(),
+          1 => _buildContratosTab(),
+          2 => _buildDependenciasTab(),
+          3 => _buildContratistasTab(),
+          _ => _buildResumenTab(),
+        },
+      ],
+    );
+
+    // En celular el encabezado se desplaza junto con el contenido para liberar espacio vertical.
+    if (_isMobile) {
+      return Scaffold(
+        backgroundColor: _bgCrema,
+        body: SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildGenericPaletteHeader(),
+                _buildProfileTabsBar(),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 14, 12, 28),
+                  child: content,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: _bgCrema,
       body: Column(
@@ -4071,23 +4214,35 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(32, 20, 32, 36),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildRegionalesBreakdownBar(),
-                  switch (_selectedTabIndex) {
-                    0 => _buildResumenTab(),
-                    1 => _buildContratosTab(),
-                    2 => _buildDependenciasTab(),
-                    3 => _buildContratistasTab(),
-                    _ => _buildResumenTab(),
-                  },
-                ],
-              ),
+              child: content,
             ),
           ),
         ],
       ),
+    );
+  }
+
+  // ===========================================================================
+  // UTILIDADES RESPONSIVE (CELULAR)
+  // ===========================================================================
+
+  bool get _isMobile => MediaQuery.sizeOf(context).width < 800;
+
+  /// En escritorio envuelve en `Expanded`; en celular devuelve el widget a ancho completo.
+  Widget _flexOrFull(int flex, Widget child) =>
+      _isMobile ? child : Expanded(flex: flex, child: child);
+
+  /// Tablas anchas: en celular se desplazan horizontalmente para no desbordarse.
+  Widget _responsiveTable(List<Widget> rows) {
+    final column = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: rows,
+    );
+    if (!_isMobile) return column;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SizedBox(width: 880, child: column),
     );
   }
 }

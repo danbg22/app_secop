@@ -17,11 +17,6 @@ class _LandingScreenState extends State<LandingScreen> {
   static const _cream = Color(0xFFFFF8E7);
   static const _gold = Color(0xFFFFD54F);
 
-  static const _correosAdministradores = {
-    'ivanbolano19@gmail.com',
-    'danielbg2231@gmail.com',
-  };
-
   static const _navigationItems = [
     (label: 'Inicio', icon: Icons.home_outlined),
     (label: 'Contratos', icon: Icons.insert_drive_file_outlined),
@@ -46,14 +41,7 @@ class _LandingScreenState extends State<LandingScreen> {
         ?.trim()
         .toLowerCase();
 
-    if (!isLoggedIn) return;
-
-    if (!_correosAdministradores.contains(usuarioActivo)) {
-      await prefs.setBool('isLoggedIn', false);
-      await prefs.remove('usuarioActivo');
-      await prefs.remove('userEmail');
-      return;
-    }
+    if (!isLoggedIn || usuarioActivo == null || usuarioActivo.isEmpty) return;
 
     if (!mounted) return;
 

@@ -2,11 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../services/auth_service.dart';
+import '../../widgets/user_profile_header_action.dart';
 import '../perfil_entidad_screen.dart';
 
 enum EntityEmblemType {
@@ -278,10 +278,14 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
   void _recalculateKpisFromList(List<EntitySummaryRecord> list) {
     _kpiTotalEntities = list.length;
     _kpiTotalContracts = list.fold<int>(0, (s, e) => s + e.contractsCount);
-    _kpiTotalAmountMillions =
-        list.fold<double>(0, (s, e) => s + e.amountMillions);
-    _kpiUniqueContractors =
-        list.fold<int>(0, (s, e) => s + e.uniqueContractors);
+    _kpiTotalAmountMillions = list.fold<double>(
+      0,
+      (s, e) => s + e.amountMillions,
+    );
+    _kpiUniqueContractors = list.fold<int>(
+      0,
+      (s, e) => s + e.uniqueContractors,
+    );
   }
 
   static String _normalizar(String texto) {
@@ -302,9 +306,9 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
 
   static String _formatIntWithDots(int n) {
     return n.toString().replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]}.',
-        );
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]}.',
+    );
   }
 
   static String _formatMillions(double millions) {
@@ -417,7 +421,9 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     if (upper == 'INVIAS' || upper.contains('INSTITUTO NACIONAL DE VIAS')) {
       return 'Instituto Nacional de Vías - INVIAS';
     }
-    if (upper.contains('DISTRITO ESPECIAL INDUSTRIAL Y PORTUARIO DE BARRANQUILLA') ||
+    if (upper.contains(
+          'DISTRITO ESPECIAL INDUSTRIAL Y PORTUARIO DE BARRANQUILLA',
+        ) ||
         upper.contains('ALCALDIA DISTRITAL DE BARRANQUILLA')) {
       return 'Alcaldía Distrital de Barranquilla';
     }
@@ -571,10 +577,11 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       'DEPARTAMENTAL',
     };
 
-    final rawTokens =
-        clean.split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList();
-    final sigTokens =
-        rawTokens.where((t) => !connectors.contains(t)).toList();
+    final rawTokens = clean
+        .split(RegExp(r'\s+'))
+        .where((t) => t.isNotEmpty)
+        .toList();
+    final sigTokens = rawTokens.where((t) => !connectors.contains(t)).toList();
     final tokens = sigTokens.isNotEmpty ? sigTokens : rawTokens;
 
     final pool = _topContractingEntities.isNotEmpty
@@ -703,7 +710,8 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
 
     // Si el usuario escribe en la búsqueda una regional específica (ej. "sena atlantico", "sena cesar", "icbf guajira"),
     // mostramos también las regionales desglosadas por departamento.
-    final bool queryAsksForRegional = cleanQuery.contains('REGIONAL') ||
+    final bool queryAsksForRegional =
+        cleanQuery.contains('REGIONAL') ||
         cleanQuery.contains('SECCIONAL') ||
         cleanQuery.contains('ATLANTICO') ||
         cleanQuery.contains('CESAR') ||
@@ -761,9 +769,8 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       String prettyName = _beautifyEntityName(rawName);
       final isMultiRegionalRoot =
           prettyName == 'Servicio Nacional de Aprendizaje - SENA' ||
-              prettyName ==
-                  'Instituto Colombiano de Bienestar Familiar - ICBF' ||
-              prettyName == 'Instituto Nacional de Vías - INVIAS';
+          prettyName == 'Instituto Colombiano de Bienestar Familiar - ICBF' ||
+          prettyName == 'Instituto Nacional de Vías - INVIAS';
 
       if (isMultiRegionalRoot &&
           queryAsksForRegional &&
@@ -772,8 +779,8 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
         final shortRoot = prettyName.contains('SENA')
             ? 'Servicio Nacional de Aprendizaje - SENA'
             : (prettyName.contains('ICBF')
-                ? 'Instituto Colombiano de Bienestar Familiar - ICBF'
-                : 'Instituto Nacional de Vías - INVIAS');
+                  ? 'Instituto Colombiano de Bienestar Familiar - ICBF'
+                  : 'Instituto Nacional de Vías - INVIAS');
         prettyName = '$shortRoot (Regional $dept)';
       }
 
@@ -781,7 +788,8 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       final existing = consolidated[normPretty];
 
       if (existing == null) {
-        final isConsolidationRoot = isMultiRegionalRoot && !queryAsksForRegional;
+        final isConsolidationRoot =
+            isMultiRegionalRoot && !queryAsksForRegional;
         final emblem = _classifyEmblem(rawName);
         final estDeps = isConsolidationRoot
             ? 33
@@ -795,8 +803,8 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
           location: isConsolidationRoot
               ? 'Colombia · Orden Nacional (33 Regionales)'
               : (city != 'Colombia' && dept != 'Colombia'
-                  ? '$city, $dept · ${ordenRaw.isNotEmpty ? ordenRaw : "Territorial"}'
-                  : '$dept · ${ordenRaw.isNotEmpty ? ordenRaw : "Nacional"}'),
+                    ? '$city, $dept · ${ordenRaw.isNotEmpty ? ordenRaw : "Territorial"}'
+                    : '$dept · ${ordenRaw.isNotEmpty ? ordenRaw : "Nacional"}'),
           municipio: isConsolidationRoot ? 'Bogotá' : city,
           departamento: isConsolidationRoot
               ? 'Distrito Capital de Bogotá'
@@ -893,8 +901,9 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
           .split(RegExp(r'\s+'))
           .where((t) => t.isNotEmpty)
           .toList();
-      final sigTokens =
-          rawTokens.where((t) => !connectors.contains(t)).toList();
+      final sigTokens = rawTokens
+          .where((t) => !connectors.contains(t))
+          .toList();
       final tokens = sigTokens.isNotEmpty ? sigTokens : rawTokens;
 
       final whereClauses = <String>[
@@ -935,8 +944,9 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
           '&\$order=contratos%20DESC'
           '&\$limit=45',
         );
-        final response =
-            await http.get(url).timeout(const Duration(seconds: 8));
+        final response = await http
+            .get(url)
+            .timeout(const Duration(seconds: 8));
         if (response.statusCode == 200) {
           rawList = jsonDecode(response.body) as List<dynamic>;
         }
@@ -954,9 +964,11 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
         finalEntities.insert(0, seed);
       } else {
         // Si es SENA, ICBF o INVIAS consolidado, preferimos la cifra nacional anualizada 2026 completa
-        final idx =
-            finalEntities.indexWhere((e) => _normalizar(e.name) == normSeed);
-        if (idx >= 0 && seed.contractsCount > finalEntities[idx].contractsCount) {
+        final idx = finalEntities.indexWhere(
+          (e) => _normalizar(e.name) == normSeed,
+        );
+        if (idx >= 0 &&
+            seed.contractsCount > finalEntities[idx].contractsCount) {
           finalEntities[idx] = seed;
         }
       }
@@ -997,12 +1009,18 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
 
     if (finalEntities.isEmpty) return null;
 
-    final sumContracts =
-        finalEntities.fold<int>(0, (acc, e) => acc + e.contractsCount);
-    final sumMillions =
-        finalEntities.fold<double>(0, (acc, e) => acc + e.amountMillions);
-    final sumContractors =
-        finalEntities.fold<int>(0, (acc, e) => acc + e.uniqueContractors);
+    final sumContracts = finalEntities.fold<int>(
+      0,
+      (acc, e) => acc + e.contractsCount,
+    );
+    final sumMillions = finalEntities.fold<double>(
+      0,
+      (acc, e) => acc + e.amountMillions,
+    );
+    final sumContractors = finalEntities.fold<int>(
+      0,
+      (acc, e) => acc + e.uniqueContractors,
+    );
 
     return _CachedEntitiesBundle(
       entities: finalEntities,
@@ -1055,9 +1073,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
   void _openEntityProfile(EntitySummaryRecord entity) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => PerfilEntidadScreen(entity: entity),
-      ),
+      MaterialPageRoute(builder: (_) => PerfilEntidadScreen(entity: entity)),
     );
   }
 
@@ -1099,21 +1115,15 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
   // ===========================================================================
 
   Future<void> _handleLogout() async {
-    await FirebaseAuth.instance.signOut();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isLoggedIn', false);
-    await prefs.remove('usuarioActivo');
-    await prefs.remove('userEmail');
+    await AuthService.signOut();
+    if (!mounted) return;
+    Navigator.of(
+      context,
+      rootNavigator: true,
+    ).pushNamedAndRemoveUntil('/login', (route) => false);
   }
 
   Widget _buildTopRightProfileBar() {
-    final User? currentUser = FirebaseAuth.instance.currentUser;
-    final String rawName = currentUser?.displayName?.trim() ?? '';
-    final String firstName = rawName.isNotEmpty
-        ? rawName.split(' ').first
-        : 'Valentina';
-    final String? photoURL = currentUser?.photoURL;
-
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1157,86 +1167,45 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
           ),
         ),
         const SizedBox(width: 14),
-        PopupMenuButton<String>(
-          tooltip: 'Opciones del perfil',
-          onSelected: (value) {
-            if (value == 'logout') {
-              _handleLogout();
-            }
-          },
-          itemBuilder: (context) => const [
-            PopupMenuItem<String>(
-              value: 'logout',
-              child: Text('Cerrar sesión'),
-            ),
-          ],
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: CircleAvatar(
-                  radius: 19,
-                  backgroundImage:
-                      photoURL != null ? NetworkImage(photoURL) : null,
-                  backgroundColor: const Color(0xFF334155),
-                  child: photoURL == null
-                      ? const Icon(
-                          Icons.person,
-                          color: Colors.white,
-                          size: 21,
-                        )
-                      : null,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Hola, $firstName',
-                    style: const TextStyle(
-                      color: _azulOscuro,
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 1),
-                  const Text(
-                    'Consulta ciudadana',
-                    style: TextStyle(
-                      color: Color(0xFF475569),
-                      fontSize: 11.2,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: Color(0xFF475569),
-                size: 19,
-              ),
-            ],
-          ),
-        ),
+        UserProfileHeaderAction(onLogout: _handleLogout),
       ],
     );
   }
 
   Widget _buildHeaderLeftWithCallout() {
+    final bool isMobile = MediaQuery.sizeOf(context).width < 750;
+    if (isMobile) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 4, bottom: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Entidades',
+              style: TextStyle(
+                color: _azulOscuro,
+                fontSize: 28,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.5,
+                height: 1.05,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Explora las entidades que contratan con el Estado y descubre cómo se distribuyen los recursos públicos.',
+              style: TextStyle(
+                color: Color(0xFF334155),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                height: 1.35,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return SizedBox(
       height: 122,
       child: Stack(
@@ -1339,8 +1308,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                   fontWeight: FontWeight.w600,
                 ),
                 decoration: InputDecoration(
-                  hintText:
-                      'Buscar entidad verificada en SECOP II (ej. SENA, Alcaldía de Santa Marta, INVIAS, ICBF...)',
+                  hintText: 'Buscar entidad verificada en SECOP II (ej. SENA, Alcaldía de Santa Marta, INVIAS, ICBF...)',
                   hintStyle: const TextStyle(
                     color: Color(0xFF94A3B8),
                     fontSize: 12.8,
@@ -1364,19 +1332,19 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                           ),
                         )
                       : (_searchController.text.isNotEmpty
-                          ? IconButton(
-                              tooltip: 'Limpiar búsqueda',
-                              onPressed: () {
-                                _searchController.clear();
-                                _onSearchChanged('');
-                              },
-                              icon: const Icon(
-                                Icons.close_rounded,
-                                size: 18,
-                                color: Color(0xFF64748B),
-                              ),
-                            )
-                          : null),
+                            ? IconButton(
+                                tooltip: 'Limpiar búsqueda',
+                                onPressed: () {
+                                  _searchController.clear();
+                                  _onSearchChanged('');
+                                },
+                                icon: const Icon(
+                                  Icons.close_rounded,
+                                  size: 18,
+                                  color: Color(0xFF64748B),
+                                ),
+                              )
+                            : null),
                   filled: true,
                   fillColor: const Color(0xFFF4F6F9),
                   contentPadding: const EdgeInsets.symmetric(
@@ -1521,22 +1489,93 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
         width: 48,
         height: 48,
         alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: outerColor,
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: outerColor, shape: BoxShape.circle),
         child: Container(
           width: 36,
           height: 36,
           alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: innerColor,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: innerColor, shape: BoxShape.circle),
           child: child,
         ),
       );
     }
+
+    final card1 = kpiCard(
+      iconCircle: doubleRingIcon(
+        outerColor: const Color(0xFFE0EEFF),
+        innerColor: const Color(0xFFC7DFFF),
+        child: const Icon(
+          Icons.account_balance_rounded,
+          color: Color(0xFF1E3A8A),
+          size: 20,
+        ),
+      ),
+      title: 'Entidades',
+      subtitleUnderTitle: 'en Colombia (SECOP II)',
+      mainValue: '$_kpiTotalEntities',
+      trendPercent: 'Verificadas',
+      trendComparison: 'Datos Abiertos',
+    );
+    final card2 = kpiCard(
+      iconCircle: doubleRingIcon(
+        outerColor: const Color(0xFFE0EEFF),
+        innerColor: const Color(0xFFC7DFFF),
+        child: const Icon(
+          Icons.description_outlined,
+          color: Color(0xFF1D4ED8),
+          size: 20,
+        ),
+      ),
+      title: 'Total de contratos',
+      mainValue: _formatIntWithDots(_kpiTotalContracts),
+      trendPercent: 'SECOP II',
+      trendComparison: 'registrados',
+    );
+    final card3 = kpiCard(
+      iconCircle: doubleRingIcon(
+        outerColor: const Color(0xFFDCFCE7),
+        innerColor: const Color(0xFFBBF7D0),
+        child: Container(
+          width: 22,
+          height: 22,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            color: Color(0xFF15803D),
+            shape: BoxShape.circle,
+          ),
+          child: const Text(
+            '\$',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ),
+      title: 'Valor contratado',
+      mainValue: _formatMillions(_kpiTotalAmountMillions),
+      valueFontSize: 21,
+      trendPercent: 'SECOP II',
+      trendComparison: 'consolidado',
+    );
+    final card4 = kpiCard(
+      iconCircle: doubleRingIcon(
+        outerColor: const Color(0xFFEDE9FE),
+        innerColor: const Color(0xFFDDD6FE),
+        child: const Icon(
+          Icons.people_outline_rounded,
+          color: Color(0xFF4338CA),
+          size: 20,
+        ),
+      ),
+      title: 'Contratistas únicos',
+      mainValue: _formatIntWithDots(_kpiUniqueContractors),
+      trendPercent: 'SECOP II',
+      trendComparison: 'adjudicados',
+    );
+
+    final bool isNarrowKpi = MediaQuery.sizeOf(context).width < 800;
 
     return Container(
       padding: const EdgeInsets.all(10),
@@ -1544,94 +1583,29 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
         color: Colors.white.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Row(
-        children: [
-          kpiCard(
-            iconCircle: doubleRingIcon(
-              outerColor: const Color(0xFFE0EEFF),
-              innerColor: const Color(0xFFC7DFFF),
-              child: const Icon(
-                Icons.account_balance_rounded,
-                color: Color(0xFF1E3A8A),
-                size: 20,
-              ),
+      child: isNarrowKpi
+          ? Column(
+              children: [
+                Row(children: [card1, const SizedBox(width: 8), card2]),
+                const SizedBox(height: 8),
+                Row(children: [card3, const SizedBox(width: 8), card4]),
+              ],
+            )
+          : Row(
+              children: [
+                card1,
+                const SizedBox(width: 10),
+                card2,
+                const SizedBox(width: 10),
+                card3,
+                const SizedBox(width: 10),
+                card4,
+              ],
             ),
-            title: 'Entidades',
-            subtitleUnderTitle: 'en Colombia (SECOP II)',
-            mainValue: '$_kpiTotalEntities',
-            trendPercent: 'Verificadas',
-            trendComparison: 'Datos Abiertos',
-          ),
-          const SizedBox(width: 10),
-          kpiCard(
-            iconCircle: doubleRingIcon(
-              outerColor: const Color(0xFFE0EEFF),
-              innerColor: const Color(0xFFC7DFFF),
-              child: const Icon(
-                Icons.description_outlined,
-                color: Color(0xFF1D4ED8),
-                size: 20,
-              ),
-            ),
-            title: 'Total de contratos',
-            mainValue: _formatIntWithDots(_kpiTotalContracts),
-            trendPercent: 'SECOP II',
-            trendComparison: 'registrados',
-          ),
-          const SizedBox(width: 10),
-          kpiCard(
-            iconCircle: doubleRingIcon(
-              outerColor: const Color(0xFFDCFCE7),
-              innerColor: const Color(0xFFBBF7D0),
-              child: Container(
-                width: 22,
-                height: 22,
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF15803D),
-                  shape: BoxShape.circle,
-                ),
-                child: const Text(
-                  '\$',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ),
-            title: 'Valor contratado',
-            mainValue: _formatMillions(_kpiTotalAmountMillions),
-            valueFontSize: 21,
-            trendPercent: 'SECOP II',
-            trendComparison: 'consolidado',
-          ),
-          const SizedBox(width: 10),
-          kpiCard(
-            iconCircle: doubleRingIcon(
-              outerColor: const Color(0xFFEDE9FE),
-              innerColor: const Color(0xFFDDD6FE),
-              child: const Icon(
-                Icons.people_outline_rounded,
-                color: Color(0xFF4338CA),
-                size: 20,
-              ),
-            ),
-            title: 'Contratistas únicos',
-            mainValue: _formatIntWithDots(_kpiUniqueContractors),
-            trendPercent: 'SECOP II',
-            trendComparison: 'adjudicados',
-          ),
-        ],
-      ),
     );
   }
 
-  Widget _buildCategoryTab({
-    required IconData icon,
-    required String label,
-  }) {
+  Widget _buildCategoryTab({required IconData icon, required String label}) {
     final bool selected = _selectedTab == label;
     return InkWell(
       onTap: () => setState(() => _selectedTab = label),
@@ -1692,11 +1666,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  icon,
-                  size: 15,
-                  color: const Color(0xFF475569),
-                ),
+                Icon(icon, size: 15, color: const Color(0xFF475569)),
                 const SizedBox(width: 6),
                 Flexible(
                   child: Text(
@@ -1731,79 +1701,144 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       );
     }
 
+    final bool isMobileRow = MediaQuery.sizeOf(context).width < 700;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () => _openEntityProfile(entity),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          child: Row(
-            children: [
-              EntityBrandScope(
-                entityName: entity.name,
-                nit: entity.nit,
-                child: EntityEmblemWidget(type: entity.emblemType, size: 44),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                flex: 4,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
+          padding: EdgeInsets.symmetric(
+            horizontal: isMobileRow ? 14 : 20,
+            vertical: 14,
+          ),
+          child: isMobileRow
+              ? Row(
                   children: [
-                    Text(
-                      entity.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _azulOscuro,
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w800,
+                    EntityBrandScope(
+                      entityName: entity.name,
+                      nit: entity.nit,
+                      child: EntityEmblemWidget(
+                        type: entity.emblemType,
+                        size: 40,
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '${entity.location} · NIT ${entity.nit}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF64748B),
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w500,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            entity.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: _azulOscuro,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            '${entity.location} · NIT ${entity.nit}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFF64748B),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${entity.contractsFormatted} cont. · ${entity.amountFormatted}',
+                            style: const TextStyle(
+                              color: Color(0xFF1D4ED8),
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
                       ),
+                    ),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: Color(0xFF475569),
+                      size: 20,
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    EntityBrandScope(
+                      entityName: entity.name,
+                      nit: entity.nit,
+                      child: EntityEmblemWidget(
+                        type: entity.emblemType,
+                        size: 44,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      flex: 4,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            entity.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: _azulOscuro,
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            '${entity.location} · NIT ${entity.nit}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFF64748B),
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    metricCell(
+                      icon: Icons.account_balance_outlined,
+                      value: entity.contractsFormatted,
+                      subtitle: 'Contratos',
+                      flex: 2,
+                    ),
+                    const SizedBox(width: 10),
+                    metricCell(
+                      icon: Icons.monetization_on_outlined,
+                      value: entity.amountFormatted,
+                      subtitle: 'Valor contratado',
+                      flex: 3,
+                    ),
+                    const SizedBox(width: 10),
+                    metricCell(
+                      icon: Icons.person_outline_rounded,
+                      value: _formatIntWithDots(entity.uniqueContractors),
+                      subtitle: 'Contratistas',
+                      flex: 2,
+                    ),
+                    const SizedBox(width: 6),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: Color(0xFF475569),
+                      size: 20,
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 10),
-              metricCell(
-                icon: Icons.account_balance_outlined,
-                value: entity.contractsFormatted,
-                subtitle: 'Contratos',
-                flex: 2,
-              ),
-              const SizedBox(width: 10),
-              metricCell(
-                icon: Icons.monetization_on_outlined,
-                value: entity.amountFormatted,
-                subtitle: 'Valor contratado',
-                flex: 3,
-              ),
-              const SizedBox(width: 10),
-              metricCell(
-                icon: Icons.person_outline_rounded,
-                value: _formatIntWithDots(entity.uniqueContractors),
-                subtitle: 'Contratistas',
-                flex: 2,
-              ),
-              const SizedBox(width: 6),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: Color(0xFF475569),
-                size: 20,
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -2316,51 +2351,68 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [
-                        _bgCrema.withValues(alpha: 0.0),
-                        _bgCrema,
-                      ],
+                      colors: [_bgCrema.withValues(alpha: 0.0), _bgCrema],
                     ),
                   ),
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(26, 16, 26, 28),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      flex: 69,
-                      child: Column(
+                padding: EdgeInsets.fromLTRB(
+                  MediaQuery.sizeOf(context).width < 900 ? 14 : 26,
+                  16,
+                  MediaQuery.sizeOf(context).width < 900 ? 14 : 26,
+                  28,
+                ),
+                child: MediaQuery.sizeOf(context).width < 900
+                    ? Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _buildHeaderLeftWithCallout(),
                           const SizedBox(height: 10),
                           _buildSearchAndFiltersCard(),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 12),
                           _buildKpiSummaryRow(),
                           const SizedBox(height: 14),
                           _buildEntitiesMainTableCard(),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      flex: 31,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: _buildTopRightProfileBar(),
-                          ),
-                          const SizedBox(height: 36),
+                          const SizedBox(height: 18),
                           _buildRightSideColumn(),
                         ],
+                      )
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 69,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _buildHeaderLeftWithCallout(),
+                                const SizedBox(height: 10),
+                                _buildSearchAndFiltersCard(),
+                                const SizedBox(height: 14),
+                                _buildKpiSummaryRow(),
+                                const SizedBox(height: 14),
+                                _buildEntitiesMainTableCard(),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 20),
+                          Expanded(
+                            flex: 31,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: _buildTopRightProfileBar(),
+                                ),
+                                const SizedBox(height: 36),
+                                _buildRightSideColumn(),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
               ),
             ],
           ),
@@ -2395,11 +2447,7 @@ class EntityBrandScope extends InheritedWidget {
 }
 
 class EntityEmblemWidget extends StatelessWidget {
-  const EntityEmblemWidget({
-    super.key,
-    required this.type,
-    this.size = 42,
-  });
+  const EntityEmblemWidget({super.key, required this.type, this.size = 42});
 
   final EntityEmblemType type;
   final double size;
@@ -2620,11 +2668,7 @@ class _SenaOfficialHdPainter extends CustomPainter {
     final h = size.height;
     final center = Offset(w / 2, h / 2);
 
-    canvas.drawCircle(
-      center,
-      w / 2,
-      Paint()..color = const Color(0xFFFFFBF5),
-    );
+    canvas.drawCircle(center, w / 2, Paint()..color = const Color(0xFFFFFBF5));
     canvas.drawCircle(
       center,
       (w / 2) - 1.2,
@@ -3228,11 +3272,7 @@ class _NavyGoldShieldPainter extends CustomPainter {
       Offset(w * 0.50, h * 0.74),
       goldPaint,
     );
-    canvas.drawCircle(
-      Offset(w * 0.50, h * 0.44),
-      w * 0.13,
-      goldPaint,
-    );
+    canvas.drawCircle(Offset(w * 0.50, h * 0.44), w * 0.13, goldPaint);
     canvas.drawLine(
       Offset(w * 0.35, h * 0.34),
       Offset(w * 0.65, h * 0.34),
@@ -3345,10 +3385,7 @@ class _EntityBarIllustration extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(
               4,
-              (_) => Container(
-                height: 1,
-                color: const Color(0xFFF1F5F9),
-              ),
+              (_) => Container(height: 1, color: const Color(0xFFF1F5F9)),
             ),
           ),
           Row(
@@ -3393,7 +3430,7 @@ class _CompareEntitiesUnfilteredDialog extends StatefulWidget {
   final EntitySummaryRecord initialEntityB;
   final List<EntitySummaryRecord> Function(String query) searchSeedEntities;
   final Future<_CachedEntitiesBundle?> Function(String query)
-      fetchLiveSearchBundle;
+  fetchLiveSearchBundle;
   final void Function(EntitySummaryRecord entity) onOpenProfile;
   // Campos preservados para compatibilidad con Hot Reload en la VM de Dart
   final Future<void> Function()? ensureCatalogReady;
@@ -3441,9 +3478,9 @@ class _CompareEntitiesUnfilteredDialogState
 
   static String _formatIntWithDots(int n) {
     return n.toString().replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]}.',
-        );
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]}.',
+    );
   }
 
   void _onSearchQuerySlotA(String text) {
@@ -3624,15 +3661,15 @@ class _CompareEntitiesUnfilteredDialogState
                         ),
                       )
                     : (controller.text.isNotEmpty
-                        ? IconButton(
-                            padding: EdgeInsets.zero,
-                            onPressed: () {
-                              controller.clear();
-                              onQueryChanged('');
-                            },
-                            icon: const Icon(Icons.close, size: 15),
-                          )
-                        : null),
+                          ? IconButton(
+                              padding: EdgeInsets.zero,
+                              onPressed: () {
+                                controller.clear();
+                                onQueryChanged('');
+                              },
+                              icon: const Icon(Icons.close, size: 15),
+                            )
+                          : null),
                 filled: true,
                 fillColor: Colors.white,
                 contentPadding: const EdgeInsets.symmetric(
@@ -3852,12 +3889,18 @@ class _CompareEntitiesUnfilteredDialogState
 
   @override
   Widget build(BuildContext context) {
-    final maxAmount =
-        math.max(_entityA.amountMillions, _entityB.amountMillions);
-    final maxContracts =
-        math.max(_entityA.contractsCount, _entityB.contractsCount);
-    final maxContractors =
-        math.max(_entityA.uniqueContractors, _entityB.uniqueContractors);
+    final maxAmount = math.max(
+      _entityA.amountMillions,
+      _entityB.amountMillions,
+    );
+    final maxContracts = math.max(
+      _entityA.contractsCount,
+      _entityB.contractsCount,
+    );
+    final maxContractors = math.max(
+      _entityA.uniqueContractors,
+      _entityB.uniqueContractors,
+    );
 
     final avgA = _entityA.contractsCount > 0
         ? (_entityA.amountMillions / _entityA.contractsCount)

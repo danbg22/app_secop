@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/auth_bg_asset_data.dart';
 import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -12,11 +12,9 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  static const _azulInstitucional = Color(0xFF17365D);
-  static const _correosAdministradores = {
-    'ivanbolano19@gmail.com',
-    'danielbg2231@gmail.com',
-  };
+  static const _navyDark = Color(0xFF0B224C);
+  static const _royalBlue = Color(0xFF0D5BD9);
+  static const _goldAccent = Color(0xFFF5B800);
   static final _emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
 
   final _formKey = GlobalKey<FormState>();
@@ -33,14 +31,24 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showMessage(String message, {bool isError = false}) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
           content: Text(message),
-          backgroundColor: isError ? Colors.red.shade700 : _azulInstitucional,
+          backgroundColor: isError ? Colors.red.shade700 : _navyDark,
+          behavior: SnackBarBehavior.floating,
         ),
       );
+  }
+
+  void _navigateToPortada() {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    } else {
+      Navigator.of(context).pushReplacementNamed('/portada');
+    }
   }
 
   Future<void> _signIn() async {
@@ -50,28 +58,20 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     final email = _emailController.text.trim().toLowerCase();
-    if (!_correosAdministradores.contains(email)) {
-      _showMessage(
-        'Acceso denegado. Este correo no está autorizado.',
-        isError: true,
-      );
-      return;
-    }
+    final password = _passwordController.text;
 
     setState(() => _isLoading = true);
     try {
-      await AuthService.signInWithEmail(email, _passwordController.text);
+      await AuthService.signInWithEmail(email, password);
+      if (!mounted) return;
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('isLoggedIn', true);
-      await prefs.setString('usuarioActivo', email);
-      await prefs.setString('userEmail', email);
-      if (mounted && Navigator.of(context).canPop()) {
-        Navigator.of(context).popUntil((route) => route.isFirst);
-      }
+      final displayName = AuthService.getActiveUserDisplayName();
+      _showMessage('Bienvenido(a), $displayName');
+      Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
     } catch (error) {
       if (mounted) {
-        _showMessage('No fue posible iniciar sesión: $error', isError: true);
+        final msg = error.toString().replaceFirst('Exception: ', '');
+        _showMessage(msg, isError: true);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -87,27 +87,14 @@ class _LoginScreenState extends State<LoginScreen> {
       await signIn();
       if (!mounted) return;
 
-      final email = FirebaseAuth.instance.currentUser?.email
-          ?.trim()
-          .toLowerCase();
-      if (email == null || !_correosAdministradores.contains(email)) {
-        await FirebaseAuth.instance.signOut();
-        _showMessage(
-          'Acceso denegado. Este correo no está autorizado.',
-          isError: true,
-        );
-        return;
-      }
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('isLoggedIn', true);
-      await prefs.setString('usuarioActivo', email);
-      await prefs.setString('userEmail', email);
-      if (mounted && Navigator.of(context).canPop()) {
-        Navigator.of(context).popUntil((route) => route.isFirst);
-      }
+      final displayName = AuthService.getActiveUserDisplayName();
+      _showMessage('Bienvenido(a), $displayName');
+      Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
     } catch (error) {
-      if (mounted) _showMessage('Error con $provider: $error', isError: true);
+      if (mounted) {
+        final msg = error.toString().replaceFirst('Exception: ', '');
+        _showMessage('Error con $provider: $msg', isError: true);
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -117,7 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final correoIngresado = _emailController.text.trim();
     if (correoIngresado.isEmpty || !_emailRegex.hasMatch(correoIngresado)) {
       _showMessage(
-        'Ingresa un correo válido para recuperar tu contraseña.',
+        'Ingresa tu correo electrónico arriba para recuperar tu contraseña.',
         isError: true,
       );
       return;
@@ -130,7 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       if (mounted) {
         _showMessage(
-          'Se ha enviado un enlace para recuperar la contraseña a tu correo.',
+          'Se ha enviado un enlace para recuperar la contraseña a $correoIngresado.',
         );
       }
     } on FirebaseAuthException catch (error) {
@@ -154,260 +141,539 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final canGoBack = Navigator.of(context).canPop();
+    final size = MediaQuery.sizeOf(context);
+    final isDesktop = size.width >= 900;
+    final isMobile = size.width < 600;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FB),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
-              child: Card(
-                elevation: 3,
-                shadowColor: _azulInstitucional.withValues(alpha: 0.12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
+      backgroundColor: const Color(0xFFFDFBF6),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Scenic Colombia city & mountain background with golden/blue curves
+          Image.memory(
+            AuthBgAssetData.bytes,
+            fit: BoxFit.cover,
+            alignment: isDesktop ? Alignment.centerLeft : Alignment.center,
+            gaplessPlayback: true,
+          ),
+
+          // Subtle gradient overlay on smaller screens so the card & logo stay crisp
+          if (!isDesktop)
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.72),
+                    Colors.white.withValues(alpha: 0.45),
+                    Colors.white.withValues(alpha: 0.75),
+                  ],
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(28),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (canGoBack)
+              ),
+            ),
+
+          // Top-left Contrata Legal brand logo (visible on desktop/tablet)
+          if (!isMobile)
+            Positioned(
+              top: isDesktop ? 34 : 20,
+              left: isDesktop ? 54 : 24,
+              child: InkWell(
+                onTap: _navigateToPortada,
+                borderRadius: BorderRadius.circular(12),
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  height: isDesktop ? 92 : 70,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+
+          // Main content area: right-aligned floating card on desktop, centered on mobile
+          SafeArea(
+            child: Align(
+              alignment: isDesktop ? Alignment.centerRight : Alignment.center,
+              child: SingleChildScrollView(
+                padding: EdgeInsets.only(
+                  left: isMobile ? 16 : 32,
+                  right: isDesktop
+                      ? (size.width * 0.065).clamp(40.0, 110.0)
+                      : (isMobile ? 16 : 32),
+                  top: isMobile ? 16 : 28,
+                  bottom: isMobile ? 16 : 28,
+                ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 460),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.97),
+                      borderRadius: BorderRadius.circular(26),
+                      border: Border.all(
+                        color: const Color(0xFFEDEFF3),
+                        width: 1.2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF0B224C).withValues(alpha: 0.08),
+                          blurRadius: 36,
+                          offset: const Offset(0, 14),
+                        ),
+                      ],
+                    ),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isMobile ? 22 : 36,
+                      vertical: isMobile ? 24 : 32,
+                    ),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Back to Portada link
                           Align(
                             alignment: Alignment.centerLeft,
-                            child: TextButton.icon(
-                              onPressed: () => Navigator.of(context).pop(),
-                              icon: const Icon(
-                                Icons.arrow_back_rounded,
-                                size: 18,
-                                color: _azulInstitucional,
+                            child: InkWell(
+                              onTap: _navigateToPortada,
+                              borderRadius: BorderRadius.circular(8),
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(
+                                  vertical: 6,
+                                  horizontal: 4,
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.arrow_back_rounded,
+                                      size: 18,
+                                      color: _navyDark,
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Volver a la portada',
+                                      style: TextStyle(
+                                        color: _navyDark,
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              label: const Text(
-                                'Volver a la portada',
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Centered Contrata Legal logo inside the card
+                          Center(
+                            child: Image.asset(
+                              'assets/images/logo.png',
+                              height: isMobile ? 74 : 84,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+
+                          // Gold accent bar
+                          Center(
+                            child: Container(
+                              width: 34,
+                              height: 3.5,
+                              decoration: BoxDecoration(
+                                color: _goldAccent,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+
+                          const Text(
+                            'Inicia sesión para continuar',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Color(0xFF475569),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 22),
+
+                          // Correo electrónico
+                          TextFormField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            autofillHints: const [AutofillHints.email],
+                            style: const TextStyle(
+                              fontSize: 14.5,
+                              color: Color(0xFF1E293B),
+                            ),
+                            decoration: _inputDecoration(
+                              hint: 'Correo electrónico',
+                              icon: Icons.mail_outline_rounded,
+                            ),
+                            validator: (value) {
+                              final email = value?.trim() ?? '';
+                              if (email.isEmpty ||
+                                  !_emailRegex.hasMatch(email)) {
+                                return 'Ingresa un correo electrónico válido.';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Contraseña
+                          TextFormField(
+                            controller: _passwordController,
+                            obscureText: !_passwordVisible,
+                            textInputAction: TextInputAction.done,
+                            autofillHints: const [AutofillHints.password],
+                            onFieldSubmitted: (_) => _signIn(),
+                            style: const TextStyle(
+                              fontSize: 14.5,
+                              color: Color(0xFF1E293B),
+                            ),
+                            decoration: _inputDecoration(
+                              hint: 'Contraseña',
+                              icon: Icons.lock_outline_rounded,
+                            ).copyWith(
+                              suffixIcon: IconButton(
+                                tooltip: _passwordVisible
+                                    ? 'Ocultar contraseña'
+                                    : 'Mostrar contraseña',
+                                onPressed: () => setState(
+                                  () => _passwordVisible = !_passwordVisible,
+                                ),
+                                icon: Icon(
+                                  _passwordVisible
+                                      ? Icons.visibility_off_outlined
+                                      : Icons.visibility_outlined,
+                                  color: const Color(0xFF334155),
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                            validator: (value) => (value ?? '').isEmpty
+                                ? 'Ingresa tu contraseña.'
+                                : null,
+                          ),
+                          const SizedBox(height: 8),
+
+                          // Olvidé mi contraseña
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: _isLoading ? null : _resetPassword,
+                              style: TextButton.styleFrom(
+                                foregroundColor: _royalBlue,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 4,
+                                ),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: const Text(
+                                'Olvidé mi contraseña',
                                 style: TextStyle(
-                                  color: _azulInstitucional,
+                                  color: _royalBlue,
+                                  fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
                           ),
-                        const Icon(
-                          Icons.gavel_rounded,
-                          size: 52,
-                          color: _azulInstitucional,
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Contrata Legal',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: _azulInstitucional,
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Inicia sesión para continuar',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey.shade700),
-                        ),
-                        const SizedBox(height: 28),
-                        TextFormField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          autofillHints: const [AutofillHints.email],
-                          decoration: _inputDecoration(
-                            label: 'Correo electrónico',
-                            icon: Icons.email_outlined,
-                          ),
-                          validator: (value) {
-                            final email = value?.trim() ?? '';
-                            if (email.isEmpty || !_emailRegex.hasMatch(email)) {
-                              return 'Ingresa un correo electrónico válido.';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _passwordController,
-                          obscureText: !_passwordVisible,
-                          textInputAction: TextInputAction.done,
-                          autofillHints: const [AutofillHints.password],
-                          onFieldSubmitted: (_) => _signIn(),
-                          decoration:
-                              _inputDecoration(
-                                label: 'Contraseña',
-                                icon: Icons.lock_outline,
-                              ).copyWith(
-                                suffixIcon: IconButton(
-                                  tooltip: _passwordVisible
-                                      ? 'Ocultar contraseña'
-                                      : 'Mostrar contraseña',
-                                  onPressed: () => setState(
-                                    () => _passwordVisible = !_passwordVisible,
-                                  ),
-                                  icon: Icon(
-                                    _passwordVisible
-                                        ? Icons.visibility_off_outlined
-                                        : Icons.visibility_outlined,
-                                  ),
+                          const SizedBox(height: 14),
+
+                          // Primary dark navy button: Iniciar sesión ->
+                          SizedBox(
+                            height: 50,
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _signIn,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _navyDark,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(13),
                                 ),
                               ),
-                          validator: (value) => (value ?? '').isEmpty
-                              ? 'Ingresa tu contraseña.'
-                              : null,
-                        ),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: _isLoading ? null : _resetPassword,
-                            child: const Text('Olvidé mi contraseña'),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        SizedBox(
-                          height: 52,
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _signIn,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _azulInstitucional,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                            ),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.5,
-                                      color: Colors.white,
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.4,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          'Iniciar sesión',
+                                          style: TextStyle(
+                                            fontSize: 15.5,
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: 0.2,
+                                          ),
+                                        ),
+                                        SizedBox(width: 10),
+                                        Icon(
+                                          Icons.arrow_forward_rounded,
+                                          size: 18,
+                                          color: Colors.white,
+                                        ),
+                                      ],
                                     ),
-                                  )
-                                : const Text(
-                                    'Iniciar Sesión',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 24),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Divider(color: Colors.grey.shade300),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                              ),
-                              child: Text(
-                                'O continuar con',
-                                style: TextStyle(color: Colors.grey.shade600),
-                              ),
-                            ),
-                            Expanded(
-                              child: Divider(color: Colors.grey.shade300),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        OutlinedButton.icon(
-                          onPressed: _isLoading
-                              ? null
-                              : () => _signInWithProvider(
-                                  provider: 'Google',
-                                  signIn: AuthService.signInWithGoogle,
+                          const SizedBox(height: 20),
+
+                          // Divider: O continuar con
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Divider(
+                                  color: Colors.grey.shade300,
+                                  thickness: 1,
                                 ),
-                          icon: const Icon(Icons.g_mobiledata, size: 26),
-                          label: const Text('Iniciar sesión con Google'),
-                          style: _socialButtonStyle(),
-                        ),
-                        const SizedBox(height: 10),
-                        OutlinedButton.icon(
-                          onPressed: _isLoading
-                              ? null
-                              : () => _signInWithProvider(
-                                  provider: 'Apple',
-                                  signIn: AuthService.signInWithApple,
+                              ),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 14),
+                                child: Text(
+                                  'O continuar con',
+                                  style: TextStyle(
+                                    color: Color(0xFF64748B),
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
-                          icon: const Icon(Icons.apple, size: 22),
-                          label: const Text('Iniciar sesión con Apple'),
-                          style: _socialButtonStyle(),
-                        ),
-                        const SizedBox(height: 22),
-                        Wrap(
-                          alignment: WrapAlignment.center,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            const Text('¿No tienes cuenta?'),
-                            TextButton(
+                              ),
+                              Expanded(
+                                child: Divider(
+                                  color: Colors.grey.shade300,
+                                  thickness: 1,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Google button
+                          SizedBox(
+                            height: 46,
+                            child: OutlinedButton(
                               onPressed: _isLoading
                                   ? null
-                                  : () => Navigator.pushNamed(
-                                      context,
-                                      '/registro',
+                                  : () => _signInWithProvider(
+                                      provider: 'Google',
+                                      signIn: AuthService.signInWithGoogle,
                                     ),
-                              child: const Text(
-                                'Regístrate',
-                                style: TextStyle(
-                                  color: _azulInstitucional,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                              style: _socialButtonStyle(),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  _buildGoogleIcon(),
+                                  const SizedBox(width: 12),
+                                  const Text(
+                                    'Iniciar sesión con Google',
+                                    style: TextStyle(
+                                      color: Color(0xFF1E293B),
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
-                      ],
+                          ),
+                          const SizedBox(height: 10),
+
+                          // Apple button
+                          SizedBox(
+                            height: 46,
+                            child: OutlinedButton(
+                              onPressed: _isLoading
+                                  ? null
+                                  : () => _signInWithProvider(
+                                      provider: 'Apple',
+                                      signIn: AuthService.signInWithApple,
+                                    ),
+                              style: _socialButtonStyle(),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.apple,
+                                    size: 22,
+                                    color: Colors.black,
+                                  ),
+                                  SizedBox(width: 10),
+                                  Text(
+                                    'Iniciar sesión con Apple',
+                                    style: TextStyle(
+                                      color: Color(0xFF1E293B),
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 22),
+
+                          // Bottom link: ¿No tienes cuenta? Regístrate
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text(
+                                '¿No tienes cuenta? ',
+                                style: TextStyle(
+                                  color: Color(0xFF475569),
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              InkWell(
+                                onTap: _isLoading
+                                    ? null
+                                    : () => Navigator.pushNamed(
+                                        context,
+                                        '/registro',
+                                      ),
+                                borderRadius: BorderRadius.circular(6),
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 2,
+                                  ),
+                                  child: Text(
+                                    'Regístrate',
+                                    style: TextStyle(
+                                      color: _royalBlue,
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 
+  Widget _buildGoogleIcon() {
+    return SizedBox(
+      width: 18,
+      height: 18,
+      child: CustomPaint(painter: _GoogleLogoPainter()),
+    );
+  }
+
   InputDecoration _inputDecoration({
-    required String label,
+    required String hint,
     required IconData icon,
   }) {
     return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon, color: _azulInstitucional),
+      hintText: hint,
+      hintStyle: const TextStyle(
+        color: Color(0xFF64748B),
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+      ),
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      prefixIcon: Icon(icon, color: _navyDark, size: 20),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFD8DEE8)),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFD8DEE8)),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: _azulInstitucional, width: 1.5),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: _navyDark, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.red.shade400),
       ),
     );
   }
 
   ButtonStyle _socialButtonStyle() {
     return OutlinedButton.styleFrom(
-      foregroundColor: const Color(0xFF243447),
-      minimumSize: const Size.fromHeight(48),
-      side: BorderSide(color: Colors.grey.shade300),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      backgroundColor: Colors.white,
+      foregroundColor: const Color(0xFF1E293B),
+      side: const BorderSide(color: Color(0xFFD8DEE8)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
   }
+}
+
+class _GoogleLogoPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width * 0.38;
+    final strokeWidth = size.width * 0.21;
+
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.butt;
+
+    final rect = Rect.fromCircle(center: center, radius: radius);
+
+    // Red top arc
+    paint.color = const Color(0xFFEA4335);
+    canvas.drawArc(rect, -2.35, 1.55, false, paint);
+
+    // Yellow left arc
+    paint.color = const Color(0xFFFBBC05);
+    canvas.drawArc(rect, 2.35, 1.58, false, paint);
+
+    // Green bottom arc
+    paint.color = const Color(0xFF34A853);
+    canvas.drawArc(rect, 0.75, 1.60, false, paint);
+
+    // Blue right arc + horizontal bar
+    paint.color = const Color(0xFF4285F4);
+    canvas.drawArc(rect, -0.35, 1.10, false, paint);
+
+    final barPaint = Paint()
+      ..color = const Color(0xFF4285F4)
+      ..style = PaintingStyle.fill;
+    canvas.drawRect(
+      Rect.fromLTWH(
+        center.dx,
+        center.dy - strokeWidth * 0.48,
+        radius + strokeWidth * 0.45,
+        strokeWidth * 0.95,
+      ),
+      barPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

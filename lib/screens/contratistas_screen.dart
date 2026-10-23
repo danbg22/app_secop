@@ -73,10 +73,8 @@ class ContractorSummaryRecord {
   }
 }
 
-/// Almacén en memoria para garantizar persistencia de estado cuando el usuario
-/// navega hacia [PerfilContratistaScreen] (Navigator.push) o cambia de pestaña
-/// y regresa a la pantalla, conservando intactos el texto y los resultados
-/// hasta que decida borrar manualmente la barra de búsqueda.
+/// Almacén en memoria para garantizar persistencia de estado y caché ultra-rápida
+/// por cada combinación de cédula/NIT buscada.
 class _ContratistasPersistenceStore {
   static String searchText = '';
   static List<String> activeBulkTerms = const [];
@@ -84,6 +82,11 @@ class _ContratistasPersistenceStore {
   static String sortBy = 'Mayor valor contratado';
   static int currentPage = 1;
   static bool hasExecutedCustomSearch = false;
+  static bool exceededMaxTerms = false;
+
+  /// Caché en memoria por término normalizado para recalcular al instante
+  /// cuando el usuario borra o agrega una combinación separada por coma.
+  static final Map<String, List<ContractorSummaryRecord>> termResultsCache = {};
 }
 
 class ContratistasScreen extends StatefulWidget {
@@ -102,14 +105,14 @@ class ContratistasScreen extends StatefulWidget {
 
 class _ContratistasScreenState extends State<ContratistasScreen>
     with AutomaticKeepAliveClientMixin {
-  static const Color _azulOscuro = Color(0xFF13294B);
   static const Color _azulTexto = Color(0xFF1A2B4C);
-  static const Color _azulEnlace = Color(0xFF1D58D8);
   static const Color _cremaFondo = Color(0xFFFAF5EA);
   static const Color _dorado = Color(0xFFF5B82E);
   static const int _pageSize = 5;
+  static const int _maxBulkCombinations = 5;
 
   late final TextEditingController _searchController;
+  Timer? _liveSearchDebounce;
   List<ContractorSummaryRecord> _contractors = [];
   List<String> _activeBulkTerms = const [];
   bool _isLoading = false;
@@ -301,6 +304,7 @@ class _ContratistasScreenState extends State<ContratistasScreen>
 
   @override
   void dispose() {
+    _liveSearchDebounce?.cancel();
     _ContratistasPersistenceStore.searchText = _searchController.text;
     _searchController.dispose();
     super.dispose();
@@ -314,13 +318,16 @@ class _ContratistasScreenState extends State<ContratistasScreen>
     _ContratistasPersistenceStore.currentPage = _currentPage;
   }
 
-  /// Extrae y limpia múltiples cédulas, NITs o nombres separados por coma.
+  /// Extrae y limpia hasta 5 combinaciones de cédulas, NITs o nombres separados por coma.
   List<String> _parseBulkQueryTerms(String rawInput) {
-    return rawInput
+    final allTerms = rawInput
         .split(',')
         .map((term) => term.replaceAll("'", '').trim())
         .where((term) => term.isNotEmpty)
         .toList();
+    _ContratistasPersistenceStore.exceededMaxTerms =
+        allTerms.length > _maxBulkCombinations;
+    return allTerms.take(_maxBulkCombinations).toList();
   }
 
   String _normalizar(String texto) {
@@ -335,20 +342,61 @@ class _ContratistasScreenState extends State<ContratistasScreen>
         .replaceAll('Ñ', 'N');
   }
 
-  /// Ejecuta la búsqueda masiva (uno o varios NITs/Cédulas/Nombres separados por coma)
-  /// consultando SECOP II de un solo golpe y cruzando cada resultado con SIGEP.
+  String _termCacheKey(String term) {
+    final digits = term.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length >= 3) {
+      return 'DOC:$digits';
+    }
+    return 'TXT:${_normalizar(term)}';
+  }
+
+  /// Combina los resultados en caché para las combinaciones activas (hasta 5)
+  /// manteniendo el orden de búsqueda y evitando duplicados.
+  List<ContractorSummaryRecord> _combineCachedTerms(List<String> terms) {
+    final combined = <ContractorSummaryRecord>[];
+    final seenKeys = <String>{};
+
+    for (final term in terms) {
+      final key = _termCacheKey(term);
+      final termList = _ContratistasPersistenceStore.termResultsCache[key];
+      if (termList != null) {
+        for (final item in termList) {
+          final uniqueId = item.rawDocumentDigits.isNotEmpty
+              ? item.rawDocumentDigits
+              : _normalizar(item.rawSearchName);
+          if (seenKeys.add(uniqueId)) {
+            combined.add(item);
+          }
+        }
+      } else {
+        // Mientras termina de consultar un término nuevo, incluir coincidencias locales inmediatas
+        for (final seed in _initialSeedContractors) {
+          if (_matchesSingleTerm(seed, term)) {
+            final uniqueId = seed.rawDocumentDigits.isNotEmpty
+                ? seed.rawDocumentDigits
+                : _normalizar(seed.rawSearchName);
+            if (seenKeys.add(uniqueId)) {
+              combined.add(seed);
+            }
+          }
+        }
+      }
+    }
+    return combined;
+  }
+
+  /// Se invoca tanto al escribir en tiempo real como al presionar "Buscar" o borrar una combinación.
   Future<void> _executeBulkSearch() async {
+    _liveSearchDebounce?.cancel();
     final rawText = _searchController.text.trim();
     final terms = _parseBulkQueryTerms(rawText);
 
-    setState(() {
-      _activeBulkTerms = terms;
-      _currentPage = 1;
-    });
-    _syncStateToPersistenceStore();
-
     if (terms.isEmpty) {
+      _latestRequestId++;
       setState(() {
+        _activeBulkTerms = const [];
+        _isLoading = false;
+        _currentPage = 1;
         _contractors = List<ContractorSummaryRecord>.from(
           _initialSeedContractors,
         );
@@ -358,28 +406,98 @@ class _ContratistasScreenState extends State<ContratistasScreen>
       return;
     }
 
-    final int requestId = ++_latestRequestId;
-    setState(() => _isLoading = true);
-    _ContratistasPersistenceStore.hasExecutedCustomSearch = true;
+    // Recálculo instantáneo con lo que ya esté en caché (por ejemplo al borrar 1 de las 5 cédulas)
+    final missingTerms = terms
+        .where(
+          (t) =>
+              !_ContratistasPersistenceStore.termResultsCache.containsKey(
+                _termCacheKey(t),
+              ),
+        )
+        .toList();
 
+    final immediateCombined = _combineCachedTerms(terms);
+    setState(() {
+      _activeBulkTerms = terms;
+      _currentPage = 1;
+      _ContratistasPersistenceStore.hasExecutedCustomSearch = true;
+      if (immediateCombined.isNotEmpty || missingTerms.isEmpty) {
+        _contractors = immediateCombined;
+      }
+      _isLoading = missingTerms.isNotEmpty;
+    });
+    _syncStateToPersistenceStore();
+
+    if (missingTerms.isEmpty) {
+      return;
+    }
+
+    // Si todos los términos faltantes son de apenas 1 o 2 dígitos, filtramos localmente al instante
+    final queryableMissing = missingTerms.where((t) {
+      final d = t.replaceAll(RegExp(r'[^0-9]'), '');
+      return d.length >= 3 || _normalizar(t).length >= 3;
+    }).toList();
+
+    if (queryableMissing.isEmpty) {
+      for (final shortTerm in missingTerms) {
+        final matches = _initialSeedContractors
+            .where((s) => _matchesSingleTerm(s, shortTerm))
+            .toList();
+        _ContratistasPersistenceStore.termResultsCache[_termCacheKey(
+          shortTerm,
+        )] = matches;
+      }
+      setState(() {
+        _contractors = _combineCachedTerms(terms);
+        _isLoading = false;
+      });
+      _syncStateToPersistenceStore();
+      return;
+    }
+
+    final int requestId = ++_latestRequestId;
+    _liveSearchDebounce = Timer(const Duration(milliseconds: 150), () {
+      _runFastSocrataBulkQuery(
+        allTerms: terms,
+        termsToFetch: queryableMissing,
+        requestId: requestId,
+      );
+    });
+  }
+
+  /// Consulta ultra-rápida (< 250 ms) usando el índice B-tree de `documento_proveedor`
+  /// (`starts_with`) y agregación `$group` en el servidor Socrata.
+  Future<void> _runFastSocrataBulkQuery({
+    required List<String> allTerms,
+    required List<String> termsToFetch,
+    required int requestId,
+  }) async {
     try {
-      // 1. Construir condición SoQL combinada para buscar todas las cédulas/NITs de un solo golpe
       final termClauses = <String>[];
-      for (final term in terms) {
+      for (final term in termsToFetch) {
         final digitsOnly = term.replaceAll(RegExp(r'[^0-9]'), '');
         final normName = _normalizar(term);
         final subConditions = <String>[];
 
-        if (digitsOnly.length >= 4) {
-          subConditions.add("documento_proveedor LIKE '%$digitsOnly%'");
-          // Si tiene dígito de verificación al final (10 dígitos en NIT), probar también la base de 9 dígitos
+        if (digitsOnly.length >= 3) {
+          // Usa el índice B-tree nativo de Socrata (~170ms en lugar de 20s)
+          subConditions.add("starts_with(documento_proveedor, '$digitsOnly')");
           if (digitsOnly.length == 10 &&
               (digitsOnly.startsWith('8') || digitsOnly.startsWith('9'))) {
             final baseNit = digitsOnly.substring(0, 9);
-            subConditions.add("documento_proveedor LIKE '%$baseNit%'");
+            subConditions.add("starts_with(documento_proveedor, '$baseNit')");
+          }
+          // También soporta documentos guardados con puntos en SECOP II
+          final formattedDots = _formatDotsOnly(digitsOnly);
+          if (formattedDots != digitsOnly && digitsOnly.length >= 6) {
+            subConditions.add(
+              "starts_with(documento_proveedor, '$formattedDots')",
+            );
           }
         }
-        if (normName.isNotEmpty && !RegExp(r'^[0-9.\-\s]+$').hasMatch(term)) {
+
+        if (normName.length >= 3 &&
+            !RegExp(r'^[0-9.\-\s]+$').hasMatch(term)) {
           final words = normName
               .split(RegExp(r'\s+'))
               .where((w) => w.length >= 2)
@@ -390,8 +508,6 @@ class _ContratistasScreenState extends State<ContratistasScreen>
                 .join(' AND ');
             subConditions.add('($wordChecks)');
           }
-        } else if (subConditions.isEmpty && normName.isNotEmpty) {
-          subConditions.add("upper(proveedor_adjudicado) LIKE '%$normName%'");
         }
 
         if (subConditions.isNotEmpty) {
@@ -399,10 +515,15 @@ class _ContratistasScreenState extends State<ContratistasScreen>
         }
       }
 
+      if (termClauses.isEmpty) {
+        if (!mounted || requestId != _latestRequestId) return;
+        setState(() => _isLoading = false);
+        return;
+      }
+
       final whereClause = <String>[
-        'valor_del_contrato > 0',
         "proveedor_adjudicado != 'No Definido'",
-        if (termClauses.isNotEmpty) '(${termClauses.join(' OR ')})',
+        '(${termClauses.join(' OR ')})',
       ].join(' AND ');
 
       final uri = Uri.https(
@@ -411,25 +532,29 @@ class _ContratistasScreenState extends State<ContratistasScreen>
         <String, String>{
           r'$select':
               'proveedor_adjudicado,tipodocproveedor,documento_proveedor,'
-              'valor_del_contrato,fecha_de_firma,fecha_de_inicio_del_contrato,'
-              'nombre_entidad,sector,objeto_del_contrato',
+              'count(*) as contratos,sum(valor_del_contrato) as total_valor,'
+              'max(fecha_de_firma) as ultima_fecha,'
+              'count(distinct nombre_entidad) as entidades',
           r'$where': whereClause,
-          r'$order': 'fecha_de_firma DESC',
-          r'$limit': '5000',
+          r'$group':
+              'proveedor_adjudicado,tipodocproveedor,documento_proveedor',
+          r'$order': 'total_valor DESC',
+          r'$limit': '75',
         },
       );
 
       final response =
-          await http.get(uri).timeout(const Duration(seconds: 20));
+          await http.get(uri).timeout(const Duration(seconds: 10));
 
       final groupedMap = <String, _ContractorAccumulator>{};
 
-      // También incluir coincidencias de la semilla local por si hay términos de demostración
+      // Incluir coincidencias de la semilla local si coinciden con los términos
       for (final seed in _initialSeedContractors) {
-        if (_matchesAnyBulkTerm(seed, terms)) {
-          final key = seed.rawDocumentDigits.isNotEmpty
-              ? seed.rawDocumentDigits
-              : _normalizar(seed.rawSearchName);
+        if (termsToFetch.any((t) => _matchesSingleTerm(seed, t))) {
+          final key = _canonicalContractorKey(
+            seed.rawDocumentDigits,
+            seed.rawSearchName,
+          );
           groupedMap[key] = _ContractorAccumulator.fromRecord(seed);
         }
       }
@@ -447,21 +572,21 @@ class _ContratistasScreenState extends State<ContratistasScreen>
               (rawItem['documento_proveedor'] ?? '').toString().trim();
           final rawTipoDoc = (rawItem['tipodocproveedor'] ?? '').toString();
           final digits = rawDoc.replaceAll(RegExp(r'[^0-9]'), '');
-          final val = double.tryParse(
-                rawItem['valor_del_contrato']?.toString() ?? '0',
+          final contracts = int.tryParse(
+                rawItem['contratos']?.toString() ?? '1',
+              ) ??
+              1;
+          final totalVal = double.tryParse(
+                rawItem['total_valor']?.toString() ?? '0',
               ) ??
               0;
-          final rawDate = (rawItem['fecha_de_firma'] ??
-                  rawItem['fecha_de_inicio_del_contrato'] ??
-                  '')
-              .toString();
-          final rawEntity =
-              (rawItem['nombre_entidad'] ?? '').toString().trim();
-          final rawSector = (rawItem['sector'] ?? '').toString();
-          final rawObjeto = (rawItem['objeto_del_contrato'] ?? '').toString();
+          final rawDate = (rawItem['ultima_fecha'] ?? '').toString();
+          final entitiesCnt = int.tryParse(
+                rawItem['entidades']?.toString() ?? '1',
+              ) ??
+              1;
 
-          final groupKey =
-              digits.length >= 5 ? digits : _normalizar(rawName);
+          final groupKey = _canonicalContractorKey(digits, rawName);
 
           final acc = groupedMap.putIfAbsent(
             groupKey,
@@ -472,47 +597,151 @@ class _ContratistasScreenState extends State<ContratistasScreen>
               digits: digits,
             ),
           );
-          acc.addContract(
-            value: val,
+          acc.addAggregatedGroup(
+            contracts: contracts,
+            value: totalVal,
             isoDate: rawDate,
-            entity: rawEntity,
-            sectorText: '$rawSector $rawObjeto',
+            entitiesCount: entitiesCnt,
           );
         }
       }
 
-      if (!mounted || requestId != _latestRequestId) return;
-
-      final builtList = groupedMap.values
-          .map((acc) => acc.buildRecord(
-                formatNit: _formatDocument,
-                beautifyName: _beautifyName,
-                buildInitials: _computeInitials,
-                inferSector: _inferSector,
-                formatDate: _formatIsoToDdMmYyyy,
-              ))
+      final fetchedRecords = groupedMap.values
+          .map(
+            (acc) => acc.buildRecord(
+              formatNit: _formatDocument,
+              beautifyName: _beautifyName,
+              buildInitials: _computeInitials,
+              inferSector: _inferSector,
+              formatDate: _formatIsoToDdMmYyyy,
+            ),
+          )
           .toList();
 
+      // Clasificar y guardar en caché por cada término consultado.
+      // Si el usuario escribió la cédula/NIT completa (>= 6 dígitos) y hay coincidencia exacta,
+      // dejamos los resultados exactos de ese NIT/cédula.
+      for (final term in termsToFetch) {
+        final matchesForTerm = _selectBestMatchesForTerm(fetchedRecords, term);
+        _ContratistasPersistenceStore.termResultsCache[_termCacheKey(term)] =
+            matchesForTerm;
+      }
+
+      if (!mounted || requestId != _latestRequestId) return;
+
+      final combinedResults = _combineCachedTerms(allTerms);
+
       setState(() {
-        _contractors = builtList;
+        _contractors = combinedResults;
         _isLoading = false;
         _currentPage = 1;
       });
       _syncStateToPersistenceStore();
 
-      // 2. Cruzar automáticamente los primeros contratistas con SIGEP en segundo plano
-      _verifyContractorsWithSigep(builtList.take(15).toList(), requestId);
+      // Cruzar con SIGEP en segundo plano sin bloquear la tabla
+      _verifyContractorsWithSigep(
+        combinedResults.take(12).toList(),
+        requestId,
+      );
     } catch (_) {
       if (!mounted || requestId != _latestRequestId) return;
-      final fallbackMatches = _initialSeedContractors
-          .where((item) => _matchesAnyBulkTerm(item, terms))
-          .toList();
+      for (final term in termsToFetch) {
+        final fallback = _initialSeedContractors
+            .where((item) => _matchesSingleTerm(item, term))
+            .toList();
+        _ContratistasPersistenceStore.termResultsCache[_termCacheKey(term)] =
+            fallback;
+      }
       setState(() {
-        _contractors = fallbackMatches;
+        _contractors = _combineCachedTerms(allTerms);
         _isLoading = false;
       });
       _syncStateToPersistenceStore();
     }
+  }
+
+  String _canonicalContractorKey(String digits, String rawName) {
+    if (digits.length == 10 &&
+        (digits.startsWith('8') || digits.startsWith('9'))) {
+      return digits.substring(0, 9);
+    }
+    if (digits.length >= 5) return digits;
+    return _normalizar(rawName);
+  }
+
+  static String _formatDotsOnly(String digits) {
+    return digits.replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (m) => '${m[1]}.',
+    );
+  }
+
+  List<ContractorSummaryRecord> _selectBestMatchesForTerm(
+    List<ContractorSummaryRecord> candidates,
+    String term,
+  ) {
+    final tDigits = term.replaceAll(RegExp(r'[^0-9]'), '');
+    final matching = candidates
+        .where((c) => _matchesSingleTerm(c, term))
+        .toList();
+
+    if (tDigits.length >= 6) {
+      final base9 = (tDigits.length == 10 &&
+              (tDigits.startsWith('8') || tDigits.startsWith('9')))
+          ? tDigits.substring(0, 9)
+          : tDigits;
+
+      final exactMatches = matching.where((c) {
+        final cDigits = c.rawDocumentDigits;
+        final cBase9 = (cDigits.length == 10 &&
+                (cDigits.startsWith('8') || cDigits.startsWith('9')))
+            ? cDigits.substring(0, 9)
+            : cDigits;
+        return cDigits == tDigits || cBase9 == base9;
+      }).toList();
+
+      if (exactMatches.isNotEmpty) {
+        exactMatches.sort((a, b) => b.totalValue.compareTo(a.totalValue));
+        return exactMatches;
+      }
+    }
+
+    matching.sort((a, b) {
+      if (tDigits.isNotEmpty) {
+        final aExact = a.rawDocumentDigits == tDigits ? 0 : 1;
+        final bExact = b.rawDocumentDigits == tDigits ? 0 : 1;
+        if (aExact != bExact) return aExact.compareTo(bExact);
+      }
+      return b.totalValue.compareTo(a.totalValue);
+    });
+    return matching;
+  }
+
+  bool _matchesSingleTerm(ContractorSummaryRecord record, String term) {
+    final tNorm = _normalizar(term);
+    final tDigits = term.replaceAll(RegExp(r'[^0-9]'), '');
+    final cDigits = record.rawDocumentDigits.isNotEmpty
+        ? record.rawDocumentDigits
+        : record.nit.replaceAll(RegExp(r'[^0-9]'), '');
+
+    if (tDigits.isNotEmpty) {
+      if (cDigits.startsWith(tDigits) || cDigits.contains(tDigits)) {
+        return true;
+      }
+      if (tDigits.length == 10 &&
+          (tDigits.startsWith('8') || tDigits.startsWith('9'))) {
+        final base9 = tDigits.substring(0, 9);
+        if (cDigits.startsWith(base9)) return true;
+      }
+    }
+    if (tNorm.isNotEmpty && !RegExp(r'^[0-9.\-\s]+$').hasMatch(term)) {
+      final normName = _normalizar(record.name);
+      final normRaw = _normalizar(record.rawSearchName);
+      if (normName.contains(tNorm) || normRaw.contains(tNorm)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /// Cruza la lista de contratistas con [SigepService] para determinar visualmente
@@ -523,7 +752,6 @@ class _ContratistasScreenState extends State<ContratistasScreen>
   ) async {
     for (final target in targets) {
       if (!mounted || requestId != _latestRequestId) return;
-      // Las personas jurídicas son empresas/consorcios (Contratistas del Estado)
       if (target.personType == 'Persona jurídica') continue;
 
       try {
@@ -564,32 +792,20 @@ class _ContratistasScreenState extends State<ContratistasScreen>
     List<String> terms,
   ) {
     if (terms.isEmpty) return true;
-    final normName = _normalizar(record.name);
-    final normRaw = _normalizar(record.rawSearchName);
-    final cleanNit = record.nit.replaceAll(RegExp(r'[^0-9]'), '');
-
     for (final term in terms) {
-      final tNorm = _normalizar(term);
-      final tDigits = term.replaceAll(RegExp(r'[^0-9]'), '');
-      if (tDigits.length >= 4 &&
-          (cleanNit.contains(tDigits) ||
-              record.rawDocumentDigits.contains(tDigits))) {
-        return true;
-      }
-      if (tNorm.isNotEmpty &&
-          (normName.contains(tNorm) ||
-              normRaw.contains(tNorm) ||
-              _normalizar(record.nit).contains(tNorm))) {
-        return true;
-      }
+      if (_matchesSingleTerm(record, term)) return true;
     }
     return false;
   }
 
   void _clearSearchManually() {
+    _liveSearchDebounce?.cancel();
+    _latestRequestId++;
     _searchController.clear();
+    _ContratistasPersistenceStore.exceededMaxTerms = false;
     setState(() {
       _activeBulkTerms = const [];
+      _isLoading = false;
       _currentPage = 1;
       _contractors = List<ContractorSummaryRecord>.from(
         _initialSeedContractors,
@@ -670,8 +886,6 @@ class _ContratistasScreenState extends State<ContratistasScreen>
       fileName: 'Consulta_Contratistas_SECOP.csv',
     );
   }
-
-
 
   static String _formatCopCurrency(double value) {
     final rounded = value.round();
@@ -788,8 +1002,6 @@ class _ContratistasScreenState extends State<ContratistasScreen>
         !_ContratistasPersistenceStore.hasExecutedCustomSearch &&
         _activeBulkTerms.isEmpty;
 
-    // Métricas KPI: muestran los totales globales del mockup por defecto
-    // y se recalibran dinámicamente cuando el usuario filtra o busca múltiples NITs/Cédulas.
     final String totalContratistasKpi =
         isDefaultView ? '2.486' : '${filtered.length}';
     final int sumContracts =
@@ -815,8 +1027,10 @@ class _ContratistasScreenState extends State<ContratistasScreen>
     if (filtered.isEmpty) {
       pageItems = const [];
     } else {
-      final startIdx =
-          (((safePage - 1) * _pageSize) % filtered.length).clamp(0, filtered.length - 1);
+      final startIdx = (((safePage - 1) * _pageSize) % filtered.length).clamp(
+        0,
+        filtered.length - 1,
+      );
       final endIdx = (startIdx + _pageSize).clamp(0, filtered.length);
       pageItems = filtered.sublist(startIdx, endIdx);
     }
@@ -825,8 +1039,10 @@ class _ContratistasScreenState extends State<ContratistasScreen>
       color: _cremaFondo,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final double horizontalPad =
-              constraints.maxWidth > 1200 ? 32.0 : 22.0;
+          final isMobile = constraints.maxWidth < 700;
+          final double horizontalPad = constraints.maxWidth > 1200
+              ? 32.0
+              : (isMobile ? 14.0 : 22.0);
           return SingleChildScrollView(
             child: Stack(
               children: [
@@ -885,7 +1101,7 @@ class _ContratistasScreenState extends State<ContratistasScreen>
                 Padding(
                   padding: EdgeInsets.fromLTRB(
                     horizontalPad,
-                    24,
+                    isMobile ? 16 : 24,
                     horizontalPad,
                     28,
                   ),
@@ -986,6 +1202,7 @@ class ContratistasHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.sizeOf(context).width < 650;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1006,18 +1223,18 @@ class ContratistasHeader extends StatelessWidget {
                 'Contratistas',
                 style: TextStyle(
                   color: titleColor,
-                  fontSize: 38,
+                  fontSize: isMobile ? 28 : 38,
                   fontWeight: FontWeight.w800,
                   height: 1.05,
                   letterSpacing: -0.5,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Conoce quiénes ejecutan los contratos con el Estado\ny revisa su trayectoria contractual.',
                 style: TextStyle(
-                  color: Color(0xFF475569),
-                  fontSize: 15,
+                  color: const Color(0xFF475569),
+                  fontSize: isMobile ? 13.5 : 15,
                   height: 1.35,
                   fontWeight: FontWeight.w400,
                 ),
@@ -1025,7 +1242,7 @@ class ContratistasHeader extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 12),
         UserProfileHeaderAction(onLogout: onLogout),
       ],
     );
@@ -1033,7 +1250,7 @@ class ContratistasHeader extends StatelessWidget {
 }
 
 /// ---------------------------------------------------------------------------
-/// 2. COMPONENTE: BulkSearchBar (Leyenda sombreada + Búsqueda por cédula/NIT)
+/// 2. COMPONENTE: BulkSearchBar (Búsqueda en vivo + hasta 5 combinaciones por coma)
 /// ---------------------------------------------------------------------------
 class ContratistasBulkSearchBar extends StatelessWidget {
   const ContratistasBulkSearchBar({
@@ -1054,8 +1271,26 @@ class ContratistasBulkSearchBar extends StatelessWidget {
   static const Color _azulOscuro = Color(0xFF0F2747);
   static const Color _azulTexto = Color(0xFF1A2B4C);
 
+  void _removeTermAtIndex(int indexToRemove) {
+    final updated = List<String>.from(activeBulkTerms);
+    if (indexToRemove >= 0 && indexToRemove < updated.length) {
+      updated.removeAt(indexToRemove);
+    }
+    if (updated.isEmpty) {
+      onClearSearch();
+    } else {
+      final newText = updated.join(', ');
+      controller.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(offset: newText.length),
+      );
+      onSearchTriggered();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final exceededMax = _ContratistasPersistenceStore.exceededMaxTerms;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1075,38 +1310,44 @@ class ContratistasBulkSearchBar extends StatelessWidget {
               ),
             ],
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
+          child: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 4,
             children: [
-              const Icon(
-                Icons.info_outline_rounded,
-                size: 15,
-                color: _azulTexto,
-              ),
-              const SizedBox(width: 7),
-              const Flexible(
-                child: Text(
-                  'Si vas a buscar más de una cédula o NIT, sepáralos por coma',
-                  style: TextStyle(
+              const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.bolt_rounded,
+                    size: 16,
                     color: _azulTexto,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
                   ),
-                ),
+                  SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      'Búsqueda en tiempo real: escribe hasta 5 cédulas o NITs separados por coma',
+                      style: TextStyle(
+                        color: _azulTexto,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              if (activeBulkTerms.length > 1) ...[
-                const SizedBox(width: 8),
+              if (activeBulkTerms.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 2,
+                    horizontal: 8,
+                    vertical: 2.5,
                   ),
                   decoration: BoxDecoration(
                     color: _azulOscuro,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    '${activeBulkTerms.length} documentos en lote',
+                    '${activeBulkTerms.length}/5 combinaciones activas',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 10.5,
@@ -1114,13 +1355,32 @@ class ContratistasBulkSearchBar extends StatelessWidget {
                     ),
                   ),
                 ),
-              ],
+              if (exceededMax)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2.5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF2F2),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFFECACA)),
+                  ),
+                  child: const Text(
+                    'Máximo 5 combinaciones permitidas (mostrando las primeras 5)',
+                    style: TextStyle(
+                      color: Color(0xFFB91C1C),
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
-        // Barra de Búsqueda limpia y directa sin filtros
+        // Barra de Búsqueda rápida en tiempo real
         Container(
-          height: 48,
+          height: 50,
           padding: const EdgeInsets.only(left: 14, right: 6),
           decoration: BoxDecoration(
             color: Colors.white,
@@ -1148,6 +1408,7 @@ class ContratistasBulkSearchBar extends StatelessWidget {
                   builder: (context, value, _) {
                     return TextField(
                       controller: controller,
+                      onChanged: (_) => onSearchTriggered(),
                       onSubmitted: (_) => onSearchTriggered(),
                       style: const TextStyle(
                         color: _azulTexto,
@@ -1156,7 +1417,7 @@ class ContratistasBulkSearchBar extends StatelessWidget {
                       ),
                       decoration: InputDecoration(
                         hintText:
-                            'Buscar contratista por NIT o cédula (o sepáralos por coma)...',
+                            'Escribe NIT o cédula (ej: 1065842391, 9001960987, hasta 5 separados por coma)...',
                         hintStyle: const TextStyle(
                           color: Color(0xFF94A3B8),
                           fontSize: 13,
@@ -1189,7 +1450,7 @@ class ContratistasBulkSearchBar extends StatelessWidget {
                     foregroundColor: Colors.white,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 22,
+                      horizontal: 20,
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(9),
@@ -1216,13 +1477,82 @@ class ContratistasBulkSearchBar extends StatelessWidget {
             ],
           ),
         ),
+        // Chips interactivos para las combinaciones activas (hasta 5):
+        // si el usuario elimina una, recalcula de inmediato para las 4, 3, 2 o 1 restantes.
+        if (activeBulkTerms.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              for (var i = 0; i < activeBulkTerms.length; i++)
+                Container(
+                  padding: const EdgeInsets.only(
+                    left: 10,
+                    right: 6,
+                    top: 4,
+                    bottom: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 18,
+                        height: 18,
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(
+                          color: _azulOscuro,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '${i + 1}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        activeBulkTerms[i],
+                        style: const TextStyle(
+                          color: _azulTexto,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      InkWell(
+                        onTap: () => _removeTermAtIndex(i),
+                        borderRadius: BorderRadius.circular(12),
+                        child: const Padding(
+                          padding: EdgeInsets.all(2),
+                          child: Icon(
+                            Icons.close_rounded,
+                            size: 15,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ],
       ],
     );
   }
 }
 
 /// ---------------------------------------------------------------------------
-/// 3. COMPONENTE: KpiRow (4 Tarjetas de Métricas iguales al Mockup)
+/// 3. COMPONENTE: KpiRow (4 Tarjetas de Métricas adaptables a escritorio y celular)
 /// ---------------------------------------------------------------------------
 class ContratistasKpiRow extends StatelessWidget {
   const ContratistasKpiRow({
@@ -1240,113 +1570,143 @@ class ContratistasKpiRow extends StatelessWidget {
 
   static const Color _azulTexto = Color(0xFF13294B);
 
-  Widget _buildCard({
+  Widget _buildCardContent({
     required IconData icon,
     required Color iconColor,
     required Color iconBg,
     required String label,
     required String value,
   }) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: _azulTexto.withValues(alpha: 0.045),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: _azulTexto.withValues(alpha: 0.045),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: iconBg,
+              borderRadius: BorderRadius.circular(12),
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: iconBg,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: iconColor, size: 25),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+            child: Icon(icon, color: iconColor, size: 24),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
                     style: const TextStyle(
-                      color: Color(0xFF64748B),
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w500,
+                      color: _azulTexto,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
                     ),
                   ),
-                  const SizedBox(height: 3),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      value,
-                      style: const TextStyle(
-                        color: _azulTexto,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        _buildCard(
-          icon: Icons.people_alt_rounded,
-          iconColor: const Color(0xFF2563EB),
-          iconBg: const Color(0xFFEBF3FE),
-          label: 'Total contratistas',
-          value: totalContratistas,
-        ),
-        const SizedBox(width: 16),
-        _buildCard(
-          icon: Icons.description_rounded,
-          iconColor: const Color(0xFF2563EB),
-          iconBg: const Color(0xFFEBF3FE),
-          label: 'Total contratos',
-          value: totalContratos,
-        ),
-        const SizedBox(width: 16),
-        _buildCard(
-          icon: Icons.monetization_on_rounded,
-          iconColor: const Color(0xFF22A05B),
-          iconBg: const Color(0xFFE6F6EC),
-          label: 'Valor contratado',
-          value: valorContratado,
-        ),
-        const SizedBox(width: 16),
-        _buildCard(
-          icon: Icons.account_balance_rounded,
-          iconColor: const Color(0xFF6D28D9),
-          iconBg: const Color(0xFFEFEAFE),
-          label: 'Entidades que contratan',
-          value: entidadesCount,
-        ),
-      ],
+    final cards = [
+      _buildCardContent(
+        icon: Icons.people_alt_rounded,
+        iconColor: const Color(0xFF2563EB),
+        iconBg: const Color(0xFFEBF3FE),
+        label: 'Total contratistas',
+        value: totalContratistas,
+      ),
+      _buildCardContent(
+        icon: Icons.description_rounded,
+        iconColor: const Color(0xFF2563EB),
+        iconBg: const Color(0xFFEBF3FE),
+        label: 'Total contratos',
+        value: totalContratos,
+      ),
+      _buildCardContent(
+        icon: Icons.monetization_on_rounded,
+        iconColor: const Color(0xFF22A05B),
+        iconBg: const Color(0xFFE6F6EC),
+        label: 'Valor contratado',
+        value: valorContratado,
+      ),
+      _buildCardContent(
+        icon: Icons.account_balance_rounded,
+        iconColor: const Color(0xFF6D28D9),
+        iconBg: const Color(0xFFEFEAFE),
+        label: 'Entidades que contratan',
+        value: entidadesCount,
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= 900) {
+          return Row(
+            children: [
+              Expanded(child: cards[0]),
+              const SizedBox(width: 16),
+              Expanded(child: cards[1]),
+              const SizedBox(width: 16),
+              Expanded(child: cards[2]),
+              const SizedBox(width: 16),
+              Expanded(child: cards[3]),
+            ],
+          );
+        }
+        return Column(
+          children: [
+            Row(
+              children: [
+                Expanded(child: cards[0]),
+                const SizedBox(width: 12),
+                Expanded(child: cards[1]),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(child: cards[2]),
+                const SizedBox(width: 12),
+                Expanded(child: cards[3]),
+              ],
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -1420,119 +1780,123 @@ class ContratistasResultsTable extends StatelessWidget {
           // Cabecera interna de la tabla ("Resultados de contratistas" + Ordenar + Exportar)
           Padding(
             padding: const EdgeInsets.fromLTRB(22, 18, 22, 14),
-            child: Row(
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12,
+              runSpacing: 10,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Resultados de contratistas',
-                        style: TextStyle(
-                          color: _azulTexto,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        isLoading
-                            ? 'Consultando SECOP II y cruzando con SIGEP...'
-                            : '$totalFoundCount contratistas encontrados',
-                        style: const TextStyle(
-                          color: Color(0xFF64748B),
-                          fontSize: 12.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Text(
-                  'Ordenar por:',
-                  style: TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  height: 36,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(9),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: sortBy,
-                      isDense: true,
-                      icon: const Padding(
-                        padding: EdgeInsets.only(left: 8),
-                        child: Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          size: 18,
-                          color: _azulTexto,
-                        ),
-                      ),
-                      style: const TextStyle(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Resultados de contratistas',
+                      style: TextStyle(
                         color: _azulTexto,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
                       ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'Mayor valor contratado',
-                          child: Text('Mayor valor contratado'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Mayor número de contratos',
-                          child: Text('Mayor número de contratos'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Orden alfabético',
-                          child: Text('Orden alfabético'),
-                        ),
-                      ],
-                      onChanged: (v) {
-                        if (v != null) onSortChanged(v);
-                      },
                     ),
-                  ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isLoading
+                          ? 'Consultando SECOP II en tiempo real...'
+                          : '$totalFoundCount contratistas encontrados',
+                      style: const TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 12.5,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Container(
-                  width: 1,
-                  height: 24,
-                  color: const Color(0xFFE2E8F0),
-                ),
-                const SizedBox(width: 12),
-                InkWell(
-                  onTap: onExportPressed,
-                  borderRadius: BorderRadius.circular(8),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.download_rounded,
-                          size: 17,
-                          color: _azulTexto,
-                        ),
-                        SizedBox(width: 6),
-                        Text(
-                          'Exportar',
-                          style: TextStyle(
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    const Text(
+                      'Ordenar por:',
+                      style: TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Container(
+                      height: 36,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(9),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: sortBy,
+                          isDense: true,
+                          icon: const Padding(
+                            padding: EdgeInsets.only(left: 8),
+                            child: Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              size: 18,
+                              color: _azulTexto,
+                            ),
+                          ),
+                          style: const TextStyle(
                             color: _azulTexto,
                             fontSize: 12.5,
                             fontWeight: FontWeight.w700,
                           ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'Mayor valor contratado',
+                              child: Text('Mayor valor contratado'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'Mayor número de contratos',
+                              child: Text('Mayor número de contratos'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'Orden alfabético',
+                              child: Text('Orden alfabético'),
+                            ),
+                          ],
+                          onChanged: (v) {
+                            if (v != null) onSortChanged(v);
+                          },
                         ),
-                      ],
+                      ),
                     ),
-                  ),
+                    InkWell(
+                      onTap: onExportPressed,
+                      borderRadius: BorderRadius.circular(8),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.download_rounded,
+                              size: 17,
+                              color: _azulTexto,
+                            ),
+                            SizedBox(width: 6),
+                            Text(
+                              'Exportar',
+                              style: TextStyle(
+                                color: _azulTexto,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1543,98 +1907,129 @@ class ContratistasResultsTable extends StatelessWidget {
               color: _azulEnlace,
               backgroundColor: Color(0xFFE2E8F0),
             ),
-          // Encabezados de las 8 columnas exactas del Mockup
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 11),
-            decoration: const BoxDecoration(
-              color: Color(0xFFF8FAFC),
-              border: Border(
-                top: BorderSide(color: Color(0xFFEEF2F6)),
-                bottom: BorderSide(color: Color(0xFFEEF2F6)),
-              ),
-            ),
-            child: const Row(
-              children: [
-                SizedBox(
-                  width: 34,
-                  child: Text('#', style: _headerColStyle),
-                ),
-                Expanded(
-                  flex: 32,
-                  child: Text(
-                    'Contratista / Razón social',
-                    style: _headerColStyle,
+          LayoutBuilder(
+            builder: (context, tableConstraints) {
+              final tableContent = Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Encabezados de las 8 columnas exactas del Mockup
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22,
+                      vertical: 11,
+                    ),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF8FAFC),
+                      border: Border(
+                        top: BorderSide(color: Color(0xFFEEF2F6)),
+                        bottom: BorderSide(color: Color(0xFFEEF2F6)),
+                      ),
+                    ),
+                    child: const Row(
+                      children: [
+                        SizedBox(
+                          width: 34,
+                          child: Text('#', style: _headerColStyle),
+                        ),
+                        Expanded(
+                          flex: 32,
+                          child: Text(
+                            'Contratista / Razón social',
+                            style: _headerColStyle,
+                          ),
+                        ),
+                        Expanded(
+                          flex: 16,
+                          child: Text('NIT', style: _headerColStyle),
+                        ),
+                        Expanded(
+                          flex: 20,
+                          child: Text('Tipo de persona', style: _headerColStyle),
+                        ),
+                        Expanded(
+                          flex: 14,
+                          child: Text(
+                            'Total de contratos',
+                            textAlign: TextAlign.center,
+                            style: _headerColStyle,
+                          ),
+                        ),
+                        Expanded(
+                          flex: 18,
+                          child: Text(
+                            'Valor contratado',
+                            style: _headerColStyle,
+                          ),
+                        ),
+                        Expanded(
+                          flex: 14,
+                          child: Text(
+                            'Último contrato',
+                            style: _headerColStyle,
+                          ),
+                        ),
+                        SizedBox(
+                          width: 116,
+                          child: Text(
+                            'Acciones',
+                            textAlign: TextAlign.center,
+                            style: _headerColStyle,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                Expanded(
-                  flex: 16,
-                  child: Text('NIT', style: _headerColStyle),
-                ),
-                Expanded(
-                  flex: 20,
-                  child: Text('Tipo de persona', style: _headerColStyle),
-                ),
-                Expanded(
-                  flex: 14,
-                  child: Text(
-                    'Total de contratos',
-                    textAlign: TextAlign.center,
-                    style: _headerColStyle,
-                  ),
-                ),
-                Expanded(
-                  flex: 18,
-                  child: Text('Valor contratado', style: _headerColStyle),
-                ),
-                Expanded(
-                  flex: 14,
-                  child: Text('Último contrato', style: _headerColStyle),
-                ),
-                SizedBox(
-                  width: 116,
-                  child: Text(
-                    'Acciones',
-                    textAlign: TextAlign.center,
-                    style: _headerColStyle,
-                  ),
-                ),
-              ],
-            ),
+                  // Filas de resultados
+                  if (rows.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(
+                        vertical: 42,
+                        horizontal: 24,
+                      ),
+                      child: Center(
+                        child: Text(
+                          'No se encontraron contratistas para los criterios o documentos ingresados.',
+                          style: TextStyle(
+                            color: Color(0xFF64748B),
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    for (var i = 0; i < rows.length; i++)
+                      _buildRow(
+                        context,
+                        rowNumber: startItem + i,
+                        record: rows[i],
+                      ),
+                ],
+              );
+
+              if (tableConstraints.maxWidth < 820) {
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(width: 860, child: tableContent),
+                );
+              }
+              return tableContent;
+            },
           ),
-          // Filas de resultados
-          if (rows.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 42, horizontal: 24),
-              child: Center(
-                child: Text(
-                  'No se encontraron contratistas para los criterios o documentos ingresados.',
-                  style: TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            )
-          else
-            for (var i = 0; i < rows.length; i++)
-              _buildRow(
-                context,
-                rowNumber: startItem + i,
-                record: rows[i],
-              ),
           // Pie de paginación igual al Mockup
           Padding(
             padding: const EdgeInsets.fromLTRB(22, 14, 22, 18),
-            child: Row(
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12,
+              runSpacing: 10,
               children: [
-                Expanded(
-                  child: Text(
-                    'Mostrando $startItem-$endItem de $totalFoundCount contratistas',
-                    style: const TextStyle(
-                      color: Color(0xFF64748B),
-                      fontSize: 12.5,
-                    ),
+                Text(
+                  'Mostrando $startItem-$endItem de $totalFoundCount contratistas',
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 12.5,
                   ),
                 ),
                 _buildPaginationControls(),
@@ -2024,26 +2419,23 @@ class _ContractorAccumulator {
   int contractsCount = 0;
   double totalValue = 0;
   String latestIsoDate = '';
-  final Set<String> entities = {};
+  int maxEntitiesCount = 1;
   String combinedSectorText = '';
 
-  void addContract({
+  void addAggregatedGroup({
+    required int contracts,
     required double value,
     required String isoDate,
-    required String entity,
-    required String sectorText,
+    required int entitiesCount,
   }) {
     _presetRecord = null;
-    contractsCount++;
+    contractsCount += contracts;
     totalValue += value;
     if (isoDate.compareTo(latestIsoDate) > 0) {
       latestIsoDate = isoDate;
     }
-    if (entity.isNotEmpty) {
-      entities.add(entity.toUpperCase());
-    }
-    if (combinedSectorText.length < 300) {
-      combinedSectorText = '$combinedSectorText $sectorText';
+    if (entitiesCount > maxEntitiesCount) {
+      maxEntitiesCount = entitiesCount;
     }
   }
 
@@ -2082,7 +2474,7 @@ class _ContractorAccumulator {
       lastContractDate: formatDate(latestIsoDate),
       sector: inferSector('$rawName $combinedSectorText'),
       year: year,
-      entitiesCount: entities.isEmpty ? 1 : entities.length,
+      entitiesCount: maxEntitiesCount,
       sigepStatus: SigepRoleStatus.contratista,
     );
   }

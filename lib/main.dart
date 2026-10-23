@@ -7,10 +7,12 @@ import 'screens/planes_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/portada_screen.dart';
 import 'screens/registro_screen.dart';
+import 'services/auth_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await AuthService.restoreSessionFromPrefs();
   runApp(const MyApp());
 }
 

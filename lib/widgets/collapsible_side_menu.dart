@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../services/auth_service.dart';
+
 class MenuOptionItem {
   const MenuOptionItem({required this.titulo, required this.icono});
 
@@ -119,13 +121,10 @@ class CollapsibleSideMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final User? currentUser = FirebaseAuth.instance.currentUser;
-    final String fullName =
-        (currentUser?.displayName?.trim().isNotEmpty ?? false)
-            ? currentUser!.displayName!.trim()
-            : 'Daniel Bolaño';
+    final String fullName = AuthService.getActiveUserDisplayName();
     final String? photoURL = currentUser?.photoURL;
     final String initial =
-        fullName.isNotEmpty ? fullName[0].toUpperCase() : 'D';
+        fullName.isNotEmpty ? fullName[0].toUpperCase() : 'U';
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
