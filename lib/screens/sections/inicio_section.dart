@@ -211,12 +211,14 @@ class InicioSection extends StatelessWidget {
           Positioned.fill(
             child: Column(
               children: [
-                DashboardTopBar(
-                  searchController: searchController,
-                  onSearchSubmitted: onSearchSubmitted,
-                  onLogout: onLogout,
-                  transparent: true,
-                ),
+                if (!isMobile)
+                  DashboardTopBar(
+                    searchController: searchController,
+                    onSearchSubmitted: onSearchSubmitted,
+                    onLogout: onLogout,
+                    transparent: true,
+                    showSearch: false,
+                  ),
                 Expanded(
                   child: SingleChildScrollView(
                     padding: EdgeInsets.all(isMobile ? 20 : 40),

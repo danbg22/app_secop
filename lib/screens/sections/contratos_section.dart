@@ -3249,10 +3249,10 @@ class _ContratosSectionState extends State<ContratosSection> {
               ),
             ),
           ),
+          const SizedBox(width: 12),
+          UserProfileHeaderAction(onLogout: widget.onLogout),
         ] else
           const Spacer(),
-        const SizedBox(width: 12),
-        UserProfileHeaderAction(onLogout: widget.onLogout),
       ],
     );
   }

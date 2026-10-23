@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../widgets/collapsible_side_menu.dart';
 import '../widgets/dashboard_top_bar.dart';
+import '../widgets/user_profile_header_action.dart';
 import 'home_screen.dart';
 import 'perfil_contratista_screen.dart';
 import 'resultados_busqueda_screen.dart';
@@ -420,7 +421,10 @@ PREGUNTA DEL USUARIO: $cleanText
     });
   }
 
-  Widget _buildHeaderRow({required bool showTopRightActions}) {
+  Widget _buildHeaderRow({
+    required bool showTopRightActions,
+    bool isMobile = false,
+  }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -428,8 +432,8 @@ PREGUNTA DEL USUARIO: $cleanText
           onTap: () => Navigator.maybePop(context),
           borderRadius: BorderRadius.circular(22),
           child: Container(
-            width: 40,
-            height: 40,
+            width: isMobile ? 36 : 40,
+            height: isMobile ? 36 : 40,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.92),
               shape: BoxShape.circle,
@@ -441,28 +445,28 @@ PREGUNTA DEL USUARIO: $cleanText
                 ),
               ],
             ),
-            child: const Icon(
+            child: Icon(
               Icons.arrow_back,
               color: _azulOscuro,
-              size: 19,
+              size: isMobile ? 17 : 19,
             ),
           ),
         ),
-        const SizedBox(width: 16),
+        SizedBox(width: isMobile ? 12 : 16),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Detalle del contrato',
                 style: TextStyle(
                   color: _azulOscuro,
-                  fontSize: 32,
+                  fontSize: isMobile ? 22 : 32,
                   fontWeight: FontWeight.w800,
                   height: 1.05,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Container(
                 width: 38,
                 height: 4,
@@ -624,10 +628,10 @@ PREGUNTA DEL USUARIO: $cleanText
     );
   }
 
-  Widget _buildResumenTabContent() {
+  Widget _buildResumenTabContent({bool isMobile = false}) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(28),
+      padding: EdgeInsets.all(isMobile ? 16 : 28),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -696,9 +700,9 @@ PREGUNTA DEL USUARIO: $cleanText
           const SizedBox(height: 18),
           Text(
             _descripcionContrato.toUpperCase(),
-            style: const TextStyle(
+            style: TextStyle(
               color: _azulOscuro,
-              fontSize: 19.5,
+              fontSize: isMobile ? 16.5 : 19.5,
               fontWeight: FontWeight.w800,
               height: 1.35,
             ),
@@ -706,64 +710,100 @@ PREGUNTA DEL USUARIO: $cleanText
           const SizedBox(height: 14),
           Text(
             _valorFormateado,
-            style: const TextStyle(
-              color: Color(0xFF15803D),
-              fontSize: 30,
+            style: TextStyle(
+              color: const Color(0xFF15803D),
+              fontSize: isMobile ? 24 : 30,
               fontWeight: FontWeight.w800,
             ),
           ),
           const SizedBox(height: 18),
           _buildTabsBar(insideSummaryCard: true),
           const SizedBox(height: 22),
-          Row(
-            children: [
-              Expanded(
-                child: _buildResumenInfoBox(
-                  icon: Icons.account_balance_outlined,
-                  iconColor: const Color(0xFF2563EB),
-                  iconBg: const Color(0xFFE8F1FF),
-                  label: 'Entidad contratante',
-                  value: _entidadContrato.toUpperCase(),
+          if (isMobile) ...[
+            _buildResumenInfoBox(
+              icon: Icons.account_balance_outlined,
+              iconColor: const Color(0xFF2563EB),
+              iconBg: const Color(0xFFE8F1FF),
+              label: 'Entidad contratante',
+              value: _entidadContrato.toUpperCase(),
+            ),
+            const SizedBox(height: 10),
+            _buildResumenInfoBox(
+              icon: Icons.person_outline,
+              iconColor: const Color(0xFF16A34A),
+              iconBg: const Color(0xFFE6F6EC),
+              label: 'Contratista',
+              value: _contratistaContrato.toUpperCase(),
+              isLink: true,
+              onTap: _abrirPerfilContratista,
+            ),
+            const SizedBox(height: 10),
+            _buildResumenInfoBox(
+              icon: Icons.gavel_rounded,
+              iconColor: const Color(0xFFE5A000),
+              iconBg: const Color(0xFFFEF5D8),
+              label: 'Modalidad',
+              value: _modalidadContrato,
+            ),
+            const SizedBox(height: 10),
+            _buildResumenInfoBox(
+              icon: Icons.calendar_today_outlined,
+              iconColor: const Color(0xFF4F46E5),
+              iconBg: const Color(0xFFEDE9FE),
+              label: 'Fecha de firma',
+              value: _fechaFirmaIso,
+            ),
+          ] else ...[
+            Row(
+              children: [
+                Expanded(
+                  child: _buildResumenInfoBox(
+                    icon: Icons.account_balance_outlined,
+                    iconColor: const Color(0xFF2563EB),
+                    iconBg: const Color(0xFFE8F1FF),
+                    label: 'Entidad contratante',
+                    value: _entidadContrato.toUpperCase(),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildResumenInfoBox(
-                  icon: Icons.person_outline,
-                  iconColor: const Color(0xFF16A34A),
-                  iconBg: const Color(0xFFE6F6EC),
-                  label: 'Contratista',
-                  value: _contratistaContrato.toUpperCase(),
-                  isLink: true,
-                  onTap: _abrirPerfilContratista,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildResumenInfoBox(
+                    icon: Icons.person_outline,
+                    iconColor: const Color(0xFF16A34A),
+                    iconBg: const Color(0xFFE6F6EC),
+                    label: 'Contratista',
+                    value: _contratistaContrato.toUpperCase(),
+                    isLink: true,
+                    onTap: _abrirPerfilContratista,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: _buildResumenInfoBox(
-                  icon: Icons.gavel_rounded,
-                  iconColor: const Color(0xFFE5A000),
-                  iconBg: const Color(0xFFFEF5D8),
-                  label: 'Modalidad',
-                  value: _modalidadContrato,
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildResumenInfoBox(
+                    icon: Icons.gavel_rounded,
+                    iconColor: const Color(0xFFE5A000),
+                    iconBg: const Color(0xFFFEF5D8),
+                    label: 'Modalidad',
+                    value: _modalidadContrato,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildResumenInfoBox(
-                  icon: Icons.calendar_today_outlined,
-                  iconColor: const Color(0xFF4F46E5),
-                  iconBg: const Color(0xFFEDE9FE),
-                  label: 'Fecha de firma',
-                  value: _fechaFirmaIso,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildResumenInfoBox(
+                    icon: Icons.calendar_today_outlined,
+                    iconColor: const Color(0xFF4F46E5),
+                    iconBg: const Color(0xFFEDE9FE),
+                    label: 'Fecha de firma',
+                    value: _fechaFirmaIso,
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
           const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
@@ -1049,199 +1089,212 @@ PREGUNTA DEL USUARIO: $cleanText
     );
   }
 
-  Widget _buildCopilotoTabContent() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildCopilotoTabContent({bool isMobile = false}) {
+    final chatColumn = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(
+        _buildTabsBar(insideSummaryCard: false),
+        const SizedBox(height: 12),
+        Container(
+          constraints: BoxConstraints(minHeight: isMobile ? 460 : 540),
+          padding: EdgeInsets.fromLTRB(isMobile ? 14 : 24, 20, isMobile ? 14 : 24, 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: _azulOscuro.withValues(alpha: 0.05),
+                blurRadius: 18,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildTabsBar(insideSummaryCard: false),
-              const SizedBox(height: 12),
-              Container(
-                constraints: const BoxConstraints(minHeight: 540),
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _azulOscuro.withValues(alpha: 0.05),
-                      blurRadius: 18,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 410),
-                      child: SingleChildScrollView(
-                        controller: _chatScrollController,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 410),
+                child: SingleChildScrollView(
+                  controller: _chatScrollController,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Primer mensaje de bienvenida del Copiloto IA
+                      _buildAiMessageBubble(_mensajes.first['text'] as String),
+                      const SizedBox(height: 16),
+                      // Tarjetas rápidas de preguntas iniciales
+                      Padding(
+                        padding: EdgeInsets.only(left: isMobile ? 0 : 54),
+                        child: Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
                           children: [
-                            // Primer mensaje de bienvenida del Copiloto IA
-                            _buildAiMessageBubble(_mensajes.first['text'] as String),
-                            const SizedBox(height: 16),
-                            // Tarjetas rápidas de preguntas iniciales
-                            Padding(
-                              padding: const EdgeInsets.only(left: 54),
-                              child: Wrap(
-                                spacing: 10,
-                                runSpacing: 10,
-                                children: [
-                                  _buildQuickPromptCard(
-                                    icon: Icons.description_outlined,
-                                    iconColor: const Color(0xFF2563EB),
-                                    text: 'Resume el objeto\nde este contrato',
-                                    textColor: _azulOscuro,
-                                    prompt: 'Resume el objeto de este contrato',
-                                  ),
-                                  _buildQuickPromptCard(
-                                    icon: Icons.monetization_on_outlined,
-                                    iconColor: const Color(0xFFD97706),
-                                    text:
-                                        '¿Cuánto es el presupuesto\ny en qué modalidad se hizo?',
-                                    textColor: _azulPrimario,
-                                    prompt:
-                                        '¿Cuánto es el presupuesto y en qué modalidad se hizo?',
-                                  ),
-                                  _buildQuickPromptCard(
-                                    icon: Icons.domain_outlined,
-                                    iconColor: const Color(0xFF2563EB),
-                                    text:
-                                        '¿Quién fue el contratista\ny cuál es su historial?',
-                                    textColor: _azulOscuro,
-                                    prompt:
-                                        '¿Quién fue el contratista y cuál es su historial?',
-                                  ),
-                                  _buildQuickPromptCard(
-                                    icon: Icons.bar_chart_rounded,
-                                    iconColor: const Color(0xFF7C3AED),
-                                    text:
-                                        'Dame un análisis de riesgos\nen este contrato',
-                                    textColor: _azulPrimario,
-                                    prompt:
-                                        'Dame un análisis de riesgos en este contrato',
-                                  ),
-                                ],
-                              ),
+                            _buildQuickPromptCard(
+                              icon: Icons.description_outlined,
+                              iconColor: const Color(0xFF2563EB),
+                              text: 'Resume el objeto\nde este contrato',
+                              textColor: _azulOscuro,
+                              prompt: 'Resume el objeto de este contrato',
                             ),
-                            if (_mensajes.length > 1) ...[
-                              const SizedBox(height: 18),
-                              for (var i = 1; i < _mensajes.length; i++) ...[
-                                if (_mensajes[i]['sender'] == 'user')
-                                  _buildUserMessageBubble(
-                                    _mensajes[i]['text'] as String,
-                                  )
-                                else
-                                  _buildAiMessageBubble(
-                                    _mensajes[i]['text'] as String,
-                                  ),
-                                const SizedBox(height: 14),
-                              ],
-                            ],
-                            if (_isTyping)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 8),
-                                child: _buildAiMessageBubble(
-                                  'Analizando pliegos y datos de SECOP II...',
-                                ),
-                              ),
+                            _buildQuickPromptCard(
+                              icon: Icons.monetization_on_outlined,
+                              iconColor: const Color(0xFFD97706),
+                              text:
+                                  '¿Cuánto es el presupuesto\ny en qué modalidad se hizo?',
+                              textColor: _azulPrimario,
+                              prompt:
+                                  '¿Cuánto es el presupuesto y en qué modalidad se hizo?',
+                            ),
+                            _buildQuickPromptCard(
+                              icon: Icons.domain_outlined,
+                              iconColor: const Color(0xFF2563EB),
+                              text:
+                                  '¿Quién fue el contratista\ny cuál es su historial?',
+                              textColor: _azulOscuro,
+                              prompt:
+                                  '¿Quién fue el contratista y cuál es su historial?',
+                            ),
+                            _buildQuickPromptCard(
+                              icon: Icons.bar_chart_rounded,
+                              iconColor: const Color(0xFF7C3AED),
+                              text:
+                                  'Dame un análisis de riesgos\nen este contrato',
+                              textColor: _azulPrimario,
+                              prompt:
+                                  'Dame un análisis de riesgos en este contrato',
+                            ),
                           ],
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 20),
-                    Column(
-                      children: [
-                        Container(
-                          height: 48,
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(28),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 32,
-                                height: 32,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFE8F1FF),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.auto_awesome,
-                                  color: _azulPrimario,
-                                  size: 15,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: TextField(
-                                  controller: _chatController,
-                                  onSubmitted: _enviarMensaje,
-                                  style: const TextStyle(
-                                    color: _azulOscuro,
-                                    fontSize: 13,
-                                  ),
-                                  decoration: const InputDecoration(
-                                    hintText:
-                                        'Pregúntale a la IA sobre este contrato...',
-                                    hintStyle: TextStyle(
-                                      color: Color(0xFF94A3B8),
-                                      fontSize: 13,
-                                    ),
-                                    border: InputBorder.none,
-                                    isDense: true,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              InkWell(
-                                onTap: () =>
-                                    _enviarMensaje(_chatController.text),
-                                borderRadius: BorderRadius.circular(20),
-                                child: Container(
-                                  width: 36,
-                                  height: 36,
-                                  decoration: const BoxDecoration(
-                                    color: _azulOscuro,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.send_rounded,
-                                    color: Colors.white,
-                                    size: 16,
-                                  ),
-                                ),
-                              ),
-                            ],
+                      if (_mensajes.length > 1) ...[
+                        const SizedBox(height: 18),
+                        for (var i = 1; i < _mensajes.length; i++) ...[
+                          if (_mensajes[i]['sender'] == 'user')
+                            _buildUserMessageBubble(
+                              _mensajes[i]['text'] as String,
+                            )
+                          else
+                            _buildAiMessageBubble(
+                              _mensajes[i]['text'] as String,
+                            ),
+                          const SizedBox(height: 14),
+                        ],
+                      ],
+                      if (_isTyping)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: _buildAiMessageBubble(
+                            'Analizando pliegos y datos de SECOP II...',
                           ),
                         ),
-                        const SizedBox(height: 10),
-                        const Text(
-                          'La información generada por la IA puede contener imprecisiones. Verifica siempre en el SECOP.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Color(0xFF94A3B8),
-                            fontSize: 11,
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Column(
+                children: [
+                  Container(
+                    height: 48,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFE8F1FF),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.auto_awesome,
+                            color: _azulPrimario,
+                            size: 15,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: _chatController,
+                            onSubmitted: _enviarMensaje,
+                            style: const TextStyle(
+                              color: _azulOscuro,
+                              fontSize: 13,
+                            ),
+                            decoration: const InputDecoration(
+                              hintText:
+                                  'Pregúntale a la IA sobre este contrato...',
+                              hintStyle: TextStyle(
+                                color: Color(0xFF94A3B8),
+                                fontSize: 13,
+                              ),
+                              border: InputBorder.none,
+                              isDense: true,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        InkWell(
+                          onTap: () =>
+                              _enviarMensaje(_chatController.text),
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: const BoxDecoration(
+                              color: _azulOscuro,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.send_rounded,
+                              color: Colors.white,
+                              size: 16,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'La información generada por la IA puede contener imprecisiones. Verifica siempre en el SECOP.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Color(0xFF94A3B8),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
+      ],
+    );
+
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          chatColumn,
+          const SizedBox(height: 16),
+          _buildContextoSidebarCard(),
+          const SizedBox(height: 14),
+          _buildSugerenciasSidebarCard(),
+        ],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: chatColumn),
         const SizedBox(width: 18),
         SizedBox(
           width: 285,
@@ -1699,6 +1752,219 @@ PREGUNTA DEL USUARIO: $cleanText
 
   @override
   Widget build(BuildContext context) {
+    final screenW = MediaQuery.sizeOf(context).width;
+    final isMobile = screenW < 768;
+
+    final bodyContent = Container(
+      color: const Color(0xFFFAF5EA),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final double horizontalPad = isMobile
+              ? 16.0
+              : (constraints.maxWidth > 1220 ? 32.0 : 24.0);
+          return SingleChildScrollView(
+            child: Stack(
+              children: [
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: 215,
+                  child: Image.asset(
+                    'assets/images/fondo_valledupar.jpg',
+                    fit: BoxFit.cover,
+                    alignment: const Alignment(0.0, -0.38),
+                    errorBuilder: (context, error, stackTrace) =>
+                        Container(),
+                  ),
+                ),
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: 215,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [
+                          const Color(0xFFFAF5EA),
+                          const Color(0xFFFAF5EA)
+                              .withValues(alpha: 0.92),
+                          const Color(0xFFFAF5EA)
+                              .withValues(alpha: 0.0),
+                        ],
+                        stops: const [0.0, 0.36, 0.65],
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 145,
+                  left: 0,
+                  right: 0,
+                  height: 70,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          const Color(0xFFFAF5EA)
+                              .withValues(alpha: 0.0),
+                          const Color(0xFFFAF5EA),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    horizontalPad,
+                    isMobile ? 16 : 24,
+                    horizontalPad,
+                    28,
+                  ),
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.stretch,
+                    children: [
+                      _buildHeaderRow(
+                        showTopRightActions: _selectedTab == 1,
+                        isMobile: isMobile,
+                      ),
+                      SizedBox(height: isMobile ? 16 : 22),
+                      if (_selectedTab == 0)
+                        _buildResumenTabContent(isMobile: isMobile)
+                      else if (_selectedTab == 1)
+                        _buildDocumentosTabContent()
+                      else
+                        _buildCopilotoTabContent(isMobile: isMobile),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    if (isMobile) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFFFF8EE),
+        drawer: null,
+        drawerEnableOpenDragGesture: false,
+        appBar: AppBar(
+          backgroundColor: const Color(0xFFFFFDF8),
+          elevation: 0,
+          scrolledUnderElevation: 1,
+          automaticallyImplyLeading: false,
+          leading: IconButton(
+            tooltip: 'Regresar',
+            icon: const Icon(Icons.arrow_back, color: _azulOscuro),
+            onPressed: () => Navigator.maybePop(context),
+          ),
+          titleSpacing: 0,
+          title: const Text(
+            'Detalle del Contrato',
+            style: TextStyle(
+              color: _azulOscuro,
+              fontSize: 16.5,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          actions: [
+            Tooltip(
+              message: _esFavorito
+                  ? 'Eliminar de favoritos'
+                  : 'Guardar en favoritos',
+              child: IconButton(
+                icon: Icon(
+                  _esFavorito
+                      ? Icons.bookmark_rounded
+                      : Icons.bookmark_border_rounded,
+                  color: _esFavorito ? Colors.amber.shade700 : _azulOscuro,
+                ),
+                onPressed: _alternarFavorito,
+              ),
+            ),
+            IconButton(
+              tooltip: 'Compartir contrato',
+              icon: const Icon(Icons.share_outlined, color: _azulOscuro),
+              onPressed: _compartirContrato,
+            ),
+            UserProfileHeaderAction(onLogout: _cerrarSesion),
+            const SizedBox(width: 8),
+          ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(1),
+            child: Container(
+              height: 1,
+              color: const Color(0xFFEDE6D6),
+            ),
+          ),
+        ),
+        body: SafeArea(child: bodyContent),
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: 1, // Contratos tab
+          onTap: (bottomIdx) {
+            const mobileTabIndices = [0, 2, 3, 4, 7];
+            if (bottomIdx >= 0 && bottomIdx < mobileTabIndices.length) {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(
+                  builder: (_) => HomeScreen(
+                    initialIndex: mobileTabIndices[bottomIdx],
+                  ),
+                ),
+                (route) => false,
+              );
+            }
+          },
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.white,
+          selectedItemColor: _azulOscuro,
+          unselectedItemColor: const Color(0xFF64748B),
+          selectedLabelStyle: const TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w800,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+          ),
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home_outlined),
+              activeIcon: Icon(Icons.home_rounded, color: _amarillo),
+              label: 'Inicio',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.description_outlined),
+              activeIcon: Icon(Icons.description_rounded, color: _amarillo),
+              label: 'Contratos',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.account_balance_outlined),
+              activeIcon: Icon(Icons.account_balance_rounded, color: _amarillo),
+              label: 'Entidades',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.people_outline),
+              activeIcon: Icon(Icons.people_alt_rounded, color: _amarillo),
+              label: 'Contratistas',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.star_border_rounded),
+              activeIcon: Icon(Icons.star_rounded, color: _amarillo),
+              label: 'Favoritos',
+            ),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8EE),
       body: Row(
@@ -1720,101 +1986,7 @@ PREGUNTA DEL USUARIO: $cleanText
                   onSearchSubmitted: _handleTopSearch,
                   onLogout: _cerrarSesion,
                 ),
-                Expanded(
-                  child: Container(
-                    color: const Color(0xFFFAF5EA),
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final double horizontalPad =
-                            constraints.maxWidth > 1220 ? 32.0 : 24.0;
-                        return SingleChildScrollView(
-                          child: Stack(
-                            children: [
-                              Positioned(
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                height: 215,
-                                child: Image.asset(
-                                  'assets/images/fondo_valledupar.jpg',
-                                  fit: BoxFit.cover,
-                                  alignment: const Alignment(0.0, -0.38),
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      Container(),
-                                ),
-                              ),
-                              Positioned(
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                height: 215,
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.centerLeft,
-                                      end: Alignment.centerRight,
-                                      colors: [
-                                        const Color(0xFFFAF5EA),
-                                        const Color(0xFFFAF5EA)
-                                            .withValues(alpha: 0.92),
-                                        const Color(0xFFFAF5EA)
-                                            .withValues(alpha: 0.0),
-                                      ],
-                                      stops: const [0.0, 0.36, 0.65],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Positioned(
-                                top: 145,
-                                left: 0,
-                                right: 0,
-                                height: 70,
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                      colors: [
-                                        const Color(0xFFFAF5EA)
-                                            .withValues(alpha: 0.0),
-                                        const Color(0xFFFAF5EA),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Padding(
-                                padding: EdgeInsets.fromLTRB(
-                                  horizontalPad,
-                                  24,
-                                  horizontalPad,
-                                  28,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    _buildHeaderRow(
-                                      showTopRightActions: _selectedTab == 1,
-                                    ),
-                                    const SizedBox(height: 22),
-                                    if (_selectedTab == 0)
-                                      _buildResumenTabContent()
-                                    else if (_selectedTab == 1)
-                                      _buildDocumentosTabContent()
-                                    else
-                                      _buildCopilotoTabContent(),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
+                Expanded(child: bodyContent),
               ],
             ),
           ),

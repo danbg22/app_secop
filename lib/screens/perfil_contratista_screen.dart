@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/sigep_service.dart';
 import '../widgets/collapsible_side_menu.dart';
 import '../widgets/dashboard_top_bar.dart';
+import '../widgets/user_profile_header_action.dart';
 import 'detalle_screen.dart';
 import 'home_screen.dart';
 import 'resultados_busqueda_screen.dart';
@@ -353,7 +354,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
     );
   }
 
-  Widget _buildHeaderRow() {
+  Widget _buildHeaderRow(bool isMobile) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -361,8 +362,8 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
           onTap: () => Navigator.maybePop(context),
           borderRadius: BorderRadius.circular(22),
           child: Container(
-            width: 40,
-            height: 40,
+            width: isMobile ? 36 : 40,
+            height: isMobile ? 36 : 40,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.92),
               shape: BoxShape.circle,
@@ -374,28 +375,28 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                 ),
               ],
             ),
-            child: const Icon(
+            child: Icon(
               Icons.arrow_back,
               color: _azulOscuro,
-              size: 19,
+              size: isMobile ? 17 : 19,
             ),
           ),
         ),
-        const SizedBox(width: 16),
+        SizedBox(width: isMobile ? 12 : 16),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Perfil Unificado',
                 style: TextStyle(
                   color: _azulOscuro,
-                  fontSize: 32,
+                  fontSize: isMobile ? 22 : 32,
                   fontWeight: FontWeight.w800,
                   height: 1.05,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Container(
                 width: 38,
                 height: 4,
@@ -415,8 +416,8 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
             onTap: _alternarFavorito,
             borderRadius: BorderRadius.circular(11),
             child: Container(
-              width: 42,
-              height: 42,
+              width: isMobile ? 38 : 42,
+              height: isMobile ? 38 : 42,
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(11),
@@ -436,7 +437,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                 color: _perfilFavoritoGuardado
                     ? Colors.amber.shade700
                     : _azulOscuro,
-                size: 20,
+                size: isMobile ? 18 : 20,
               ),
             ),
           ),
@@ -445,10 +446,13 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
     );
   }
 
-  Widget _buildContractorIdentityCard() {
+  Widget _buildContractorIdentityCard(bool isMobile) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 16 : 28,
+        vertical: isMobile ? 16 : 24,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -460,65 +464,69 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
           ),
         ],
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            width: 78,
-            height: 78,
-            decoration: const BoxDecoration(
-              color: Color(0xFFE5F0FF),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.person,
-              size: 44,
-              color: Color(0xFF1E40AF),
-            ),
-          ),
-          const SizedBox(width: 24),
-          Expanded(
-            child: Column(
+      child: isMobile
+          ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  _nombreMostrar,
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    color: _azulOscuro,
-                    height: 1.15,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE5F0FF),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.person,
+                        size: 30,
+                        color: Color(0xFF1E40AF),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        _nombreMostrar,
+                        style: const TextStyle(
+                          fontSize: 18.5,
+                          fontWeight: FontWeight.w800,
+                          color: _azulOscuro,
+                          height: 1.2,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 Wrap(
-                  spacing: 10,
-                  runSpacing: 8,
+                  spacing: 8,
+                  runSpacing: 6,
                   children: [
                     // Pill 1: Contratista (SECOP)
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 6,
+                        horizontal: 10,
+                        vertical: 5,
                       ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFE6F4EA),
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
                             Icons.check_circle,
-                            size: 16,
+                            size: 14,
                             color: Color(0xFF2E7D32),
                           ),
-                          SizedBox(width: 7),
+                          SizedBox(width: 5),
                           Text(
                             'Contratista (SECOP)',
                             style: TextStyle(
                               color: Color(0xFF2E7D32),
-                              fontSize: 12.5,
+                              fontSize: 11.5,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -528,14 +536,14 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                     // Pill 2: Estado SIGEP
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 6,
+                        horizontal: 10,
+                        vertical: 5,
                       ),
                       decoration: BoxDecoration(
                         color: esServidorPublico == true
                             ? const Color(0xFFFEF3C7)
                             : const Color(0xFFEEF2F6),
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -544,12 +552,12 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                             esServidorPublico == true
                                 ? Icons.verified_user_outlined
                                 : Icons.info_outline,
-                            size: 16,
+                            size: 14,
                             color: esServidorPublico == true
                                 ? const Color(0xFFB45309)
                                 : const Color(0xFF475569),
                           ),
-                          const SizedBox(width: 7),
+                          const SizedBox(width: 5),
                           Text(
                             esServidorPublico == true
                                 ? 'Servidor Público (SIGEP)'
@@ -558,7 +566,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                               color: esServidorPublico == true
                                   ? const Color(0xFFB45309)
                                   : const Color(0xFF475569),
-                              fontSize: 12.5,
+                              fontSize: 11.5,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -568,14 +576,123 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                   ],
                 ),
               ],
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 78,
+                  height: 78,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFE5F0FF),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.person,
+                    size: 44,
+                    color: Color(0xFF1E40AF),
+                  ),
+                ),
+                const SizedBox(width: 24),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _nombreMostrar,
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          color: _azulOscuro,
+                          height: 1.15,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 8,
+                        children: [
+                          // Pill 1: Contratista (SECOP)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE6F4EA),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.check_circle,
+                                  size: 16,
+                                  color: Color(0xFF2E7D32),
+                                ),
+                                SizedBox(width: 7),
+                                Text(
+                                  'Contratista (SECOP)',
+                                  style: TextStyle(
+                                    color: Color(0xFF2E7D32),
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Pill 2: Estado SIGEP
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: esServidorPublico == true
+                                  ? const Color(0xFFFEF3C7)
+                                  : const Color(0xFFEEF2F6),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  esServidorPublico == true
+                                      ? Icons.verified_user_outlined
+                                      : Icons.info_outline,
+                                  size: 16,
+                                  color: esServidorPublico == true
+                                      ? const Color(0xFFB45309)
+                                      : const Color(0xFF475569),
+                                ),
+                                const SizedBox(width: 7),
+                                Text(
+                                  esServidorPublico == true
+                                      ? 'Servidor Público (SIGEP)'
+                                      : 'No registra en SIGEP',
+                                  style: TextStyle(
+                                    color: esServidorPublico == true
+                                        ? const Color(0xFFB45309)
+                                        : const Color(0xFF475569),
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 
-  Widget _buildKpiSummaryRow() {
+  Widget _buildKpiSummaryRow(bool isMobile) {
     Widget kpiCard({
       required IconData icon,
       required Color iconColor,
@@ -583,88 +700,115 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
       required String value,
       required String subtitle,
     }) {
-      return Expanded(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: _azulOscuro.withValues(alpha: 0.05),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: iconBg,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: iconColor, size: 25),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        value,
-                        style: const TextStyle(
-                          color: _azulOscuro,
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        color: Color(0xFF64748B),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+      return Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 16 : 22,
+          vertical: isMobile ? 14 : 20,
         ),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: _azulOscuro.withValues(alpha: 0.05),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: isMobile ? 42 : 48,
+              height: isMobile ? 42 : 48,
+              decoration: BoxDecoration(
+                color: iconBg,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: iconColor, size: isMobile ? 22 : 25),
+            ),
+            SizedBox(width: isMobile ? 12 : 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      value,
+                      style: TextStyle(
+                        color: _azulOscuro,
+                        fontSize: isMobile ? 22 : 26,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: const Color(0xFF64748B),
+                      fontSize: isMobile ? 12 : 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (isMobile) {
+      return Column(
+        children: [
+          kpiCard(
+            icon: Icons.description_outlined,
+            iconColor: const Color(0xFF2563EB),
+            iconBg: const Color(0xFFE8F1FF),
+            value: formatoMoneda.format(cantidadContratos),
+            subtitle: 'Contratos celebrados',
+          ),
+          const SizedBox(height: 10),
+          kpiCard(
+            icon: Icons.toll_outlined,
+            iconColor: const Color(0xFF2E7D32),
+            iconBg: const Color(0xFFE6F4EA),
+            value: '\$ ${formatoMoneda.format(valorTotalAcumulado.round())}',
+            subtitle: 'Valor total acumulado',
+          ),
+        ],
       );
     }
 
     return Row(
       children: [
-        kpiCard(
-          icon: Icons.description_outlined,
-          iconColor: const Color(0xFF2563EB),
-          iconBg: const Color(0xFFE8F1FF),
-          value: formatoMoneda.format(cantidadContratos),
-          subtitle: 'Contratos celebrados',
+        Expanded(
+          child: kpiCard(
+            icon: Icons.description_outlined,
+            iconColor: const Color(0xFF2563EB),
+            iconBg: const Color(0xFFE8F1FF),
+            value: formatoMoneda.format(cantidadContratos),
+            subtitle: 'Contratos celebrados',
+          ),
         ),
         const SizedBox(width: 16),
-        kpiCard(
-          icon: Icons.toll_outlined,
-          iconColor: const Color(0xFF2E7D32),
-          iconBg: const Color(0xFFE6F4EA),
-          value: '\$ ${formatoMoneda.format(valorTotalAcumulado.round())}',
-          subtitle: 'Valor total',
+        Expanded(
+          child: kpiCard(
+            icon: Icons.toll_outlined,
+            iconColor: const Color(0xFF2E7D32),
+            iconBg: const Color(0xFFE6F4EA),
+            value: '\$ ${formatoMoneda.format(valorTotalAcumulado.round())}',
+            subtitle: 'Valor total',
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildHistorialContractCard(dynamic contrato) {
+  Widget _buildHistorialContractCard(dynamic contrato, bool isMobile) {
     final entidad =
         (contrato['nombre_entidad']?.toString() ?? 'Entidad no especificada')
             .toUpperCase();
@@ -701,7 +845,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
           }
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
+          padding: EdgeInsets.all(isMobile ? 14 : 20),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
@@ -713,44 +857,66 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
               ),
             ],
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEF5D8),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.request_quote_outlined,
-                  color: Color(0xFFE5A000),
-                  size: 25,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
+          child: isMobile
+              ? Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      descripcion,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _azulOscuro,
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w800,
-                        height: 1.35,
-                      ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF5D8),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.request_quote_outlined,
+                            color: Color(0xFFE5A000),
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            descripcion,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: _azulOscuro,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              height: 1.3,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          tooltip: esFavorito
+                              ? 'Eliminar de favoritos'
+                              : 'Guardar en favoritos',
+                          onPressed: () => _alternarFavoritoContrato(contrato),
+                          icon: Icon(
+                            esFavorito
+                                ? Icons.star_rounded
+                                : Icons.star_border_rounded,
+                            color: esFavorito
+                                ? Colors.amber.shade700
+                                : const Color(0xFF1E3A8A),
+                            size: 23,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Row(
                       children: [
                         const Icon(
                           Icons.account_balance_outlined,
-                          size: 15,
+                          size: 14,
                           color: Color(0xFF64748B),
                         ),
                         const SizedBox(width: 6),
@@ -761,76 +927,166 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: Color(0xFF64748B),
-                              fontSize: 12.5,
+                              fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '\$ ${formatoMoneda.format(valor.round())}',
-                      style: const TextStyle(
-                        color: Color(0xFF2E7D32),
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                      ),
+                    const Divider(height: 16, color: Color(0xFFF1F5F9)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '\$ ${formatoMoneda.format(valor.round())}',
+                          style: const TextStyle(
+                            color: Color(0xFF2E7D32),
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.calendar_today_outlined,
+                              size: 13,
+                              color: Color(0xFF64748B),
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              fecha,
+                              style: const TextStyle(
+                                color: Color(0xFF475569),
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              Container(
-                width: 1,
-                height: 38,
-                color: const Color(0xFFE2E8F0),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Icon(
-                      Icons.calendar_today_outlined,
-                      size: 15,
-                      color: Color(0xFF64748B),
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF5D8),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.request_quote_outlined,
+                        color: Color(0xFFE5A000),
+                        size: 25,
+                      ),
                     ),
-                    const SizedBox(width: 7),
-                    Text(
-                      fecha,
-                      style: const TextStyle(
-                        color: Color(0xFF475569),
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w500,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            descripcion,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: _azulOscuro,
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w800,
+                              height: 1.35,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.account_balance_outlined,
+                                size: 15,
+                                color: Color(0xFF64748B),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  entidad,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Color(0xFF64748B),
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '\$ ${formatoMoneda.format(valor.round())}',
+                            style: const TextStyle(
+                              color: Color(0xFF2E7D32),
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Container(
+                      width: 1,
+                      height: 38,
+                      color: const Color(0xFFE2E8F0),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.calendar_today_outlined,
+                            size: 15,
+                            color: Color(0xFF64748B),
+                          ),
+                          const SizedBox(width: 7),
+                          Text(
+                            fecha,
+                            style: const TextStyle(
+                              color: Color(0xFF475569),
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 38,
+                      color: const Color(0xFFE2E8F0),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      tooltip: esFavorito
+                          ? 'Eliminar de favoritos'
+                          : 'Guardar en favoritos',
+                      onPressed: () => _alternarFavoritoContrato(contrato),
+                      icon: Icon(
+                        esFavorito
+                            ? Icons.star_rounded
+                            : Icons.star_border_rounded,
+                        color: esFavorito
+                            ? Colors.amber.shade700
+                            : const Color(0xFF1E3A8A),
+                        size: 25,
                       ),
                     ),
                   ],
                 ),
-              ),
-              Container(
-                width: 1,
-                height: 38,
-                color: const Color(0xFFE2E8F0),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                tooltip: esFavorito
-                    ? 'Eliminar de favoritos'
-                    : 'Guardar en favoritos',
-                onPressed: () => _alternarFavoritoContrato(contrato),
-                icon: Icon(
-                  esFavorito
-                      ? Icons.star_rounded
-                      : Icons.star_border_rounded,
-                  color: esFavorito
-                      ? Colors.amber.shade700
-                      : const Color(0xFF1E3A8A),
-                  size: 25,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -838,6 +1094,282 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenW = MediaQuery.sizeOf(context).width;
+    final isMobile = screenW < 768;
+
+    final bodyContent = Container(
+      color: const Color(0xFFFAF5EA),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final double horizontalPad = isMobile
+              ? 16.0
+              : (constraints.maxWidth > 1220 ? 32.0 : 24.0);
+          return SingleChildScrollView(
+            child: Stack(
+              children: [
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: 215,
+                  child: Image.asset(
+                    'assets/images/fondo_valledupar.jpg',
+                    fit: BoxFit.cover,
+                    alignment: const Alignment(0.0, -0.38),
+                    errorBuilder: (context, error, stackTrace) =>
+                        Container(),
+                  ),
+                ),
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: 215,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [
+                          const Color(0xFFFAF5EA),
+                          const Color(0xFFFAF5EA)
+                              .withValues(alpha: 0.92),
+                          const Color(0xFFFAF5EA)
+                              .withValues(alpha: 0.0),
+                        ],
+                        stops: const [0.0, 0.36, 0.65],
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 145,
+                  left: 0,
+                  right: 0,
+                  height: 70,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          const Color(0xFFFAF5EA)
+                              .withValues(alpha: 0.0),
+                          const Color(0xFFFAF5EA),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    horizontalPad,
+                    isMobile ? 16 : 24,
+                    horizontalPad,
+                    28,
+                  ),
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.stretch,
+                    children: [
+                      _buildHeaderRow(isMobile),
+                      SizedBox(height: isMobile ? 16 : 22),
+                      _buildContractorIdentityCard(isMobile),
+                      const SizedBox(height: 16),
+                      _buildKpiSummaryRow(isMobile),
+                      const SizedBox(height: 24),
+                      Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Historial en SECOP',
+                            style: TextStyle(
+                              color: _azulOscuro,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            width: 28,
+                            height: 3.5,
+                            decoration: BoxDecoration(
+                              color: _amarillo,
+                              borderRadius:
+                                  BorderRadius.circular(2),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      if (isLoading)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(
+                            vertical: 48,
+                          ),
+                          child: Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        )
+                      else if (errorCarga != null)
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius:
+                                BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            errorCarga!,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.red.shade700,
+                              fontSize: 14,
+                            ),
+                          ),
+                        )
+                      else if (historialContratos.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius:
+                                BorderRadius.circular(16),
+                          ),
+                          child: const Text(
+                            'No se encontraron contratos registrados en SECOP II para este contratista.',
+                            style: TextStyle(
+                              color: Color(0xFF64748B),
+                              fontSize: 13.5,
+                            ),
+                          ),
+                        )
+                      else
+                        for (final contrato
+                            in historialContratos)
+                          _buildHistorialContractCard(contrato, isMobile),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    if (isMobile) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFFAF5EA),
+        drawer: null,
+        drawerEnableOpenDragGesture: false,
+        appBar: AppBar(
+          backgroundColor: const Color(0xFFFFFDF8),
+          elevation: 0,
+          scrolledUnderElevation: 1,
+          automaticallyImplyLeading: false,
+          leading: IconButton(
+            tooltip: 'Regresar',
+            icon: const Icon(Icons.arrow_back, color: _azulOscuro),
+            onPressed: () => Navigator.maybePop(context),
+          ),
+          titleSpacing: 0,
+          title: const Text(
+            'Perfil Unificado',
+            style: TextStyle(
+              color: _azulOscuro,
+              fontSize: 16.5,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          actions: [
+            Tooltip(
+              message: _perfilFavoritoGuardado
+                  ? 'Eliminar de favoritos'
+                  : 'Guardar en favoritos',
+              child: IconButton(
+                icon: Icon(
+                  _perfilFavoritoGuardado
+                      ? Icons.bookmark_rounded
+                      : Icons.bookmark_border_rounded,
+                  color: _perfilFavoritoGuardado
+                      ? Colors.amber.shade700
+                      : _azulOscuro,
+                ),
+                onPressed: _alternarFavorito,
+              ),
+            ),
+            UserProfileHeaderAction(onLogout: _cerrarSesion),
+            const SizedBox(width: 8),
+          ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(1),
+            child: Container(
+              height: 1,
+              color: const Color(0xFFEDE6D6),
+            ),
+          ),
+        ),
+        body: SafeArea(child: bodyContent),
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: 3, // Contratistas tab
+          onTap: (bottomIdx) {
+            const mobileTabIndices = [0, 2, 3, 4, 7];
+            if (bottomIdx >= 0 && bottomIdx < mobileTabIndices.length) {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(
+                  builder: (_) => HomeScreen(
+                    initialIndex: mobileTabIndices[bottomIdx],
+                  ),
+                ),
+                (route) => false,
+              );
+            }
+          },
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.white,
+          selectedItemColor: _azulOscuro,
+          unselectedItemColor: const Color(0xFF64748B),
+          selectedLabelStyle: const TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w800,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+          ),
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home_outlined),
+              activeIcon: Icon(Icons.home_rounded, color: _amarillo),
+              label: 'Inicio',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.description_outlined),
+              activeIcon: Icon(Icons.description_rounded, color: _amarillo),
+              label: 'Contratos',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.account_balance_outlined),
+              activeIcon: Icon(Icons.account_balance_rounded, color: _amarillo),
+              label: 'Entidades',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.people_outline),
+              activeIcon: Icon(Icons.people_alt_rounded, color: _amarillo),
+              label: 'Contratistas',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.star_border_rounded),
+              activeIcon: Icon(Icons.star_rounded, color: _amarillo),
+              label: 'Favoritos',
+            ),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8EE),
       body: Row(
@@ -859,168 +1391,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                   onSearchSubmitted: _handleTopSearch,
                   onLogout: _cerrarSesion,
                 ),
-                Expanded(
-                  child: Container(
-                    color: const Color(0xFFFAF5EA),
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final double horizontalPad =
-                            constraints.maxWidth > 1220 ? 32.0 : 24.0;
-                        return SingleChildScrollView(
-                          child: Stack(
-                            children: [
-                              Positioned(
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                height: 215,
-                                child: Image.asset(
-                                  'assets/images/fondo_valledupar.jpg',
-                                  fit: BoxFit.cover,
-                                  alignment: const Alignment(0.0, -0.38),
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      Container(),
-                                ),
-                              ),
-                              Positioned(
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                height: 215,
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.centerLeft,
-                                      end: Alignment.centerRight,
-                                      colors: [
-                                        const Color(0xFFFAF5EA),
-                                        const Color(0xFFFAF5EA)
-                                            .withValues(alpha: 0.92),
-                                        const Color(0xFFFAF5EA)
-                                            .withValues(alpha: 0.0),
-                                      ],
-                                      stops: const [0.0, 0.36, 0.65],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Positioned(
-                                top: 145,
-                                left: 0,
-                                right: 0,
-                                height: 70,
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                      colors: [
-                                        const Color(0xFFFAF5EA)
-                                            .withValues(alpha: 0.0),
-                                        const Color(0xFFFAF5EA),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Padding(
-                                padding: EdgeInsets.fromLTRB(
-                                  horizontalPad,
-                                  24,
-                                  horizontalPad,
-                                  28,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    _buildHeaderRow(),
-                                    const SizedBox(height: 22),
-                                    _buildContractorIdentityCard(),
-                                    const SizedBox(height: 16),
-                                    _buildKpiSummaryRow(),
-                                    const SizedBox(height: 24),
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'Historial en SECOP',
-                                          style: TextStyle(
-                                            color: _azulOscuro,
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Container(
-                                          width: 28,
-                                          height: 3.5,
-                                          decoration: BoxDecoration(
-                                            color: _amarillo,
-                                            borderRadius:
-                                                BorderRadius.circular(2),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 14),
-                                    if (isLoading)
-                                      const Padding(
-                                        padding: EdgeInsets.symmetric(
-                                          vertical: 48,
-                                        ),
-                                        child: Center(
-                                          child: CircularProgressIndicator(),
-                                        ),
-                                      )
-                                    else if (errorCarga != null)
-                                      Container(
-                                        padding: const EdgeInsets.all(24),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                        ),
-                                        child: Text(
-                                          errorCarga!,
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            color: Colors.red.shade700,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      )
-                                    else if (historialContratos.isEmpty)
-                                      Container(
-                                        padding: const EdgeInsets.all(24),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                        ),
-                                        child: const Text(
-                                          'No se encontraron contratos registrados en SECOP II para este contratista.',
-                                          style: TextStyle(
-                                            color: Color(0xFF64748B),
-                                            fontSize: 13.5,
-                                          ),
-                                        ),
-                                      )
-                                    else
-                                      for (final contrato
-                                          in historialContratos)
-                                        _buildHistorialContractCard(contrato),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
+                Expanded(child: bodyContent),
               ],
             ),
           ),

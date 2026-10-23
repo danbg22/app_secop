@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../widgets/collapsible_side_menu.dart';
 import '../widgets/dashboard_top_bar.dart';
+import '../widgets/user_profile_header_action.dart';
 import 'favoritos_screen.dart';
 import 'resultados_busqueda_screen.dart';
 import 'sections/contratistas_section.dart';
@@ -132,37 +133,24 @@ class _HomeScreenState extends State<HomeScreen> {
       return Scaffold(
         key: _scaffoldKey,
         backgroundColor: _crema,
-        drawer: Drawer(
-          width: 256,
-          backgroundColor: const Color(0xFFFFFDF8),
-          child: SafeArea(
-            child: CollapsibleSideMenu(
-              selectedIndex: _selectedIndex,
-              isCollapsed: false,
-              onItemSelected: _onItemTapped,
-              onToggleCollapse: () => Navigator.of(context).pop(),
-              onLogout: _cerrarSesion,
-            ),
-          ),
-        ),
+        // En celular se bloquea y elimina la barra lateral por completo:
+        // la navegación se maneja exclusivamente por la barra inferior.
+        drawer: null,
+        drawerEnableOpenDragGesture: false,
         appBar: AppBar(
           backgroundColor: const Color(0xFFFFFDF8),
           elevation: 0,
           scrolledUnderElevation: 1,
-          leading: IconButton(
-            tooltip: 'Abrir menú',
-            icon: const Icon(Icons.menu_rounded, color: _azulOscuro),
-            onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-          ),
-          titleSpacing: 0,
+          automaticallyImplyLeading: false,
+          titleSpacing: 16,
           title: Row(
             children: [
               Image.asset(
                 'assets/images/logo.png',
-                height: 36,
+                height: 34,
                 fit: BoxFit.contain,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Flexible(
                 child: Text(
                   CollapsibleSideMenu.opcionesMenu[_selectedIndex].titulo,
@@ -176,6 +164,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
+          actions: [
+            UserProfileHeaderAction(onLogout: _cerrarSesion),
+            const SizedBox(width: 8),
+          ],
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(1),
             child: Container(

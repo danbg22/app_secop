@@ -10,12 +10,14 @@ class DashboardTopBar extends StatelessWidget {
     required this.onSearchSubmitted,
     required this.onLogout,
     this.transparent = false,
+    this.showSearch = true,
   });
 
   final TextEditingController searchController;
   final ValueChanged<String> onSearchSubmitted;
   final VoidCallback onLogout;
   final bool transparent;
+  final bool showSearch;
 
   static const Color _azulOscuro = Color(0xFF1A2B4C);
 
@@ -47,61 +49,64 @@ class DashboardTopBar extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Expanded(
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 480),
-                    child: SizedBox(
-                      height: 38,
-                      child: TextField(
-                        controller: searchController,
-                        onSubmitted: onSearchSubmitted,
-                        style: const TextStyle(fontSize: 13, color: _azulOscuro),
-                        decoration: InputDecoration(
-                          hintText: 'Busca contratos, entidades...',
-                          hintStyle: TextStyle(
-                            color: Colors.blueGrey.shade400,
-                            fontSize: 13,
-                          ),
-                          prefixIcon: IconButton(
-                            tooltip: 'Buscar en SECOP + SIGEP',
-                            padding: EdgeInsets.zero,
-                            onPressed: () =>
-                                onSearchSubmitted(searchController.text),
-                            icon: const Icon(
-                              Icons.search,
-                              color: _azulOscuro,
-                              size: 19,
+              if (showSearch)
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 480),
+                      child: SizedBox(
+                        height: 38,
+                        child: TextField(
+                          controller: searchController,
+                          onSubmitted: onSearchSubmitted,
+                          style: const TextStyle(fontSize: 13, color: _azulOscuro),
+                          decoration: InputDecoration(
+                            hintText: 'Busca contratos, entidades...',
+                            hintStyle: TextStyle(
+                              color: Colors.blueGrey.shade400,
+                              fontSize: 13,
                             ),
-                          ),
-                          filled: true,
-                          fillColor: transparent
-                              ? Colors.white.withValues(alpha: 0.72)
-                              : const Color(0xFFEDEFF3),
-                          contentPadding:
-                              const EdgeInsets.symmetric(vertical: 0),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            borderSide: BorderSide.none,
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            borderSide: BorderSide.none,
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            borderSide: const BorderSide(
-                              color: _azulOscuro,
-                              width: 1,
+                            prefixIcon: IconButton(
+                              tooltip: 'Buscar en SECOP + SIGEP',
+                              padding: EdgeInsets.zero,
+                              onPressed: () =>
+                                  onSearchSubmitted(searchController.text),
+                              icon: const Icon(
+                                Icons.search,
+                                color: _azulOscuro,
+                                size: 19,
+                              ),
+                            ),
+                            filled: true,
+                            fillColor: transparent
+                                ? Colors.white.withValues(alpha: 0.72)
+                                : const Color(0xFFEDEFF3),
+                            contentPadding:
+                                const EdgeInsets.symmetric(vertical: 0),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              borderSide: const BorderSide(
+                                color: _azulOscuro,
+                                width: 1,
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ),
+                )
+              else
+                const Spacer(),
               SizedBox(width: isMobile ? 10 : 24),
               PopupMenuButton<String>(
                 tooltip: 'Opciones del perfil',

@@ -1242,8 +1242,10 @@ class ContratistasHeader extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(width: 12),
-        UserProfileHeaderAction(onLogout: onLogout),
+        if (!isMobile) ...[
+          const SizedBox(width: 12),
+          UserProfileHeaderAction(onLogout: onLogout),
+        ],
       ],
     );
   }
