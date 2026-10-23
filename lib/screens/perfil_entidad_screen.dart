@@ -247,6 +247,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       '899999239', // ICBF
       '800215807', // INVIAS
       '900948958', // ANT
+      '830115226', // MINISTERIO DEL TRABAJO
       '800141397', // POLICIA
       '800150868', // FISCALIA
       '800197268', // DIAN
@@ -263,6 +264,8 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         text.contains('BIENESTAR FAMILIAR') ||
         text.contains('ICBF') ||
         text.contains('INVIAS') ||
+        text.contains('MINISTERIO DEL TRABAJO') ||
+        text.contains('MINTRABAJO') ||
         text.contains('AGENCIA NACIONAL') ||
         text.contains('POLICIA NACIONAL') ||
         text.contains('FISCALIA') ||
@@ -351,7 +354,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         : _nitEntidad.replaceAll(RegExp(r'[^0-9]'), '');
 
     if (nitClean.length >= 8) {
-      clauses.add("nit_entidad = '$nitClean'");
+      clauses.add("(nit_entidad = '$nitClean' OR documento_proveedor = '$nitClean')");
     } else {
       final rawTarget = widget.entity.secopKeywords.isNotEmpty
           ? widget.entity.secopKeywords.first
@@ -590,6 +593,30 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           forceYear: yearToUse,
         );
         responses = await runQueries(whereEntityYear, whereNationalYear);
+
+        // Si tampoco hay en 2025, consultamos el consolidado histórico de SECOP II
+        int checkCount2 = 0;
+        if (responses[0].statusCode == 200) {
+          final list2 = jsonDecode(responses[0].body) as List<dynamic>;
+          for (final r in list2) {
+            if (r is Map) {
+              checkCount2 +=
+                  int.tryParse((r['contratos'] ?? '0').toString()) ?? 0;
+            }
+          }
+        }
+        if (checkCount2 == 0) {
+          _onlyCurrentYear2026 = false;
+          whereEntityYear = _buildEntityWhereClause(
+            onlyYear2026: false,
+            includeRegionalFilter: true,
+          );
+          whereNationalYear = _buildEntityWhereClause(
+            onlyYear2026: false,
+            includeRegionalFilter: false,
+          );
+          responses = await runQueries(whereEntityYear, whereNationalYear);
+        }
       }
 
       final aggResp = responses[0];

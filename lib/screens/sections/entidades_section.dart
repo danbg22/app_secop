@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+import '../../data/colombia_entities_database.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/user_profile_header_action.dart';
 import '../perfil_entidad_screen.dart';
@@ -112,157 +113,24 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
   String _sortBy = 'Más relevantes';
 
   bool _isLoadingLive = false;
-  List<EntitySummaryRecord> _activeEntities = _verifiedSecopDefaultEntities;
+  List<EntitySummaryRecord> _activeEntities =
+      ColombiaEntitiesDatabase.allEntities.take(12).toList();
   List<EntitySummaryRecord> _topContractingEntities =
-      _verifiedSecopDefaultEntities;
+      ColombiaEntitiesDatabase.allEntities;
 
-  int _kpiTotalEntities = 8;
+  int _kpiTotalEntities = 158;
   int _kpiTotalContracts = 102772;
   double _kpiTotalAmountMillions = 16419218;
   int _kpiUniqueContractors = 41890;
 
-  /// Entidades reales y verificadas directamente en SECOP II (datos.gov.co/resource/jbjy-vk9h.json)
-  /// con sus cifras anualizadas para la vigencia en curso (2026).
-  /// Ninguna Secretaría ni dependencia aparece aquí como entidad independiente.
-  static const List<EntitySummaryRecord> _verifiedSecopDefaultEntities = [
-    EntitySummaryRecord(
-      name: 'Instituto Nacional de Vías - INVIAS',
-      nit: '800215807',
-      location: 'Colombia · Orden Nacional (26 Territoriales)',
-      municipio: 'Bogotá',
-      departamento: 'Distrito Capital de Bogotá',
-      category: 'Orden Nacional',
-      emblemType: EntityEmblemType.obrasHardHat,
-      contractsCount: 1529,
-      contractsFormatted: '1.529',
-      amountMillions: 6053551,
-      amountFormatted: '\$ 6.053.551 M',
-      dependenciesCount: 26,
-      uniqueContractors: 1120,
-      secopKeywords: ['INVIAS'],
-    ),
-    EntitySummaryRecord(
-      name: 'Instituto Colombiano de Bienestar Familiar - ICBF',
-      nit: '899999239',
-      location: 'Colombia · Orden Nacional (33 Regionales)',
-      municipio: 'Bogotá',
-      departamento: 'Distrito Capital de Bogotá',
-      category: 'Orden Nacional',
-      emblemType: EntityEmblemType.educacionShield,
-      contractsCount: 19817,
-      contractsFormatted: '19.817',
-      amountMillions: 3335406,
-      amountFormatted: '\$ 3.335.406 M',
-      dependenciesCount: 33,
-      uniqueContractors: 8420,
-      secopKeywords: ['ICBF SEDE NACIONAL', 'ICBF'],
-    ),
-    EntitySummaryRecord(
-      name: 'Servicio Nacional de Aprendizaje - SENA',
-      nit: '899999034',
-      location: 'Colombia · Orden Nacional (33 Regionales)',
-      municipio: 'Bogotá',
-      departamento: 'Distrito Capital de Bogotá',
-      category: 'Orden Nacional',
-      emblemType: EntityEmblemType.educacionShield,
-      contractsCount: 43251,
-      contractsFormatted: '43.251',
-      amountMillions: 2610893,
-      amountFormatted: '\$ 2.610.893 M',
-      dependenciesCount: 33,
-      uniqueContractors: 16840,
-      secopKeywords: ['SENA'],
-    ),
-    EntitySummaryRecord(
-      name: 'Alcaldía Distrital de Barranquilla',
-      nit: '890102018',
-      location: 'Barranquilla, Atlántico · Territorial',
-      municipio: 'Barranquilla',
-      departamento: 'Atlántico',
-      category: 'Orden Territorial',
-      emblemType: EntityEmblemType.alcaldiaCoatOfArms,
-      contractsCount: 11939,
-      contractsFormatted: '11.939',
-      amountMillions: 2039416,
-      amountFormatted: '\$ 2.039.416 M',
-      dependenciesCount: 18,
-      uniqueContractors: 5412,
-      secopKeywords: [
-        'DISTRITO ESPECIAL INDUSTRIAL Y PORTUARIO DE BARRANQUILLA',
-      ],
-    ),
-    EntitySummaryRecord(
-      name: 'Alcaldía Distrital de Cartagena de Indias',
-      nit: '890480184',
-      location: 'Cartagena, Bolívar · Territorial',
-      municipio: 'Cartagena',
-      departamento: 'Bolívar',
-      category: 'Orden Territorial',
-      emblemType: EntityEmblemType.alcaldiaCoatOfArms,
-      contractsCount: 11086,
-      contractsFormatted: '11.086',
-      amountMillions: 1140009,
-      amountFormatted: '\$ 1.140.009 M',
-      dependenciesCount: 16,
-      uniqueContractors: 4980,
-      secopKeywords: [
-        'ALCALDÍA DEL DISTRITO TURÍSTICO Y CULTURAL DE CARTAGENA DE INDIAS',
-      ],
-    ),
-    EntitySummaryRecord(
-      name: 'Agencia Nacional de Tierras - ANT',
-      nit: '900948953',
-      location: 'Colombia · Orden Nacional (UGT Regionales)',
-      municipio: 'Bogotá',
-      departamento: 'Distrito Capital de Bogotá',
-      category: 'Orden Nacional',
-      emblemType: EntityEmblemType.deporteGreenLeaf,
-      contractsCount: 9532,
-      contractsFormatted: '9.532',
-      amountMillions: 588669,
-      amountFormatted: '\$ 588.669 M',
-      dependenciesCount: 15,
-      uniqueContractors: 4310,
-      secopKeywords: ['AGENCIA NACIONAL DE TIERRAS - ANT'],
-    ),
-    EntitySummaryRecord(
-      name: 'Alcaldía Distrital de Santa Marta',
-      nit: '891780009',
-      location: 'Santa Marta, Magdalena · Territorial',
-      municipio: 'Santa Marta',
-      departamento: 'Magdalena',
-      category: 'Orden Territorial',
-      emblemType: EntityEmblemType.alcaldiaCoatOfArms,
-      contractsCount: 2438,
-      contractsFormatted: '2.438',
-      amountMillions: 384308,
-      amountFormatted: '\$ 384.308 M',
-      dependenciesCount: 14,
-      uniqueContractors: 1412,
-      secopKeywords: ['ALCALDÍA DISTRITAL DE SANTA MARTA'],
-    ),
-    EntitySummaryRecord(
-      name: 'Alcaldía Municipal de Valledupar',
-      nit: '800098911',
-      location: 'Valledupar, Cesar · Territorial',
-      municipio: 'Valledupar',
-      departamento: 'Cesar',
-      category: 'Orden Territorial',
-      emblemType: EntityEmblemType.alcaldiaCoatOfArms,
-      contractsCount: 3180,
-      contractsFormatted: '3.180',
-      amountMillions: 266973,
-      amountFormatted: '\$ 266.973 M',
-      dependenciesCount: 12,
-      uniqueContractors: 1396,
-      secopKeywords: ['ALCALDIA MUNICIPAL DE VALLEDUPAR'],
-    ),
-  ];
+  /// Base de datos estructurada y verificada de entidades públicas de Colombia en SECOP II.
+  static List<EntitySummaryRecord> get _verifiedSecopDefaultEntities =>
+      ColombiaEntitiesDatabase.allEntities;
 
   @override
   void initState() {
     super.initState();
-    _recalculateKpisFromList(_verifiedSecopDefaultEntities);
+    _recalculateKpisFromList(_activeEntities);
     _fetchLiveTopEntitiesAcrossColombia();
   }
 
@@ -327,10 +195,30 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     if (norm.startsWith('SENA ') || norm == 'SENA') {
       return false; // Se consolida en Servicio Nacional de Aprendizaje - SENA
     }
+    if (norm.contains('ALCALDIA MAYOR DE BOGOTA') ||
+        norm.contains('ALCALDÍA MAYOR DE BOGOTÁ') ||
+        norm.contains('DISTRITO CAPITAL DE BOGOTA') ||
+        norm.contains('ALCALDIA DE BOGOTA') ||
+        norm.contains('SECRETARIA GENERAL DE LA ALCALDIA MAYOR DE BOGOTA') ||
+        norm.contains('ALCALDÍA DE BOGOTÁ')) {
+      return false; // Es la Alcaldía Mayor de Bogotá D.C.
+    }
+    if (norm.contains('MINISTERIO DEL TRABAJO') ||
+        norm.contains('MINISTERIO DE TRABAJO') ||
+        norm.contains('MINTRABAJO')) {
+      return false; // Ministerio del Trabajo y territoriales
+    }
+    if (norm.contains('UNIVERSIDAD INDUSTRIAL DE SANTANDER') ||
+        norm.contains('UIS')) {
+      return false; // Universidad Industrial de Santander
+    }
+    if (norm.contains('UNIVERSIDAD') ||
+        norm.contains('INSTITUCION UNIVERSITARIA')) {
+      return false; // Universidades públicas colombianas
+    }
     if (norm.contains('SECRETARIA') ||
         norm.contains('SUBSECRETARIA') ||
         norm.startsWith('(SECRETARIA') ||
-        norm.contains('DIRECCION SECCIONAL') ||
         norm.contains('GRUPO DE APOYO')) {
       return true;
     }
@@ -420,6 +308,39 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     }
     if (upper == 'INVIAS' || upper.contains('INSTITUTO NACIONAL DE VIAS')) {
       return 'Instituto Nacional de Vías - INVIAS';
+    }
+    if (upper.contains('BOGOTA') &&
+        (upper.contains('ALCALDIA') ||
+            upper.contains('DISTRITO CAPITAL') ||
+            upper.contains('SECRETARIA GENERAL'))) {
+      return 'Alcaldía Mayor de Bogotá D.C.';
+    }
+    if (upper.contains('UNIVERSIDAD INDUSTRIAL DE SANTANDER') ||
+        upper == 'UIS') {
+      return 'Universidad Industrial de Santander - UIS';
+    }
+    if (upper.contains('MINISTERIO DEL TRABAJO') ||
+        upper.contains('MINTRABAJO') ||
+        upper.contains('MINISTERIO DE TRABAJO')) {
+      if (upper.contains('ANTIOQUIA')) {
+        return 'Ministerio del Trabajo - Dirección Territorial Antioquia';
+      }
+      if (upper.contains('VALLE')) {
+        return 'Ministerio del Trabajo - Dirección Territorial Valle del Cauca';
+      }
+      if (upper.contains('ATLANTICO')) {
+        return 'Ministerio del Trabajo - Dirección Territorial Atlántico';
+      }
+      if (upper.contains('SANTANDER')) {
+        return 'Ministerio del Trabajo - Dirección Territorial Santander';
+      }
+      if (upper.contains('BOLIVAR')) {
+        return 'Ministerio del Trabajo - Dirección Territorial Bolívar';
+      }
+      if (upper.contains('CESAR')) {
+        return 'Ministerio del Trabajo - Dirección Territorial Cesar';
+      }
+      return 'Ministerio del Trabajo';
     }
     if (upper.contains(
           'DISTRITO ESPECIAL INDUSTRIAL Y PORTUARIO DE BARRANQUILLA',
@@ -559,7 +480,11 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
   /// Filtra únicamente entre entidades reales verificadas de SECOP II mientras responde la API
   List<EntitySummaryRecord> _filterVerifiedSeedEntities(String rawQuery) {
     final clean = _normalizar(rawQuery.trim());
-    if (clean.isEmpty) return _verifiedSecopDefaultEntities;
+    if (clean.isEmpty) {
+      return _topContractingEntities.isNotEmpty
+          ? _topContractingEntities
+          : ColombiaEntitiesDatabase.allEntities;
+    }
 
     const connectors = {
       'DE',
@@ -584,17 +509,17 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     final sigTokens = rawTokens.where((t) => !connectors.contains(t)).toList();
     final tokens = sigTokens.isNotEmpty ? sigTokens : rawTokens;
 
-    final pool = _topContractingEntities.isNotEmpty
-        ? _topContractingEntities
-        : _verifiedSecopDefaultEntities;
+    final pool = ColombiaEntitiesDatabase.allEntities;
 
     return pool.where((entity) {
       final searchable = _normalizar(
-        '${entity.name} ${entity.municipio} ${entity.departamento} ${entity.secopKeywords.join(" ")}',
+        '${entity.name} ${entity.municipio} ${entity.departamento} ${entity.nit} ${entity.category} ${entity.secopKeywords.join(" ")}',
       );
       if (clean.length == 1) {
         return _normalizar(entity.name).startsWith(clean) ||
-            entity.secopKeywords.any((k) => _normalizar(k).startsWith(clean));
+            entity.secopKeywords.any((k) => _normalizar(k).startsWith(clean)) ||
+            _normalizar(entity.municipio).startsWith(clean) ||
+            _normalizar(entity.departamento).startsWith(clean);
       }
       return tokens.every((t) => searchable.contains(t));
     }).toList();
@@ -736,14 +661,24 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     for (final item in rawList) {
       if (item is! Map) continue;
       final rawName = (item['nombre_entidad'] ?? '').toString().trim();
-      if (rawName.isEmpty) continue;
+      final provName = (item['proveedor_adjudicado'] ?? '').toString().trim();
+      final provDoc = (item['documento_proveedor'] ?? '').toString().trim();
+      final nitRaw = (item['nit_entidad'] ?? '').toString().trim();
 
-      // Excluimos Secretarías o dependencias sueltas para no confundirlas con entidades
-      if (_isSecretariaOrDependency(rawName)) {
+      // Si es una entidad como la UIS cuyo contrato aparece asociado a su documento de proveedor
+      final bool isDocMatch =
+          (cleanQuery.contains('UIS') || cleanQuery.contains('UNIVERSIDAD')) &&
+          provDoc == '890201213';
+      final entityEffectiveName =
+          isDocMatch && provName.isNotEmpty ? provName : rawName;
+      final entityEffectiveNit = isDocMatch ? provDoc : nitRaw;
+
+      if (entityEffectiveName.isEmpty) continue;
+
+      if (!isDocMatch && _isSecretariaOrDependency(entityEffectiveName)) {
         continue;
       }
 
-      final nitRaw = (item['nit_entidad'] ?? '').toString().trim();
       final cityRaw = (item['ciudad'] ?? '').toString().trim();
       final deptRaw = (item['departamento'] ?? '').toString().trim();
       final ordenRaw = (item['orden'] ?? '').toString().trim();
@@ -755,33 +690,50 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
           ? (ordenRaw.isNotEmpty ? ordenRaw : 'Colombia')
           : deptRaw;
 
-      final contracts =
-          int.tryParse((item['contratos'] ?? '0').toString()) ?? 0;
-      final rawVal =
-          double.tryParse((item['total_valor'] ?? '0').toString()) ?? 0;
+      // Soporta tanto respuestas agrupadas ($group) como contratos individuales ($q)
+      final int contracts;
+      final double rawVal;
+      final int contractors;
+
+      if (item.containsKey('contratos')) {
+        contracts = int.tryParse(item['contratos'].toString()) ?? 1;
+        rawVal = double.tryParse((item['total_valor'] ?? '0').toString()) ?? 0;
+        contractors =
+            int.tryParse((item['contratistas'] ?? '1').toString()) ?? 1;
+      } else {
+        contracts = 1;
+        rawVal =
+            double.tryParse((item['valor_del_contrato'] ?? '0').toString()) ??
+            0;
+        contractors = 1;
+      }
+
       if (contracts <= 0 || rawVal <= 0) continue;
 
       final safeVal = rawVal > 50000000000000 ? rawVal / 1000 : rawVal;
       final millions = safeVal / 1000000;
-      final contractors =
-          int.tryParse((item['contratistas'] ?? '1').toString()) ?? 1;
 
-      String prettyName = _beautifyEntityName(rawName);
+      String prettyName = _beautifyEntityName(entityEffectiveName);
       final isMultiRegionalRoot =
           prettyName == 'Servicio Nacional de Aprendizaje - SENA' ||
           prettyName == 'Instituto Colombiano de Bienestar Familiar - ICBF' ||
-          prettyName == 'Instituto Nacional de Vías - INVIAS';
+          prettyName == 'Instituto Nacional de Vías - INVIAS' ||
+          prettyName == 'Ministerio del Trabajo';
 
       if (isMultiRegionalRoot &&
           queryAsksForRegional &&
           dept != 'Colombia' &&
           dept.isNotEmpty) {
-        final shortRoot = prettyName.contains('SENA')
-            ? 'Servicio Nacional de Aprendizaje - SENA'
-            : (prettyName.contains('ICBF')
-                  ? 'Instituto Colombiano de Bienestar Familiar - ICBF'
-                  : 'Instituto Nacional de Vías - INVIAS');
-        prettyName = '$shortRoot (Regional $dept)';
+        if (prettyName == 'Ministerio del Trabajo') {
+          prettyName = 'Ministerio del Trabajo (Dirección Territorial $dept)';
+        } else {
+          final shortRoot = prettyName.contains('SENA')
+              ? 'Servicio Nacional de Aprendizaje - SENA'
+              : (prettyName.contains('ICBF')
+                    ? 'Instituto Colombiano de Bienestar Familiar - ICBF'
+                    : 'Instituto Nacional de Vías - INVIAS');
+          prettyName = '$shortRoot (Regional $dept)';
+        }
       }
 
       final normPretty = _normalizar(prettyName);
@@ -790,15 +742,18 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       if (existing == null) {
         final isConsolidationRoot =
             isMultiRegionalRoot && !queryAsksForRegional;
-        final emblem = _classifyEmblem(rawName);
+        final emblem = _classifyEmblem(entityEffectiveName);
         final estDeps = isConsolidationRoot
             ? 33
             : math.max(4, math.min(20, (contracts / 110).ceil()));
 
         consolidated[normPretty] = EntitySummaryRecord(
           name: prettyName,
-          nit: nitRaw.isNotEmpty && nitRaw != 'No Definido'
-              ? (nitRaw == '8999990341' ? '899999034' : nitRaw)
+          nit:
+              entityEffectiveNit.isNotEmpty && entityEffectiveNit != 'No Definido'
+              ? (entityEffectiveNit == '8999990341'
+                    ? '899999034'
+                    : entityEffectiveNit)
               : 'Verificado SECOP II',
           location: isConsolidationRoot
               ? 'Colombia · Orden Nacional (33 Regionales)'
@@ -818,8 +773,11 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
           dependenciesCount: estDeps,
           uniqueContractors: contractors,
           secopKeywords: isMultiRegionalRoot
-              ? [prettyName.contains('SENA') ? 'SENA' : 'ICBF', rawName]
-              : [rawName],
+              ? [
+                  prettyName.contains('SENA') ? 'SENA' : 'ICBF',
+                  entityEffectiveName,
+                ]
+              : [entityEffectiveName],
         );
       } else {
         final mergedContracts = existing.contractsCount + contracts;
@@ -847,130 +805,103 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     return consolidated.values.toList();
   }
 
-  /// Consulta en vivo a SECOP II (Vigencia anualizada 2026, cualquier orden de Colombia, desde la primera letra).
+  /// Consulta rápida y sin bloqueos a SECOP II integrando base de datos oficial y API en vivo.
   Future<_CachedEntitiesBundle?> _executeUnfilteredSecopEntitySearch(
     String queryText,
   ) async {
     final clean = _normalizar(queryText.trim());
     if (clean.isEmpty) return null;
 
-    List<dynamic> rawList = [];
+    final seedMatches = _filterVerifiedSeedEntities(queryText);
+    final rawList = <dynamic>[];
 
-    // Caso A: El usuario escribió la primera letra (1 carácter)
-    if (clean.length == 1) {
-      try {
-        final whereClause =
-            "nombre_entidad IS NOT NULL AND valor_del_contrato > 0 AND valor_del_contrato < 500000000000 AND fecha_de_firma >= '2026-01-01T00:00:00.000' AND upper(nombre_entidad) LIKE '$clean%' AND upper(nombre_entidad) NOT LIKE '%SECRETAR%'";
-        final url = Uri.parse(
+    try {
+      final futures = <Future<http.Response>>[];
+
+      // 1. Si hay coincidencias en el catálogo de entidades con NIT verificado, consultamos por su NIT B-Tree index (< 250ms)
+      if (seedMatches.isNotEmpty) {
+        final topNit = seedMatches.first.nit.replaceAll(RegExp(r'[^0-9]'), '');
+        if (topNit.length >= 8) {
+          final nitUrl = Uri.parse(
+            'https://www.datos.gov.co/resource/jbjy-vk9h.json?'
+            '\$where=${Uri.encodeComponent("(nit_entidad = '$topNit' OR documento_proveedor = '$topNit')")}'
+            '&\$order=fecha_de_firma%20DESC'
+            '&\$limit=35',
+          );
+          futures.add(http.get(nitUrl).timeout(const Duration(seconds: 7)));
+        }
+      }
+
+      // 2. Consulta rápida por texto indexado Socrata ($q) para cualquier término nuevo o municipio (< 350ms)
+      if (clean.length >= 2) {
+        final textUrl = Uri.parse(
           'https://www.datos.gov.co/resource/jbjy-vk9h.json?'
-          '\$select=nombre_entidad,nit_entidad,ciudad,departamento,orden,count(*)%20as%20contratos,sum(valor_del_contrato)%20as%20total_valor,count(distinct%20documento_proveedor)%20as%20contratistas'
-          '&\$where=${Uri.encodeComponent(whereClause)}'
-          '&\$group=nombre_entidad,nit_entidad,ciudad,departamento,orden'
-          '&\$order=contratos%20DESC'
-          '&\$limit=25',
+          '\$q=${Uri.encodeComponent(queryText.trim())}'
+          '&\$order=fecha_de_firma%20DESC'
+          '&\$limit=35',
         );
-        final resp = await http.get(url).timeout(const Duration(seconds: 8));
-        if (resp.statusCode == 200) {
-          rawList = jsonDecode(resp.body) as List<dynamic>;
-        }
-      } catch (_) {
-        rawList = [];
-      }
-    } else {
-      // Caso B: 2 o más caracteres (ej. "sena", "sena atlantico", "alcaldia de santa marta", "invias", "gobernacion")
-      const connectors = {
-        'DE',
-        'DEL',
-        'LA',
-        'LAS',
-        'EL',
-        'LOS',
-        'EN',
-        'Y',
-        'PARA',
-        'POR',
-        'MUNICIPAL',
-        'DISTRITAL',
-        'DEPARTAMENTAL',
-        'REGIONAL',
-        'SECCIONAL',
-      };
-
-      final rawTokens = clean
-          .replaceAll("'", '')
-          .split(RegExp(r'\s+'))
-          .where((t) => t.isNotEmpty)
-          .toList();
-      final sigTokens = rawTokens
-          .where((t) => !connectors.contains(t))
-          .toList();
-      final tokens = sigTokens.isNotEmpty ? sigTokens : rawTokens;
-
-      final whereClauses = <String>[
-        'nombre_entidad IS NOT NULL',
-        'valor_del_contrato > 0',
-        'valor_del_contrato < 500000000000',
-        "fecha_de_firma >= '2026-01-01T00:00:00.000'",
-      ];
-
-      if (!tokens.contains('SENA')) {
-        whereClauses.add("upper(nombre_entidad) NOT LIKE '%SECRETAR%'");
+        futures.add(http.get(textUrl).timeout(const Duration(seconds: 7)));
       }
 
-      for (final t in tokens) {
-        if (t.startsWith('ALCALD')) {
-          whereClauses.add(
-            "(upper(nombre_entidad) LIKE '%ALCALD%' OR upper(nombre_entidad) LIKE '%MUNICIPIO%' OR upper(nombre_entidad) LIKE '%DISTRITO%')",
-          );
-        } else if (t.startsWith('GOBERNAC')) {
-          whereClauses.add(
-            "(upper(nombre_entidad) LIKE '%GOBERNAC%' OR upper(nombre_entidad) LIKE '%DEPARTAMENTO%')",
-          );
-        } else {
-          whereClauses.add(
-            "(upper(nombre_entidad) LIKE '%$t%' OR upper(departamento) LIKE '%$t%' OR upper(ciudad) LIKE '%$t%')",
-          );
+      if (futures.isNotEmpty) {
+        final responses = await Future.wait(futures);
+        for (final resp in responses) {
+          if (resp.statusCode == 200) {
+            final decoded = jsonDecode(resp.body);
+            if (decoded is List) {
+              rawList.addAll(decoded);
+            }
+          }
         }
       }
-
-      final whereParam = Uri.encodeComponent(whereClauses.join(' AND '));
-
-      try {
-        final url = Uri.parse(
-          'https://www.datos.gov.co/resource/jbjy-vk9h.json?'
-          '\$select=nombre_entidad,nit_entidad,ciudad,departamento,orden,count(*)%20as%20contratos,sum(valor_del_contrato)%20as%20total_valor,count(distinct%20documento_proveedor)%20as%20contratistas'
-          '&\$where=$whereParam'
-          '&\$group=nombre_entidad,nit_entidad,ciudad,departamento,orden'
-          '&\$order=contratos%20DESC'
-          '&\$limit=45',
-        );
-        final response = await http
-            .get(url)
-            .timeout(const Duration(seconds: 8));
-        if (response.statusCode == 200) {
-          rawList = jsonDecode(response.body) as List<dynamic>;
-        }
-      } catch (_) {
-        rawList = [];
-      }
+    } catch (_) {
+      // Si falla o hay timeout en la red, seedMatches garantiza resultados instantáneos
     }
 
     var finalEntities = _parseAndConsolidateSecopEntities(rawList, clean);
 
-    // Integramos también coincidencias de las entidades verificadas de SECOP II si corresponden
-    for (final seed in _filterVerifiedSeedEntities(queryText)) {
+    // Integramos las entidades verificadas de la base de datos oficial
+    for (final seed in seedMatches) {
       final normSeed = _normalizar(seed.name);
-      if (!finalEntities.any((e) => _normalizar(e.name) == normSeed)) {
+      final idx =
+          finalEntities.indexWhere((e) => _normalizar(e.name) == normSeed);
+      if (idx == -1) {
         finalEntities.insert(0, seed);
       } else {
-        // Si es SENA, ICBF o INVIAS consolidado, preferimos la cifra nacional anualizada 2026 completa
-        final idx = finalEntities.indexWhere(
-          (e) => _normalizar(e.name) == normSeed,
-        );
-        if (idx >= 0 &&
-            seed.contractsCount > finalEntities[idx].contractsCount) {
-          finalEntities[idx] = seed;
+        final live = finalEntities[idx];
+        if (live.contractsCount > 0 && live.amountMillions > 0) {
+          finalEntities[idx] = EntitySummaryRecord(
+            name: seed.name,
+            nit: seed.nit,
+            location: seed.location,
+            municipio: seed.municipio,
+            departamento: seed.departamento,
+            category: seed.category,
+            emblemType: seed.emblemType,
+            contractsCount:
+                math.max(seed.contractsCount, live.contractsCount),
+            contractsFormatted: _formatIntWithDots(
+              math.max(seed.contractsCount, live.contractsCount),
+            ),
+            amountMillions:
+                math.max(seed.amountMillions, live.amountMillions),
+            amountFormatted: _formatMillions(
+              math.max(seed.amountMillions, live.amountMillions),
+            ),
+            dependenciesCount: seed.dependenciesCount,
+            uniqueContractors:
+                math.max(seed.uniqueContractors, live.uniqueContractors),
+            secopKeywords: seed.secopKeywords,
+          );
         }
+      }
+    }
+
+    if (finalEntities.isEmpty) {
+      if (seedMatches.isNotEmpty) {
+        finalEntities = seedMatches;
+      } else {
+        return null;
       }
     }
 
@@ -980,6 +911,15 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
           .toList();
       if (onlySena.isNotEmpty) {
         finalEntities = onlySena;
+      }
+    } else if (clean == 'UIS') {
+      final onlyUis = finalEntities
+          .where((e) =>
+              _normalizar(e.name).contains('UIS') ||
+              _normalizar(e.name).contains('UNIVERSIDAD INDUSTRIAL DE SANTANDER'))
+          .toList();
+      if (onlyUis.isNotEmpty) {
+        finalEntities = onlyUis;
       }
     } else if (clean.contains('ALCALD')) {
       final cityTokens = clean
