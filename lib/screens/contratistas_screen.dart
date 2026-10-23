@@ -121,98 +121,21 @@ class _ContratistasScreenState extends State<ContratistasScreen>
   String _sortBy = 'Mayor valor contratado';
   int _currentPage = 1;
 
-  // Semilla inicial fiel al mockup y enriquecida con contratistas reales
+  // Semilla inicial 100% verificada contra SECOP II (datos.gov.co)
   static const List<ContractorSummaryRecord> _initialSeedContractors = [
     ContractorSummaryRecord(
       initials: 'CV',
       name: 'Consorcio Vías del Cesar',
       rawSearchName: 'CONSORCIO VIAS DEL CESAR',
-      nit: '901.284.632-1',
-      rawDocumentDigits: '9012846321',
+      nit: '901.541.760',
+      rawDocumentDigits: '901541760',
       personType: 'Persona jurídica',
-      totalContracts: 24,
-      totalValue: 3840500000,
-      lastContractDate: '16/10/2026',
-      sector: 'Obras',
-      year: '2026',
-      entitiesCount: 8,
-      sigepStatus: SigepRoleStatus.contratista,
-    ),
-    ContractorSummaryRecord(
-      initials: 'SD',
-      name: 'Soluciones Digitales S.A.S.',
-      rawSearchName: 'SOLUCIONES DIGITALES SAS',
-      nit: '900.638.471-5',
-      rawDocumentDigits: '9006384715',
-      personType: 'Persona jurídica',
-      totalContracts: 17,
-      totalValue: 1275900000,
-      lastContractDate: '28/09/2026',
-      sector: 'Tecnología',
-      year: '2026',
-      entitiesCount: 6,
-      sigepStatus: SigepRoleStatus.contratista,
-    ),
-    ContractorSummaryRecord(
-      initials: 'JM',
-      name: 'Juan Manuel Rodríguez',
-      rawSearchName: 'JUAN MANUEL RODRIGUEZ',
-      nit: '1.065.842.391',
-      rawDocumentDigits: '1065842391',
-      personType: 'Persona natural',
-      totalContracts: 8,
-      totalValue: 48200000,
-      lastContractDate: '10/08/2026',
-      sector: 'Servicios',
-      year: '2026',
-      entitiesCount: 3,
-      sigepStatus: SigepRoleStatus.servidorPublico,
-      sigepEntityCargo: 'Vinculado en base SIGEP II',
-    ),
-    ContractorSummaryRecord(
-      initials: 'MR',
-      name: 'María Fernanda Rojas',
-      rawSearchName: 'MARIA FERNANDA ROJAS',
-      nit: '49.782.163',
-      rawDocumentDigits: '49782163',
-      personType: 'Persona natural',
-      totalContracts: 6,
-      totalValue: 36750000,
-      lastContractDate: '05/07/2026',
-      sector: 'Salud',
-      year: '2026',
-      entitiesCount: 2,
-      sigepStatus: SigepRoleStatus.contratista,
-    ),
-    ContractorSummaryRecord(
-      initials: 'CG',
-      name: 'Carlos Alberto Guerra',
-      rawSearchName: 'CARLOS ALBERTO GUERRA',
-      nit: '77.184.936',
-      rawDocumentDigits: '77184936',
-      personType: 'Persona natural',
-      totalContracts: 5,
-      totalValue: 29400000,
-      lastContractDate: '21/06/2026',
-      sector: 'Educación',
-      year: '2026',
-      entitiesCount: 2,
-      sigepStatus: SigepRoleStatus.servidorPublico,
-      sigepEntityCargo: 'Registrado en SIGEP II',
-    ),
-    ContractorSummaryRecord(
-      initials: 'FP',
-      name: 'Fundación Sembremos Paz',
-      rawSearchName: 'FUNDACION SEMBREMOS PAZ',
-      nit: '900.196.098-7',
-      rawDocumentDigits: '9001960987',
-      personType: 'Persona jurídica',
-      totalContracts: 11,
-      totalValue: 412300000,
-      lastContractDate: '06/10/2026',
-      sector: 'Salud',
-      year: '2026',
-      entitiesCount: 4,
+      totalContracts: 1,
+      totalValue: 9533236406.48,
+      lastContractDate: '31/12/2021',
+      sector: 'Infraestructura vial',
+      year: '2021',
+      entitiesCount: 1,
       sigepStatus: SigepRoleStatus.contratista,
     ),
     ContractorSummaryRecord(
@@ -220,14 +143,29 @@ class _ContratistasScreenState extends State<ContratistasScreen>
       name: 'Ingenierías y Obras MQ S.A.S.',
       rawSearchName: 'INGENIERIAS Y OBRAS MQ S.A.S',
       nit: '901.006.399-2',
-      rawDocumentDigits: '9010063992',
+      rawDocumentDigits: '901006399',
       personType: 'Persona jurídica',
-      totalContracts: 9,
-      totalValue: 685400000,
+      totalContracts: 1,
+      totalValue: 261665045.88,
       lastContractDate: '09/10/2026',
-      sector: 'Obras',
+      sector: 'Obras civiles',
       year: '2026',
-      entitiesCount: 5,
+      entitiesCount: 1,
+      sigepStatus: SigepRoleStatus.contratista,
+    ),
+    ContractorSummaryRecord(
+      initials: 'TS',
+      name: 'Taico S.A.S.',
+      rawSearchName: 'TAICO S.A.S.',
+      nit: '901.037.937-4',
+      rawDocumentDigits: '901037937',
+      personType: 'Persona jurídica',
+      totalContracts: 1,
+      totalValue: 453721485.00,
+      lastContractDate: '09/10/2026',
+      sector: 'Deporte y recreación',
+      year: '2026',
+      entitiesCount: 1,
       sigepStatus: SigepRoleStatus.contratista,
     ),
     ContractorSummaryRecord(
@@ -237,12 +175,12 @@ class _ContratistasScreenState extends State<ContratistasScreen>
       nit: '66.900.091',
       rawDocumentDigits: '66900091',
       personType: 'Persona natural',
-      totalContracts: 4,
-      totalValue: 84432000,
+      totalContracts: 21,
+      totalValue: 445261981.00,
       lastContractDate: '17/10/2026',
-      sector: 'Ambiente',
+      sector: 'Ambiente y servicios',
       year: '2026',
-      entitiesCount: 2,
+      entitiesCount: 1,
       sigepStatus: SigepRoleStatus.contratista,
     ),
     ContractorSummaryRecord(
@@ -252,25 +190,160 @@ class _ContratistasScreenState extends State<ContratistasScreen>
       nit: '1.098.821.514',
       rawDocumentDigits: '1098821514',
       personType: 'Persona natural',
-      totalContracts: 3,
-      totalValue: 27000000,
+      totalContracts: 10,
+      totalValue: 102173333.00,
       lastContractDate: '17/10/2026',
-      sector: 'Seguridad',
+      sector: 'Seguridad y servicios',
       year: '2026',
-      entitiesCount: 1,
+      entitiesCount: 3,
       sigepStatus: SigepRoleStatus.contratista,
     ),
     ContractorSummaryRecord(
-      initials: 'TS',
-      name: 'Taico S.A.S.',
-      rawSearchName: 'TAICO SAS',
-      nit: '901.037.937-4',
-      rawDocumentDigits: '9010379374',
+      initials: 'SE',
+      name: 'Seguros del Estado S.A.',
+      rawSearchName: 'SEGUROS DEL ESTADO S.A.',
+      nit: '860.009.578-0',
+      rawDocumentDigits: '860009578',
       personType: 'Persona jurídica',
-      totalContracts: 14,
-      totalValue: 953721485,
+      totalContracts: 880,
+      totalValue: 170572348852.91,
+      lastContractDate: '15/10/2026',
+      sector: 'Seguros y pólizas estatales',
+      year: '2026',
+      entitiesCount: 331,
+      sigepStatus: SigepRoleStatus.contratista,
+    ),
+    ContractorSummaryRecord(
+      initials: 'BC',
+      name: 'Bancolombia S.A.',
+      rawSearchName: 'BANCOLOMBIA',
+      nit: '890.903.938-8',
+      rawDocumentDigits: '890903938',
+      personType: 'Persona jurídica',
+      totalContracts: 219,
+      totalValue: 5371612705366.02,
+      lastContractDate: '20/10/2026',
+      sector: 'Servicios financieros y crédito',
+      year: '2026',
+      entitiesCount: 121,
+      sigepStatus: SigepRoleStatus.contratista,
+    ),
+    ContractorSummaryRecord(
+      initials: 'CL',
+      name: 'COMCEL S.A. (Claro)',
+      rawSearchName: 'COMCEL S.A.',
+      nit: '800.153.993-7',
+      rawDocumentDigits: '800153993',
+      personType: 'Persona jurídica',
+      totalContracts: 221,
+      totalValue: 1644976022240.18,
       lastContractDate: '09/10/2026',
-      sector: 'Obras',
+      sector: 'Telecomunicaciones y conectividad',
+      year: '2026',
+      entitiesCount: 88,
+      sigepStatus: SigepRoleStatus.contratista,
+    ),
+    ContractorSummaryRecord(
+      initials: 'PS',
+      name: 'Positiva Compañía de Seguros S.A.',
+      rawSearchName: 'POSITIVA COMPAÑIA DE SEGUROS S.A',
+      nit: '860.011.153-6',
+      rawDocumentDigits: '860011153',
+      personType: 'Persona jurídica',
+      totalContracts: 347,
+      totalValue: 304335987647.36,
+      lastContractDate: '14/10/2026',
+      sector: 'Seguros laborales y salud',
+      year: '2026',
+      entitiesCount: 162,
+      sigepStatus: SigepRoleStatus.contratista,
+    ),
+    ContractorSummaryRecord(
+      initials: 'ET',
+      name: 'Empresa de Telecomunicaciones de Bogotá (ETB)',
+      rawSearchName: 'ETB SA ESP',
+      nit: '899.999.115-8',
+      rawDocumentDigits: '899999115',
+      personType: 'Persona jurídica',
+      totalContracts: 787,
+      totalValue: 3107364400561.47,
+      lastContractDate: '15/10/2026',
+      sector: 'Telecomunicaciones y conectividad',
+      year: '2026',
+      entitiesCount: 150,
+      sigepStatus: SigepRoleStatus.contratista,
+    ),
+    ContractorSummaryRecord(
+      initials: 'SP',
+      name: 'Servicios Postales Nacionales S.A.S. (4-72)',
+      rawSearchName: 'SERVICIOS POSTALES NACIONALES S.A.S',
+      nit: '900.062.917-9',
+      rawDocumentDigits: '900062917',
+      personType: 'Persona jurídica',
+      totalContracts: 2391,
+      totalValue: 2032997706204.07,
+      lastContractDate: '19/10/2026',
+      sector: 'Logística y correspondencia estatal',
+      year: '2026',
+      entitiesCount: 621,
+      sigepStatus: SigepRoleStatus.contratista,
+    ),
+    ContractorSummaryRecord(
+      initials: 'FD',
+      name: 'Financiera de Desarrollo Territorial S.A. (FINDETER)',
+      rawSearchName: 'FINANCIERA DE DESARROLLO TERRITORIAL S.A.',
+      nit: '800.096.329-7',
+      rawDocumentDigits: '800096329',
+      personType: 'Persona jurídica',
+      totalContracts: 259,
+      totalValue: 9188302307404.87,
+      lastContractDate: '06/03/2026',
+      sector: 'Banca y desarrollo territorial',
+      year: '2026',
+      entitiesCount: 135,
+      sigepStatus: SigepRoleStatus.contratista,
+    ),
+    ContractorSummaryRecord(
+      initials: 'UA',
+      name: 'Universidad de Antioquia',
+      rawSearchName: 'UNIVERSIDAD DE ANTIOQUIA',
+      nit: '890.980.040-8',
+      rawDocumentDigits: '890980040',
+      personType: 'Persona jurídica',
+      totalContracts: 1236,
+      totalValue: 2235468942774.55,
+      lastContractDate: '13/10/2026',
+      sector: 'Educación superior e investigación',
+      year: '2026',
+      entitiesCount: 145,
+      sigepStatus: SigepRoleStatus.contratista,
+    ),
+    ContractorSummaryRecord(
+      initials: 'BB',
+      name: 'Banco Bilbao Vizcaya Argentaria (BBVA Colombia)',
+      rawSearchName: 'BANCO BILBAO VIZCAYA ARGENTARIA S.A. (OFICIAL)',
+      nit: '860.003.020-1',
+      rawDocumentDigits: '860003020',
+      personType: 'Persona jurídica',
+      totalContracts: 212,
+      totalValue: 2626175624131.86,
+      lastContractDate: '08/10/2026',
+      sector: 'Banca y servicios financieros',
+      year: '2026',
+      entitiesCount: 79,
+      sigepStatus: SigepRoleStatus.contratista,
+    ),
+    ContractorSummaryRecord(
+      initials: 'MS',
+      name: 'ESE Metrosalud',
+      rawSearchName: 'ESE METROSALUD',
+      nit: '800.058.016-0',
+      rawDocumentDigits: '800058016',
+      personType: 'Persona jurídica',
+      totalContracts: 223,
+      totalValue: 1766348078094.00,
+      lastContractDate: '16/10/2026',
+      sector: 'Salud pública hospitalaria',
       year: '2026',
       entitiesCount: 4,
       sigepStatus: SigepRoleStatus.contratista,
@@ -548,17 +621,6 @@ class _ContratistasScreenState extends State<ContratistasScreen>
 
       final groupedMap = <String, _ContractorAccumulator>{};
 
-      // Incluir coincidencias de la semilla local si coinciden con los términos
-      for (final seed in _initialSeedContractors) {
-        if (termsToFetch.any((t) => _matchesSingleTerm(seed, t))) {
-          final key = _canonicalContractorKey(
-            seed.rawDocumentDigits,
-            seed.rawSearchName,
-          );
-          groupedMap[key] = _ContractorAccumulator.fromRecord(seed);
-        }
-      }
-
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
         for (final rawItem in data) {
@@ -603,6 +665,19 @@ class _ContratistasScreenState extends State<ContratistasScreen>
             isoDate: rawDate,
             entitiesCount: entitiesCnt,
           );
+        }
+      }
+
+      // Si la consulta en SECOP II no arrojó resultados o falló, se buscan coincidencias locales
+      if (groupedMap.isEmpty) {
+        for (final seed in _initialSeedContractors) {
+          if (termsToFetch.any((t) => _matchesSingleTerm(seed, t))) {
+            final key = _canonicalContractorKey(
+              seed.rawDocumentDigits,
+              seed.rawSearchName,
+            );
+            groupedMap[key] = _ContractorAccumulator.fromRecord(seed);
+          }
         }
       }
 
@@ -847,6 +922,10 @@ class _ContratistasScreenState extends State<ContratistasScreen>
         builder: (_) => PerfilContratistaScreen(
           nombreContratista: contractor.name,
           nombreBuscado: contractor.rawSearchName,
+          nit: contractor.nit,
+          documentoProveedor: contractor.rawDocumentDigits,
+          totalContractsSeed: contractor.totalContracts,
+          totalValueSeed: contractor.totalValue,
         ),
       ),
     );
@@ -1003,24 +1082,23 @@ class _ContratistasScreenState extends State<ContratistasScreen>
         _activeBulkTerms.isEmpty;
 
     final String totalContratistasKpi =
-        isDefaultView ? '2.486' : '${filtered.length}';
+        isDefaultView ? '+280.000' : '${filtered.length}';
     final int sumContracts =
         filtered.fold<int>(0, (sum, item) => sum + item.totalContracts);
     final String totalContratosKpi =
-        isDefaultView ? '3.842' : '$sumContracts';
+        isDefaultView ? '+4.5M' : '$sumContracts';
     final double sumValue =
         filtered.fold<double>(0, (sum, item) => sum + item.totalValue);
     final String valorContratadoKpi = isDefaultView
-        ? '\$426.800 M'
+        ? '+\$850 Billones'
         : _formatShortMillionsKpi(sumValue);
     final int sumEntities =
         filtered.fold<int>(0, (sum, item) => sum + item.entitiesCount);
-    final String entidadesKpi = isDefaultView ? '48' : '$sumEntities';
+    final String entidadesKpi = isDefaultView ? '+3.200' : '$sumEntities';
 
-    final int totalDisplayCount = isDefaultView ? 486 : filtered.length;
-    final int totalPages = isDefaultView
-        ? 49
-        : (filtered.isEmpty ? 1 : (filtered.length / _pageSize).ceil());
+    final int totalDisplayCount = filtered.length;
+    final int totalPages =
+        filtered.isEmpty ? 1 : (filtered.length / _pageSize).ceil();
     final int safePage = _currentPage.clamp(1, totalPages);
 
     final List<ContractorSummaryRecord> pageItems;
@@ -1137,6 +1215,7 @@ class _ContratistasScreenState extends State<ContratistasScreen>
                         pageSize: _pageSize,
                         sortBy: _sortBy,
                         isLoading: _isLoading,
+                        isDefaultView: isDefaultView,
                         onSortChanged: (val) {
                           setState(() {
                             _sortBy = val;
@@ -1242,8 +1321,10 @@ class ContratistasHeader extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(width: 12),
-        UserProfileHeaderAction(onLogout: onLogout),
+        if (!isMobile) ...[
+          const SizedBox(width: 12),
+          UserProfileHeaderAction(onLogout: onLogout),
+        ],
       ],
     );
   }
@@ -1724,6 +1805,7 @@ class ContratistasResultsTable extends StatelessWidget {
     required this.pageSize,
     required this.sortBy,
     required this.isLoading,
+    this.isDefaultView = false,
     required this.onSortChanged,
     required this.onPageChanged,
     required this.onOpenProfile,
@@ -1738,6 +1820,7 @@ class ContratistasResultsTable extends StatelessWidget {
   final int pageSize;
   final String sortBy;
   final bool isLoading;
+  final bool isDefaultView;
   final ValueChanged<String> onSortChanged;
   final ValueChanged<int> onPageChanged;
   final ValueChanged<ContractorSummaryRecord> onOpenProfile;
@@ -1789,9 +1872,11 @@ class ContratistasResultsTable extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Resultados de contratistas',
-                      style: TextStyle(
+                    Text(
+                      isDefaultView
+                          ? 'Contratistas representativos en SECOP II'
+                          : 'Resultados de contratistas',
+                      style: const TextStyle(
                         color: _azulTexto,
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
@@ -1801,7 +1886,9 @@ class ContratistasResultsTable extends StatelessWidget {
                     Text(
                       isLoading
                           ? 'Consultando SECOP II en tiempo real...'
-                          : '$totalFoundCount contratistas encontrados',
+                          : isDefaultView
+                              ? 'Mostrando $totalFoundCount contratistas verificados a nivel nacional (ingresa NIT o razón social para buscar cualquier otro)'
+                              : '$totalFoundCount contratistas encontrados para la consulta',
                       style: const TextStyle(
                         color: Color(0xFF64748B),
                         fontSize: 12.5,

@@ -35,11 +35,12 @@ class AuthService {
       final prefs = await SharedPreferences.getInstance();
       final isLogged = prefs.getBool('isLoggedIn') ?? false;
       final activeEmail =
-          (prefs.getString('usuarioActivo') ?? prefs.getString('userEmail') ?? '')
+          (prefs.getString('usuarioActivo') ??
+                  prefs.getString('userEmail') ??
+                  '')
               .trim()
               .toLowerCase();
-      final savedName =
-          (prefs.getString('usuarioNombreActivo') ?? '').trim();
+      final savedName = (prefs.getString('usuarioNombreActivo') ?? '').trim();
 
       final fbUser = _auth.currentUser;
       if (fbUser != null) {
@@ -50,10 +51,10 @@ class AuthService {
         _cachedFullName = fbName.isNotEmpty
             ? fbName
             : (profileName.isNotEmpty
-                ? profileName
-                : (savedName.isNotEmpty
-                    ? savedName
-                    : _humanizeEmailPrefix(fbEmail)));
+                  ? profileName
+                  : (savedName.isNotEmpty
+                        ? savedName
+                        : _humanizeEmailPrefix(fbEmail)));
         _isLocalSessionActive = true;
       } else if (isLogged && activeEmail.isNotEmpty) {
         final profileName = await _lookupStoredNameForEmail(prefs, activeEmail);
@@ -61,8 +62,8 @@ class AuthService {
         _cachedFullName = profileName.isNotEmpty
             ? profileName
             : (savedName.isNotEmpty
-                ? savedName
-                : _humanizeEmailPrefix(activeEmail));
+                  ? savedName
+                  : _humanizeEmailPrefix(activeEmail));
         _isLocalSessionActive = true;
       } else {
         _cachedEmail = '';
@@ -176,7 +177,7 @@ class AuthService {
 
     final merged = <String, dynamic>{
       ...existing,
-      if (extraProfileData != null) ...extraProfileData,
+      ...?extraProfileData,
       'email': cleanEmail,
       'displayName': resolvedName,
       'updatedAt': DateTime.now().toIso8601String(),
@@ -237,10 +238,7 @@ class AuthService {
         resolvedName = _humanizeEmailPrefix(cleanEmail);
       }
 
-      await _persistActiveSession(
-        email: cleanEmail,
-        displayName: resolvedName,
-      );
+      await _persistActiveSession(email: cleanEmail, displayName: resolvedName);
     } on FirebaseAuthException catch (error) {
       // Si el usuario se registró en este navegador/dispositivo y las credenciales coinciden
       // con el registro local (por ejemplo, cuando Firebase tiene restricciones de red/config),
@@ -285,8 +283,9 @@ class AuthService {
       if (kIsWeb) {
         await _auth.signInWithPopup(GoogleAuthProvider());
       } else {
-        final initialization = _googleSignInInitialization ??=
-            GoogleSignIn.instance.initialize();
+        final initialization = _googleSignInInitialization ??= GoogleSignIn
+            .instance
+            .initialize();
         await initialization;
 
         final googleUser = await GoogleSignIn.instance.authenticate();
@@ -303,8 +302,7 @@ class AuthService {
       if (email.isNotEmpty) {
         await _persistActiveSession(
           email: email,
-          displayName:
-              name.isNotEmpty ? name : _humanizeEmailPrefix(email),
+          displayName: name.isNotEmpty ? name : _humanizeEmailPrefix(email),
         );
       }
     } on FirebaseAuthException catch (error) {
@@ -327,8 +325,7 @@ class AuthService {
       if (email.isNotEmpty) {
         await _persistActiveSession(
           email: email,
-          displayName:
-              name.isNotEmpty ? name : _humanizeEmailPrefix(email),
+          displayName: name.isNotEmpty ? name : _humanizeEmailPrefix(email),
         );
       }
     } on FirebaseAuthException catch (error) {
@@ -369,9 +366,7 @@ class AuthService {
       if (user != null) {
         await user.updateDisplayName(displayName);
         await user.reload();
-        unawaited(
-          user.sendEmailVerification().catchError((_) {}),
-        );
+        unawaited(user.sendEmailVerification().catchError((_) {}));
       }
 
       await _persistActiveSession(

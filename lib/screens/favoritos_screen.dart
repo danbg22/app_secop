@@ -188,8 +188,11 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
               await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      PerfilContratistaScreen(nombreContratista: nombre),
+                  builder: (context) => PerfilContratistaScreen(
+                    nombreContratista: nombre,
+                    documentoProveedor: documento,
+                    nit: documento,
+                  ),
                 ),
               );
               if (mounted) await _cargarFavoritos();
@@ -317,11 +320,16 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
                             final proveedor = contrato['proveedor_adjudicado']
                                 ?.toString();
                             if (proveedor != null && proveedor.isNotEmpty) {
+                              final docProveedor =
+                                  contrato['documento_proveedor']?.toString();
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) => PerfilContratistaScreen(
                                     nombreContratista: proveedor,
+                                    nombreBuscado: proveedor,
+                                    documentoProveedor: docProveedor,
+                                    nit: docProveedor,
                                   ),
                                 ),
                               );
