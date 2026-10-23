@@ -283,12 +283,16 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
         widget.contrato['proveedor_adjudicado']?.toString().trim() ??
             _contratistaContrato;
     if (rawContractor.isEmpty || rawContractor == 'No disponible') return;
+    final docProveedor =
+        widget.contrato['documento_proveedor']?.toString().trim();
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => PerfilContratistaScreen(
           nombreContratista: _contratistaContrato,
           nombreBuscado: rawContractor,
+          documentoProveedor: docProveedor,
+          nit: docProveedor,
         ),
       ),
     );

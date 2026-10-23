@@ -1957,12 +1957,16 @@ class _ContratosSectionState extends State<ContratosSection> {
     final rawContractorName =
         contract.rawSecopJson['proveedor_adjudicado']?.toString().trim() ??
             contract.contractor;
+    final docProveedor =
+        contract.rawSecopJson['documento_proveedor']?.toString().trim();
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => PerfilContratistaScreen(
           nombreContratista: contract.contractor,
           nombreBuscado: rawContractorName,
+          documentoProveedor: docProveedor,
+          nit: docProveedor,
         ),
       ),
     );

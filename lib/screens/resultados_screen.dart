@@ -940,24 +940,6 @@ class _ResultadosScreenState extends State<ResultadosScreen> {
       ),
     );
   }
-
-  Widget _construirIndicador(IconData icono, String titulo, String valor) {
-    return Column(
-      children: [
-        Icon(icono, color: Colors.yellow[700], size: 30),
-        const SizedBox(height: 8),
-        Text(
-          valor,
-          style: const TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        Text(titulo, style: TextStyle(fontSize: 14, color: Colors.blue[200])),
-      ],
-    );
-  }
 }
 
 class IndicadorLeyenda extends StatelessWidget {
@@ -1128,6 +1110,9 @@ class _TarjetaContrato extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (context) => PerfilContratistaScreen(
                           nombreContratista: proveedor.toString(),
+                          nombreBuscado: contrato['proveedor_adjudicado']?.toString(),
+                          nit: contrato['documento_proveedor']?.toString(),
+                          documentoProveedor: contrato['documento_proveedor']?.toString(),
                         ),
                       ),
                     );

@@ -3900,6 +3900,8 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                         builder: (_) => PerfilContratistaScreen(
                           nombreContratista: pageItems[i].name,
                           nombreBuscado: pageItems[i].name,
+                          nit: pageItems[i].document,
+                          documentoProveedor: pageItems[i].document,
                         ),
                       ),
                     );

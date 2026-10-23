@@ -17,11 +17,19 @@ import 'resultados_busqueda_screen.dart';
 class PerfilContratistaScreen extends StatefulWidget {
   final String? nombreContratista;
   final String? nombreBuscado;
+  final String? nit;
+  final String? documentoProveedor;
+  final int? totalContractsSeed;
+  final double? totalValueSeed;
 
   const PerfilContratistaScreen({
     super.key,
     this.nombreContratista,
     this.nombreBuscado,
+    this.nit,
+    this.documentoProveedor,
+    this.totalContractsSeed,
+    this.totalValueSeed,
   }) : assert(nombreContratista != null || nombreBuscado != null);
 
   @override
@@ -58,6 +66,25 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
   }
 
   String get _idContratista => _nombreAuditar.toLowerCase();
+
+  String? get _nitDetectado {
+    if (widget.nit != null && widget.nit!.trim().isNotEmpty) {
+      return widget.nit!.trim();
+    }
+    if (widget.documentoProveedor != null &&
+        widget.documentoProveedor!.trim().isNotEmpty) {
+      return widget.documentoProveedor!.trim();
+    }
+    for (final c in historialContratos) {
+      if (c is Map && c['documento_proveedor'] != null) {
+        final d = c['documento_proveedor'].toString().trim();
+        if (d.isNotEmpty && d.toUpperCase() != 'NO DEFINIDO') {
+          return d;
+        }
+      }
+    }
+    return null;
+  }
 
   @override
   void initState() {
@@ -262,22 +289,67 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
 
   Future<void> _cargarHistorialContratista() async {
     try {
-      final urlStr =
-          'https://www.datos.gov.co/resource/jbjy-vk9h.json?proveedor_adjudicado=${Uri.encodeComponent(_nombreAuditar)}&\$order=fecha_de_firma%20DESC&\$limit=50000';
-      final respuesta = await http.get(Uri.parse(urlStr));
+      final List<dynamic> allContracts = [];
+      final Set<String> seenContractIds = {};
 
-      if (respuesta.statusCode != 200) {
-        throw Exception('SECOP respondió con estado ${respuesta.statusCode}.');
+      void addContractIfNew(dynamic c) {
+        if (c is! Map) return;
+        final id = (c['proceso_de_compra'] ??
+                c['id_contrato'] ??
+                c['referencia_del_contrato'] ??
+                '${c['numero_del_contrato']}_${c['nombre_entidad']}')
+            .toString()
+            .trim();
+        final key = id.isNotEmpty ? id : jsonEncode(c);
+        if (seenContractIds.add(key)) {
+          allContracts.add(c);
+        }
       }
 
-      final decoded = json.decode(respuesta.body);
-      if (decoded is! List<dynamic>) {
-        throw const FormatException('La respuesta de SECOP no es una lista.');
-      }
-      List<dynamic> data = decoded;
+      final cleanDoc = (widget.documentoProveedor ?? widget.nit ?? '')
+          .replaceAll(RegExp(r'[^0-9]'), '')
+          .trim();
 
-      // Fallback tolerante a mayúsculas/minúsculas o dobles espacios en SECOP II
-      if (data.isEmpty && _nombreAuditar.isNotEmpty) {
+      // 1. Consulta por documento_proveedor (B-tree indexado en Socrata, exhaustivo en todo el historial)
+      if (cleanDoc.length >= 5) {
+        final docUrl =
+            'https://www.datos.gov.co/resource/jbjy-vk9h.json?documento_proveedor=$cleanDoc&\$order=fecha_de_firma%20DESC&\$limit=50000';
+        try {
+          final resDoc = await http
+              .get(Uri.parse(docUrl))
+              .timeout(const Duration(seconds: 12));
+          if (resDoc.statusCode == 200) {
+            final decoded = json.decode(resDoc.body);
+            if (decoded is List) {
+              for (final c in decoded) {
+                addContractIfNew(c);
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 2. Consulta por nombre exacto del proveedor
+      if (_nombreAuditar.isNotEmpty) {
+        final nameUrl =
+            'https://www.datos.gov.co/resource/jbjy-vk9h.json?proveedor_adjudicado=${Uri.encodeComponent(_nombreAuditar)}&\$order=fecha_de_firma%20DESC&\$limit=50000';
+        try {
+          final resName = await http
+              .get(Uri.parse(nameUrl))
+              .timeout(const Duration(seconds: 12));
+          if (resName.statusCode == 200) {
+            final decoded = json.decode(resName.body);
+            if (decoded is List) {
+              for (final c in decoded) {
+                addContractIfNew(c);
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 3. Fallback tolerante si no encontró nada aún por nombre o documento
+      if (allContracts.isEmpty && _nombreAuditar.isNotEmpty) {
         final tokens = _nombreAuditar
             .toUpperCase()
             .replaceAll('Á', 'A')
@@ -295,23 +367,33 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
               .join(' AND ');
           final fallbackUrl =
               'https://www.datos.gov.co/resource/jbjy-vk9h.json?\$where=${Uri.encodeComponent(clauses)}&\$order=fecha_de_firma%20DESC&\$limit=2000';
-          final fallbackRes = await http.get(Uri.parse(fallbackUrl));
-          if (fallbackRes.statusCode == 200) {
-            final fallbackDecoded = json.decode(fallbackRes.body);
-            if (fallbackDecoded is List<dynamic>) {
-              data = fallbackDecoded;
+          try {
+            final fallbackRes = await http
+                .get(Uri.parse(fallbackUrl))
+                .timeout(const Duration(seconds: 12));
+            if (fallbackRes.statusCode == 200) {
+              final fallbackDecoded = json.decode(fallbackRes.body);
+              if (fallbackDecoded is List) {
+                for (final c in fallbackDecoded) {
+                  addContractIfNew(c);
+                }
+              }
             }
-          }
+          } catch (_) {}
         }
       }
 
-      final resumen = _calcularResumen(data);
+      final resumen = _calcularResumen(allContracts);
 
       if (!mounted) return;
       setState(() {
-        historialContratos = data;
-        cantidadContratos = resumen.$1;
-        valorTotalAcumulado = resumen.$2;
+        historialContratos = allContracts;
+        cantidadContratos = allContracts.isNotEmpty
+            ? resumen.$1
+            : (widget.totalContractsSeed ?? 0);
+        valorTotalAcumulado = allContracts.isNotEmpty
+            ? resumen.$2
+            : (widget.totalValueSeed ?? 0);
         isLoading = false;
       });
     } catch (_) {
@@ -486,14 +568,30 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                     ),
                     const SizedBox(width: 14),
                     Expanded(
-                      child: Text(
-                        _nombreMostrar,
-                        style: const TextStyle(
-                          fontSize: 18.5,
-                          fontWeight: FontWeight.w800,
-                          color: _azulOscuro,
-                          height: 1.2,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _nombreMostrar,
+                            style: const TextStyle(
+                              fontSize: 18.5,
+                              fontWeight: FontWeight.w800,
+                              color: _azulOscuro,
+                              height: 1.2,
+                            ),
+                          ),
+                          if (_nitDetectado != null) ...[
+                            const SizedBox(height: 3),
+                            Text(
+                              'NIT / C.C.: $_nitDetectado',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   ],
@@ -607,6 +705,17 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                           height: 1.15,
                         ),
                       ),
+                      if (_nitDetectado != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'NIT / C.C.: $_nitDetectado',
+                          style: const TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 10),
                       Wrap(
                         spacing: 10,
