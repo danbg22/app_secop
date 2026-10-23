@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../services/contract_document_service.dart';
 import '../widgets/collapsible_side_menu.dart';
 import '../widgets/dashboard_top_bar.dart';
 import 'home_screen.dart';
@@ -106,6 +107,25 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
         .toString()
         .trim();
     return raw.isEmpty ? 'Aprobado' : raw;
+  }
+
+  String get _procesoContrato {
+    final raw = (widget.contrato['proceso_de_compra'] ??
+            widget.contrato['id_contrato'] ??
+            widget.contrato['referencia_del_contrato'] ??
+            'Proceso SECOP II')
+        .toString()
+        .trim();
+    return raw.isEmpty ? 'Proceso SECOP II' : raw;
+  }
+
+  String get _referenciaContrato {
+    final raw = (widget.contrato['referencia_del_contrato'] ??
+            widget.contrato['id_contrato'] ??
+            _procesoContrato)
+        .toString()
+        .trim();
+    return raw.isEmpty ? _procesoContrato : raw;
   }
 
   String get _fechaFirmaIso {
@@ -883,6 +903,9 @@ PREGUNTA DEL USUARIO: $cleanText
   }
 
   Widget _buildDocumentosTabContent() {
+    final expectedDocs =
+        ContractDocumentService.getExpectedDocumentsForContract(widget.contrato);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -890,7 +913,7 @@ PREGUNTA DEL USUARIO: $cleanText
         const SizedBox(height: 16),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(28),
+          padding: const EdgeInsets.all(26),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(18),
@@ -905,44 +928,115 @@ PREGUNTA DEL USUARIO: $cleanText
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Expediente oficial',
-                style: TextStyle(
-                  color: _azulOscuro,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
+              // Encabezado principal del área de documentos
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.folder_shared_rounded,
+                      color: _azulPrimario,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Expediente Documental del Contrato',
+                          style: TextStyle(
+                            color: _azulOscuro,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Proceso oficial: $_procesoContrato   |   Ref: $_referenciaContrato',
+                          style: const TextStyle(
+                            color: Color(0xFF64748B),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Nota de Transparencia Ciudadana
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.info_outline_rounded,
+                      color: Color(0xFF475569),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Aviso de transparencia: La API abierta nacional (datos.gov.co) almacena únicamente la información de texto del contrato. Los archivos PDF escaneados originales (firmas manuscritas, sellos y anexos técnicos de la entidad) se custodian en el portal transaccional de SECOP II. Selecciona una de las dos opciones para acceder:',
+                        style: TextStyle(
+                          color: Colors.blueGrey.shade700,
+                          fontSize: 12.8,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 6),
-              const Text(
-                'Documentos anexos a este proceso de contratación. Haz clic para descargar o visualizar en el SECOP.',
-                style: TextStyle(
-                  color: Color(0xFF64748B),
-                  fontSize: 13.5,
-                ),
+              const SizedBox(height: 24),
+
+              // ENFOQUE DUAL: Botón 1 (Acceso Oficial) vs Botón 2 (Resumen Inteligente)
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth > 860;
+                  if (isWide) {
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: _buildOpcionOficialCard()),
+                        const SizedBox(width: 20),
+                        Expanded(child: _buildOpcionResumenCard()),
+                      ],
+                    );
+                  } else {
+                    return Column(
+                      children: [
+                        _buildOpcionOficialCard(),
+                        const SizedBox(height: 18),
+                        _buildOpcionResumenCard(),
+                      ],
+                    );
+                  }
+                },
               ),
-              const SizedBox(height: 20),
-              _buildPdfRow(
-                'Contrato_Principal_Firmado.pdf',
-                'Documento oficial',
-                '1.2 MB',
-              ),
-              _buildPdfRow(
-                'Pliego_de_Condiciones_Definitivo.pdf',
-                'Anexos técnicos y legales',
-                '3.5 MB',
-              ),
-              _buildPdfRow(
-                'Estudios_Previos_Justificacion.pdf',
-                'Justificación de la necesidad',
-                '850 KB',
-              ),
-              _buildPdfRow(
-                'Acta_de_Adjudicacion.pdf',
-                'Resolución de adjudicación',
-                '420 KB',
-                isLast: true,
-              ),
+
+              const SizedBox(height: 32),
+              const Divider(height: 1, color: Color(0xFFE2E8F0)),
+              const SizedBox(height: 24),
+
+              // Sección Informativa: Checklist de Documentos Esperados según Ley
+              _buildDocumentosEsperadosSection(expectedDocs),
             ],
           ),
         ),
@@ -950,101 +1044,469 @@ PREGUNTA DEL USUARIO: $cleanText
     );
   }
 
-  Widget _buildPdfRow(
-    String fileName,
-    String subtitle,
-    String size, {
-    bool isLast = false,
-  }) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: isLast ? 0 : 12),
-      child: InkWell(
-        onTap: _abrirEnlaceSecop,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+  /// TARJETA Y BOTÓN 1: El Acceso Oficial (Opción A)
+  Widget _buildOpcionOficialCard() {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: _azulOscuro.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
-          child: Row(
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Tag superior de opción oficial
+          Row(
             children: [
               Container(
-                width: 46,
-                height: 46,
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFEE2E2),
-                  borderRadius: BorderRadius.circular(12),
+                  color: const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(7),
+                  border: Border.all(color: const Color(0xFFA7F3D0)),
                 ),
-                child: const Icon(
-                  Icons.picture_as_pdf_rounded,
-                  color: Color(0xFFDC2626),
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
+                    Icon(Icons.verified, size: 13, color: Color(0xFF059669)),
+                    SizedBox(width: 5),
                     Text(
-                      fileName,
-                      style: const TextStyle(
-                        color: _azulOscuro,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
+                      'OPCIÓN A · FUENTE OFICIAL DEL ESTADO',
+                      style: TextStyle(
+                        color: Color(0xFF047857),
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Text(
-                          subtitle,
-                          style: const TextStyle(
-                            color: Color(0xFF64748B),
-                            fontSize: 12.5,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          width: 4,
-                          height: 4,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF94A3B8),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          size,
-                          style: const TextStyle(
-                            color: Color(0xFF64748B),
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
                     ),
                   ],
                 ),
               ),
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEDF2F9),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Título y explicación clara
+          const Text(
+            'Documentos oficiales en SECOP',
+            style: TextStyle(
+              color: _azulOscuro,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Abre directamente el expediente en el portal transaccional de Colombia Compra Eficiente (community.secop.gov.co) donde reposan los archivos escaneados originales subidos por la entidad pública.',
+            style: TextStyle(
+              color: Color(0xFF475569),
+              fontSize: 13,
+              height: 1.42,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Características de lo que encontrará
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildBulletPoint(
+                  Icons.picture_as_pdf_outlined,
+                  'PDFs originales escaneados con firmas y sellos institucionales.',
+                ),
+                const SizedBox(height: 8),
+                _buildBulletPoint(
+                  Icons.layers_outlined,
+                  'Estudios previos completos, CDP original, pliegos definitivos y pólizas.',
+                ),
+                const SizedBox(height: 8),
+                _buildBulletPoint(
+                  Icons.download_for_offline_outlined,
+                  'Descarga directa e inmediata desde los servidores del Gobierno.',
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // BOTÓN 1: "Documentos oficiales en SECOP"
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: ElevatedButton.icon(
+              onPressed: () =>
+                  ContractDocumentService.abrirDocumentosOficialesSecop(
+                context,
+                widget.contrato,
+              ),
+              icon: const Icon(Icons.open_in_new_rounded, size: 17),
+              label: const Text(
+                'Documentos oficiales en SECOP',
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0F2747),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(
-                  Icons.download_rounded,
-                  color: _azulOscuro,
-                  size: 19,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// TARJETA Y BOTÓN 2: El Resumen Inteligente (Opción B)
+  Widget _buildOpcionResumenCard() {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFDE68A), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Tag superior de opción generada por IA
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFFBEB),
+                  borderRadius: BorderRadius.circular(7),
+                  border: Border.all(color: const Color(0xFFFDE68A)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.auto_awesome, size: 13, color: Color(0xFFD97706)),
+                    SizedBox(width: 5),
+                    Text(
+                      'OPCIÓN B · RESUMEN INTELIGENTE IA',
+                      style: TextStyle(
+                        color: Color(0xFFB45309),
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 14),
+
+          // Título y explicación clara
+          const Text(
+            'Generar resumen de contrato y documentos',
+            style: TextStyle(
+              color: _azulOscuro,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Genera al instante un reporte conciso estructurado a partir de los datos abiertos de texto: monto, objeto, proceso, entidad, contratista y el checklist legal de documentos que deben existir.',
+            style: TextStyle(
+              color: Color(0xFF475569),
+              fontSize: 13,
+              height: 1.42,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Características de lo que encontrará
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFDF5),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFFEF3C7)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildBulletPoint(
+                  Icons.monetization_on_outlined,
+                  'Monto ($valorFormateado), objeto, número de proceso y partes.',
+                ),
+                const SizedBox(height: 8),
+                _buildBulletPoint(
+                  Icons.checklist_rtl_rounded,
+                  'Checklist legal de documentos esperados según la modalidad.',
+                ),
+                const SizedBox(height: 8),
+                _buildBulletPoint(
+                  Icons.security_outlined,
+                  'Transparente: Mini resumen sintético, no simula ser el original.',
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // BOTÓN 2: "Generar resumen de contrato y documentos" + Acción secundaria "Ver en navegador"
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 46,
+                  child: ElevatedButton.icon(
+                    onPressed: () =>
+                        ContractDocumentService.descargarResumenInteligente(
+                      context,
+                      widget.contrato,
+                    ),
+                    icon: const Icon(Icons.download_rounded, size: 17),
+                    label: const Text(
+                      'Generar resumen (PDF)',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1E3A8A),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                height: 46,
+                child: OutlinedButton.icon(
+                  onPressed: () =>
+                      ContractDocumentService.abrirResumenEnNavegador(
+                    context,
+                    widget.contrato,
+                  ),
+                  icon: const Icon(Icons.visibility_outlined, size: 16),
+                  label: const Text(
+                    'Ver PDF',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF1E3A8A),
+                    side: const BorderSide(color: Color(0xFF93C5FD)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBulletPoint(IconData icon, String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: _azulOscuro),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: Color(0xFF334155),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ),
+      ],
+    );
+  }
+
+  /// Sección informativa inferior con el Checklist de Documentos Esperados
+  Widget _buildDocumentosEsperadosSection(List<ExpectedDocumentItem> expectedDocs) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(
+              Icons.checklist_rounded,
+              color: _azulOscuro,
+              size: 22,
+            ),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text(
+                'Documentos que componen el expediente de este contrato',
+                style: TextStyle(
+                  color: _azulOscuro,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'Modalidad: $_modalidadContrato',
+                style: const TextStyle(
+                  color: Color(0xFF475569),
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Conforme a la Ley 80 de 1993, Ley 1150 de 2007 y Decreto 1082 de 2015, este proceso debe contar con los siguientes archivos en la plataforma oficial:',
+          style: TextStyle(
+            color: Color(0xFF64748B),
+            fontSize: 13,
+          ),
+        ),
+        const SizedBox(height: 18),
+
+        // Lista de documentos esperados
+        for (var i = 0; i < expectedDocs.length; i++)
+          _buildExpectedDocRow(expectedDocs[i]),
+      ],
+    );
+  }
+
+  Widget _buildExpectedDocRow(ExpectedDocumentItem item) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(item.icon, color: _azulPrimario, size: 20),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        item.name,
+                        style: const TextStyle(
+                          color: _azulOscuro,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFECFDF5),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFFA7F3D0)),
+                      ),
+                      child: const Text(
+                        'Requerido por Ley',
+                        style: TextStyle(
+                          color: Color(0xFF047857),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${item.legalReference} · ${item.description}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 11.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          TextButton.icon(
+            onPressed: () =>
+                ContractDocumentService.abrirDocumentosOficialesSecop(
+              context,
+              widget.contrato,
+            ),
+            icon: const Icon(Icons.open_in_new_rounded, size: 14),
+            label: const Text('Descargar en SECOP II'),
+            style: TextButton.styleFrom(
+              foregroundColor: _azulPrimario,
+              textStyle: const TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
