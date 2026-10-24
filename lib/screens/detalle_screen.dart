@@ -1302,18 +1302,18 @@ PREGUNTA DEL USUARIO: $cleanText
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildBulletPoint(
-                  Icons.monetization_on_outlined,
-                  'Monto ($_valorFormateado), objeto, número de proceso y partes.',
+                  Icons.table_chart_outlined,
+                  'Ficha técnica en casillas: proceso, modalidad, sector, plazos y valor ($_valorFormateado).',
                 ),
                 const SizedBox(height: 8),
                 _buildBulletPoint(
                   Icons.checklist_rtl_rounded,
-                  'Checklist legal de documentos esperados según la modalidad.',
+                  'Matriz formal de 8 documentos obligatorios con base legal y estado SECOP.',
                 ),
                 const SizedBox(height: 8),
                 _buildBulletPoint(
-                  Icons.security_outlined,
-                  'Transparente: Mini resumen sintético, no simula ser el original.',
+                  Icons.verified_outlined,
+                  'Sello de auditoría ciudadana, hash de trazabilidad y objeto contractual completo.',
                 ),
               ],
             ),

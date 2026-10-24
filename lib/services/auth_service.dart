@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'consent_service.dart';
+
 class AuthServiceException implements Exception {
   const AuthServiceException(this.message);
 
@@ -335,8 +337,17 @@ class AuthService {
 
   static Future<void> signUp(
     Map<String, dynamic> userData,
-    String password,
-  ) async {
+    String password, {
+    required bool aceptaTratamientoDatos,
+  }) async {
+    // Defensa en profundidad: aunque la UI ya lo valida, el servicio nunca crea
+    // una cuenta sin autorización expresa de tratamiento de datos (Ley 1581/2012).
+    if (!aceptaTratamientoDatos) {
+      throw const AuthServiceException(
+        'Debes aceptar la Política de Privacidad y Tratamiento de Datos Personales para crear tu cuenta.',
+      );
+    }
+
     final cleanEmail = (userData['email'] as String?)?.trim().toLowerCase();
     if (cleanEmail == null || cleanEmail.isEmpty) {
       throw const AuthServiceException(
@@ -364,6 +375,17 @@ class AuthService {
       );
       final user = userCredential.user;
       if (user != null) {
+        // Evidencia de la autorización en Firestore (auditoría SIC)
+        try {
+          await ConsentService.registrarAceptacionTratamientoDatos(
+            uid: user.uid,
+            email: cleanEmail,
+            canal: 'registro_email',
+          );
+        } catch (e) {
+          debugPrint('Aviso: No se pudo registrar en Firestore ($e). Se conserva evidencia en almacenamiento local.');
+        }
+
         await user.updateDisplayName(displayName);
         await user.reload();
         unawaited(user.sendEmailVerification().catchError((_) {}));
@@ -377,35 +399,55 @@ class AuthService {
           'email': cleanEmail,
           'displayName': displayName,
           'password': password,
+          'aceptacion_datos': true,
+          'version_politica': ConsentService.versionPolitica,
+          'fecha_aceptacion_datos': DateTime.now().toIso8601String(),
         },
       );
     } on FirebaseAuthException catch (error) {
       // Si el correo ya existía en Firebase, intentamos autenticarlo con esa contraseña
       // y actualizar su perfil para que el usuario pueda ingresar sin bloqueo.
       if (error.code == 'email-already-in-use') {
+        UserCredential cred;
         try {
-          final cred = await _auth.signInWithEmailAndPassword(
+          cred = await _auth.signInWithEmailAndPassword(
             email: cleanEmail,
             password: password,
           );
-          if (cred.user != null && displayName.isNotEmpty) {
-            await cred.user!.updateDisplayName(displayName);
-            await cred.user!.reload();
-          }
-          await _persistActiveSession(
-            email: cleanEmail,
-            displayName: displayName,
-            extraProfileData: {
-              ...userData,
-              'email': cleanEmail,
-              'displayName': displayName,
-              'password': password,
-            },
-          );
-          return;
         } catch (_) {
           throw AuthServiceException(_messageFor(error));
         }
+
+        // El usuario vuelve a aceptar la política en este registro: se deja nueva evidencia.
+        if (cred.user != null) {
+          try {
+            await ConsentService.registrarAceptacionTratamientoDatos(
+              uid: cred.user!.uid,
+              email: cleanEmail,
+              canal: 'registro_email_cuenta_existente',
+            );
+          } catch (e) {
+            debugPrint('Aviso: No se pudo registrar en Firestore ($e). Se conserva evidencia en almacenamiento local.');
+          }
+          if (displayName.isNotEmpty) {
+            await cred.user!.updateDisplayName(displayName);
+            await cred.user!.reload();
+          }
+        }
+        await _persistActiveSession(
+          email: cleanEmail,
+          displayName: displayName,
+          extraProfileData: {
+            ...userData,
+            'email': cleanEmail,
+            'displayName': displayName,
+            'password': password,
+            'aceptacion_datos': true,
+            'version_politica': ConsentService.versionPolitica,
+            'fecha_aceptacion_datos': DateTime.now().toIso8601String(),
+          },
+        );
+        return;
       }
       throw AuthServiceException(_messageFor(error));
     }
@@ -452,8 +494,17 @@ class AuthService {
     return true;
   }
 
-  Future<bool> registrarCuenta(String correo, String contrasena) async {
-    await signUp({'email': correo}, contrasena);
+  // Si un punto de entrada antiguo no envía la aceptación, signUp rechaza el registro.
+  Future<bool> registrarCuenta(
+    String correo,
+    String contrasena, {
+    bool aceptaTratamientoDatos = false,
+  }) async {
+    await signUp(
+      {'email': correo},
+      contrasena,
+      aceptaTratamientoDatos: aceptaTratamientoDatos,
+    );
     return true;
   }
 

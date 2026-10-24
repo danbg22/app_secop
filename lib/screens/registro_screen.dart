@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/auth_bg_asset_data.dart';
 import '../services/auth_service.dart';
+import '../services/consent_service.dart';
 
 class RegistroScreen extends StatefulWidget {
   const RegistroScreen({super.key});
@@ -29,6 +30,10 @@ class _RegistroScreenState extends State<RegistroScreen> {
   bool _isLoading = false;
   bool _passwordVisible = false;
   bool _confirmPasswordVisible = false;
+
+  /// Autorización expresa de tratamiento de datos (Ley 1581 de 2012). Obligatoria.
+  bool _aceptaPolitica = false;
+  bool _mostrarErrorPolitica = false;
 
   @override
   void dispose() {
@@ -64,9 +69,20 @@ class _RegistroScreenState extends State<RegistroScreen> {
   }
 
   Future<void> _register() async {
-    if (!_formKey.currentState!.validate()) {
+    final camposValidos = _formKey.currentState!.validate();
+    if (!_aceptaPolitica) {
+      setState(() => _mostrarErrorPolitica = true);
+    }
+    if (!camposValidos) {
       _showMessage(
         'Por favor revisa los campos resaltados.',
+        isError: true,
+      );
+      return;
+    }
+    if (!_aceptaPolitica) {
+      _showMessage(
+        'Debes aceptar la Política de Privacidad y Tratamiento de Datos Personales para continuar.',
         isError: true,
       );
       return;
@@ -88,6 +104,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
           'documento': _documentoController.text.trim(),
         },
         _passwordController.text,
+        aceptaTratamientoDatos: _aceptaPolitica,
       );
 
       if (!mounted) return;
@@ -534,15 +551,23 @@ class _RegistroScreenState extends State<RegistroScreen> {
                               ],
                             ),
                           ),
+                          const SizedBox(height: 12),
+
+                          // Autorización obligatoria de tratamiento de datos (Ley 1581 de 2012)
+                          _buildConsentimientoDatos(),
                           const SizedBox(height: 14),
 
                           // Primary dark navy button: Crear cuenta ->
                           SizedBox(
                             height: 48,
                             child: ElevatedButton(
+                              // Sigue siendo pulsable sin la casilla para poder
+                              // explicar el error; se ve atenuado como señal visual.
                               onPressed: _isLoading ? null : _register,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: _navyDark,
+                                backgroundColor: _aceptaPolitica
+                                    ? _navyDark
+                                    : _navyDark.withValues(alpha: 0.45),
                                 foregroundColor: Colors.white,
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
@@ -626,6 +651,168 @@ class _RegistroScreenState extends State<RegistroScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildConsentimientoDatos() {
+    final hayError = _mostrarErrorPolitica && !_aceptaPolitica;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.fromLTRB(4, 4, 12, 4),
+          decoration: BoxDecoration(
+            color: hayError ? const Color(0xFFFEF2F2) : const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(11),
+            border: Border.all(
+              color: hayError ? Colors.red.shade400 : const Color(0xFFD8DEE8),
+              width: hayError ? 1.4 : 1,
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Checkbox(
+                value: _aceptaPolitica,
+                activeColor: _navyDark,
+                side: BorderSide(
+                  color: hayError ? Colors.red.shade400 : const Color(0xFF64748B),
+                  width: 1.6,
+                ),
+                onChanged: _isLoading
+                    ? null
+                    : (value) => setState(() {
+                          _aceptaPolitica = value ?? false;
+                          if (_aceptaPolitica) _mostrarErrorPolitica = false;
+                        }),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 11),
+                  child: GestureDetector(
+                    onTap: _isLoading
+                        ? null
+                        : () => setState(() {
+                              _aceptaPolitica = !_aceptaPolitica;
+                              if (_aceptaPolitica) _mostrarErrorPolitica = false;
+                            }),
+                    child: Wrap(
+                      children: [
+                        const Text(
+                          'He leído y acepto la ',
+                          style: TextStyle(
+                            color: Color(0xFF334155),
+                            fontSize: 12.5,
+                            height: 1.4,
+                          ),
+                        ),
+                        InkWell(
+                          onTap: _mostrarPoliticaPrivacidad,
+                          child: const Text(
+                            'Política de Privacidad y Tratamiento de Datos Personales',
+                            style: TextStyle(
+                              color: _royalBlue,
+                              fontSize: 12.5,
+                              height: 1.4,
+                              fontWeight: FontWeight.w700,
+                              decoration: TextDecoration.underline,
+                              decorationColor: _royalBlue,
+                            ),
+                          ),
+                        ),
+                        const Text(
+                          ' y autorizo el tratamiento de mis datos conforme a la Ley 1581 de 2012. *',
+                          style: TextStyle(
+                            color: Color(0xFF334155),
+                            fontSize: 12.5,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (hayError)
+          Padding(
+            padding: const EdgeInsets.only(left: 12, top: 6),
+            child: Row(
+              children: [
+                Icon(Icons.error_outline, size: 15, color: Colors.red.shade700),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Debes aceptar la política para crear tu cuenta.',
+                    style: TextStyle(
+                      color: Colors.red.shade700,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _mostrarPoliticaPrivacidad() async {
+    final acepta = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(
+          'Política de Privacidad y Tratamiento de Datos Personales',
+          style: TextStyle(
+            color: _navyDark,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560, maxHeight: 420),
+          child: const SingleChildScrollView(
+            child: Text(
+              // TODO(legal): reemplazar por el texto definitivo aprobado por el área jurídica.
+              'Versión ${ConsentService.versionPolitica}\n\n'
+              '1. Responsable: Contrata Legal, plataforma de consulta ciudadana de contratación pública.\n\n'
+              '2. Datos tratados: nombres, apellidos, correo electrónico, país, y de forma opcional teléfono y número de documento.\n\n'
+              '3. Finalidades: crear y administrar tu cuenta, autenticarte, guardar tus favoritos y preferencias, enviarte comunicaciones relacionadas con el servicio y cumplir obligaciones legales.\n\n'
+              '4. Derechos del titular (Art. 8, Ley 1581 de 2012): conocer, actualizar y rectificar tus datos; solicitar prueba de esta autorización; ser informado del uso dado a tus datos; presentar quejas ante la Superintendencia de Industria y Comercio; revocar la autorización y solicitar la supresión de tus datos.\n\n'
+              '5. Datos sensibles: no son obligatorios; puedes abstenerte de suministrarlos.\n\n'
+              '6. Seguridad y conservación: los datos se almacenan en servicios de Google Firebase con medidas de seguridad razonables y se conservan mientras la cuenta esté activa o lo exija la ley.\n\n'
+              '7. Evidencia: al aceptar, se registra la fecha y hora de tu autorización y la versión de esta política, como prueba exigida por el Decreto 1377 de 2013.',
+              style: TextStyle(color: Color(0xFF334155), fontSize: 13, height: 1.5),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cerrar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _navyDark,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Acepto'),
+          ),
+        ],
+      ),
+    );
+
+    if (acepta == true && mounted) {
+      setState(() {
+        _aceptaPolitica = true;
+        _mostrarErrorPolitica = false;
+      });
+    }
   }
 
   String? _requiredValidator(String? value) {
