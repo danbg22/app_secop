@@ -149,6 +149,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 'assets/images/logo.png',
                 height: 34,
                 fit: BoxFit.contain,
+                alignment: Alignment.centerLeft,
+                filterQuality: FilterQuality.high,
               ),
               const SizedBox(width: 10),
               Flexible(
@@ -181,11 +183,13 @@ class _HomeScreenState extends State<HomeScreen> {
             if (_selectedIndex != 0 &&
                 _selectedIndex != 2 &&
                 _selectedIndex != 3 &&
-                _selectedIndex != 4)
+                _selectedIndex != 4 &&
+                _selectedIndex != 7)
               DashboardTopBar(
                 searchController: _searchController,
                 onSearchSubmitted: _handleUniversalSearch,
                 onLogout: _cerrarSesion,
+                showUserActions: false,
               ),
             _buildCurrentView(),
           ],

@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/colombia_secop_catalog.dart';
+import '../../utils/app_scroll_behavior.dart';
 import '../../utils/csv_exporter.dart';
 import '../../widgets/user_profile_header_action.dart';
 import '../detalle_screen.dart';
@@ -3211,7 +3212,7 @@ class _ContratosSectionState extends State<ContratosSection> {
   }
 
   Widget _buildHeaderSection() {
-    final isMobile = MediaQuery.sizeOf(context).width < 700;
+    final isMobile = MediaQuery.sizeOf(context).width < 768;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -3334,8 +3335,7 @@ class _ContratosSectionState extends State<ContratosSection> {
           ],
         ),
         const SizedBox(height: 8),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+        HorizontalWebScroll(
           child: Row(
             children: [
               for (var i = 0; i < _sectorMacroOptions.length; i++) ...[
@@ -3814,7 +3814,7 @@ class _ContratosSectionState extends State<ContratosSection> {
     final String contractorsCountText = '$uniqueContractors';
     final String entitiesCountText = '$uniqueEntities';
 
-    Widget kpi({
+    Widget kpiCardBox({
       required IconData icon,
       required Color iconColor,
       required Color iconBackground,
@@ -3822,95 +3822,93 @@ class _ContratosSectionState extends State<ContratosSection> {
       required String value,
       String? subtitleText,
     }) {
-      return Expanded(
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 11),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: _bordeCalido.withValues(alpha: 0.65)),
-            boxShadow: [
-              BoxShadow(
-                color: _azulOscuro.withValues(alpha: 0.03),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 11),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: _bordeCalido.withValues(alpha: 0.65)),
+          boxShadow: [
+            BoxShadow(
+              color: _azulOscuro.withValues(alpha: 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: iconBackground,
+                borderRadius: BorderRadius.circular(8),
               ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: iconBackground,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, color: iconColor, size: 16),
-              ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF64748B),
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w600,
-                      ),
+              child: Icon(icon, color: iconColor, size: 16),
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF64748B),
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
                     ),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      children: [
-                        Flexible(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              value,
-                              maxLines: 1,
-                              style: const TextStyle(
-                                color: _azulOscuro,
-                                fontSize: 15.5,
-                                fontWeight: FontWeight.w800,
-                              ),
+                  ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            value,
+                            maxLines: 1,
+                            style: const TextStyle(
+                              color: _azulOscuro,
+                              fontSize: 15.5,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                         ),
-                        if (subtitleText != null) ...[
-                          const SizedBox(width: 5),
-                          Flexible(
-                            child: Text(
-                              subtitleText,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xFF64748B),
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w500,
-                              ),
+                      ),
+                      if (subtitleText != null) ...[
+                        const SizedBox(width: 5),
+                        Flexible(
+                          child: Text(
+                            subtitleText,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFF64748B),
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                        ],
+                        ),
                       ],
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
     }
 
-    final kpiCards = [
-      kpi(
+    final kpiCardBoxes = [
+      kpiCardBox(
         icon: Icons.description_outlined,
         iconColor: const Color(0xFF2B7DE9),
         iconBackground: const Color(0xFFEAF3FF),
@@ -3918,7 +3916,7 @@ class _ContratosSectionState extends State<ContratosSection> {
         value: totalContractsText,
         subtitleText: 'SECOP II',
       ),
-      kpi(
+      kpiCardBox(
         icon: Icons.monetization_on_outlined,
         iconColor: const Color(0xFF22A05B),
         iconBackground: const Color(0xFFE6F6EC),
@@ -3926,7 +3924,7 @@ class _ContratosSectionState extends State<ContratosSection> {
         value: totalValueText,
         subtitleText: 'acumulado',
       ),
-      kpi(
+      kpiCardBox(
         icon: Icons.people_outline,
         iconColor: const Color(0xFF2563EB),
         iconBackground: const Color(0xFFEBF1FF),
@@ -3934,7 +3932,7 @@ class _ContratosSectionState extends State<ContratosSection> {
         value: contractorsCountText,
         subtitleText: 'verificados',
       ),
-      kpi(
+      kpiCardBox(
         icon: Icons.account_balance_outlined,
         iconColor: const Color(0xFFE5A024),
         iconBackground: const Color(0xFFFFF6DA),
@@ -3944,38 +3942,36 @@ class _ContratosSectionState extends State<ContratosSection> {
       ),
     ];
 
-    if (MediaQuery.sizeOf(context).width < 750) {
-      return Column(
-        children: [
-          Row(
+    return LayoutBuilder(
+      builder: (context, kpiConstraints) {
+        if (kpiConstraints.maxWidth >= 980) {
+          return Row(
             children: [
-              kpiCards[0],
-              const SizedBox(width: 8),
-              kpiCards[1],
+              Expanded(child: kpiCardBoxes[0]),
+              const SizedBox(width: 10),
+              Expanded(child: kpiCardBoxes[1]),
+              const SizedBox(width: 10),
+              Expanded(child: kpiCardBoxes[2]),
+              const SizedBox(width: 10),
+              Expanded(child: kpiCardBoxes[3]),
             ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              kpiCards[2],
-              const SizedBox(width: 8),
-              kpiCards[3],
-            ],
-          ),
-        ],
-      );
-    }
+          );
+        }
 
-    return Row(
-      children: [
-        kpiCards[0],
-        const SizedBox(width: 10),
-        kpiCards[1],
-        const SizedBox(width: 10),
-        kpiCards[2],
-        const SizedBox(width: 10),
-        kpiCards[3],
-      ],
+        return HorizontalWebScroll(
+          child: Row(
+            children: [
+              SizedBox(width: 235, child: kpiCardBoxes[0]),
+              const SizedBox(width: 10),
+              SizedBox(width: 235, child: kpiCardBoxes[1]),
+              const SizedBox(width: 10),
+              SizedBox(width: 235, child: kpiCardBoxes[2]),
+              const SizedBox(width: 10),
+              SizedBox(width: 235, child: kpiCardBoxes[3]),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -4529,8 +4525,7 @@ class _ContratosSectionState extends State<ContratosSection> {
           );
 
           if (tableConstraints.maxWidth < 820) {
-            return SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
+            return HorizontalWebScroll(
               child: SizedBox(width: 880, child: tableBody),
             );
           }
@@ -4684,6 +4679,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                       'assets/images/fondo_valledupar.jpg',
                       fit: BoxFit.cover,
                       alignment: const Alignment(0.0, -0.38),
+                      filterQuality: FilterQuality.high,
                       errorBuilder: (context, error, stackTrace) => Container(),
                     ),
                   ),

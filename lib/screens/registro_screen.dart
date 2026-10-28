@@ -138,6 +138,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
             fit: BoxFit.cover,
             alignment: isDesktop ? Alignment.centerLeft : Alignment.center,
             gaplessPlayback: true,
+            filterQuality: FilterQuality.high,
           ),
 
           // Deep navy / blue bottom-left wave overlay matching the Registro screenshot
@@ -185,8 +186,10 @@ class _RegistroScreenState extends State<RegistroScreen> {
                       borderRadius: BorderRadius.circular(12),
                       child: Image.asset(
                         'assets/images/logo.png',
-                        height: 92,
+                        height: 88,
                         fit: BoxFit.contain,
+                        alignment: Alignment.centerLeft,
+                        filterQuality: FilterQuality.high,
                       ),
                     ),
                     const SizedBox(height: 18),
@@ -322,6 +325,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                                       'assets/images/logo.png',
                                       height: 62,
                                       fit: BoxFit.contain,
+                                      filterQuality: FilterQuality.high,
                                     ),
                                   ),
                                   const SizedBox(height: 10),

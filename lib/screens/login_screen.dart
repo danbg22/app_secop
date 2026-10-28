@@ -156,6 +156,7 @@ class _LoginScreenState extends State<LoginScreen> {
             fit: BoxFit.cover,
             alignment: isDesktop ? Alignment.centerLeft : Alignment.center,
             gaplessPlayback: true,
+            filterQuality: FilterQuality.high,
           ),
 
           // Subtle gradient overlay on smaller screens so the card & logo stay crisp
@@ -184,8 +185,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 borderRadius: BorderRadius.circular(12),
                 child: Image.asset(
                   'assets/images/logo.png',
-                  height: isDesktop ? 92 : 70,
+                  height: isDesktop ? 88 : 68,
                   fit: BoxFit.contain,
+                  alignment: Alignment.centerLeft,
+                  filterQuality: FilterQuality.high,
                 ),
               ),
             ),
@@ -270,8 +273,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           Center(
                             child: Image.asset(
                               'assets/images/logo.png',
-                              height: isMobile ? 74 : 84,
+                              height: isMobile ? 72 : 82,
                               fit: BoxFit.contain,
+                              filterQuality: FilterQuality.high,
                             ),
                           ),
                           const SizedBox(height: 10),

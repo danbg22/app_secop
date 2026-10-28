@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../services/sigep_service.dart';
+import '../utils/app_scroll_behavior.dart';
 import '../utils/csv_exporter.dart';
 import '../widgets/user_profile_header_action.dart';
 import 'perfil_contratista_screen.dart';
@@ -1134,6 +1135,7 @@ class _ContratistasScreenState extends State<ContratistasScreen>
                     'assets/images/fondo_valledupar.jpg',
                     fit: BoxFit.cover,
                     alignment: const Alignment(0.0, -0.35),
+                    filterQuality: FilterQuality.high,
                     errorBuilder: (context, error, stackTrace) =>
                         const SizedBox.shrink(),
                   ),
@@ -1281,7 +1283,7 @@ class ContratistasHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.sizeOf(context).width < 650;
+    final isMobile = MediaQuery.sizeOf(context).width < 768;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1755,7 +1757,7 @@ class ContratistasKpiRow extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth >= 900) {
+        if (constraints.maxWidth >= 920) {
           return Row(
             children: [
               Expanded(child: cards[0]),
@@ -1768,24 +1770,18 @@ class ContratistasKpiRow extends StatelessWidget {
             ],
           );
         }
-        return Column(
-          children: [
-            Row(
-              children: [
-                Expanded(child: cards[0]),
-                const SizedBox(width: 12),
-                Expanded(child: cards[1]),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(child: cards[2]),
-                const SizedBox(width: 12),
-                Expanded(child: cards[3]),
-              ],
-            ),
-          ],
+        return HorizontalWebScroll(
+          child: Row(
+            children: [
+              SizedBox(width: 242, child: cards[0]),
+              const SizedBox(width: 12),
+              SizedBox(width: 242, child: cards[1]),
+              const SizedBox(width: 12),
+              SizedBox(width: 242, child: cards[2]),
+              const SizedBox(width: 12),
+              SizedBox(width: 242, child: cards[3]),
+            ],
+          ),
         );
       },
     );

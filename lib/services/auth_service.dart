@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -27,6 +29,7 @@ class AuthService {
 
   static String _cachedEmail = '';
   static String _cachedFullName = '';
+  static String _cachedPhotoData = '';
   static bool _isLocalSessionActive = false;
 
   static const String _kUsersRegistryKey = 'registered_users_v1';
@@ -50,6 +53,7 @@ class AuthService {
         _cachedEmail = fbEmail;
         final fbName = (fbUser.displayName ?? '').trim();
         final profileName = await _lookupStoredNameForEmail(prefs, fbEmail);
+        _cachedPhotoData = await _lookupStoredPhotoForEmail(prefs, fbEmail);
         _cachedFullName = fbName.isNotEmpty
             ? fbName
             : (profileName.isNotEmpty
@@ -60,6 +64,7 @@ class AuthService {
         _isLocalSessionActive = true;
       } else if (isLogged && activeEmail.isNotEmpty) {
         final profileName = await _lookupStoredNameForEmail(prefs, activeEmail);
+        _cachedPhotoData = await _lookupStoredPhotoForEmail(prefs, activeEmail);
         _cachedEmail = activeEmail;
         _cachedFullName = profileName.isNotEmpty
             ? profileName
@@ -70,6 +75,7 @@ class AuthService {
       } else {
         _cachedEmail = '';
         _cachedFullName = '';
+        _cachedPhotoData = '';
         _isLocalSessionActive = false;
       }
       authStateVersion.value++;
@@ -111,6 +117,42 @@ class AuthService {
     final full = getActiveUserDisplayName().trim();
     if (full.isEmpty) return 'Usuario';
     return full.split(RegExp(r'\s+')).first;
+  }
+
+  /// Devuelve la fuente de foto del usuario activo (Data URL subida, URL web o Firebase Auth).
+  static String? getActiveUserPhotoSource() {
+    if (_cachedPhotoData.trim().isNotEmpty) {
+      return _cachedPhotoData.trim();
+    }
+    final fbPhoto = _auth.currentUser?.photoURL?.trim();
+    if (fbPhoto != null && fbPhoto.isNotEmpty) {
+      return fbPhoto;
+    }
+    return null;
+  }
+
+  /// Construye un [ImageProvider] listo para usar en avatares (Data URL base64 o NetworkImage).
+  static ImageProvider<Object>? getActiveUserAvatarImageProvider() {
+    final src = getActiveUserPhotoSource();
+    if (src == null || src.isEmpty) return null;
+
+    if (src.startsWith('data:image/') && src.contains(',')) {
+      try {
+        final base64Part = src.substring(src.indexOf(',') + 1);
+        final bytes = base64Decode(base64Part);
+        if (bytes.isNotEmpty) {
+          return MemoryImage(bytes);
+        }
+      } catch (_) {
+        return null;
+      }
+    }
+
+    if (src.startsWith('http://') || src.startsWith('https://')) {
+      return NetworkImage(src);
+    }
+
+    return null;
   }
 
   static String _humanizeEmailPrefix(String email) {
@@ -161,6 +203,20 @@ class AuthService {
     return '';
   }
 
+  static Future<String> _lookupStoredPhotoForEmail(
+    SharedPreferences prefs,
+    String email,
+  ) async {
+    final clean = email.trim().toLowerCase();
+    if (clean.isEmpty) return '';
+    final reg = await _loadRegistry(prefs);
+    final entry = reg[clean];
+    if (entry is Map) {
+      return (entry['photoData'] ?? '').toString().trim();
+    }
+    return '';
+  }
+
   static Future<void> _persistActiveSession({
     required String email,
     required String displayName,
@@ -194,6 +250,7 @@ class AuthService {
 
     _cachedEmail = cleanEmail;
     _cachedFullName = resolvedName;
+    _cachedPhotoData = (merged['photoData'] ?? '').toString().trim();
     _isLocalSessionActive = true;
     authStateVersion.value++;
   }
@@ -270,6 +327,7 @@ class AuthService {
 
       _cachedEmail = '';
       _cachedFullName = '';
+      _cachedPhotoData = '';
       _isLocalSessionActive = false;
 
       await FirebaseAuth.instance.signOut();
@@ -375,13 +433,26 @@ class AuthService {
       );
       final user = userCredential.user;
       if (user != null) {
-        // Evidencia de la autorización en Firestore (auditoría SIC)
+        // Evidencia de la autorización en Firestore (auditoría SIC) + datos de perfil
         try {
           await ConsentService.registrarAceptacionTratamientoDatos(
             uid: user.uid,
             email: cleanEmail,
             canal: 'registro_email',
           );
+          await FirebaseFirestore.instance
+              .collection(ConsentService.coleccionUsuarios)
+              .doc(user.uid)
+              .set({
+                'nombres': nombres,
+                'apellidos': apellidos,
+                'displayName': displayName,
+                'pais': (userData['pais'] ?? 'Colombia').toString().trim(),
+                'telefono': (userData['telefono'] ?? '').toString().trim(),
+                'documento': (userData['documento'] ?? '').toString().trim(),
+                'actualizado_en': FieldValue.serverTimestamp(),
+              }, SetOptions(merge: true))
+              .timeout(const Duration(seconds: 5));
         } catch (e) {
           debugPrint('Aviso: No se pudo registrar en Firestore ($e). Se conserva evidencia en almacenamiento local.');
         }
@@ -461,6 +532,261 @@ class AuthService {
     }
   }
 
+  /// Obtiene los datos completos del perfil del usuario activo (registro local +
+  /// Firebase Auth + respaldo en Firestore `usuarios/{uid}`).
+  static Future<Map<String, dynamic>> getActiveUserProfile() async {
+    final fbUser = _auth.currentUser;
+    final activeEmail = getActiveUserEmail().trim().toLowerCase();
+    final prefs = await SharedPreferences.getInstance();
+    final registry = await _loadRegistry(prefs);
+
+    Map<String, dynamic> localData = <String, dynamic>{};
+    if (activeEmail.isNotEmpty && registry[activeEmail] is Map) {
+      localData = Map<String, dynamic>.from(registry[activeEmail] as Map);
+    }
+
+    // Si faltan campos del registro (ej. inició sesión en otro navegador), intentamos recuperar de Firestore
+    if (fbUser != null &&
+        ((localData['documento'] ?? '').toString().trim().isEmpty ||
+            (localData['nombres'] ?? '').toString().trim().isEmpty)) {
+      try {
+        final snap = await FirebaseFirestore.instance
+            .collection(ConsentService.coleccionUsuarios)
+            .doc(fbUser.uid)
+            .get()
+            .timeout(const Duration(seconds: 4));
+        final remote = snap.data();
+        if (remote != null) {
+          for (final key in const [
+            'nombres',
+            'apellidos',
+            'documento',
+            'telefono',
+            'pais',
+            'aceptacion_datos',
+            'version_politica',
+          ]) {
+            final currentVal = (localData[key] ?? '').toString().trim();
+            if (currentVal.isEmpty && remote[key] != null) {
+              localData[key] = remote[key];
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    final fullDisplay = getActiveUserDisplayName().trim();
+    String nombres = (localData['nombres'] ?? '').toString().trim();
+    String apellidos = (localData['apellidos'] ?? '').toString().trim();
+
+    if (nombres.isEmpty && fullDisplay.isNotEmpty && fullDisplay != 'Usuario') {
+      final parts = fullDisplay.split(RegExp(r'\s+'));
+      if (parts.length == 1) {
+        nombres = parts.first;
+      } else {
+        final half = (parts.length / 2).ceil();
+        nombres = parts.sublist(0, half).join(' ');
+        apellidos = parts.sublist(half).join(' ');
+      }
+    }
+
+    final bool hasPasswordProvider = fbUser == null
+        ? true
+        : (fbUser.providerData.isEmpty ||
+              fbUser.providerData.any((p) => p.providerId == 'password'));
+
+    final storedPhoto = (localData['photoData'] ?? '').toString().trim();
+    if (storedPhoto.isNotEmpty && _cachedPhotoData.isEmpty) {
+      _cachedPhotoData = storedPhoto;
+    }
+
+    return <String, dynamic>{
+      'nombres': nombres,
+      'apellidos': apellidos,
+      'displayName': fullDisplay,
+      'email': activeEmail,
+      'documento': (localData['documento'] ?? '').toString().trim(),
+      'telefono': (localData['telefono'] ?? '').toString().trim(),
+      'pais': (localData['pais'] ?? '').toString().trim().isNotEmpty
+          ? (localData['pais']).toString().trim()
+          : 'Colombia',
+      'photoURL': getActiveUserPhotoSource(),
+      'hasPasswordProvider': hasPasswordProvider,
+      'aceptacion_datos': localData['aceptacion_datos'] == true,
+      'version_politica':
+          (localData['version_politica'] ?? ConsentService.versionPolitica)
+              .toString(),
+    };
+  }
+
+  /// Actualiza o restaura la foto de perfil del usuario activo (Data URL o URL).
+  static Future<void> updateActiveUserPhoto(String? photoSource) async {
+    final activeEmail = getActiveUserEmail().trim().toLowerCase();
+    if (activeEmail.isEmpty) {
+      throw const AuthServiceException(
+        'No se encontró una sesión activa para actualizar la foto.',
+      );
+    }
+
+    final cleanPhoto = (photoSource ?? '').trim();
+    final fbUser = _auth.currentUser;
+    if (fbUser != null &&
+        (cleanPhoto.isEmpty ||
+            cleanPhoto.startsWith('http://') ||
+            cleanPhoto.startsWith('https://'))) {
+      try {
+        await fbUser.updatePhotoURL(cleanPhoto.isEmpty ? null : cleanPhoto);
+        await fbUser.reload();
+      } catch (_) {}
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final registry = await _loadRegistry(prefs);
+    final existing = registry[activeEmail] is Map
+        ? Map<String, dynamic>.from(registry[activeEmail] as Map)
+        : <String, dynamic>{};
+    existing['photoData'] = cleanPhoto;
+    existing['updatedAt'] = DateTime.now().toIso8601String();
+    registry[activeEmail] = existing;
+    await prefs.setString(_kUsersRegistryKey, jsonEncode(registry));
+
+    _cachedPhotoData = cleanPhoto;
+    authStateVersion.value++;
+  }
+
+  /// Actualiza únicamente los datos editables del perfil (conservando bloqueados
+  /// el correo electrónico y la cédula/documento).
+  static Future<void> updateActiveUserProfile({
+    required String nombres,
+    required String apellidos,
+    required String telefono,
+    required String pais,
+  }) async {
+    final activeEmail = getActiveUserEmail().trim().toLowerCase();
+    if (activeEmail.isEmpty) {
+      throw const AuthServiceException(
+        'No se encontró una sesión activa para actualizar el perfil.',
+      );
+    }
+
+    final cleanNombres = nombres.trim();
+    final cleanApellidos = apellidos.trim();
+    final cleanTelefono = telefono.trim();
+    final cleanPais = pais.trim().isNotEmpty ? pais.trim() : 'Colombia';
+    final displayName = '$cleanNombres $cleanApellidos'.trim().isNotEmpty
+        ? '$cleanNombres $cleanApellidos'.trim()
+        : getActiveUserDisplayName();
+
+    final fbUser = _auth.currentUser;
+    if (fbUser != null) {
+      try {
+        await fbUser.updateDisplayName(displayName);
+        await fbUser.reload();
+      } catch (_) {}
+
+      try {
+        await FirebaseFirestore.instance
+            .collection(ConsentService.coleccionUsuarios)
+            .doc(fbUser.uid)
+            .set({
+              'nombres': cleanNombres,
+              'apellidos': cleanApellidos,
+              'displayName': displayName,
+              'telefono': cleanTelefono,
+              'pais': cleanPais,
+              'actualizado_en': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true))
+            .timeout(const Duration(seconds: 4));
+      } catch (_) {}
+    }
+
+    await _persistActiveSession(
+      email: activeEmail,
+      displayName: displayName,
+      extraProfileData: {
+        'nombres': cleanNombres,
+        'apellidos': cleanApellidos,
+        'telefono': cleanTelefono,
+        'pais': cleanPais,
+      },
+    );
+  }
+
+  /// Cambia la contraseña del usuario activo validando primero su contraseña actual.
+  static Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    if (currentPassword.isEmpty) {
+      throw const AuthServiceException('Ingresa tu contraseña actual.');
+    }
+    if (newPassword.length < 6) {
+      throw const AuthServiceException(
+        'La nueva contraseña debe tener al menos 6 caracteres.',
+      );
+    }
+    if (currentPassword == newPassword) {
+      throw const AuthServiceException(
+        'La nueva contraseña debe ser diferente a la contraseña actual.',
+      );
+    }
+
+    final activeEmail = getActiveUserEmail().trim().toLowerCase();
+    if (activeEmail.isEmpty) {
+      throw const AuthServiceException(
+        'No hay una sesión activa para cambiar la contraseña.',
+      );
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final registry = await _loadRegistry(prefs);
+    final localEntry = registry[activeEmail] is Map
+        ? Map<String, dynamic>.from(registry[activeEmail] as Map)
+        : <String, dynamic>{};
+
+    final fbUser = _auth.currentUser;
+    if (fbUser != null &&
+        fbUser.email?.trim().toLowerCase() == activeEmail) {
+      final usesPassword = fbUser.providerData.isEmpty ||
+          fbUser.providerData.any((p) => p.providerId == 'password');
+      if (!usesPassword) {
+        throw const AuthServiceException(
+          'Tu cuenta inició sesión mediante proveedor externo (Google / Apple) y no utiliza clave local.',
+        );
+      }
+
+      try {
+        final credential = EmailAuthProvider.credential(
+          email: activeEmail,
+          password: currentPassword,
+        );
+        await fbUser.reauthenticateWithCredential(credential);
+        await fbUser.updatePassword(newPassword);
+      } on FirebaseAuthException catch (error) {
+        if (error.code == 'wrong-password' ||
+            error.code == 'invalid-credential') {
+          throw const AuthServiceException(
+            'La contraseña actual ingresada no es correcta.',
+          );
+        }
+        throw AuthServiceException(_messageFor(error));
+      }
+    } else {
+      final savedPass = (localEntry['password'] ?? '').toString();
+      if (savedPass.isEmpty || savedPass != currentPassword) {
+        throw const AuthServiceException(
+          'La contraseña actual ingresada no es correcta.',
+        );
+      }
+    }
+
+    // Sincronizamos el registro local para mantener consistencia
+    localEntry['password'] = newPassword;
+    localEntry['updatedAt'] = DateTime.now().toIso8601String();
+    registry[activeEmail] = localEntry;
+    await prefs.setString(_kUsersRegistryKey, jsonEncode(registry));
+  }
+
   static String _messageFor(FirebaseAuthException error) {
     switch (error.code) {
       case 'user-not-found':
@@ -473,6 +799,8 @@ class AuthService {
         return 'Ya existe una cuenta registrada con ese correo. Inicia sesión con tu contraseña.';
       case 'weak-password':
         return 'La contraseña debe tener al menos 6 caracteres.';
+      case 'requires-recent-login':
+        return 'Por seguridad, vuelve a iniciar sesión antes de cambiar tu contraseña.';
       case 'invalid-email':
         return 'El formato del correo electrónico no es válido.';
       case 'user-disabled':

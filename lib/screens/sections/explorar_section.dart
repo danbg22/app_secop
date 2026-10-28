@@ -120,6 +120,7 @@ class ExplorarSection extends StatelessWidget {
                     child: Image.asset(
                       'assets/images/fondo_valledupar.jpg',
                       fit: BoxFit.cover,
+                      filterQuality: FilterQuality.high,
                       errorBuilder: (context, error, stackTrace) =>
                           const SizedBox.shrink(),
                     ),

@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 
 import '../../data/colombia_entities_database.dart';
 import '../../services/auth_service.dart';
+import '../../utils/app_scroll_behavior.dart';
 import '../../widgets/user_profile_header_action.dart';
 import '../perfil_entidad_screen.dart';
 
@@ -1060,56 +1061,11 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     Navigator.of(
       context,
       rootNavigator: true,
-    ).pushNamedAndRemoveUntil('/login', (route) => false);
+    ).pushNamedAndRemoveUntil('/portada', (route) => false);
   }
 
   Widget _buildTopRightProfileBar() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        InkWell(
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Tienes 3 alertas activas de contratación pública en SECOP II.',
-                ),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          },
-          borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: const EdgeInsets.all(6),
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                const Icon(
-                  Icons.notifications_none_rounded,
-                  color: _azulOscuro,
-                  size: 24,
-                ),
-                Positioned(
-                  right: 1,
-                  top: 1,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEF4444),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 1.2),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 14),
-        UserProfileHeaderAction(onLogout: _handleLogout),
-      ],
-    );
+    return UserProfileHeaderAction(onLogout: _handleLogout);
   }
 
   Widget _buildHeaderLeftWithCallout() {
@@ -1325,97 +1281,95 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       required String trendComparison,
       double valueFontSize = 25,
     }) {
-      return Expanded(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: _azulOscuro.withValues(alpha: 0.04),
-                blurRadius: 14,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              iconCircle,
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: _azulOscuro.withValues(alpha: 0.04),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            iconCircle,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF334155),
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      height: 1.15,
+                    ),
+                  ),
+                  if (subtitleUnderTitle != null)
                     Text(
-                      title,
+                      subtitleUnderTitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: Color(0xFF334155),
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF64748B),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
                         height: 1.15,
                       ),
                     ),
-                    if (subtitleUnderTitle != null)
-                      Text(
-                        subtitleUnderTitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF64748B),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          height: 1.15,
-                        ),
-                      ),
-                    const SizedBox(height: 4),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        mainValue,
-                        style: TextStyle(
-                          color: _azulOscuro,
-                          fontSize: valueFontSize,
-                          fontWeight: FontWeight.w900,
-                          height: 1.1,
-                        ),
+                  const SizedBox(height: 4),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      mainValue,
+                      style: TextStyle(
+                        color: _azulOscuro,
+                        fontSize: valueFontSize,
+                        fontWeight: FontWeight.w900,
+                        height: 1.1,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    RichText(
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      text: TextSpan(
-                        children: [
-                          TextSpan(
-                            text: trendPercent,
-                            style: const TextStyle(
-                              color: Color(0xFF16A34A),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                            ),
+                  ),
+                  const SizedBox(height: 4),
+                  RichText(
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: trendPercent,
+                          style: const TextStyle(
+                            color: Color(0xFF16A34A),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
                           ),
-                          TextSpan(
-                            text: ' $trendComparison',
-                            style: const TextStyle(
-                              color: Color(0xFF64748B),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                            ),
+                        ),
+                        TextSpan(
+                          text: ' $trendComparison',
+                          style: const TextStyle(
+                            color: Color(0xFF64748B),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
     }
@@ -1515,33 +1469,43 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       trendComparison: 'adjudicados',
     );
 
-    final bool isNarrowKpi = MediaQuery.sizeOf(context).width < 800;
-
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: isNarrowKpi
-          ? Column(
+      child: LayoutBuilder(
+        builder: (context, kpiConstraints) {
+          if (kpiConstraints.maxWidth >= 860) {
+            return Row(
               children: [
-                Row(children: [card1, const SizedBox(width: 8), card2]),
-                const SizedBox(height: 8),
-                Row(children: [card3, const SizedBox(width: 8), card4]),
+                Expanded(child: card1),
+                const SizedBox(width: 10),
+                Expanded(child: card2),
+                const SizedBox(width: 10),
+                Expanded(child: card3),
+                const SizedBox(width: 10),
+                Expanded(child: card4),
               ],
-            )
-          : Row(
+            );
+          }
+
+          return HorizontalWebScroll(
+            child: Row(
               children: [
-                card1,
+                SizedBox(width: 228, child: card1),
                 const SizedBox(width: 10),
-                card2,
+                SizedBox(width: 228, child: card2),
                 const SizedBox(width: 10),
-                card3,
+                SizedBox(width: 228, child: card3),
                 const SizedBox(width: 10),
-                card4,
+                SizedBox(width: 228, child: card4),
               ],
             ),
+          );
+        },
+      ),
     );
   }
 
@@ -1809,8 +1773,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
             child: Row(
               children: [
                 Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
+                  child: HorizontalWebScroll(
                     child: Row(
                       children: [
                         _buildCategoryTab(
@@ -2274,6 +2237,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                           'assets/images/fondo_valledupar.jpg',
                           fit: BoxFit.cover,
                           alignment: const Alignment(0.2, -0.28),
+                          filterQuality: FilterQuality.high,
                           errorBuilder: (_, _, _) => const SizedBox.expand(),
                         ),
                       ),
@@ -2307,6 +2271,13 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                     ? Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          if (MediaQuery.sizeOf(context).width >= 768) ...[
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: _buildTopRightProfileBar(),
+                            ),
+                            const SizedBox(height: 6),
+                          ],
                           _buildHeaderLeftWithCallout(),
                           const SizedBox(height: 10),
                           _buildSearchAndFiltersCard(),

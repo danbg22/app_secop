@@ -1,7 +1,8 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import 'custom_app_bar.dart';
+import 'pqrs_help_dialog.dart';
 
 class MenuOptionItem {
   const MenuOptionItem({required this.titulo, required this.icono});
@@ -42,56 +43,7 @@ class CollapsibleSideMenu extends StatelessWidget {
   ];
 
   void _showHelpDialog(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.support_agent_rounded, color: _azulOscuro),
-            SizedBox(width: 10),
-            Text(
-              'Centro de Ayuda · Contrata Legal',
-              style: TextStyle(
-                color: _azulOscuro,
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-        content: const SizedBox(
-          width: 380,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Consulta contratos públicos en tiempo real conectados con Datos Abiertos (SECOP II) y verificación SIGEP.',
-                style: TextStyle(color: Color(0xFF475569), fontSize: 13.5),
-              ),
-              SizedBox(height: 14),
-              Text(
-                '• Usa la barra de búsqueda o los filtros para consultar procesos por entidad, ubicación, año, modalidad o estado.\n'
-                '• Haz clic en el ícono del ojo (👁) para una vista rápida o en "Ver detalle >" para abrir el Copiloto IA ✨.\n'
-                '• Haz clic en el isotipo superior para contraer o expandir la barra lateral.',
-                style: TextStyle(
-                  color: _azulOscuro,
-                  fontSize: 12.5,
-                  height: 1.45,
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Entendido'),
-          ),
-        ],
-      ),
-    );
+    PqrsHelpDialog.show(context);
   }
 
   /// Renderiza únicamente el isotipo del mapa de Colombia con lupa (sin el texto "Contrata Legal")
@@ -111,7 +63,8 @@ class CollapsibleSideMenu extends StatelessWidget {
             'assets/images/logo.png',
             width: 104,
             height: 52,
-            fit: BoxFit.fill,
+            fit: BoxFit.contain,
+            filterQuality: FilterQuality.high,
           ),
         ),
       ),
@@ -120,13 +73,17 @@ class CollapsibleSideMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final User? currentUser = FirebaseAuth.instance.currentUser;
-    final String fullName = AuthService.getActiveUserDisplayName();
-    final String? photoURL = currentUser?.photoURL;
-    final String initial =
-        fullName.isNotEmpty ? fullName[0].toUpperCase() : 'U';
+    return ValueListenableBuilder<int>(
+      valueListenable: AuthService.authStateVersion,
+      builder: (context, _, _) {
+        final String fullName = AuthService.getActiveUserDisplayName();
+        final String email = AuthService.getActiveUserEmail();
+        final ImageProvider<Object>? avatarImage =
+            AuthService.getActiveUserAvatarImageProvider();
+        final String initial =
+            fullName.isNotEmpty ? fullName[0].toUpperCase() : 'U';
 
-    return AnimatedContainer(
+        return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOutCubic,
       width: isCollapsed ? 68 : 240,
@@ -183,6 +140,7 @@ class CollapsibleSideMenu extends StatelessWidget {
                         height: 66,
                         fit: BoxFit.contain,
                         alignment: Alignment.centerLeft,
+                        filterQuality: FilterQuality.high,
                       ),
                     ),
                   ),
@@ -361,22 +319,30 @@ class CollapsibleSideMenu extends StatelessWidget {
               label: fullName,
               child: PopupMenuButton<String>(
                 tooltip: '',
-                onSelected: (value) {
-                  if (value == 'logout') onLogout();
-                },
-                itemBuilder: (context) => const [
-                  PopupMenuItem<String>(
-                    value: 'logout',
-                    child: Text('Cerrar sesión'),
-                  ),
-                ],
+                elevation: 8,
+                color: Colors.white,
+                surfaceTintColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: const BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+                onSelected: (value) =>
+                    CustomUserHeaderActions.handleMenuSelection(
+                  context: context,
+                  value: value,
+                  onLogout: onLogout,
+                ),
+                itemBuilder: (_) =>
+                    CustomUserHeaderActions.buildStandardMenuItems(
+                  fullName: fullName,
+                  email: email,
+                ),
                 child: CircleAvatar(
                   radius: 17,
-                  backgroundImage:
-                      photoURL != null ? NetworkImage(photoURL) : null,
-                  backgroundColor: const Color(0xFFA91D54),
+                  backgroundImage: avatarImage,
+                  backgroundColor: const Color(0xFFB81D4E),
                   foregroundColor: Colors.white,
-                  child: photoURL == null
+                  child: avatarImage == null
                       ? Text(
                           initial,
                           style: const TextStyle(
@@ -397,7 +363,7 @@ class CollapsibleSideMenu extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.9),
+                  color: Colors.white.withValues(alpha: 0.92),
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
@@ -412,7 +378,7 @@ class CollapsibleSideMenu extends StatelessWidget {
                     const Icon(
                       Icons.sms_outlined,
                       color: _azulOscuro,
-                      size: 22,
+                      size: 21,
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -442,6 +408,12 @@ class CollapsibleSideMenu extends StatelessWidget {
                         ],
                       ),
                     ),
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: Color(0xFF64748B),
+                      size: 18,
+                    ),
                   ],
                 ),
               ),
@@ -461,6 +433,8 @@ class CollapsibleSideMenu extends StatelessWidget {
           ],
         ],
       ),
+        );
+      },
     );
   }
 }

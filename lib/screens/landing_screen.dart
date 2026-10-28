@@ -358,11 +358,11 @@ class _LandingScreenState extends State<LandingScreen> {
       fit: StackFit.expand,
       children: [
         const ColoredBox(color: _cream),
-        // Reemplaza esta URL temporal con el asset del panorama de Valledupar.
-        Image.network(
-          'https://picsum.photos/1200/800',
+        Image.asset(
+          'assets/images/fondo_valledupar.jpg',
           fit: BoxFit.cover,
           alignment: Alignment.center,
+          filterQuality: FilterQuality.high,
           errorBuilder: (context, error, stackTrace) => const DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(

@@ -3,11 +3,13 @@ import 'package:firebase_core/firebase_core.dart';
 
 import 'auth_gate.dart';
 import 'firebase_options.dart';
+import 'screens/perfil_usuario_screen.dart';
 import 'screens/planes_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/portada_screen.dart';
 import 'screens/registro_screen.dart';
 import 'services/auth_service.dart';
+import 'utils/app_scroll_behavior.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,6 +26,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Contrata Legal',
+      scrollBehavior: const AppScrollBehavior(),
       theme: ThemeData(
         scaffoldBackgroundColor: const Color(0xFFFFFDF8),
         primaryColor: const Color(0xFF1A2B4C),
@@ -68,6 +71,7 @@ class MyApp extends StatelessWidget {
         '/auth': (context) => const LoginScreen(),
         '/registro': (context) => const RegistroScreen(),
         '/planes': (context) => const PlanesScreen(),
+        '/perfil': (context) => const PerfilUsuarioScreen(),
         '/home': (context) => const AuthGate(),
       },
     );

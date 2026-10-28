@@ -38,26 +38,27 @@ class PortadaScreen extends StatelessWidget {
           return Stack(
             fit: StackFit.expand,
             children: [
-              // 1. Ilustración de fondo en alta definición (2048x1088)
+              // 1. Ilustración de fondo en alta definición (sin deformación de proporción)
               Image.memory(
                 PortadaAssetData.bytes,
                 width: screenW,
                 height: screenH,
-                fit: BoxFit.fill,
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
                 gaplessPlayback: true,
                 filterQuality: FilterQuality.high,
               ),
 
-              // 2. Logo "Contrata Legal" en alta definición (1774x887 transparente)
+              // 2. Logo "Contrata Legal" proporcional y nítido (sin constraints que lo ensanchen)
               Positioned(
                 left: 28.3 * scaleX,
-                top: -1.9 * scaleY,
-                width: 187.8 * scaleX,
-                height: 91.2 * scaleY,
+                top: (4.0 * scaleY).clamp(2.0, 18.0),
                 child: IgnorePointer(
                   child: Image.asset(
                     'assets/images/logo.png',
-                    fit: BoxFit.fill,
+                    height: (84.0 * fontScale).clamp(60.0, 118.0),
+                    fit: BoxFit.contain,
+                    alignment: Alignment.centerLeft,
                     filterQuality: FilterQuality.high,
                   ),
                 ),
@@ -187,8 +188,10 @@ class PortadaScreen extends StatelessWidget {
                   children: [
                     Image.asset(
                       'assets/images/logo.png',
-                      height: 56,
+                      height: 54,
                       fit: BoxFit.contain,
+                      alignment: Alignment.centerLeft,
+                      filterQuality: FilterQuality.high,
                     ),
                     const Spacer(),
                     SizedBox(
@@ -370,6 +373,7 @@ class PortadaScreen extends StatelessWidget {
                     fit: BoxFit.cover,
                     alignment: const Alignment(0.35, 0.2),
                     gaplessPlayback: true,
+                    filterQuality: FilterQuality.high,
                   ),
                 ),
               ),
