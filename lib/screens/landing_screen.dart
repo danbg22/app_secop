@@ -280,7 +280,7 @@ class _LandingScreenState extends State<LandingScreen> {
                       ),
                       SizedBox(height: 3),
                       Text(
-                        'Consulta ciudadana',
+                        'Persona',
                         style: TextStyle(
                           color: Color(0xFF607586),
                           fontSize: 10,

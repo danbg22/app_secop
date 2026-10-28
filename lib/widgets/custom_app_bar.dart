@@ -469,7 +469,7 @@ class CustomUserHeaderActions extends StatelessWidget {
                               ),
                               const SizedBox(height: 1),
                               Text(
-                                'Consulta ciudadana',
+                                AuthService.getActiveUserRoleDisplayLabel(),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(

@@ -3,6 +3,8 @@ import 'package:firebase_core/firebase_core.dart';
 
 import 'auth_gate.dart';
 import 'firebase_options.dart';
+import 'screens/escoger_rol_screen.dart';
+import 'screens/pasarela_pago_wompi_screen.dart';
 import 'screens/perfil_usuario_screen.dart';
 import 'screens/planes_screen.dart';
 import 'screens/login_screen.dart';
@@ -69,7 +71,10 @@ class MyApp extends StatelessWidget {
       routes: {
         '/portada': (context) => const PortadaScreen(),
         '/auth': (context) => const LoginScreen(),
-        '/registro': (context) => const RegistroScreen(),
+        '/registro': (context) => const EscogerRolScreen(),
+        '/escoger-rol': (context) => const EscogerRolScreen(),
+        '/registro-datos': (context) => const RegistroScreen(),
+        '/pasarela-wompi': (context) => const PasarelaPagoWompiScreen(),
         '/planes': (context) => const PlanesScreen(),
         '/perfil': (context) => const PerfilUsuarioScreen(),
         '/home': (context) => const AuthGate(),
