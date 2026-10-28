@@ -497,18 +497,18 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                       color: const Color(0xFFFDF0CE),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.verified_user_outlined,
                           size: 15,
                           color: _navyDark,
                         ),
-                        SizedBox(width: 6),
+                        const SizedBox(width: 6),
                         Text(
-                          'Consulta ciudadana',
-                          style: TextStyle(
+                          AuthService.getActiveUserRoleDisplayLabel(),
+                          style: const TextStyle(
                             color: _navyDark,
                             fontSize: 12,
                             fontWeight: FontWeight.w700,

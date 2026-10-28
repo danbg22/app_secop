@@ -9,6 +9,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'consent_service.dart';
+import 'payment_service.dart';
 
 class AuthServiceException implements Exception {
   const AuthServiceException(this.message);
@@ -30,6 +31,7 @@ class AuthService {
   static String _cachedEmail = '';
   static String _cachedFullName = '';
   static String _cachedPhotoData = '';
+  static List<String> _cachedRoles = <String>['persona'];
   static bool _isLocalSessionActive = false;
 
   static const String _kUsersRegistryKey = 'registered_users_v1';
@@ -38,6 +40,7 @@ class AuthService {
   static Future<void> restoreSessionFromPrefs() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      await _migrateLegacyRolesInRegistry(prefs);
       final isLogged = prefs.getBool('isLoggedIn') ?? false;
       final activeEmail =
           (prefs.getString('usuarioActivo') ??
@@ -54,6 +57,7 @@ class AuthService {
         final fbName = (fbUser.displayName ?? '').trim();
         final profileName = await _lookupStoredNameForEmail(prefs, fbEmail);
         _cachedPhotoData = await _lookupStoredPhotoForEmail(prefs, fbEmail);
+        _cachedRoles = await _lookupStoredRolesForEmail(prefs, fbEmail);
         _cachedFullName = fbName.isNotEmpty
             ? fbName
             : (profileName.isNotEmpty
@@ -65,6 +69,7 @@ class AuthService {
       } else if (isLogged && activeEmail.isNotEmpty) {
         final profileName = await _lookupStoredNameForEmail(prefs, activeEmail);
         _cachedPhotoData = await _lookupStoredPhotoForEmail(prefs, activeEmail);
+        _cachedRoles = await _lookupStoredRolesForEmail(prefs, activeEmail);
         _cachedEmail = activeEmail;
         _cachedFullName = profileName.isNotEmpty
             ? profileName
@@ -76,10 +81,38 @@ class AuthService {
         _cachedEmail = '';
         _cachedFullName = '';
         _cachedPhotoData = '';
+        _cachedRoles = <String>['persona'];
         _isLocalSessionActive = false;
       }
       authStateVersion.value++;
     } catch (_) {}
+  }
+
+  /// Devuelve la lista de roles acumulados del usuario activo (por defecto `['persona']`).
+  static List<String> getActiveUserRoles() {
+    if (_cachedRoles.isEmpty) {
+      return const <String>['persona'];
+    }
+    return List<String>.unmodifiable(_cachedRoles);
+  }
+
+  /// Devuelve la etiqueta visible de los roles activos (ej. `'Persona'` o `'Persona + Empresa licitante'`).
+  static String getActiveUserRoleDisplayLabel() {
+    return PaymentService.formatearEtiquetaRolesAcumulados(getActiveUserRoles());
+  }
+
+  /// Verifica si el usuario activo tiene un rol específico dentro de sus roles acumulados.
+  static bool hasActiveRole(String rolId) {
+    final clean = PaymentService.normalizarRolId(rolId);
+    return getActiveUserRoles().contains(clean);
+  }
+
+  /// Verifica si el usuario activo cuenta con permiso para una funcionalidad de la plataforma.
+  static bool hasPlatformPermission(String permiso) {
+    return PaymentService.usuarioTienePermiso(
+      rolesActivos: getActiveUserRoles(),
+      permiso: permiso,
+    );
   }
 
   static bool get hasActiveSession =>
@@ -171,6 +204,44 @@ class AuthService {
     return parts.join(' ');
   }
 
+  static Future<void> _migrateLegacyRolesInRegistry(
+    SharedPreferences prefs,
+  ) async {
+    try {
+      final registry = await _loadRegistry(prefs);
+      if (registry.isEmpty) return;
+      bool changed = false;
+      for (final entryKey in registry.keys.toList()) {
+        final rawEntry = registry[entryKey];
+        if (rawEntry is Map) {
+          final map = Map<String, dynamic>.from(rawEntry);
+          final normalizedRoles = _extractNormalizedRolesFromMap(map);
+          final expectedLabel =
+              PaymentService.formatearEtiquetaRolesAcumulados(normalizedRoles);
+          final currentLabel = (map['rolEtiqueta'] ?? '').toString().trim();
+          final currentRolesRaw = map['rolesActivos'];
+          final bool needsMigration =
+              currentLabel != expectedLabel ||
+              currentRolesRaw is! List ||
+              !listEquals(
+                currentRolesRaw.map((e) => e.toString()).toList(),
+                normalizedRoles,
+              );
+          if (needsMigration) {
+            map['rolesActivos'] = normalizedRoles;
+            map['rolPrincipal'] = normalizedRoles.first;
+            map['rolEtiqueta'] = expectedLabel;
+            registry[entryKey] = map;
+            changed = true;
+          }
+        }
+      }
+      if (changed) {
+        await prefs.setString(_kUsersRegistryKey, jsonEncode(registry));
+      }
+    } catch (_) {}
+  }
+
   static Future<Map<String, dynamic>> _loadRegistry(
     SharedPreferences prefs,
   ) async {
@@ -217,6 +288,46 @@ class AuthService {
     return '';
   }
 
+  static Future<List<String>> _lookupStoredRolesForEmail(
+    SharedPreferences prefs,
+    String email,
+  ) async {
+    final clean = email.trim().toLowerCase();
+    if (clean.isEmpty) return <String>['persona'];
+    final reg = await _loadRegistry(prefs);
+    final entry = reg[clean];
+    if (entry is Map) {
+      return _extractNormalizedRolesFromMap(Map<String, dynamic>.from(entry));
+    }
+    return <String>['persona'];
+  }
+
+  static List<String> _extractNormalizedRolesFromMap(
+    Map<String, dynamic> data,
+  ) {
+    final roles = <String>[];
+    final rawList = data['rolesActivos'] ?? data['roles'];
+    if (rawList is List) {
+      for (final item in rawList) {
+        final norm = PaymentService.normalizarRolId(item?.toString());
+        if (!roles.contains(norm)) {
+          roles.add(norm);
+        }
+      }
+    }
+    final singleRol = data['rol'] ?? data['rolPrincipal'] ?? data['rolSeleccionado'];
+    if (singleRol != null && singleRol.toString().trim().isNotEmpty) {
+      final norm = PaymentService.normalizarRolId(singleRol.toString());
+      if (!roles.contains(norm)) {
+        roles.add(norm);
+      }
+    }
+    if (roles.isEmpty) {
+      roles.add('persona');
+    }
+    return roles;
+  }
+
   static Future<void> _persistActiveSession({
     required String email,
     required String displayName,
@@ -233,11 +344,30 @@ class AuthService {
         ? Map<String, dynamic>.from(registry[cleanEmail] as Map)
         : <String, dynamic>{};
 
+    final combinedRoles = <String>[
+      ..._extractNormalizedRolesFromMap(existing),
+      if (extraProfileData != null)
+        ..._extractNormalizedRolesFromMap(extraProfileData),
+    ];
+    final deduplicatedRoles = <String>[];
+    for (final r in combinedRoles) {
+      if (!deduplicatedRoles.contains(r)) {
+        deduplicatedRoles.add(r);
+      }
+    }
+    if (deduplicatedRoles.isEmpty) {
+      deduplicatedRoles.add('persona');
+    }
+
     final merged = <String, dynamic>{
       ...existing,
       ...?extraProfileData,
       'email': cleanEmail,
       'displayName': resolvedName,
+      'rolesActivos': deduplicatedRoles,
+      'rolPrincipal': deduplicatedRoles.first,
+      'rolEtiqueta':
+          PaymentService.formatearEtiquetaRolesAcumulados(deduplicatedRoles),
       'updatedAt': DateTime.now().toIso8601String(),
     };
     registry[cleanEmail] = merged;
@@ -251,6 +381,7 @@ class AuthService {
     _cachedEmail = cleanEmail;
     _cachedFullName = resolvedName;
     _cachedPhotoData = (merged['photoData'] ?? '').toString().trim();
+    _cachedRoles = deduplicatedRoles;
     _isLocalSessionActive = true;
     authStateVersion.value++;
   }
@@ -328,6 +459,7 @@ class AuthService {
       _cachedEmail = '';
       _cachedFullName = '';
       _cachedPhotoData = '';
+      _cachedRoles = <String>['persona'];
       _isLocalSessionActive = false;
 
       await FirebaseAuth.instance.signOut();
@@ -413,11 +545,28 @@ class AuthService {
       );
     }
 
+    final cleanDocumento = (userData['documento'] ?? '')
+        .toString()
+        .replaceAll(RegExp(r'\s+'), '')
+        .trim();
+    if (cleanDocumento.isEmpty || cleanDocumento.length < 5) {
+      throw const AuthServiceException(
+        'El número de cédula o documento es obligatorio para crear la cuenta.',
+      );
+    }
+
     final nombres = (userData['nombres'] as String? ?? '').trim();
     final apellidos = (userData['apellidos'] as String? ?? '').trim();
     final displayName = '$nombres $apellidos'.trim().isNotEmpty
         ? '$nombres $apellidos'.trim()
         : _humanizeEmailPrefix(cleanEmail);
+    final selectedRolId = PaymentService.normalizarRolId(
+      (userData['rol'] ?? userData['rolPrincipal'] ?? 'persona').toString(),
+    );
+    final initialRoles = <String>[selectedRolId];
+    final rolEtiqueta = PaymentService.formatearEtiquetaRolesAcumulados(
+      initialRoles,
+    );
 
     // Cerramos cualquier sesión previa para que la nueva cuenta no herede datos de otro usuario
     if (_auth.currentUser != null) {
@@ -433,7 +582,7 @@ class AuthService {
       );
       final user = userCredential.user;
       if (user != null) {
-        // Evidencia de la autorización en Firestore (auditoría SIC) + datos de perfil
+        // Evidencia de la autorización en Firestore (auditoría SIC) + datos de perfil + rol
         try {
           await ConsentService.registrarAceptacionTratamientoDatos(
             uid: user.uid,
@@ -450,6 +599,10 @@ class AuthService {
                 'pais': (userData['pais'] ?? 'Colombia').toString().trim(),
                 'telefono': (userData['telefono'] ?? '').toString().trim(),
                 'documento': (userData['documento'] ?? '').toString().trim(),
+                'rolesActivos': initialRoles,
+                'rolPrincipal': selectedRolId,
+                'rolEtiqueta': rolEtiqueta,
+                'pagoWompiPendiente': true,
                 'actualizado_en': FieldValue.serverTimestamp(),
               }, SetOptions(merge: true))
               .timeout(const Duration(seconds: 5));
@@ -470,6 +623,9 @@ class AuthService {
           'email': cleanEmail,
           'displayName': displayName,
           'password': password,
+          'rolesActivos': initialRoles,
+          'rolPrincipal': selectedRolId,
+          'rolEtiqueta': rolEtiqueta,
           'aceptacion_datos': true,
           'version_politica': ConsentService.versionPolitica,
           'fecha_aceptacion_datos': DateTime.now().toIso8601String(),
@@ -513,6 +669,9 @@ class AuthService {
             'email': cleanEmail,
             'displayName': displayName,
             'password': password,
+            'rolesActivos': initialRoles,
+            'rolPrincipal': selectedRolId,
+            'rolEtiqueta': rolEtiqueta,
             'aceptacion_datos': true,
             'version_politica': ConsentService.versionPolitica,
             'fecha_aceptacion_datos': DateTime.now().toIso8601String(),
@@ -600,6 +759,9 @@ class AuthService {
       _cachedPhotoData = storedPhoto;
     }
 
+    final activeRoles = _extractNormalizedRolesFromMap(localData);
+    _cachedRoles = activeRoles;
+
     return <String, dynamic>{
       'nombres': nombres,
       'apellidos': apellidos,
@@ -612,11 +774,106 @@ class AuthService {
           : 'Colombia',
       'photoURL': getActiveUserPhotoSource(),
       'hasPasswordProvider': hasPasswordProvider,
+      'rolesActivos': activeRoles,
+      'rolEtiqueta': PaymentService.formatearEtiquetaRolesAcumulados(
+        activeRoles,
+      ),
+      'pagoWompiActivo': localData['pagoWompiActivo'] == true,
       'aceptacion_datos': localData['aceptacion_datos'] == true,
       'version_politica':
           (localData['version_politica'] ?? ConsentService.versionPolitica)
               .toString(),
     };
+  }
+
+  /// Valida criptográficamente el recibo de Wompi y asigna (o acumula) el rol pagado
+  /// en la cuenta activa tanto en almacenamiento local como en Firestore.
+  static Future<void> assignPaidRoleToActiveUser(
+    WompiTransactionReceipt receipt,
+  ) async {
+    if (!PaymentService.verificarReciboTransaccion(receipt)) {
+      throw const AuthServiceException(
+        'No se pudo verificar la autenticidad e integridad criptográfica del pago en Wompi.',
+      );
+    }
+
+    final activeEmail = getActiveUserEmail().trim().toLowerCase();
+    if (activeEmail.isEmpty) {
+      throw const AuthServiceException(
+        'No se encontró una sesión de usuario activa para asignar el rol.',
+      );
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final registry = await _loadRegistry(prefs);
+    final existing = registry[activeEmail] is Map
+        ? Map<String, dynamic>.from(registry[activeEmail] as Map)
+        : <String, dynamic>{};
+
+    final currentRoles = _extractNormalizedRolesFromMap(existing);
+    final paidRolId = PaymentService.normalizarRolId(receipt.rolId);
+    if (!currentRoles.contains(paidRolId)) {
+      currentRoles.add(paidRolId);
+    }
+    final rolEtiqueta = PaymentService.formatearEtiquetaRolesAcumulados(
+      currentRoles,
+    );
+
+    final historyRaw = existing['historialPagosWompi'];
+    final history = <Map<String, dynamic>>[
+      if (historyRaw is List)
+        for (final item in historyRaw)
+          if (item is Map) Map<String, dynamic>.from(item),
+      receipt.toMap(),
+    ];
+
+    existing['rolesActivos'] = currentRoles;
+    existing['rolPrincipal'] = currentRoles.first;
+    existing['rolEtiqueta'] = rolEtiqueta;
+    existing['pagoWompiActivo'] = true;
+    existing['pagoWompiPendiente'] = false;
+    existing['ultimoPagoWompi'] = receipt.toMap();
+    existing['historialPagosWompi'] = history;
+    existing['updatedAt'] = DateTime.now().toIso8601String();
+    registry[activeEmail] = existing;
+    await prefs.setString(_kUsersRegistryKey, jsonEncode(registry));
+
+    _cachedRoles = currentRoles;
+    authStateVersion.value++;
+
+    final fbUser = _auth.currentUser;
+    if (fbUser != null) {
+      try {
+        await FirebaseFirestore.instance
+            .collection(ConsentService.coleccionUsuarios)
+            .doc(fbUser.uid)
+            .set({
+              'rolesActivos': currentRoles,
+              'rolPrincipal': currentRoles.first,
+              'rolEtiqueta': rolEtiqueta,
+              'pagoWompiActivo': true,
+              'pagoWompiPendiente': false,
+              'ultimoPagoWompi': receipt.toMap(),
+              'actualizado_en': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true))
+            .timeout(const Duration(seconds: 5));
+
+        await FirebaseFirestore.instance
+            .collection('pagos_wompi')
+            .doc(receipt.transactionId)
+            .set({
+              ...receipt.toMap(),
+              'uid': fbUser.uid,
+              'email': activeEmail,
+              'registrado_en': FieldValue.serverTimestamp(),
+            })
+            .timeout(const Duration(seconds: 5));
+      } catch (e) {
+        debugPrint(
+          'Aviso: El pago Wompi quedó validado y asignado localmente ($e).',
+        );
+      }
+    }
   }
 
   /// Actualiza o restaura la foto de perfil del usuario activo (Data URL o URL).

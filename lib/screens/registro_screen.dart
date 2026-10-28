@@ -1,20 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-import '../data/auth_bg_asset_data.dart';
+import '../data/roles_visual_assets_data.dart';
 import '../services/auth_service.dart';
 import '../services/consent_service.dart';
+import '../services/payment_service.dart';
+import 'escoger_rol_screen.dart';
+import 'pasarela_pago_wompi_screen.dart';
 
 class RegistroScreen extends StatefulWidget {
-  const RegistroScreen({super.key});
+  const RegistroScreen({
+    super.key,
+    this.rolSeleccionadoId = 'persona',
+  });
+
+  final String rolSeleccionadoId;
 
   @override
   State<RegistroScreen> createState() => _RegistroScreenState();
 }
 
 class _RegistroScreenState extends State<RegistroScreen> {
-  static const _navyDark = Color(0xFF0B224C);
+  static const _navyDark = Color(0xFF0E2646);
+  static const _subtitleBlue = Color(0xFF364F6B);
   static const _royalBlue = Color(0xFF0D5BD9);
-  static const _goldAccent = Color(0xFFF5C230);
+  static const _goldAccent = Color(0xFFF5C032);
   static final _emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
 
   final _formKey = GlobalKey<FormState>();
@@ -34,6 +44,9 @@ class _RegistroScreenState extends State<RegistroScreen> {
   /// Autorización expresa de tratamiento de datos (Ley 1581 de 2012). Obligatoria.
   bool _aceptaPolitica = false;
   bool _mostrarErrorPolitica = false;
+
+  RolPaqueteConfig get _rolConfig =>
+      PaymentService.obtenerConfiguracionRol(widget.rolSeleccionadoId);
 
   @override
   void dispose() {
@@ -60,8 +73,18 @@ class _RegistroScreenState extends State<RegistroScreen> {
       );
   }
 
-  void _navigateToPortada() {
-    Navigator.of(context).pushNamedAndRemoveUntil('/portada', (route) => false);
+  void _cambiarRol() {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    } else {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => EscogerRolScreen(
+            rolActualSeleccionadoId: widget.rolSeleccionadoId,
+          ),
+        ),
+      );
+    }
   }
 
   void _navigateToLogin() {
@@ -75,7 +98,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
     }
     if (!camposValidos) {
       _showMessage(
-        'Por favor revisa los campos resaltados.',
+        'Por favor completa todos los campos obligatorios (incluyendo correo y cédula).',
         isError: true,
       );
       return;
@@ -93,6 +116,8 @@ class _RegistroScreenState extends State<RegistroScreen> {
       final nombres = _nombresController.text.trim();
       final apellidos = _apellidosController.text.trim();
       final email = _emailController.text.trim().toLowerCase();
+      final documento = _documentoController.text.trim();
+      final rolConfig = _rolConfig;
 
       await AuthService.signUp(
         {
@@ -101,16 +126,26 @@ class _RegistroScreenState extends State<RegistroScreen> {
           'email': email,
           'pais': _pais,
           'telefono': _telefonoController.text.trim(),
-          'documento': _documentoController.text.trim(),
+          'documento': documento,
+          'rol': rolConfig.id,
+          'rolPrincipal': rolConfig.id,
         },
         _passwordController.text,
         aceptaTratamientoDatos: _aceptaPolitica,
       );
 
       if (!mounted) return;
-      final displayName = AuthService.getActiveUserDisplayName();
-      _showMessage('¡Cuenta creada exitosamente! Bienvenido(a), $displayName.');
-      Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+      _showMessage(
+        'Datos validados correctamente. Continúa con la activación de tu rol ${rolConfig.nombre}.',
+      );
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => PasarelaPagoWompiScreen(
+            rolId: rolConfig.id,
+            esFlujoRegistro: true,
+          ),
+        ),
+      );
     } catch (error) {
       if (mounted) {
         final msg = error.toString().replaceFirst('Exception: ', '');
@@ -123,532 +158,560 @@ class _RegistroScreenState extends State<RegistroScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    final isDesktop = size.width >= 960;
-    final isMobile = size.width < 600;
+    final rol = _rolConfig;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFDFBF6),
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Scenic Colombia city & mountain background
-          Image.memory(
-            AuthBgAssetData.bytes,
-            fit: BoxFit.cover,
-            alignment: isDesktop ? Alignment.centerLeft : Alignment.center,
-            gaplessPlayback: true,
-            filterQuality: FilterQuality.high,
-          ),
+      backgroundColor: OnboardingUnifiedBackground.bgCream,
+      body: OnboardingUnifiedBackground(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final isTwoCols = width >= 660;
+            final isMobile = width < 600;
 
-          // Deep navy / blue bottom-left wave overlay matching the Registro screenshot
-          if (isDesktop)
-            Positioned(
-              left: 0,
-              bottom: 0,
-              width: size.width * 0.56,
-              height: size.height * 0.32,
-              child: IgnorePointer(
-                child: CustomPaint(
-                  painter: _BottomLeftNavyWavePainter(),
+            final fieldNombres = _textField(
+              controller: _nombresController,
+              hint: 'Nombres *',
+              icon: Icons.person_outline_rounded,
+              validator: _requiredValidator,
+              textCapitalization: TextCapitalization.words,
+            );
+
+            final fieldApellidos = _textField(
+              controller: _apellidosController,
+              hint: 'Apellidos *',
+              icon: Icons.person_outline_rounded,
+              validator: _requiredValidator,
+              textCapitalization: TextCapitalization.words,
+            );
+
+            final fieldEmail = _textField(
+              controller: _emailController,
+              hint: 'Correo electrónico *',
+              icon: Icons.mail_outline_rounded,
+              keyboardType: TextInputType.emailAddress,
+              validator: (value) {
+                final email = value?.trim() ?? '';
+                if (email.isEmpty) {
+                  return 'El correo electrónico es obligatorio.';
+                }
+                if (!_emailRegex.hasMatch(email)) {
+                  return 'Ingresa un correo electrónico válido.';
+                }
+                return null;
+              },
+            );
+
+            final fieldDocumento = _textField(
+              controller: _documentoController,
+              hint: 'Número de cédula o documento *',
+              icon: Icons.badge_outlined,
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.\-]')),
+                LengthLimitingTextInputFormatter(18),
+              ],
+              validator: (value) {
+                final digits = (value ?? '').replaceAll(RegExp(r'\D'), '');
+                if (digits.isEmpty) {
+                  return 'El número de cédula es obligatorio.';
+                }
+                if (digits.length < 5) {
+                  return 'Ingresa un número de cédula válido (mínimo 5 dígitos).';
+                }
+                return null;
+              },
+            );
+
+            final fieldPais = DropdownButtonFormField<String>(
+              initialValue: _pais,
+              style: const TextStyle(
+                color: Color(0xFF1E293B),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+              icon: const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: Color(0xFF475569),
+              ),
+              decoration: _decoration(
+                hint: 'País de residencia',
+                labelText: 'País de residencia *',
+                icon: Icons.public_rounded,
+              ),
+              items: const [
+                DropdownMenuItem(value: 'Colombia', child: Text('Colombia')),
+                DropdownMenuItem(value: 'México', child: Text('México')),
+                DropdownMenuItem(value: 'España', child: Text('España')),
+                DropdownMenuItem(
+                  value: 'Estados Unidos',
+                  child: Text('Estados Unidos'),
+                ),
+                DropdownMenuItem(value: 'Otro', child: Text('Otro')),
+              ],
+              onChanged: _isLoading
+                  ? null
+                  : (value) {
+                      if (value != null) {
+                        setState(() => _pais = value);
+                      }
+                    },
+              validator: (value) => value == null ? 'Selecciona un país.' : null,
+            );
+
+            final fieldTelefono = _textField(
+              controller: _telefonoController,
+              hint: 'Número de teléfono (opcional)',
+              icon: Icons.phone_outlined,
+              keyboardType: TextInputType.phone,
+            );
+
+            final fieldPassword = _textField(
+              controller: _passwordController,
+              hint: 'Contraseña *',
+              icon: Icons.lock_outline_rounded,
+              obscureText: !_passwordVisible,
+              validator: (value) {
+                final password = value ?? '';
+                if (password.length < 6) {
+                  return 'Mínimo 6 caracteres.';
+                }
+                return null;
+              },
+              suffixIcon: IconButton(
+                tooltip: _passwordVisible
+                    ? 'Ocultar contraseña'
+                    : 'Mostrar contraseña',
+                onPressed: () => setState(
+                  () => _passwordVisible = !_passwordVisible,
+                ),
+                icon: Icon(
+                  _passwordVisible
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  color: const Color(0xFF334155),
+                  size: 20,
                 ),
               ),
-            ),
+            );
 
-          // Soft white scrim on mobile/tablet for readability
-          if (!isDesktop)
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.white.withValues(alpha: 0.78),
-                    Colors.white.withValues(alpha: 0.52),
-                    Colors.white.withValues(alpha: 0.80),
-                  ],
+            final fieldConfirmPassword = _textField(
+              controller: _confirmPasswordController,
+              hint: 'Confirmar contraseña *',
+              icon: Icons.lock_outline_rounded,
+              obscureText: !_confirmPasswordVisible,
+              validator: (value) {
+                if ((value ?? '').isEmpty) {
+                  return 'Confirma tu contraseña.';
+                }
+                if (value != _passwordController.text) {
+                  return 'Las contraseñas no coinciden.';
+                }
+                return null;
+              },
+              suffixIcon: IconButton(
+                tooltip: _confirmPasswordVisible
+                    ? 'Ocultar contraseña'
+                    : 'Mostrar contraseña',
+                onPressed: () => setState(
+                  () => _confirmPasswordVisible = !_confirmPasswordVisible,
+                ),
+                icon: Icon(
+                  _confirmPasswordVisible
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  color: const Color(0xFF334155),
+                  size: 20,
                 ),
               ),
-            ),
+            );
 
-          // Left hero branding column on desktop ("Únete a Contrata Legal")
-          if (isDesktop)
-            Positioned(
-              top: 38,
-              left: 64,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 440),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    InkWell(
-                      onTap: _navigateToPortada,
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.asset(
-                        'assets/images/logo.png',
-                        height: 88,
-                        fit: BoxFit.contain,
-                        alignment: Alignment.centerLeft,
-                        filterQuality: FilterQuality.high,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Container(
-                      width: 34,
-                      height: 3.5,
-                      decoration: BoxDecoration(
-                        color: _goldAccent,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    const SizedBox(height: 22),
-                    RichText(
-                      text: const TextSpan(
-                        style: TextStyle(
-                          fontSize: 44,
-                          fontWeight: FontWeight.w800,
-                          height: 1.12,
-                          letterSpacing: -0.5,
-                        ),
-                        children: [
-                          TextSpan(
-                            text: 'Únete a\n',
-                            style: TextStyle(color: _navyDark),
-                          ),
-                          TextSpan(
-                            text: 'Contrata Legal',
-                            style: TextStyle(color: Color(0xFF0A499B)),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Información pública más clara,\naccesible y transparente.',
-                      style: TextStyle(
-                        color: Color(0xFF334155),
-                        fontSize: 17,
-                        fontWeight: FontWeight.w400,
-                        height: 1.42,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-          // Right-aligned floating registration card on desktop, centered on mobile
-          SafeArea(
-            child: Align(
-              alignment: isDesktop ? Alignment.centerRight : Alignment.center,
+            return SafeArea(
               child: SingleChildScrollView(
-                padding: EdgeInsets.only(
-                  left: isMobile ? 14 : 28,
-                  right: isDesktop
-                      ? (size.width * 0.055).clamp(36.0, 96.0)
-                      : (isMobile ? 14 : 28),
-                  top: isMobile ? 14 : 20,
-                  bottom: isMobile ? 14 : 20,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 14 : 36,
+                  vertical: isMobile ? 14 : 22,
                 ),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 490),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.98),
-                      borderRadius: BorderRadius.circular(26),
-                      border: Border.all(
-                        color: const Color(0xFFEDEFF3),
-                        width: 1.2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: _navyDark.withValues(alpha: 0.09),
-                          blurRadius: 36,
-                          offset: const Offset(0, 14),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1180),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Barra superior idéntica a Escoger Rol (Paso 2 de 3)
+                        OnboardingUnifiedTopBar(
+                          currentStep: 2,
+                          totalSteps: 3,
+                          onBack: _cambiarRol,
+                          backLabel: 'Cambiar rol',
                         ),
-                      ],
-                    ),
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isMobile ? 20 : 34,
-                      vertical: isMobile ? 20 : 26,
-                    ),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Back to Portada link
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: InkWell(
-                              onTap: _navigateToPortada,
-                              borderRadius: BorderRadius.circular(8),
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(
-                                  vertical: 4,
-                                  horizontal: 2,
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.arrow_back_rounded,
-                                      size: 17,
-                                      color: _navyDark,
-                                    ),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      'Volver a la portada',
-                                      style: TextStyle(
-                                        color: _navyDark,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
+                        SizedBox(height: isMobile ? 14 : 20),
 
-                          // Title & Subtitle inside card
-                          Padding(
-                            padding: const EdgeInsets.only(left: 4),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (!isDesktop) ...[
-                                  Center(
-                                    child: Image.asset(
-                                      'assets/images/logo.png',
-                                      height: 62,
-                                      fit: BoxFit.contain,
-                                      filterQuality: FilterQuality.high,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                ],
-                                const Text(
-                                  'Crear cuenta',
-                                  style: TextStyle(
-                                    color: _navyDark,
-                                    fontSize: 27,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.3,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                const Text(
-                                  'Completa tus datos para unirte a la plataforma.',
-                                  style: TextStyle(
-                                    color: Color(0xFF64748B),
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w400,
-                                  ),
-                                ),
-                              ],
-                            ),
+                        // Título y subtítulo centrados con la misma tipografía y jerarquía de Escoger Rol
+                        Text(
+                          'Crea tu cuenta para continuar',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: _navyDark,
+                            fontSize: isMobile ? 25 : 36,
+                            fontWeight: FontWeight.w800,
+                            height: 1.12,
+                            letterSpacing: -0.6,
                           ),
-                          const SizedBox(height: 16),
-
-                          // 1. Nombres
-                          _textField(
-                            controller: _nombresController,
-                            hint: 'Nombres',
-                            icon: Icons.person_outline_rounded,
-                            validator: _requiredValidator,
-                            textCapitalization: TextCapitalization.words,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Completa tus datos personales. Tu cédula y tu correo electrónico son obligatorios.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: _subtitleBlue,
+                            fontSize: isMobile ? 13.5 : 15.5,
+                            fontWeight: FontWeight.w500,
+                            height: 1.38,
                           ),
-                          const SizedBox(height: 10),
+                        ),
+                        SizedBox(height: isMobile ? 18 : 24),
 
-                          // 2. Apellidos
-                          _textField(
-                            controller: _apellidosController,
-                            hint: 'Apellidos',
-                            icon: Icons.person_outline_rounded,
-                            validator: _requiredValidator,
-                            textCapitalization: TextCapitalization.words,
-                          ),
-                          const SizedBox(height: 10),
-
-                          // 3. Correo electrónico
-                          _textField(
-                            controller: _emailController,
-                            hint: 'Correo electrónico',
-                            icon: Icons.mail_outline_rounded,
-                            keyboardType: TextInputType.emailAddress,
-                            validator: (value) {
-                              final email = value?.trim() ?? '';
-                              if (email.isEmpty ||
-                                  !_emailRegex.hasMatch(email)) {
-                                return 'Ingresa un correo electrónico válido.';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 10),
-
-                          // 4. País de residencia
-                          DropdownButtonFormField<String>(
-                            initialValue: _pais,
-                            style: const TextStyle(
-                              color: Color(0xFF1E293B),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            icon: const Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              color: Color(0xFF475569),
-                            ),
-                            decoration: _decoration(
-                              hint: 'País de residencia',
-                              labelText: 'País de residencia',
-                              icon: Icons.public_rounded,
-                            ),
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'Colombia',
-                                child: Text('Colombia'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'México',
-                                child: Text('México'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'España',
-                                child: Text('España'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'Estados Unidos',
-                                child: Text('Estados Unidos'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'Otro',
-                                child: Text('Otro'),
-                              ),
-                            ],
-                            onChanged: _isLoading
-                                ? null
-                                : (value) {
-                                    if (value != null) {
-                                      setState(() => _pais = value);
-                                    }
-                                  },
-                            validator: (value) =>
-                                value == null ? 'Selecciona un país.' : null,
-                          ),
-                          const SizedBox(height: 10),
-
-                          // 5. Número de teléfono (opcional)
-                          _textField(
-                            controller: _telefonoController,
-                            hint: 'Número de teléfono (opcional)',
-                            icon: Icons.phone_outlined,
-                            keyboardType: TextInputType.phone,
-                          ),
-                          const SizedBox(height: 10),
-
-                          // 6. Número de documento / cédula (opcional)
-                          _textField(
-                            controller: _documentoController,
-                            hint: 'Número de documento / cédula (opcional)',
-                            icon: Icons.badge_outlined,
-                            keyboardType: TextInputType.number,
-                          ),
-                          const SizedBox(height: 10),
-
-                          // 7. Contraseña
-                          _textField(
-                            controller: _passwordController,
-                            hint: 'Contraseña',
-                            icon: Icons.lock_outline_rounded,
-                            obscureText: !_passwordVisible,
-                            validator: (value) {
-                              final password = value ?? '';
-                              if (password.length < 6) {
-                                return 'La contraseña debe tener al menos 6 caracteres.';
-                              }
-                              return null;
-                            },
-                            suffixIcon: IconButton(
-                              tooltip: _passwordVisible
-                                  ? 'Ocultar contraseña'
-                                  : 'Mostrar contraseña',
-                              onPressed: () => setState(
-                                () => _passwordVisible = !_passwordVisible,
-                              ),
-                              icon: Icon(
-                                _passwordVisible
-                                    ? Icons.visibility_off_outlined
-                                    : Icons.visibility_outlined,
-                                color: const Color(0xFF334155),
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-
-                          // 8. Confirmar contraseña
-                          _textField(
-                            controller: _confirmPasswordController,
-                            hint: 'Confirmar contraseña',
-                            icon: Icons.lock_outline_rounded,
-                            obscureText: !_confirmPasswordVisible,
-                            validator: (value) {
-                              if ((value ?? '').isEmpty) {
-                                return 'Confirma tu contraseña.';
-                              }
-                              if (value != _passwordController.text) {
-                                return 'Las contraseñas no coinciden.';
-                              }
-                              return null;
-                            },
-                            suffixIcon: IconButton(
-                              tooltip: _confirmPasswordVisible
-                                  ? 'Ocultar contraseña'
-                                  : 'Mostrar contraseña',
-                              onPressed: () => setState(
-                                () => _confirmPasswordVisible =
-                                    !_confirmPasswordVisible,
-                              ),
-                              icon: Icon(
-                                _confirmPasswordVisible
-                                    ? Icons.visibility_off_outlined
-                                    : Icons.visibility_outlined,
-                                color: const Color(0xFF334155),
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Info banner: Se enviará un correo de verificación a esta dirección.
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 11,
-                            ),
+                        // Tarjeta centralizada y uniforme con la estética de las tarjetas de rol
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 690),
+                          child: Container(
                             decoration: BoxDecoration(
-                              color: const Color(0xFFE9F2FC),
-                              borderRadius: BorderRadius.circular(11),
-                            ),
-                            child: const Row(
-                              children: [
-                                Icon(
-                                  Icons.mail_outline_rounded,
-                                  color: Color(0xFF1D4ED8),
-                                  size: 19,
-                                ),
-                                SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    'Se enviará un correo de verificación a esta dirección.',
-                                    style: TextStyle(
-                                      color: Color(0xFF334155),
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                              color: const Color(0xFFFFFDF8),
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: const Color(0xFFF5C032),
+                                width: 1.8,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFFF5B82E).withValues(
+                                    alpha: 0.16,
                                   ),
+                                  blurRadius: 30,
+                                  spreadRadius: 1,
+                                  offset: const Offset(0, 12),
+                                ),
+                                BoxShadow(
+                                  color: _navyDark.withValues(alpha: 0.06),
+                                  blurRadius: 24,
+                                  offset: const Offset(0, 8),
                                 ),
                               ],
                             ),
-                          ),
-                          const SizedBox(height: 12),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isMobile ? 18 : 30,
+                              vertical: isMobile ? 18 : 24,
+                            ),
+                            child: Form(
+                              key: _formKey,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  // Cabecera del rol seleccionado con la ilustración original de la foto y su precio ($100 COP)
+                                  _buildSelectedRoleBanner(
+                                    rol: rol,
+                                    isMobile: isMobile,
+                                  ),
+                                  const SizedBox(height: 18),
 
-                          // Autorización obligatoria de tratamiento de datos (Ley 1581 de 2012)
-                          _buildConsentimientoDatos(),
-                          const SizedBox(height: 14),
-
-                          // Primary dark navy button: Crear cuenta ->
-                          SizedBox(
-                            height: 48,
-                            child: ElevatedButton(
-                              // Sigue siendo pulsable sin la casilla para poder
-                              // explicar el error; se ve atenuado como señal visual.
-                              onPressed: _isLoading ? null : _register,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _aceptaPolitica
-                                    ? _navyDark
-                                    : _navyDark.withValues(alpha: 0.45),
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: _isLoading
-                                  ? const SizedBox(
-                                      width: 22,
-                                      height: 22,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.4,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
+                                  // Campos en cuadrícula limpia de 2 columnas en escritorio / 1 columna en móvil
+                                  if (isTwoCols) ...[
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          'Crear cuenta',
-                                          style: TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w700,
-                                          ),
+                                        Expanded(child: fieldNombres),
+                                        const SizedBox(width: 12),
+                                        Expanded(child: fieldApellidos),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(child: fieldEmail),
+                                        const SizedBox(width: 12),
+                                        Expanded(child: fieldDocumento),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(child: fieldPais),
+                                        const SizedBox(width: 12),
+                                        Expanded(child: fieldTelefono),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(child: fieldPassword),
+                                        const SizedBox(width: 12),
+                                        Expanded(child: fieldConfirmPassword),
+                                      ],
+                                    ),
+                                  ] else ...[
+                                    fieldNombres,
+                                    const SizedBox(height: 10),
+                                    fieldApellidos,
+                                    const SizedBox(height: 10),
+                                    fieldEmail,
+                                    const SizedBox(height: 10),
+                                    fieldDocumento,
+                                    const SizedBox(height: 10),
+                                    fieldPais,
+                                    const SizedBox(height: 10),
+                                    fieldTelefono,
+                                    const SizedBox(height: 10),
+                                    fieldPassword,
+                                    const SizedBox(height: 10),
+                                    fieldConfirmPassword,
+                                  ],
+                                  const SizedBox(height: 14),
+
+                                  // Aviso de verificación por correo
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 10,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEEF5FD),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: const Color(0xFFDCE8F8),
+                                      ),
+                                    ),
+                                    child: const Row(
+                                      children: [
+                                        Icon(
+                                          Icons.verified_user_outlined,
+                                          color: Color(0xFF1D4ED8),
+                                          size: 18,
                                         ),
                                         SizedBox(width: 10),
-                                        Icon(
-                                          Icons.arrow_forward_rounded,
-                                          size: 18,
-                                          color: Colors.white,
+                                        Expanded(
+                                          child: Text(
+                                            'Tu correo y tu número de cédula quedarán vinculados de forma segura a tu cuenta.',
+                                            style: TextStyle(
+                                              color: Color(0xFF334155),
+                                              fontSize: 12.3,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
                                         ),
                                       ],
                                     ),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-
-                          // Bottom link: ¿Ya tienes cuenta? Inicia sesión
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text(
-                                '¿Ya tienes cuenta? ',
-                                style: TextStyle(
-                                  color: Color(0xFF475569),
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              InkWell(
-                                onTap: _isLoading ? null : _navigateToLogin,
-                                borderRadius: BorderRadius.circular(6),
-                                child: const Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 2,
                                   ),
-                                  child: Text(
-                                    'Inicia sesión',
-                                    style: TextStyle(
-                                      color: _royalBlue,
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.w700,
-                                      decoration: TextDecoration.underline,
-                                      decorationColor: _royalBlue,
+                                  const SizedBox(height: 12),
+
+                                  // Autorización obligatoria de tratamiento de datos (Ley 1581 de 2012)
+                                  _buildConsentimientoDatos(),
+                                  const SizedBox(height: 16),
+
+                                  // Botón principal uniforme con el estilo dorado/azul de la plataforma
+                                  SizedBox(
+                                    height: 48,
+                                    child: ElevatedButton(
+                                      onPressed: _isLoading ? null : _register,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: _aceptaPolitica
+                                            ? _goldAccent
+                                            : const Color(0xFFE2E8F0),
+                                        foregroundColor: _navyDark,
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(26),
+                                        ),
+                                      ),
+                                      child: _isLoading
+                                          ? const SizedBox(
+                                              width: 22,
+                                              height: 22,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2.4,
+                                                color: _navyDark,
+                                              ),
+                                            )
+                                          : Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Text(
+                                                  'Continuar al pago (${rol.precioFormateadoCop})',
+                                                  style: const TextStyle(
+                                                    color: _navyDark,
+                                                    fontSize: 15,
+                                                    fontWeight: FontWeight.w800,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 10),
+                                                const Icon(
+                                                  Icons.arrow_forward_rounded,
+                                                  size: 18,
+                                                  color: _navyDark,
+                                                ),
+                                              ],
+                                            ),
                                     ),
                                   ),
-                                ),
+                                  const SizedBox(height: 14),
+
+                                  // Enlace inferior a Iniciar sesión
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Text(
+                                        '¿Ya tienes cuenta? ',
+                                        style: TextStyle(
+                                          color: Color(0xFF475569),
+                                          fontSize: 13.5,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      InkWell(
+                                        onTap: _isLoading
+                                            ? null
+                                            : _navigateToLogin,
+                                        borderRadius: BorderRadius.circular(6),
+                                        child: const Padding(
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: 4,
+                                            vertical: 2,
+                                          ),
+                                          child: Text(
+                                            'Inicia sesión →',
+                                            style: TextStyle(
+                                              color: _navyDark,
+                                              fontSize: 13.5,
+                                              fontWeight: FontWeight.w800,
+                                              decoration:
+                                                  TextDecoration.underline,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(height: 18),
+                      ],
                     ),
                   ),
                 ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectedRoleBanner({
+    required RolPaqueteConfig rol,
+    required bool isMobile,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFF5D061)),
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: SizedBox(
+              width: isMobile ? 64 : 78,
+              height: isMobile ? 52 : 62,
+              child: Image.memory(
+                RolesVisualAssetsData.bytesForRole(rol.id),
+                fit: BoxFit.cover,
+                alignment: Alignment.topCenter,
+                gaplessPlayback: true,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      'Rol elegido: ${rol.nombre}',
+                      style: const TextStyle(
+                        color: _navyDark,
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _goldAccent,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        rol.precioFormateadoCop,
+                        style: const TextStyle(
+                          color: _navyDark,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  rol.descripcionCorta,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: _subtitleBlue,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: _cambiarRol,
+            style: TextButton.styleFrom(
+              foregroundColor: _navyDark,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            ),
+            child: const Text(
+              'Cambiar rol',
+              style: TextStyle(
+                color: _navyDark,
+                fontSize: 12.2,
+                fontWeight: FontWeight.w800,
+                decoration: TextDecoration.underline,
               ),
             ),
           ),
@@ -681,7 +744,8 @@ class _RegistroScreenState extends State<RegistroScreen> {
                 value: _aceptaPolitica,
                 activeColor: _navyDark,
                 side: BorderSide(
-                  color: hayError ? Colors.red.shade400 : const Color(0xFF64748B),
+                  color:
+                      hayError ? Colors.red.shade400 : const Color(0xFF64748B),
                   width: 1.6,
                 ),
                 onChanged: _isLoading
@@ -781,16 +845,19 @@ class _RegistroScreenState extends State<RegistroScreen> {
           constraints: const BoxConstraints(maxWidth: 560, maxHeight: 420),
           child: const SingleChildScrollView(
             child: Text(
-              // TODO(legal): reemplazar por el texto definitivo aprobado por el área jurídica.
               'Versión ${ConsentService.versionPolitica}\n\n'
-              '1. Responsable: Contrata Legal, plataforma de consulta ciudadana de contratación pública.\n\n'
-              '2. Datos tratados: nombres, apellidos, correo electrónico, país, y de forma opcional teléfono y número de documento.\n\n'
-              '3. Finalidades: crear y administrar tu cuenta, autenticarte, guardar tus favoritos y preferencias, enviarte comunicaciones relacionadas con el servicio y cumplir obligaciones legales.\n\n'
+              '1. Responsable: Contrata Legal, plataforma tecnológica de información contractual pública para el rol Persona y roles especializados.\n\n'
+              '2. Datos tratados: nombres, apellidos, correo electrónico, número de documento/cédula, país y teléfono.\n\n'
+              '3. Finalidades: crear y administrar tu cuenta, asignar tus roles activos, autenticarte, guardar tus favoritos y preferencias, procesar la activación de tu plan y cumplir obligaciones legales.\n\n'
               '4. Derechos del titular (Art. 8, Ley 1581 de 2012): conocer, actualizar y rectificar tus datos; solicitar prueba de esta autorización; ser informado del uso dado a tus datos; presentar quejas ante la Superintendencia de Industria y Comercio; revocar la autorización y solicitar la supresión de tus datos.\n\n'
               '5. Datos sensibles: no son obligatorios; puedes abstenerte de suministrarlos.\n\n'
               '6. Seguridad y conservación: los datos se almacenan en servicios de Google Firebase con medidas de seguridad razonables y se conservan mientras la cuenta esté activa o lo exija la ley.\n\n'
               '7. Evidencia: al aceptar, se registra la fecha y hora de tu autorización y la versión de esta política, como prueba exigida por el Decreto 1377 de 2013.',
-              style: TextStyle(color: Color(0xFF334155), fontSize: 13, height: 1.5),
+              style: TextStyle(
+                color: Color(0xFF334155),
+                fontSize: 13,
+                height: 1.5,
+              ),
             ),
           ),
         ),
@@ -831,6 +898,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
     required IconData icon,
     String? Function(String?)? validator,
     TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
     TextCapitalization textCapitalization = TextCapitalization.none,
     bool obscureText = false,
     Widget? suffixIcon,
@@ -839,6 +907,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
       controller: controller,
       validator: validator,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       textCapitalization: textCapitalization,
       obscureText: obscureText,
       enabled: !_isLoading,
@@ -866,7 +935,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
       ),
       hintStyle: const TextStyle(
         color: Color(0xFF64748B),
-        fontSize: 13.8,
+        fontSize: 13.6,
         fontWeight: FontWeight.w400,
       ),
       filled: true,
@@ -875,69 +944,21 @@ class _RegistroScreenState extends State<RegistroScreen> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       prefixIcon: Icon(icon, color: _navyDark, size: 19),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(11),
+        borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Color(0xFFD8DEE8)),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(11),
+        borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Color(0xFFD8DEE8)),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(11),
+        borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: _navyDark, width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(11),
+        borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide(color: Colors.red.shade400),
       ),
     );
   }
-}
-
-class _BottomLeftNavyWavePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final darkNavyPaint = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Color(0xFF061B40),
-          Color(0xFF0C3474),
-        ],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-
-    final path = Path()
-      ..moveTo(0, size.height * 0.25)
-      ..quadraticBezierTo(
-        size.width * 0.28,
-        size.height * 0.18,
-        size.width * 0.62,
-        size.height * 0.92,
-      )
-      ..lineTo(size.width * 0.68, size.height)
-      ..lineTo(0, size.height)
-      ..close();
-
-    canvas.drawPath(path, darkNavyPaint);
-
-    // Subtle white inner curve highlight matching the screenshot
-    final linePaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.65)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
-
-    final highlightPath = Path()
-      ..moveTo(0, size.height * 0.62)
-      ..quadraticBezierTo(
-        size.width * 0.25,
-        size.height * 0.30,
-        size.width * 0.60,
-        size.height,
-      );
-    canvas.drawPath(highlightPath, linePaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
