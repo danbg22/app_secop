@@ -25,6 +25,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
   static const _subtitleBlue = Color(0xFF364F6B);
   static const _royalBlue = Color(0xFF0D5BD9);
   static const _goldAccent = Color(0xFFF5C032);
+  static const _tealCheck = Color(0xFF1E7868);
   static final _emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
 
   final _formKey = GlobalKey<FormState>();
@@ -40,6 +41,10 @@ class _RegistroScreenState extends State<RegistroScreen> {
   bool _isLoading = false;
   bool _passwordVisible = false;
   bool _confirmPasswordVisible = false;
+
+  /// Errores bloqueantes cuando el correo o la cédula ya están vinculados a otra cuenta.
+  String? _errorEmailEnUso;
+  String? _errorCedulaEnUso;
 
   /// Autorización expresa de tratamiento de datos (Ley 1581 de 2012). Obligatoria.
   bool _aceptaPolitica = false;
@@ -66,11 +71,132 @@ class _RegistroScreenState extends State<RegistroScreen> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text(message),
+          content: Row(
+            children: [
+              Icon(
+                isError ? Icons.error_outline_rounded : Icons.verified_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  message,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
           backgroundColor: isError ? Colors.red.shade700 : _navyDark,
           behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
+  }
+
+  Future<void> _mostrarAlertaCredencialesEnUso({
+    required bool emailEnUso,
+    required bool documentoEnUso,
+    required String email,
+    required String documento,
+  }) async {
+    if (!mounted) return;
+    final String titulo = (emailEnUso && documentoEnUso)
+        ? 'Cédula y correo electrónico ya están en uso'
+        : (documentoEnUso
+              ? 'Número de cédula ya se encuentra en uso'
+              : 'Correo electrónico ya se encuentra en uso');
+
+    final String detalle = (emailEnUso && documentoEnUso)
+        ? 'El número de cédula ($documento) y el correo electrónico ($email) ya están vinculados a una cuenta registrada.\n\nNo puedes avanzar al siguiente paso hasta que ingreses una cédula y un correo electrónico que no hayan sido usados.'
+        : (documentoEnUso
+              ? 'El número de cédula o documento ($documento) ya se encuentra vinculado a otra cuenta en la plataforma.\n\nPor favor cámbialo por un número de documento que no se haya usado para poder continuar.'
+              : 'El correo electrónico ($email) ya se encuentra vinculado a otra cuenta en la plataforma.\n\nPor favor cámbialo por un correo electrónico diferente que no esté en uso para poder continuar.');
+
+    _showMessage(titulo, isError: true);
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 460),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(26, 26, 26, 22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFEE2E2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.red.shade700,
+                    size: 34,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  titulo,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: _navyDark,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  detalle,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFF475569),
+                    fontSize: 14,
+                    height: 1.45,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 22),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _navyDark,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(26),
+                      ),
+                    ),
+                    child: const Text(
+                      'Entendido, cambiar datos',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   void _cambiarRol() {
@@ -92,6 +218,11 @@ class _RegistroScreenState extends State<RegistroScreen> {
   }
 
   Future<void> _register() async {
+    setState(() {
+      _errorEmailEnUso = null;
+      _errorCedulaEnUso = null;
+    });
+
     final camposValidos = _formKey.currentState!.validate();
     if (!_aceptaPolitica) {
       setState(() => _mostrarErrorPolitica = true);
@@ -111,14 +242,43 @@ class _RegistroScreenState extends State<RegistroScreen> {
       return;
     }
 
+    final nombres = _nombresController.text.trim();
+    final apellidos = _apellidosController.text.trim();
+    final email = _emailController.text.trim().toLowerCase();
+    final documento = _documentoController.text.trim();
+    final rolConfig = _rolConfig;
+
     setState(() => _isLoading = true);
     try {
-      final nombres = _nombresController.text.trim();
-      final apellidos = _apellidosController.text.trim();
-      final email = _emailController.text.trim().toLowerCase();
-      final documento = _documentoController.text.trim();
-      final rolConfig = _rolConfig;
+      // 1. Verificar disponibilidad de cédula y correo antes de permitir avanzar
+      final duplicados = await AuthService.checkDuplicateCredentials(
+        email: email,
+        documento: documento,
+      );
+      if (duplicados.emailEnUso || duplicados.documentoEnUso) {
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+          if (duplicados.emailEnUso) {
+            _errorEmailEnUso =
+                'Este correo electrónico ya se encuentra en uso. Cámbialo por otro.';
+          }
+          if (duplicados.documentoEnUso) {
+            _errorCedulaEnUso =
+                'Esta cédula ya se encuentra en uso. Cámbiala por otra.';
+          }
+        });
+        _formKey.currentState!.validate();
+        await _mostrarAlertaCredencialesEnUso(
+          emailEnUso: duplicados.emailEnUso,
+          documentoEnUso: duplicados.documentoEnUso,
+          email: email,
+          documento: documento,
+        );
+        return;
+      }
 
+      // 2. Crear cuenta en AuthService (también valida unicidad contra Firebase Auth)
       await AuthService.signUp(
         {
           'nombres': nombres,
@@ -147,10 +307,38 @@ class _RegistroScreenState extends State<RegistroScreen> {
         ),
       );
     } catch (error) {
-      if (mounted) {
-        final msg = error.toString().replaceFirst('Exception: ', '');
-        _showMessage(msg, isError: true);
+      if (!mounted) return;
+      final msg = error.toString().replaceFirst('Exception: ', '');
+      final lowerMsg = msg.toLowerCase();
+      final bool esCorreoDuplicado =
+          lowerMsg.contains('correo') && lowerMsg.contains('en uso');
+      final bool esCedulaDuplicada =
+          (lowerMsg.contains('cédula') || lowerMsg.contains('cedula') || lowerMsg.contains('documento')) &&
+          lowerMsg.contains('en uso');
+
+      if (esCorreoDuplicado || esCedulaDuplicada) {
+        setState(() {
+          _isLoading = false;
+          if (esCorreoDuplicado) {
+            _errorEmailEnUso =
+                'Este correo electrónico ya se encuentra en uso. Cámbialo por otro.';
+          }
+          if (esCedulaDuplicada) {
+            _errorCedulaEnUso =
+                'Esta cédula ya se encuentra en uso. Cámbiala por otra.';
+          }
+        });
+        _formKey.currentState!.validate();
+        await _mostrarAlertaCredencialesEnUso(
+          emailEnUso: esCorreoDuplicado,
+          documentoEnUso: esCedulaDuplicada,
+          email: email,
+          documento: documento,
+        );
+        return;
       }
+
+      _showMessage(msg, isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -166,7 +354,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final width = constraints.maxWidth;
-            final isTwoCols = width >= 660;
+            final isTwoCols = width >= 680;
             final isMobile = width < 600;
 
             final fieldNombres = _textField(
@@ -190,6 +378,12 @@ class _RegistroScreenState extends State<RegistroScreen> {
               hint: 'Correo electrónico *',
               icon: Icons.mail_outline_rounded,
               keyboardType: TextInputType.emailAddress,
+              onChanged: (_) {
+                if (_errorEmailEnUso != null) {
+                  setState(() => _errorEmailEnUso = null);
+                  _formKey.currentState?.validate();
+                }
+              },
               validator: (value) {
                 final email = value?.trim() ?? '';
                 if (email.isEmpty) {
@@ -197,6 +391,9 @@ class _RegistroScreenState extends State<RegistroScreen> {
                 }
                 if (!_emailRegex.hasMatch(email)) {
                   return 'Ingresa un correo electrónico válido.';
+                }
+                if (_errorEmailEnUso != null) {
+                  return _errorEmailEnUso;
                 }
                 return null;
               },
@@ -211,6 +408,12 @@ class _RegistroScreenState extends State<RegistroScreen> {
                 FilteringTextInputFormatter.allow(RegExp(r'[0-9.\-]')),
                 LengthLimitingTextInputFormatter(18),
               ],
+              onChanged: (_) {
+                if (_errorCedulaEnUso != null) {
+                  setState(() => _errorCedulaEnUso = null);
+                  _formKey.currentState?.validate();
+                }
+              },
               validator: (value) {
                 final digits = (value ?? '').replaceAll(RegExp(r'\D'), '');
                 if (digits.isEmpty) {
@@ -218,6 +421,9 @@ class _RegistroScreenState extends State<RegistroScreen> {
                 }
                 if (digits.length < 5) {
                   return 'Ingresa un número de cédula válido (mínimo 5 dígitos).';
+                }
+                if (_errorCedulaEnUso != null) {
+                  return _errorCedulaEnUso;
                 }
                 return null;
               },
@@ -227,7 +433,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
               initialValue: _pais,
               style: const TextStyle(
                 color: Color(0xFF1E293B),
-                fontSize: 14,
+                fontSize: 14.8,
                 fontWeight: FontWeight.w500,
               ),
               icon: const Icon(
@@ -329,8 +535,8 @@ class _RegistroScreenState extends State<RegistroScreen> {
             return SafeArea(
               child: SingleChildScrollView(
                 padding: EdgeInsets.symmetric(
-                  horizontal: isMobile ? 14 : 36,
-                  vertical: isMobile ? 14 : 22,
+                  horizontal: isMobile ? 12 : 36,
+                  vertical: isMobile ? 12 : 22,
                 ),
                 child: Center(
                   child: ConstrainedBox(
@@ -338,16 +544,17 @@ class _RegistroScreenState extends State<RegistroScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Barra superior idéntica a Escoger Rol (Paso 2 de 3)
+                        // Barra superior sin logo duplicado (el logo HD grande va dentro de la tarjeta)
                         OnboardingUnifiedTopBar(
                           currentStep: 2,
                           totalSteps: 3,
                           onBack: _cambiarRol,
                           backLabel: 'Cambiar rol',
+                          showBrandLogo: false,
                         ),
                         SizedBox(height: isMobile ? 14 : 20),
 
-                        // Título y subtítulo centrados con la misma tipografía y jerarquía de Escoger Rol
+                        // Título y subtítulo centrados
                         Text(
                           'Crea tu cuenta para continuar',
                           textAlign: TextAlign.center,
@@ -360,25 +567,28 @@ class _RegistroScreenState extends State<RegistroScreen> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Text(
-                          'Completa tus datos personales. Tu cédula y tu correo electrónico son obligatorios.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: _subtitleBlue,
-                            fontSize: isMobile ? 13.5 : 15.5,
-                            fontWeight: FontWeight.w500,
-                            height: 1.38,
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Text(
+                            'Completa tus datos personales. Tu cédula y tu correo electrónico son obligatorios y únicos.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: _subtitleBlue,
+                              fontSize: isMobile ? 13.8 : 16,
+                              fontWeight: FontWeight.w500,
+                              height: 1.38,
+                            ),
                           ),
                         ),
-                        SizedBox(height: isMobile ? 18 : 24),
+                        SizedBox(height: isMobile ? 16 : 24),
 
-                        // Tarjeta centralizada y uniforme con la estética de las tarjetas de rol
+                        // Tarjeta centralizada más amplia, con fondo blanco puro para el logo HD
                         ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 690),
+                          constraints: const BoxConstraints(maxWidth: 760),
                           child: Container(
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFFFDF8),
-                              borderRadius: BorderRadius.circular(24),
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(26),
                               border: Border.all(
                                 color: const Color(0xFFF5C032),
                                 width: 1.8,
@@ -388,20 +598,20 @@ class _RegistroScreenState extends State<RegistroScreen> {
                                   color: const Color(0xFFF5B82E).withValues(
                                     alpha: 0.16,
                                   ),
-                                  blurRadius: 30,
+                                  blurRadius: 32,
                                   spreadRadius: 1,
                                   offset: const Offset(0, 12),
                                 ),
                                 BoxShadow(
-                                  color: _navyDark.withValues(alpha: 0.06),
+                                  color: _navyDark.withValues(alpha: 0.07),
                                   blurRadius: 24,
                                   offset: const Offset(0, 8),
                                 ),
                               ],
                             ),
                             padding: EdgeInsets.symmetric(
-                              horizontal: isMobile ? 18 : 30,
-                              vertical: isMobile ? 18 : 24,
+                              horizontal: isMobile ? 16 : 36,
+                              vertical: isMobile ? 20 : 30,
                             ),
                             child: Form(
                               key: _formKey,
@@ -409,78 +619,84 @@ class _RegistroScreenState extends State<RegistroScreen> {
                                 mainAxisSize: MainAxisSize.min,
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  // Cabecera del rol seleccionado con la ilustración original de la foto y su precio ($100 COP)
+                                  // Cabecera superior de la tarjeta: UN SOLO LOGO HD GRANDE + Stepper
+                                  _buildRegistrationCardHeader(
+                                    isMobile: isMobile,
+                                  ),
+                                  SizedBox(height: isMobile ? 16 : 22),
+
+                                  // Banner del rol seleccionado con la ilustración original de la foto y su precio ($100 COP)
                                   _buildSelectedRoleBanner(
                                     rol: rol,
                                     isMobile: isMobile,
                                   ),
-                                  const SizedBox(height: 18),
+                                  SizedBox(height: isMobile ? 16 : 22),
 
-                                  // Campos en cuadrícula limpia de 2 columnas en escritorio / 1 columna en móvil
+                                  // Campos en cuadrícula limpia de 2 columnas en escritorio / 1 columna ajustada en celular
                                   if (isTwoCols) ...[
                                     Row(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
                                         Expanded(child: fieldNombres),
-                                        const SizedBox(width: 12),
+                                        const SizedBox(width: 14),
                                         Expanded(child: fieldApellidos),
                                       ],
                                     ),
-                                    const SizedBox(height: 12),
+                                    const SizedBox(height: 14),
                                     Row(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
                                         Expanded(child: fieldEmail),
-                                        const SizedBox(width: 12),
+                                        const SizedBox(width: 14),
                                         Expanded(child: fieldDocumento),
                                       ],
                                     ),
-                                    const SizedBox(height: 12),
+                                    const SizedBox(height: 14),
                                     Row(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
                                         Expanded(child: fieldPais),
-                                        const SizedBox(width: 12),
+                                        const SizedBox(width: 14),
                                         Expanded(child: fieldTelefono),
                                       ],
                                     ),
-                                    const SizedBox(height: 12),
+                                    const SizedBox(height: 14),
                                     Row(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
                                         Expanded(child: fieldPassword),
-                                        const SizedBox(width: 12),
+                                        const SizedBox(width: 14),
                                         Expanded(child: fieldConfirmPassword),
                                       ],
                                     ),
                                   ] else ...[
                                     fieldNombres,
-                                    const SizedBox(height: 10),
+                                    const SizedBox(height: 12),
                                     fieldApellidos,
-                                    const SizedBox(height: 10),
+                                    const SizedBox(height: 12),
                                     fieldEmail,
-                                    const SizedBox(height: 10),
+                                    const SizedBox(height: 12),
                                     fieldDocumento,
-                                    const SizedBox(height: 10),
+                                    const SizedBox(height: 12),
                                     fieldPais,
-                                    const SizedBox(height: 10),
+                                    const SizedBox(height: 12),
                                     fieldTelefono,
-                                    const SizedBox(height: 10),
+                                    const SizedBox(height: 12),
                                     fieldPassword,
-                                    const SizedBox(height: 10),
+                                    const SizedBox(height: 12),
                                     fieldConfirmPassword,
                                   ],
-                                  const SizedBox(height: 14),
+                                  const SizedBox(height: 16),
 
-                                  // Aviso de verificación por correo
+                                  // Aviso de verificación de unicidad de cédula y correo
                                   Container(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 14,
-                                      vertical: 10,
+                                      vertical: 11,
                                     ),
                                     decoration: BoxDecoration(
                                       color: const Color(0xFFEEF5FD),
@@ -494,31 +710,32 @@ class _RegistroScreenState extends State<RegistroScreen> {
                                         Icon(
                                           Icons.verified_user_outlined,
                                           color: Color(0xFF1D4ED8),
-                                          size: 18,
+                                          size: 20,
                                         ),
                                         SizedBox(width: 10),
                                         Expanded(
                                           child: Text(
-                                            'Tu correo y tu número de cédula quedarán vinculados de forma segura a tu cuenta.',
+                                            'Tu número de cédula y tu correo electrónico son de uso único por cuenta y quedarán vinculados de forma segura.',
                                             style: TextStyle(
                                               color: Color(0xFF334155),
-                                              fontSize: 12.3,
+                                              fontSize: 13,
                                               fontWeight: FontWeight.w600,
+                                              height: 1.35,
                                             ),
                                           ),
                                         ),
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 14),
 
                                   // Autorización obligatoria de tratamiento de datos (Ley 1581 de 2012)
                                   _buildConsentimientoDatos(),
-                                  const SizedBox(height: 16),
+                                  const SizedBox(height: 20),
 
-                                  // Botón principal uniforme con el estilo dorado/azul de la plataforma
+                                  // Botón principal grande y proporcionado
                                   SizedBox(
-                                    height: 48,
+                                    height: 54,
                                     child: ElevatedButton(
                                       onPressed: _isLoading ? null : _register,
                                       style: ElevatedButton.styleFrom(
@@ -529,15 +746,15 @@ class _RegistroScreenState extends State<RegistroScreen> {
                                         elevation: 0,
                                         shape: RoundedRectangleBorder(
                                           borderRadius:
-                                              BorderRadius.circular(26),
+                                              BorderRadius.circular(28),
                                         ),
                                       ),
                                       child: _isLoading
                                           ? const SizedBox(
-                                              width: 22,
-                                              height: 22,
+                                              width: 24,
+                                              height: 24,
                                               child: CircularProgressIndicator(
-                                                strokeWidth: 2.4,
+                                                strokeWidth: 2.5,
                                                 color: _navyDark,
                                               ),
                                             )
@@ -545,35 +762,43 @@ class _RegistroScreenState extends State<RegistroScreen> {
                                               mainAxisAlignment:
                                                   MainAxisAlignment.center,
                                               children: [
-                                                Text(
-                                                  'Continuar al pago (${rol.precioFormateadoCop})',
-                                                  style: const TextStyle(
-                                                    color: _navyDark,
-                                                    fontSize: 15,
-                                                    fontWeight: FontWeight.w800,
+                                                Flexible(
+                                                  child: Text(
+                                                    'Continuar al pago (${rol.precioFormateadoCop})',
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: TextStyle(
+                                                      color: _navyDark,
+                                                      fontSize:
+                                                          isMobile ? 15.2 : 16.5,
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                    ),
                                                   ),
                                                 ),
                                                 const SizedBox(width: 10),
                                                 const Icon(
                                                   Icons.arrow_forward_rounded,
-                                                  size: 18,
+                                                  size: 20,
                                                   color: _navyDark,
                                                 ),
                                               ],
                                             ),
                                     ),
                                   ),
-                                  const SizedBox(height: 14),
+                                  const SizedBox(height: 16),
 
                                   // Enlace inferior a Iniciar sesión
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
+                                  Wrap(
+                                    alignment: WrapAlignment.center,
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
                                     children: [
                                       const Text(
-                                        '¿Ya tienes cuenta? ',
+                                        '¿Ya tienes cuenta registrada? ',
                                         style: TextStyle(
                                           color: Color(0xFF475569),
-                                          fontSize: 13.5,
+                                          fontSize: 14.2,
                                           fontWeight: FontWeight.w500,
                                         ),
                                       ),
@@ -584,14 +809,14 @@ class _RegistroScreenState extends State<RegistroScreen> {
                                         borderRadius: BorderRadius.circular(6),
                                         child: const Padding(
                                           padding: EdgeInsets.symmetric(
-                                            horizontal: 4,
-                                            vertical: 2,
+                                            horizontal: 6,
+                                            vertical: 4,
                                           ),
                                           child: Text(
-                                            'Inicia sesión →',
+                                            'Inicia sesión aquí →',
                                             style: TextStyle(
                                               color: _navyDark,
-                                              fontSize: 13.5,
+                                              fontSize: 14.5,
                                               fontWeight: FontWeight.w800,
                                               decoration:
                                                   TextDecoration.underline,
@@ -606,7 +831,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 20),
                       ],
                     ),
                   ),
@@ -619,102 +844,216 @@ class _RegistroScreenState extends State<RegistroScreen> {
     );
   }
 
+  Widget _buildRegistrationCardHeader({required bool isMobile}) {
+    final logo = ContrataLegalHdLogo(height: isMobile ? 50 : 62);
+
+    final stepper = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildStepMiniItem(label: 'Rol', completed: true, active: false),
+        Container(
+          width: isMobile ? 22 : 32,
+          height: 2,
+          margin: const EdgeInsets.only(bottom: 14, left: 4, right: 4),
+          color: _tealCheck,
+        ),
+        _buildStepMiniItem(label: 'Registro', completed: false, active: true),
+        Container(
+          width: isMobile ? 22 : 32,
+          height: 2,
+          margin: const EdgeInsets.only(bottom: 14, left: 4, right: 4),
+          color: const Color(0xFFD8E0EA),
+        ),
+        _buildStepMiniItem(label: 'Pago', completed: false, active: false),
+      ],
+    );
+
+    if (isMobile) {
+      return Column(
+        children: [
+          Center(child: logo),
+          const SizedBox(height: 12),
+          Center(child: stepper),
+        ],
+      );
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        logo,
+        stepper,
+      ],
+    );
+  }
+
+  Widget _buildStepMiniItem({
+    required String label,
+    required bool completed,
+    required bool active,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            color: completed
+                ? _tealCheck
+                : (active ? Colors.white : const Color(0xFFEEF2F6)),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: completed || active
+                  ? _tealCheck
+                  : const Color(0xFFCBD5E1),
+              width: active ? 2.0 : 1.4,
+            ),
+          ),
+          child: Icon(
+            completed
+                ? Icons.check_rounded
+                : (active ? Icons.edit_rounded : Icons.circle),
+            size: completed || active ? 14 : 6,
+            color: completed
+                ? Colors.white
+                : (active ? _tealCheck : const Color(0xFFCBD5E1)),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            color: completed || active ? _navyDark : const Color(0xFF94A3B8),
+            fontSize: 11.5,
+            fontWeight:
+                completed || active ? FontWeight.w800 : FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSelectedRoleBanner({
     required RolPaqueteConfig rol,
     required bool isMobile,
   }) {
+    final avatarWidget = ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: SizedBox(
+        width: isMobile ? 68 : 88,
+        height: isMobile ? 56 : 70,
+        child: Image.memory(
+          RolesVisualAssetsData.bytesForRole(rol.id),
+          fit: BoxFit.cover,
+          alignment: Alignment.topCenter,
+          gaplessPlayback: true,
+        ),
+      ),
+    );
+
+    final cambiarRolBtn = OutlinedButton.icon(
+      onPressed: _cambiarRol,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: _navyDark,
+        backgroundColor: Colors.white,
+        side: const BorderSide(color: Color(0xFFE2C05A), width: 1.3),
+        padding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 12 : 16,
+          vertical: isMobile ? 8 : 10,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22),
+        ),
+      ),
+      icon: const Icon(Icons.swap_horiz_rounded, size: 18, color: _navyDark),
+      label: Text(
+        'Cambiar rol',
+        style: TextStyle(
+          color: _navyDark,
+          fontSize: isMobile ? 12.8 : 13.8,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(isMobile ? 12 : 16),
       decoration: BoxDecoration(
         color: const Color(0xFFFFF8E5),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFF5D061)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFF5D061), width: 1.3),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: SizedBox(
-              width: isMobile ? 64 : 78,
-              height: isMobile ? 52 : 62,
-              child: Image.memory(
-                RolesVisualAssetsData.bytesForRole(rol.id),
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
-                gaplessPlayback: true,
-              ),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              avatarWidget,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Rol elegido: ${rol.nombre}',
-                      style: const TextStyle(
-                        color: _navyDark,
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2.5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _goldAccent,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        rol.precioFormateadoCop,
-                        style: const TextStyle(
-                          color: _navyDark,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w900,
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          'Rol elegido: ${rol.nombre}',
+                          style: TextStyle(
+                            color: _navyDark,
+                            fontSize: isMobile ? 15.5 : 17,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 3.5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _goldAccent,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Text(
+                            rol.precioFormateadoCop,
+                            style: const TextStyle(
+                              color: _navyDark,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      rol.descripcionCorta,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: _subtitleBlue,
+                        fontSize: isMobile ? 12.2 : 13,
+                        fontWeight: FontWeight.w500,
+                        height: 1.32,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  rol.descripcionCorta,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _subtitleBlue,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    height: 1.3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          TextButton(
-            onPressed: _cambiarRol,
-            style: TextButton.styleFrom(
-              foregroundColor: _navyDark,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            ),
-            child: const Text(
-              'Cambiar rol',
-              style: TextStyle(
-                color: _navyDark,
-                fontSize: 12.2,
-                fontWeight: FontWeight.w800,
-                decoration: TextDecoration.underline,
               ),
-            ),
+              if (!isMobile) ...[
+                const SizedBox(width: 10),
+                cambiarRolBtn,
+              ],
+            ],
           ),
+          if (isMobile) ...[
+            const SizedBox(height: 10),
+            SizedBox(width: double.infinity, child: cambiarRolBtn),
+          ],
         ],
       ),
     );
@@ -728,10 +1067,10 @@ class _RegistroScreenState extends State<RegistroScreen> {
       children: [
         AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.fromLTRB(4, 4, 12, 4),
+          padding: const EdgeInsets.fromLTRB(6, 6, 12, 6),
           decoration: BoxDecoration(
             color: hayError ? const Color(0xFFFEF2F2) : const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(11),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: hayError ? Colors.red.shade400 : const Color(0xFFD8DEE8),
               width: hayError ? 1.4 : 1,
@@ -757,7 +1096,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
               ),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 11),
+                  padding: const EdgeInsets.only(top: 10),
                   child: GestureDetector(
                     onTap: _isLoading
                         ? null
@@ -771,7 +1110,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                           'He leído y acepto la ',
                           style: TextStyle(
                             color: Color(0xFF334155),
-                            fontSize: 12.5,
+                            fontSize: 13.2,
                             height: 1.4,
                           ),
                         ),
@@ -781,7 +1120,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                             'Política de Privacidad y Tratamiento de Datos Personales',
                             style: TextStyle(
                               color: _royalBlue,
-                              fontSize: 12.5,
+                              fontSize: 13.2,
                               height: 1.4,
                               fontWeight: FontWeight.w700,
                               decoration: TextDecoration.underline,
@@ -793,7 +1132,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                           ' y autorizo el tratamiento de mis datos conforme a la Ley 1581 de 2012. *',
                           style: TextStyle(
                             color: Color(0xFF334155),
-                            fontSize: 12.5,
+                            fontSize: 13.2,
                             height: 1.4,
                           ),
                         ),
@@ -817,7 +1156,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                     'Debes aceptar la política para crear tu cuenta.',
                     style: TextStyle(
                       color: Colors.red.shade700,
-                      fontSize: 12,
+                      fontSize: 12.5,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -855,7 +1194,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
               '7. Evidencia: al aceptar, se registra la fecha y hora de tu autorización y la versión de esta política, como prueba exigida por el Decreto 1377 de 2013.',
               style: TextStyle(
                 color: Color(0xFF334155),
-                fontSize: 13,
+                fontSize: 13.5,
                 height: 1.5,
               ),
             ),
@@ -897,6 +1236,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
     required String hint,
     required IconData icon,
     String? Function(String?)? validator,
+    ValueChanged<String>? onChanged,
     TextInputType? keyboardType,
     List<TextInputFormatter>? inputFormatters,
     TextCapitalization textCapitalization = TextCapitalization.none,
@@ -906,13 +1246,15 @@ class _RegistroScreenState extends State<RegistroScreen> {
     return TextFormField(
       controller: controller,
       validator: validator,
+      onChanged: onChanged,
       keyboardType: keyboardType,
       inputFormatters: inputFormatters,
       textCapitalization: textCapitalization,
       obscureText: obscureText,
       enabled: !_isLoading,
       style: const TextStyle(
-        fontSize: 14,
+        fontSize: 14.8,
+        fontWeight: FontWeight.w500,
         color: Color(0xFF1E293B),
       ),
       decoration: _decoration(hint: hint, icon: icon).copyWith(
@@ -931,33 +1273,37 @@ class _RegistroScreenState extends State<RegistroScreen> {
       labelText: labelText,
       labelStyle: const TextStyle(
         color: Color(0xFF64748B),
-        fontSize: 13,
+        fontSize: 13.5,
       ),
       hintStyle: const TextStyle(
         color: Color(0xFF64748B),
-        fontSize: 13.6,
+        fontSize: 14.2,
         fontWeight: FontWeight.w400,
       ),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: const Color(0xFFFDFEFE),
       isDense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      prefixIcon: Icon(icon, color: _navyDark, size: 19),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+      prefixIcon: Icon(icon, color: _navyDark, size: 20),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(13),
         borderSide: const BorderSide(color: Color(0xFFD8DEE8)),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(13),
         borderSide: const BorderSide(color: Color(0xFFD8DEE8)),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: _navyDark, width: 1.5),
+        borderRadius: BorderRadius.circular(13),
+        borderSide: const BorderSide(color: _navyDark, width: 1.6),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.red.shade400),
+        borderRadius: BorderRadius.circular(13),
+        borderSide: BorderSide(color: Colors.red.shade600, width: 1.4),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(13),
+        borderSide: BorderSide(color: Colors.red.shade700, width: 1.8),
       ),
     );
   }

@@ -29,7 +29,6 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
   static const Color _subtitleSlate = Color(0xFF475569);
   static const Color _bgCream = Color(0xFFF9F1DF);
   static const Color _tealCheck = Color(0xFF1E7868);
-  static const Color _gold = Color(0xFFF5C032);
 
   /// Paso interno dentro de la pasarela (0: Plan, 1: Método, 2: Datos de pago, 3: ¡Listo!)
   int _pasoActual = 0;
@@ -365,6 +364,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                         OnboardingUnifiedTopBar(
                           currentStep: 3,
                           totalSteps: 3,
+                          showBrandLogo: false,
                           backLabel: _pasoActual == 3
                               ? 'Ir al inicio'
                               : (_pasoActual > 0 ? 'Volver' : 'Cambiar rol'),
@@ -374,9 +374,9 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                                     ? () => setState(() => _pasoActual--)
                                     : _cambiarRol),
                         ),
-                        SizedBox(height: isMobile ? 12 : 16),
+                        SizedBox(height: isMobile ? 14 : 20),
                         ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 500),
+                          constraints: const BoxConstraints(maxWidth: 680),
                           child: AnimatedSwitcher(
                             duration: const Duration(milliseconds: 240),
                             child: _buildActiveCard(isMobile: isMobile),
@@ -401,14 +401,20 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
       key: ValueKey<int>(_pasoActual),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: const Color(0xFFFCFAF5),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFEDE5D5), width: 1.2),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: const Color(0xFFF5C032), width: 1.8),
         boxShadow: [
           BoxShadow(
-            color: _navy.withValues(alpha: 0.08),
+            color: const Color(0xFFF5B82E).withValues(alpha: 0.15),
             blurRadius: 32,
+            spreadRadius: 1,
             offset: const Offset(0, 12),
+          ),
+          BoxShadow(
+            color: _navy.withValues(alpha: 0.08),
+            blurRadius: 28,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -418,10 +424,10 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
         children: [
           Padding(
             padding: EdgeInsets.fromLTRB(
-              isMobile ? 20 : 28,
-              isMobile ? 20 : 26,
-              isMobile ? 20 : 28,
-              isSuccessStep ? 0 : (isMobile ? 22 : 28),
+              isMobile ? 18 : 38,
+              isMobile ? 20 : 32,
+              isMobile ? 18 : 38,
+              isSuccessStep ? 0 : (isMobile ? 22 : 34),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -430,7 +436,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                   showStepper: !isSuccessStep,
                   isMobile: isMobile,
                 ),
-                SizedBox(height: isMobile ? 20 : 26),
+                SizedBox(height: isMobile ? 20 : 28),
                 if (_pasoActual == 0) _buildPaso0PlanSummary(isMobile: isMobile),
                 if (_pasoActual == 1)
                   _buildPaso1MetodoPago(isMobile: isMobile),
@@ -450,33 +456,14 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
   }
 
   // ===========================================================================
-  // CABECERA DE LA TARJETA (LOGO CONTRATA LEGAL + STEPPER REGISTRO / PAGO / INICIO)
+  // CABECERA DE LA TARJETA (UN SOLO LOGO CONTRATA LEGAL HD + STEPPER)
   // ===========================================================================
 
   Widget _buildCardHeader({
     required bool showStepper,
     required bool isMobile,
   }) {
-    final logoRow = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Image.asset(
-          'assets/images/logo.png',
-          height: isMobile ? 32 : 36,
-          fit: BoxFit.contain,
-          filterQuality: FilterQuality.high,
-          errorBuilder: (_, _, _) => Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: _gold,
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: const Icon(Icons.search_rounded, color: _navy, size: 20),
-          ),
-        ),
-      ],
-    );
+    final logoRow = ContrataLegalHdLogo(height: isMobile ? 50 : 62);
 
     if (!showStepper) {
       return Align(alignment: Alignment.centerLeft, child: logoRow);
@@ -511,12 +498,22 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
       ],
     );
 
+    if (isMobile) {
+      return Column(
+        children: [
+          Center(child: logoRow),
+          const SizedBox(height: 12),
+          Center(child: stepperWidget),
+        ],
+      );
+    }
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Flexible(child: logoRow),
-        const SizedBox(width: 8),
+        const SizedBox(width: 12),
         stepperWidget,
       ],
     );
@@ -531,8 +528,8 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 20,
-          height: 20,
+          width: 24,
+          height: 24,
           decoration: BoxDecoration(
             color: isCompleted
                 ? _tealCheck
@@ -542,14 +539,14 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
               color: isCompleted || isActive
                   ? _tealCheck
                   : const Color(0xFFCBD5E1),
-              width: isActive && !isCompleted ? 1.8 : 1.2,
+              width: isActive && !isCompleted ? 2.0 : 1.4,
             ),
           ),
           child: Icon(
             isCompleted
                 ? Icons.check_rounded
                 : (isActive ? Icons.check_rounded : Icons.circle),
-            size: isCompleted || isActive ? 13 : 5,
+            size: isCompleted || isActive ? 14 : 6,
             color: isCompleted
                 ? Colors.white
                 : (isActive ? _tealCheck : const Color(0xFFCBD5E1)),
@@ -562,10 +559,10 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
             color: isCompleted || isActive
                 ? _navy
                 : const Color(0xFF94A3B8),
-            fontSize: 10.2,
+            fontSize: 11.5,
             fontWeight: isCompleted || isActive
-                ? FontWeight.w700
-                : FontWeight.w500,
+                ? FontWeight.w800
+                : FontWeight.w600,
           ),
         ),
       ],
@@ -574,9 +571,9 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
 
   Widget _buildStepConnector({required bool active}) {
     return Container(
-      width: 28,
-      height: 1.6,
-      margin: const EdgeInsets.only(top: 9.5, left: 3, right: 3),
+      width: 34,
+      height: 2,
+      margin: const EdgeInsets.only(top: 11, left: 4, right: 4),
       color: active ? _tealCheck : const Color(0xFFD8E0EA),
     );
   }
@@ -810,29 +807,32 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
               onPressed: _cambiarRol,
               style: TextButton.styleFrom(
                 foregroundColor: _navy,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
               ),
               child: const Text(
                 'Cambiar plan',
                 style: TextStyle(
                   color: _navy,
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 14.8,
+                  fontWeight: FontWeight.w800,
                   decoration: TextDecoration.underline,
                 ),
               ),
             ),
             SizedBox(
-              height: 46,
+              height: 52,
               child: ElevatedButton(
                 onPressed: () => setState(() => _pasoActual = 1),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _navy,
                   foregroundColor: Colors.white,
                   elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.symmetric(horizontal: 28),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(26),
+                    borderRadius: BorderRadius.circular(28),
                   ),
                 ),
                 child: const Row(
@@ -841,12 +841,12 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                     Text(
                       'Continuar al pago',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 15.5,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    SizedBox(width: 8),
-                    Icon(Icons.arrow_forward_rounded, size: 17),
+                    SizedBox(width: 10),
+                    Icon(Icons.arrow_forward_rounded, size: 19),
                   ],
                 ),
               ),
@@ -1059,7 +1059,10 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 28),
+        // Leyenda de seguridad y no almacenamiento en Wompi
+        const SizedBox(height: 18),
+        _buildLeyendaSeguridadEncriptacionWompi(),
+        const SizedBox(height: 22),
 
         // Barra inferior: Volver | Continuar ->
         Row(
@@ -1067,28 +1070,34 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
           children: [
             TextButton(
               onPressed: () => setState(() => _pasoActual = 0),
-              style: TextButton.styleFrom(foregroundColor: _navy),
+              style: TextButton.styleFrom(
+                foregroundColor: _navy,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+              ),
               child: const Text(
                 'Volver',
                 style: TextStyle(
                   color: _navy,
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 14.8,
+                  fontWeight: FontWeight.w800,
                   decoration: TextDecoration.underline,
                 ),
               ),
             ),
             SizedBox(
-              height: 46,
+              height: 52,
               child: ElevatedButton(
                 onPressed: () => setState(() => _pasoActual = 2),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _navy,
                   foregroundColor: Colors.white,
                   elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 26),
+                  padding: const EdgeInsets.symmetric(horizontal: 30),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(26),
+                    borderRadius: BorderRadius.circular(28),
                   ),
                 ),
                 child: const Row(
@@ -1097,12 +1106,12 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                     Text(
                       'Continuar',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 15.5,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    SizedBox(width: 8),
-                    Icon(Icons.arrow_forward_rounded, size: 17),
+                    SizedBox(width: 10),
+                    Icon(Icons.arrow_forward_rounded, size: 19),
                   ],
                 ),
               ),
@@ -1310,7 +1319,11 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
+
+        // Leyenda de seguridad: nada se almacena, todo está encriptado por Wompi
+        _buildLeyendaSeguridadEncriptacionWompi(),
+        const SizedBox(height: 22),
 
         // Barra inferior: Volver | Pagar $100 COP ->
         Row(
@@ -1320,27 +1333,34 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
               onPressed: _procesandoPago
                   ? null
                   : () => setState(() => _pasoActual = 1),
-              style: TextButton.styleFrom(foregroundColor: _navy),
+              style: TextButton.styleFrom(
+                foregroundColor: _navy,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+              ),
               child: const Text(
                 'Volver',
                 style: TextStyle(
                   color: _navy,
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 14.8,
+                  fontWeight: FontWeight.w800,
+                  decoration: TextDecoration.underline,
                 ),
               ),
             ),
             SizedBox(
-              height: 46,
+              height: 52,
               child: ElevatedButton(
                 onPressed: _procesandoPago ? null : _ejecutarPagoWompi,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _navy,
                   foregroundColor: Colors.white,
                   elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.symmetric(horizontal: 28),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(26),
+                    borderRadius: BorderRadius.circular(28),
                   ),
                 ),
                 child: _procesandoPago
@@ -1348,10 +1368,10 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           SizedBox(
-                            width: 17,
-                            height: 17,
+                            width: 19,
+                            height: 19,
                             child: CircularProgressIndicator(
-                              strokeWidth: 2.2,
+                              strokeWidth: 2.3,
                               color: Colors.white,
                             ),
                           ),
@@ -1359,7 +1379,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                           Text(
                             'Validando pago en Wompi...',
                             style: TextStyle(
-                              fontSize: 13.5,
+                              fontSize: 14.8,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -1371,12 +1391,12 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                           Text(
                             'Pagar ${rol.precioFormateadoCop}',
                             style: const TextStyle(
-                              fontSize: 14,
+                              fontSize: 15.5,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          const Icon(Icons.arrow_forward_rounded, size: 17),
+                          const SizedBox(width: 10),
+                          const Icon(Icons.arrow_forward_rounded, size: 19),
                         ],
                       ),
               ),
@@ -1602,14 +1622,64 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
     );
   }
 
+  Widget _buildLeyendaSeguridadEncriptacionWompi() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0FDF4),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFBBF7D0), width: 1.2),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.only(top: 2),
+            child: Icon(
+              Icons.enhanced_encryption_rounded,
+              color: _tealCheck,
+              size: 22,
+            ),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Cero almacenamiento · Encriptación segura por Wompi Bancolombia',
+                  style: TextStyle(
+                    color: _navy,
+                    fontSize: 13.2,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Tus datos de tarjeta de crédito o débito, código CVV, credenciales de botón Nequi, Daviplata y transferencias bancarias por PSE o Bancolombia no son almacenados por nadie. Toda la información es encriptada y procesada directamente por Wompi de manera 100% segura bajo estándares PCI-DSS.',
+                  style: TextStyle(
+                    color: Color(0xFF334155),
+                    fontSize: 12.4,
+                    height: 1.38,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFieldLabel(String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 7),
       child: Text(
         text,
         style: const TextStyle(
           color: _navy,
-          fontSize: 12.2,
+          fontSize: 13.2,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -1624,24 +1694,24 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
       hintText: hint,
       hintStyle: const TextStyle(
         color: Color(0xFF94A3B8),
-        fontSize: 13.5,
+        fontSize: 14.5,
         fontWeight: FontWeight.w500,
       ),
       suffixIcon: suffixIcon,
       filled: true,
       fillColor: const Color(0xFFF6F9FC),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: _navy, width: 1.4),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: _navy, width: 1.6),
       ),
     );
   }
@@ -1770,8 +1840,8 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
 
         // Botón principal "Ir al inicio ->"
         SizedBox(
-          width: 240,
-          height: 46,
+          width: 280,
+          height: 54,
           child: ElevatedButton(
             onPressed: _irAlInicioPlataforma,
             style: ElevatedButton.styleFrom(
@@ -1779,7 +1849,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(26),
+                borderRadius: BorderRadius.circular(28),
               ),
             ),
             child: const Row(
@@ -1788,12 +1858,12 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                 Text(
                   'Ir al inicio',
                   style: TextStyle(
-                    fontSize: 14.5,
+                    fontSize: 16,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                SizedBox(width: 8),
-                Icon(Icons.arrow_forward_rounded, size: 17),
+                SizedBox(width: 10),
+                Icon(Icons.arrow_forward_rounded, size: 19),
               ],
             ),
           ),
@@ -1805,7 +1875,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
             'Ver mi perfil',
             style: TextStyle(
               color: _navy,
-              fontSize: 13,
+              fontSize: 14.5,
               fontWeight: FontWeight.w800,
             ),
           ),

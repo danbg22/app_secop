@@ -417,11 +417,26 @@ class _ContratistasScreenState extends State<ContratistasScreen>
   }
 
   String _termCacheKey(String term) {
-    final digits = term.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.length >= 3) {
-      return 'DOC:$digits';
+    final clean = term.trim();
+    if (RegExp(r'^[0-9.\-\s]+$').hasMatch(clean)) {
+      final digits = clean.replaceAll(RegExp(r'[^0-9]'), '');
+      if (digits.isNotEmpty) {
+        return 'DOC:$digits';
+      }
     }
-    return 'TXT:${_normalizar(term)}';
+    return 'TXT:${_normalizar(clean).replaceAll(RegExp(r'\s+'), ' ')}';
+  }
+
+  static String _toTitleCaseWords(String input) {
+    return input
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .map(
+          (w) => w.length == 1
+              ? w.toUpperCase()
+              : '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}',
+        )
+        .join(' ');
   }
 
   /// Combina los resultados en caché para las combinaciones activas (hasta 5)
@@ -444,6 +459,7 @@ class _ContratistasScreenState extends State<ContratistasScreen>
         }
       } else {
         // Mientras termina de consultar un término nuevo, incluir coincidencias locales inmediatas
+        // tanto de la semilla inicial como de resultados previamente cacheados en memoria.
         for (final seed in _initialSeedContractors) {
           if (_matchesSingleTerm(seed, term)) {
             final uniqueId = seed.rawDocumentDigits.isNotEmpty
@@ -454,12 +470,26 @@ class _ContratistasScreenState extends State<ContratistasScreen>
             }
           }
         }
+        for (final cachedList
+            in _ContratistasPersistenceStore.termResultsCache.values) {
+          for (final cachedItem in cachedList) {
+            if (_matchesSingleTerm(cachedItem, term)) {
+              final uniqueId = cachedItem.rawDocumentDigits.isNotEmpty
+                  ? cachedItem.rawDocumentDigits
+                  : _normalizar(cachedItem.rawSearchName);
+              if (seenKeys.add(uniqueId)) {
+                combined.add(cachedItem);
+              }
+            }
+          }
+        }
       }
     }
     return combined;
   }
 
-  /// Se invoca tanto al escribir en tiempo real como al presionar "Buscar" o borrar una combinación.
+  /// Se invoca tanto al escribir en tiempo real (desde la primera letra o dígito)
+  /// como al presionar "Buscar" o borrar una combinación.
   Future<void> _executeBulkSearch() async {
     _liveSearchDebounce?.cancel();
     final rawText = _searchController.text.trim();
@@ -480,7 +510,7 @@ class _ContratistasScreenState extends State<ContratistasScreen>
       return;
     }
 
-    // Recálculo instantáneo con lo que ya esté en caché (por ejemplo al borrar 1 de las 5 cédulas)
+    // Recálculo instantáneo con lo que ya esté en caché (por ejemplo al borrar 1 de las 5 combinaciones)
     final missingTerms = terms
         .where(
           (t) =>
@@ -495,9 +525,7 @@ class _ContratistasScreenState extends State<ContratistasScreen>
       _activeBulkTerms = terms;
       _currentPage = 1;
       _ContratistasPersistenceStore.hasExecutedCustomSearch = true;
-      if (immediateCombined.isNotEmpty || missingTerms.isEmpty) {
-        _contractors = immediateCombined;
-      }
+      _contractors = immediateCombined;
       _isLoading = missingTerms.isNotEmpty;
     });
     _syncStateToPersistenceStore();
@@ -506,31 +534,20 @@ class _ContratistasScreenState extends State<ContratistasScreen>
       return;
     }
 
-    // Si todos los términos faltantes son de apenas 1 o 2 dígitos, filtramos localmente al instante
+    // Consulta en tiempo real desde la primera letra o el primer dígito escrito
     final queryableMissing = missingTerms.where((t) {
       final d = t.replaceAll(RegExp(r'[^0-9]'), '');
-      return d.length >= 3 || _normalizar(t).length >= 3;
+      final norm = _normalizar(t).replaceAll(RegExp(r'[^A-Z0-9]'), '');
+      return d.isNotEmpty || norm.isNotEmpty;
     }).toList();
 
     if (queryableMissing.isEmpty) {
-      for (final shortTerm in missingTerms) {
-        final matches = _initialSeedContractors
-            .where((s) => _matchesSingleTerm(s, shortTerm))
-            .toList();
-        _ContratistasPersistenceStore.termResultsCache[_termCacheKey(
-          shortTerm,
-        )] = matches;
-      }
-      setState(() {
-        _contractors = _combineCachedTerms(terms);
-        _isLoading = false;
-      });
-      _syncStateToPersistenceStore();
+      setState(() => _isLoading = false);
       return;
     }
 
     final int requestId = ++_latestRequestId;
-    _liveSearchDebounce = Timer(const Duration(milliseconds: 150), () {
+    _liveSearchDebounce = Timer(const Duration(milliseconds: 140), () {
       _runFastSocrataBulkQuery(
         allTerms: terms,
         termsToFetch: queryableMissing,
@@ -539,8 +556,8 @@ class _ContratistasScreenState extends State<ContratistasScreen>
     });
   }
 
-  /// Consulta ultra-rápida (< 250 ms) usando el índice B-tree de `documento_proveedor`
-  /// (`starts_with`) y agregación `$group` en el servidor Socrata.
+  /// Consulta ultra-rápida (< 300 ms) en tiempo real por Cédula, NIT o Nombre y Apellido
+  /// usando los índices B-tree de `documento_proveedor` y `proveedor_adjudicado` en SECOP II.
   Future<void> _runFastSocrataBulkQuery({
     required List<String> allTerms,
     required List<String> termsToFetch,
@@ -549,38 +566,70 @@ class _ContratistasScreenState extends State<ContratistasScreen>
     try {
       final termClauses = <String>[];
       for (final term in termsToFetch) {
-        final digitsOnly = term.replaceAll(RegExp(r'[^0-9]'), '');
-        final normName = _normalizar(term);
+        final cleanTerm = term.replaceAll("'", '').trim();
+        final isNumericTerm = RegExp(r'^[0-9.\-\s]+$').hasMatch(cleanTerm);
+        final digitsOnly = cleanTerm.replaceAll(RegExp(r'[^0-9]'), '');
+        final normName =
+            _normalizar(cleanTerm).replaceAll(RegExp(r'\s+'), ' ').trim();
         final subConditions = <String>[];
 
-        if (digitsOnly.length >= 3) {
-          // Usa el índice B-tree nativo de Socrata (~170ms en lugar de 20s)
+        if (digitsOnly.isNotEmpty && isNumericTerm) {
+          // Búsqueda indexada por número de cédula o NIT (desde 1 dígito en adelante)
           subConditions.add("starts_with(documento_proveedor, '$digitsOnly')");
           if (digitsOnly.length == 10 &&
               (digitsOnly.startsWith('8') || digitsOnly.startsWith('9'))) {
             final baseNit = digitsOnly.substring(0, 9);
             subConditions.add("starts_with(documento_proveedor, '$baseNit')");
           }
-          // También soporta documentos guardados con puntos en SECOP II
           final formattedDots = _formatDotsOnly(digitsOnly);
-          if (formattedDots != digitsOnly && digitsOnly.length >= 6) {
+          if (formattedDots != digitsOnly && digitsOnly.length >= 4) {
             subConditions.add(
               "starts_with(documento_proveedor, '$formattedDots')",
             );
           }
         }
 
-        if (normName.length >= 3 &&
-            !RegExp(r'^[0-9.\-\s]+$').hasMatch(term)) {
+        if (normName.isNotEmpty && !isNumericTerm) {
+          // Búsqueda en tiempo real por Nombre y Apellido o Razón Social (desde 1 letra en adelante)
+          final titleName = _toTitleCaseWords(normName);
           final words = normName
-              .split(RegExp(r'\s+'))
-              .where((w) => w.length >= 2)
+              .split(' ')
+              .where((w) => w.isNotEmpty)
               .toList();
-          if (words.isNotEmpty) {
-            final wordChecks = words
+
+          // 1. Coincidencia directa de prefijo con el índice B-tree (ej. "C", "CARLOS", "CARLOS RODRIGUEZ")
+          subConditions.add("starts_with(proveedor_adjudicado, '$normName')");
+          if (titleName != normName) {
+            subConditions.add(
+              "starts_with(proveedor_adjudicado, '$titleName')",
+            );
+          }
+
+          // 2. Si el usuario escribe Nombre + Apellido (2 o más palabras, ej. "SANDRA ERAZO" o "CARLOS RODRIGUEZ"),
+          // buscamos usando el índice B-tree en la primera palabra + filtro de apellido (soportando segundo nombre intermedio)
+          // y también en orden inverso (APELLIDO NOMBRE).
+          if (words.length >= 2) {
+            final firstWord = words.first;
+            final lastWord = words.last;
+            final firstTitle = _toTitleCaseWords(firstWord);
+            final otherWordsFromFirst = words.skip(1).toList();
+            final likeChecksFromFirst = otherWordsFromFirst
                 .map((w) => "upper(proveedor_adjudicado) LIKE '%$w%'")
                 .join(' AND ');
-            subConditions.add('($wordChecks)');
+
+            subConditions.add(
+              "((starts_with(proveedor_adjudicado, '$firstWord ') OR starts_with(proveedor_adjudicado, '$firstTitle ')) AND $likeChecksFromFirst)",
+            );
+
+            // Orden inverso: APELLIDO + NOMBRE
+            subConditions.add(
+              "starts_with(proveedor_adjudicado, '$lastWord $firstWord')",
+            );
+            if (lastWord.length >= 2) {
+              subConditions.add(
+                "(starts_with(proveedor_adjudicado, '$lastWord ') AND upper(proveedor_adjudicado) LIKE '%$firstWord%')",
+              );
+            }
           }
         }
 
@@ -595,10 +644,7 @@ class _ContratistasScreenState extends State<ContratistasScreen>
         return;
       }
 
-      final whereClause = <String>[
-        "proveedor_adjudicado != 'No Definido'",
-        '(${termClauses.join(' OR ')})',
-      ].join(' AND ');
+      final whereClause = termClauses.join(' OR ');
 
       final uri = Uri.https(
         'www.datos.gov.co',
@@ -612,8 +658,7 @@ class _ContratistasScreenState extends State<ContratistasScreen>
           r'$where': whereClause,
           r'$group':
               'proveedor_adjudicado,tipodocproveedor,documento_proveedor',
-          r'$order': 'total_valor DESC',
-          r'$limit': '75',
+          r'$limit': '120',
         },
       );
 
@@ -757,11 +802,12 @@ class _ContratistasScreenState extends State<ContratistasScreen>
     String term,
   ) {
     final tDigits = term.replaceAll(RegExp(r'[^0-9]'), '');
+    final tNorm = _normalizar(term).replaceAll(RegExp(r'\s+'), ' ').trim();
     final matching = candidates
         .where((c) => _matchesSingleTerm(c, term))
         .toList();
 
-    if (tDigits.length >= 6) {
+    if (tDigits.length >= 6 && RegExp(r'^[0-9.\-\s]+$').hasMatch(term)) {
       final base9 = (tDigits.length == 10 &&
               (tDigits.startsWith('8') || tDigits.startsWith('9')))
           ? tDigits.substring(0, 9)
@@ -783,10 +829,16 @@ class _ContratistasScreenState extends State<ContratistasScreen>
     }
 
     matching.sort((a, b) {
-      if (tDigits.isNotEmpty) {
+      if (tDigits.isNotEmpty && RegExp(r'^[0-9.\-\s]+$').hasMatch(term)) {
         final aExact = a.rawDocumentDigits == tDigits ? 0 : 1;
         final bExact = b.rawDocumentDigits == tDigits ? 0 : 1;
         if (aExact != bExact) return aExact.compareTo(bExact);
+      } else if (tNorm.isNotEmpty) {
+        final aName = _normalizar(a.rawSearchName);
+        final bName = _normalizar(b.rawSearchName);
+        final aStarts = aName.startsWith(tNorm) ? 0 : 1;
+        final bStarts = bName.startsWith(tNorm) ? 0 : 1;
+        if (aStarts != bStarts) return aStarts.compareTo(bStarts);
       }
       return b.totalValue.compareTo(a.totalValue);
     });
@@ -794,13 +846,13 @@ class _ContratistasScreenState extends State<ContratistasScreen>
   }
 
   bool _matchesSingleTerm(ContractorSummaryRecord record, String term) {
-    final tNorm = _normalizar(term);
+    final tNorm = _normalizar(term).replaceAll(RegExp(r'\s+'), ' ').trim();
     final tDigits = term.replaceAll(RegExp(r'[^0-9]'), '');
     final cDigits = record.rawDocumentDigits.isNotEmpty
         ? record.rawDocumentDigits
         : record.nit.replaceAll(RegExp(r'[^0-9]'), '');
 
-    if (tDigits.isNotEmpty) {
+    if (tDigits.isNotEmpty && RegExp(r'^[0-9.\-\s]+$').hasMatch(term)) {
       if (cDigits.startsWith(tDigits) || cDigits.contains(tDigits)) {
         return true;
       }
@@ -814,6 +866,15 @@ class _ContratistasScreenState extends State<ContratistasScreen>
       final normName = _normalizar(record.name);
       final normRaw = _normalizar(record.rawSearchName);
       if (normName.contains(tNorm) || normRaw.contains(tNorm)) {
+        return true;
+      }
+      // Coincidencia por palabras (Nombre + Apellido, ej. "Sandra Erazo" en "Sandra Milena Erazo Pulgarín")
+      final words = tNorm
+          .split(' ')
+          .where((w) => w.isNotEmpty)
+          .toList();
+      if (words.isNotEmpty &&
+          words.every((w) => normName.contains(w) || normRaw.contains(w))) {
         return true;
       }
     }
@@ -1409,7 +1470,7 @@ class ContratistasBulkSearchBar extends StatelessWidget {
                   SizedBox(width: 6),
                   Flexible(
                     child: Text(
-                      'Búsqueda en tiempo real: escribe hasta 5 cédulas o NITs separados por coma',
+                      'Búsqueda en tiempo real: escribe nombre y apellido, razón social, cédula o NIT (hasta 5 separados por coma)',
                       style: TextStyle(
                         color: _azulTexto,
                         fontSize: 12,
@@ -1500,7 +1561,7 @@ class ContratistasBulkSearchBar extends StatelessWidget {
                       ),
                       decoration: InputDecoration(
                         hintText:
-                            'Escribe NIT o cédula (ej: 1065842391, 9001960987, hasta 5 separados por coma)...',
+                            'Escribe nombre y apellido, NIT o cédula (ej: Sandra Erazo, Daniel Puentes, 1065842391, hasta 5 por coma)...',
                         hintStyle: const TextStyle(
                           color: Color(0xFF94A3B8),
                           fontSize: 13,

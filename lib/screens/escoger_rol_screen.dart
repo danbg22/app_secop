@@ -110,8 +110,70 @@ class OnboardingUnifiedBackground extends StatelessWidget {
   }
 }
 
-/// Barra superior unificada con botón Volver, Logo Contrata Legal e indicador de pasos
+/// Renderiza el logo oficial de Contrata Legal en alta definición (HD),
+/// recortando los márgenes blancos sobrantes de `assets/images/logo.png`
+/// para que el mapa de Colombia y el texto se vean grandes, nítidos y completos.
+class ContrataLegalHdLogo extends StatelessWidget {
+  const ContrataLegalHdLogo({
+    super.key,
+    this.height = 56,
+    this.withWhitePill = false,
+  });
+
+  final double height;
+  final bool withWhitePill;
+
+  @override
+  Widget build(BuildContext context) {
+    final croppedLogo = ClipRect(
+      child: Align(
+        alignment: Alignment.center,
+        widthFactor: 0.78,
+        heightFactor: 0.64,
+        child: Image.asset(
+          'assets/images/logo.png',
+          height: height / 0.64,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
+          isAntiAlias: true,
+        ),
+      ),
+    );
+
+    if (!withWhitePill) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: croppedLogo,
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE6DFCF), width: 1.1),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0E2646).withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: croppedLogo,
+    );
+  }
+}
+
+/// Barra superior unificada con botón Volver e indicador de pasos
 /// (Paso 1 de 3, Paso 2 de 3, Paso 3 de 3) con el diseño exacto de puntos y barra dorada.
+/// `showBrandLogo` se activa únicamente cuando la pantalla no tiene ya una tarjeta con logo propio,
+/// evitando que el logo se vea duplicado.
 class OnboardingUnifiedTopBar extends StatelessWidget {
   const OnboardingUnifiedTopBar({
     super.key,
@@ -119,12 +181,14 @@ class OnboardingUnifiedTopBar extends StatelessWidget {
     required this.totalSteps,
     required this.onBack,
     this.backLabel = 'Volver',
+    this.showBrandLogo = false,
   });
 
   final int currentStep;
   final int totalSteps;
   final VoidCallback onBack;
   final String backLabel;
+  final bool showBrandLogo;
 
   static const Color _navy = Color(0xFF0E2646);
   static const Color _gold = Color(0xFFF5B82E);
@@ -133,82 +197,96 @@ class OnboardingUnifiedTopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.sizeOf(context).width < 680;
 
-    final stepIndicator = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (int i = 1; i <= totalSteps; i++) ...[
-          if (i == currentStep) ...[
-            Container(
-              width: 10,
-              height: 10,
-              decoration: const BoxDecoration(
-                color: _gold,
-                shape: BoxShape.circle,
+    final stepIndicator = Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 12 : 18,
+        vertical: isMobile ? 8 : 10,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE6DFCF)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (int i = 1; i <= totalSteps; i++) ...[
+            if (i == currentStep) ...[
+              Container(
+                width: 11,
+                height: 11,
+                decoration: const BoxDecoration(
+                  color: _gold,
+                  shape: BoxShape.circle,
+                ),
               ),
-            ),
-            const SizedBox(width: 5),
-            Container(
-              width: 24,
-              height: 5,
-              decoration: BoxDecoration(
-                color: _gold,
-                borderRadius: BorderRadius.circular(4),
+              const SizedBox(width: 6),
+              Container(
+                width: 28,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: _gold,
+                  borderRadius: BorderRadius.circular(4),
+                ),
               ),
-            ),
-          ] else if (i < currentStep) ...[
-            Container(
-              width: 9,
-              height: 9,
-              decoration: const BoxDecoration(
-                color: _gold,
-                shape: BoxShape.circle,
+            ] else if (i < currentStep) ...[
+              Container(
+                width: 10,
+                height: 10,
+                decoration: const BoxDecoration(
+                  color: _gold,
+                  shape: BoxShape.circle,
+                ),
               ),
-            ),
-          ] else ...[
-            Container(
-              width: 8,
-              height: 8,
-              decoration: const BoxDecoration(
-                color: Color(0xFFD6DCE5),
-                shape: BoxShape.circle,
+            ] else ...[
+              Container(
+                width: 9,
+                height: 9,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFD6DCE5),
+                  shape: BoxShape.circle,
+                ),
               ),
-            ),
+            ],
+            const SizedBox(width: 7),
           ],
-          const SizedBox(width: 6),
+          Container(
+            width: 18,
+            height: 4.5,
+            decoration: BoxDecoration(
+              color: const Color(0xFFDFE4EC),
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            'Paso $currentStep de $totalSteps',
+            style: TextStyle(
+              color: _navy,
+              fontSize: isMobile ? 13.5 : 15,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
         ],
-        Container(
-          width: 16,
-          height: 4,
-          decoration: BoxDecoration(
-            color: const Color(0xFFDFE4EC),
-            borderRadius: BorderRadius.circular(3),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          'Paso $currentStep de $totalSteps',
-          style: const TextStyle(
-            color: _navy,
-            fontSize: 13.5,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ],
+      ),
     );
 
     final backBtn = InkWell(
       onTap: onBack,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7.5),
+        padding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 14 : 18,
+          vertical: isMobile ? 9 : 11,
+        ),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.90),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE6DFCF)),
+          color: Colors.white.withValues(alpha: 0.95),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE2DAC8), width: 1.2),
           boxShadow: [
             BoxShadow(
-              color: _navy.withValues(alpha: 0.04),
-              blurRadius: 10,
+              color: _navy.withValues(alpha: 0.05),
+              blurRadius: 12,
               offset: const Offset(0, 3),
             ),
           ],
@@ -216,14 +294,18 @@ class OnboardingUnifiedTopBar extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.arrow_back_rounded, size: 17, color: _navy),
-            const SizedBox(width: 6),
+            Icon(
+              Icons.arrow_back_rounded,
+              size: isMobile ? 18 : 20,
+              color: _navy,
+            ),
+            const SizedBox(width: 8),
             Text(
               backLabel,
-              style: const TextStyle(
+              style: TextStyle(
                 color: _navy,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
+                fontSize: isMobile ? 13.5 : 14.5,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ],
@@ -232,11 +314,23 @@ class OnboardingUnifiedTopBar extends StatelessWidget {
     );
 
     if (isMobile) {
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      return Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          backBtn,
-          Flexible(child: stepIndicator),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              backBtn,
+              if (showBrandLogo)
+                const ContrataLegalHdLogo(height: 38, withWhitePill: true)
+              else
+                Flexible(child: stepIndicator),
+            ],
+          ),
+          if (showBrandLogo) ...[
+            const SizedBox(height: 10),
+            stepIndicator,
+          ],
         ],
       );
     }
@@ -250,14 +344,10 @@ class OnboardingUnifiedTopBar extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               backBtn,
-              const SizedBox(width: 14),
-              Image.asset(
-                'assets/images/logo.png',
-                height: 42,
-                fit: BoxFit.contain,
-                filterQuality: FilterQuality.high,
-                errorBuilder: (_, _, _) => const SizedBox.shrink(),
-              ),
+              if (showBrandLogo) ...[
+                const SizedBox(width: 14),
+                const ContrataLegalHdLogo(height: 48, withWhitePill: true),
+              ],
             ],
           ),
         ),
@@ -393,6 +483,7 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                           backLabel: widget.modoAcumularRol
                               ? 'Volver a la app'
                               : 'Portada',
+                          showBrandLogo: true,
                         ),
                         SizedBox(height: isMobile ? 16 : 22),
                         Text(
@@ -726,7 +817,7 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 6),
                 child: SizedBox(
                   width: double.infinity,
-                  height: 44,
+                  height: 48,
                   child: isPersona
                       ? ElevatedButton(
                           onPressed: () => _seleccionarRol(rol),
@@ -735,7 +826,7 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                             foregroundColor: _navy,
                             elevation: 0,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(26),
+                              borderRadius: BorderRadius.circular(28),
                             ),
                           ),
                           child: const Row(
@@ -745,14 +836,14 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                                 'Seleccionar',
                                 style: TextStyle(
                                   color: _navy,
-                                  fontSize: 14.2,
+                                  fontSize: 15.2,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
                               SizedBox(width: 8),
                               Icon(
                                 Icons.arrow_forward_rounded,
-                                size: 17,
+                                size: 19,
                                 color: _navy,
                               ),
                             ],
@@ -765,10 +856,10 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                             backgroundColor: Colors.white,
                             side: BorderSide(
                               color: rol.colorPrimario.withValues(alpha: 0.65),
-                              width: 1.2,
+                              width: 1.3,
                             ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(26),
+                              borderRadius: BorderRadius.circular(28),
                             ),
                           ),
                           child: const Row(
@@ -778,14 +869,14 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                                 'Seleccionar',
                                 style: TextStyle(
                                   color: _navy,
-                                  fontSize: 14,
+                                  fontSize: 15,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
                               SizedBox(width: 8),
                               Icon(
                                 Icons.arrow_forward_rounded,
-                                size: 17,
+                                size: 19,
                                 color: _navy,
                               ),
                             ],

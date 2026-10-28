@@ -525,6 +525,92 @@ class AuthService {
     }
   }
 
+  static String normalizeDocumentoDigits(String raw) {
+    final onlyDigits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    if (onlyDigits.isNotEmpty) return onlyDigits;
+    return raw.replaceAll(RegExp(r'[^0-9A-Za-z]'), '').toLowerCase();
+  }
+
+  /// Verifica si el correo electrónico o el número de cédula/documento ya están
+  /// vinculados a una cuenta existente (en registro local o en Firestore).
+  static Future<({bool emailEnUso, bool documentoEnUso})>
+      checkDuplicateCredentials({
+    required String email,
+    required String documento,
+  }) async {
+    final cleanEmail = email.trim().toLowerCase();
+    final normDoc = normalizeDocumentoDigits(documento);
+
+    bool emailEnUso = false;
+    bool documentoEnUso = false;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final registry = await _loadRegistry(prefs);
+
+      if (cleanEmail.isNotEmpty && registry.containsKey(cleanEmail)) {
+        emailEnUso = true;
+      }
+
+      for (final entry in registry.values) {
+        if (entry is Map) {
+          final entryEmail =
+              (entry['email'] ?? '').toString().trim().toLowerCase();
+          final entryDoc = normalizeDocumentoDigits(
+            (entry['documento'] ?? entry['documentoNormalizado'] ?? '')
+                .toString(),
+          );
+          if (cleanEmail.isNotEmpty && entryEmail == cleanEmail) {
+            emailEnUso = true;
+          }
+          if (normDoc.length >= 5 && entryDoc.isNotEmpty && entryDoc == normDoc) {
+            documentoEnUso = true;
+          }
+        }
+      }
+    } catch (_) {}
+
+    // Consulta adicional en Firestore para cuentas creadas desde otros dispositivos
+    if (!emailEnUso || !documentoEnUso) {
+      try {
+        final col = FirebaseFirestore.instance.collection(
+          ConsentService.coleccionUsuarios,
+        );
+        if (!emailEnUso && cleanEmail.isNotEmpty) {
+          final emailSnap = await col
+              .where('email', isEqualTo: cleanEmail)
+              .limit(1)
+              .get()
+              .timeout(const Duration(seconds: 3));
+          if (emailSnap.docs.isNotEmpty) {
+            emailEnUso = true;
+          }
+        }
+        if (!documentoEnUso && normDoc.length >= 5) {
+          final docSnap = await col
+              .where('documentoNormalizado', isEqualTo: normDoc)
+              .limit(1)
+              .get()
+              .timeout(const Duration(seconds: 3));
+          if (docSnap.docs.isNotEmpty) {
+            documentoEnUso = true;
+          } else {
+            final rawDocSnap = await col
+                .where('documento', isEqualTo: documento.trim())
+                .limit(1)
+                .get()
+                .timeout(const Duration(seconds: 3));
+            if (rawDocSnap.docs.isNotEmpty) {
+              documentoEnUso = true;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    return (emailEnUso: emailEnUso, documentoEnUso: documentoEnUso);
+  }
+
   static Future<void> signUp(
     Map<String, dynamic> userData,
     String password, {
@@ -549,9 +635,31 @@ class AuthService {
         .toString()
         .replaceAll(RegExp(r'\s+'), '')
         .trim();
-    if (cleanDocumento.isEmpty || cleanDocumento.length < 5) {
+    final normDoc = normalizeDocumentoDigits(cleanDocumento);
+    if (cleanDocumento.isEmpty || normDoc.length < 5) {
       throw const AuthServiceException(
         'El número de cédula o documento es obligatorio para crear la cuenta.',
+      );
+    }
+
+    // Validación estricta de unicidad: no permite avanzar si la cédula o el correo ya están en uso
+    final duplicados = await checkDuplicateCredentials(
+      email: cleanEmail,
+      documento: cleanDocumento,
+    );
+    if (duplicados.emailEnUso && duplicados.documentoEnUso) {
+      throw AuthServiceException(
+        'La cédula ($cleanDocumento) y el correo electrónico ($cleanEmail) ya se encuentran en uso. Debes cambiarlos por unos no vinculados para continuar.',
+      );
+    }
+    if (duplicados.documentoEnUso) {
+      throw AuthServiceException(
+        'La cédula o documento ($cleanDocumento) ya se encuentra en uso en otra cuenta. Cámbiala por una que no haya sido registrada.',
+      );
+    }
+    if (duplicados.emailEnUso) {
+      throw AuthServiceException(
+        'El correo electrónico ($cleanEmail) ya se encuentra en uso en otra cuenta. Cámbialo por uno que no haya sido registrado.',
       );
     }
 
@@ -593,12 +701,14 @@ class AuthService {
               .collection(ConsentService.coleccionUsuarios)
               .doc(user.uid)
               .set({
+                'email': cleanEmail,
                 'nombres': nombres,
                 'apellidos': apellidos,
                 'displayName': displayName,
                 'pais': (userData['pais'] ?? 'Colombia').toString().trim(),
                 'telefono': (userData['telefono'] ?? '').toString().trim(),
-                'documento': (userData['documento'] ?? '').toString().trim(),
+                'documento': cleanDocumento,
+                'documentoNormalizado': normDoc,
                 'rolesActivos': initialRoles,
                 'rolPrincipal': selectedRolId,
                 'rolEtiqueta': rolEtiqueta,
@@ -621,6 +731,8 @@ class AuthService {
         extraProfileData: {
           ...userData,
           'email': cleanEmail,
+          'documento': cleanDocumento,
+          'documentoNormalizado': normDoc,
           'displayName': displayName,
           'password': password,
           'rolesActivos': initialRoles,
@@ -632,52 +744,10 @@ class AuthService {
         },
       );
     } on FirebaseAuthException catch (error) {
-      // Si el correo ya existía en Firebase, intentamos autenticarlo con esa contraseña
-      // y actualizar su perfil para que el usuario pueda ingresar sin bloqueo.
       if (error.code == 'email-already-in-use') {
-        UserCredential cred;
-        try {
-          cred = await _auth.signInWithEmailAndPassword(
-            email: cleanEmail,
-            password: password,
-          );
-        } catch (_) {
-          throw AuthServiceException(_messageFor(error));
-        }
-
-        // El usuario vuelve a aceptar la política en este registro: se deja nueva evidencia.
-        if (cred.user != null) {
-          try {
-            await ConsentService.registrarAceptacionTratamientoDatos(
-              uid: cred.user!.uid,
-              email: cleanEmail,
-              canal: 'registro_email_cuenta_existente',
-            );
-          } catch (e) {
-            debugPrint('Aviso: No se pudo registrar en Firestore ($e). Se conserva evidencia en almacenamiento local.');
-          }
-          if (displayName.isNotEmpty) {
-            await cred.user!.updateDisplayName(displayName);
-            await cred.user!.reload();
-          }
-        }
-        await _persistActiveSession(
-          email: cleanEmail,
-          displayName: displayName,
-          extraProfileData: {
-            ...userData,
-            'email': cleanEmail,
-            'displayName': displayName,
-            'password': password,
-            'rolesActivos': initialRoles,
-            'rolPrincipal': selectedRolId,
-            'rolEtiqueta': rolEtiqueta,
-            'aceptacion_datos': true,
-            'version_politica': ConsentService.versionPolitica,
-            'fecha_aceptacion_datos': DateTime.now().toIso8601String(),
-          },
+        throw AuthServiceException(
+          'El correo electrónico ($cleanEmail) ya se encuentra en uso en otra cuenta. Cámbialo por uno que no haya sido registrado.',
         );
-        return;
       }
       throw AuthServiceException(_messageFor(error));
     }
