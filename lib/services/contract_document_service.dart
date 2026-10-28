@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'dart:html' as html;
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../utils/secop_launcher.dart';
 import 'contract_audit_analysis.dart';
 
 class ExpectedDocumentItem {
@@ -76,7 +78,35 @@ class ContractDocumentService {
         ),
       );
 
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (kIsWeb) {
+        final opened = openControlledSecopPopup(uri.toString());
+        if (!opened) {
+          await launchUrl(
+            uri,
+            mode: LaunchMode.inAppBrowserView,
+            webOnlyWindowName: 'secop_expediente_oficial',
+          );
+        }
+      } else {
+        final opened = await launchUrl(
+          uri,
+          mode: LaunchMode.inAppBrowserView,
+          webViewConfiguration: const WebViewConfiguration(
+            enableJavaScript: true,
+            enableDomStorage: true,
+          ),
+        );
+        if (!opened) {
+          await launchUrl(
+            uri,
+            mode: LaunchMode.inAppWebView,
+            webViewConfiguration: const WebViewConfiguration(
+              enableJavaScript: true,
+              enableDomStorage: true,
+            ),
+          );
+        }
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

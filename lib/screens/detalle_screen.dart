@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
@@ -9,7 +10,8 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../services/contract_document_service.dart';
+import '../services/secop_document_intelligence_service.dart';
+import '../utils/secop_launcher.dart';
 import '../widgets/collapsible_side_menu.dart';
 import '../widgets/dashboard_top_bar.dart';
 import '../widgets/user_profile_header_action.dart';
@@ -40,6 +42,7 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
   final NumberFormat _formatoDecimal = NumberFormat.decimalPattern('es_CO');
   final TextEditingController _topSearchController = TextEditingController();
   final TextEditingController _chatController = TextEditingController();
+  final TextEditingController _docFilterController = TextEditingController();
   final ScrollController _chatScrollController = ScrollController();
 
   final List<Map<String, dynamic>> _mensajes = [];
@@ -47,6 +50,10 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
   bool _esFavorito = false;
   bool _isSidebarCollapsed = false;
   bool _contextExpanded = true;
+  bool _isExtractingDocs = false;
+  String _extractingStepText = 'Conectando con el expediente en SECOP II...';
+  SecopExtractionResult? _docExtractionResult;
+  String _docSearchQuery = '';
   late int _selectedTab;
 
   @override
@@ -54,6 +61,7 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
     super.initState();
     _selectedTab = widget.initialTab.clamp(0, 2);
     _cargarEstadoFavorito();
+    _cargarDocumentosCacheados();
     final desc = _descripcionContrato.toUpperCase();
     _mensajes.add({
       'sender': 'ai',
@@ -66,6 +74,7 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
   void dispose() {
     _topSearchController.dispose();
     _chatController.dispose();
+    _docFilterController.dispose();
     _chatScrollController.dispose();
     super.dispose();
   }
@@ -283,18 +292,360 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
     );
   }
 
-  String _obtenerUrlSecop() {
+  String? _extraerUrlProcesoReal() {
+    if (widget.contrato is! Map) return null;
     final rawUrl = widget.contrato['urlproceso'];
+    String candidate = '';
+
     if (rawUrl is Map && rawUrl['url'] != null) {
-      return rawUrl['url'].toString();
+      candidate = rawUrl['url'].toString().trim();
+    } else if (rawUrl is String) {
+      final trimmed = rawUrl.trim();
+      if (trimmed.startsWith('{')) {
+        try {
+          final decoded = json.decode(trimmed);
+          if (decoded is Map && decoded['url'] != null) {
+            candidate = decoded['url'].toString().trim();
+          }
+        } catch (_) {}
+      } else {
+        candidate = trimmed;
+      }
+    }
+
+    if (candidate.isNotEmpty) {
+      if (candidate.startsWith('http://') || candidate.startsWith('https://')) {
+        return candidate;
+      }
+      if (candidate.startsWith('community.secop.gov.co') ||
+          candidate.startsWith('www.')) {
+        return 'https://$candidate';
+      }
+    }
+
+    final proceso =
+        (widget.contrato['proceso_de_compra'] ?? '').toString().trim();
+    if (proceso.isNotEmpty && proceso.toUpperCase() != 'NO DEFINIDO') {
+      return 'https://community.secop.gov.co/Public/Tendering/OpportunityDetail/Index?noticeUID=${Uri.encodeComponent(proceso)}';
+    }
+
+    return null;
+  }
+
+  String _obtenerUrlSecop() {
+    if (_docExtractionResult != null &&
+        _docExtractionResult!.resolvedSecopUrl.isNotEmpty) {
+      return _docExtractionResult!.resolvedSecopUrl;
+    }
+    final extracted = _extraerUrlProcesoReal();
+    if (extracted != null) {
+      return SecopDocumentIntelligenceService.construirUrlVistaDocumental(
+        extracted,
+      );
     }
     return 'https://www.colombiacompra.gov.co/secop-ii';
   }
 
+  Future<void> _cargarDocumentosCacheados() async {
+    final cached = await SecopDocumentIntelligenceService.obtenerCacheSiExiste(
+      widget.contrato,
+    );
+    if (!mounted || cached == null) return;
+    setState(() {
+      _docExtractionResult = cached;
+    });
+  }
+
+  Future<void> _ejecutarExtraccionDocumentos({bool forceRefresh = false}) async {
+    if (_isExtractingDocs) return;
+    setState(() {
+      _isExtractingDocs = true;
+      _docSearchQuery = '';
+      _docFilterController.clear();
+      _extractingStepText =
+          'Conectando con la sección Documentación de SECOP II...';
+    });
+
+    final result =
+        await SecopDocumentIntelligenceService.extraerDocumentosContrato(
+      widget.contrato,
+      forceRefresh: forceRefresh,
+      onProgress: (stepMsg) {
+        if (!mounted) return;
+        setState(() => _extractingStepText = stepMsg);
+      },
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _isExtractingDocs = false;
+      _docExtractionResult = result;
+    });
+  }
+
+  Future<void> _extraerDesdePortapapeles() async {
+    try {
+      final clip = await Clipboard.getData(Clipboard.kTextPlain);
+      final rawText = clip?.text?.trim() ?? '';
+      if (rawText.length < 15) {
+        if (!mounted) return;
+        await _mostrarDialogoPegarSecop();
+        return;
+      }
+
+      setState(() {
+        _isExtractingDocs = true;
+        _extractingStepText =
+            'Extrayendo nombres reales de documentos desde el texto copiado...';
+      });
+
+      final result =
+          await SecopDocumentIntelligenceService.procesarTextoCopiadoDeSecop(
+        contrato: widget.contrato,
+        rawCopiedText: rawText,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _isExtractingDocs = false;
+        _docExtractionResult = result;
+      });
+
+      if (result.status != SecopExtractionStatus.success) {
+        await _mostrarDialogoPegarSecop();
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isExtractingDocs = false);
+      await _mostrarDialogoPegarSecop();
+    }
+  }
+
+  Future<void> _mostrarDialogoPegarSecop() async {
+    final pasteController = TextEditingController();
+    final textoPegado = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.auto_awesome_rounded, color: _azulPrimario, size: 22),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Extraer lista de documentos',
+                  style: TextStyle(
+                    color: _azulOscuro,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'En la ventana abierta del SECOP presiona Ctrl+A y luego Ctrl+C, y pega el contenido aquí abajo (Ctrl+V). Nuestra inteligencia filtrará únicamente los nombres reales de la sección Documentación:',
+                  style: TextStyle(
+                    color: Color(0xFF475569),
+                    fontSize: 13,
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: pasteController,
+                  maxLines: 6,
+                  autofocus: true,
+                  style: const TextStyle(fontSize: 12.5, color: _azulOscuro),
+                  decoration: InputDecoration(
+                    hintText:
+                        'Pega aquí (Ctrl+V) el texto copiado de la página del proceso en SECOP...',
+                    hintStyle: const TextStyle(
+                      color: Color(0xFF94A3B8),
+                      fontSize: 12.5,
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFC),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: _azulPrimario,
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(color: Color(0xFF64748B)),
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(pasteController.text),
+              icon: const Icon(
+                Icons.auto_awesome_rounded,
+                size: 16,
+                color: _amarillo,
+              ),
+              label: const Text(
+                'Extraer nombres',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _azulOscuro,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    pasteController.dispose();
+
+    if (textoPegado == null || textoPegado.trim().isEmpty || !mounted) return;
+
+    setState(() {
+      _isExtractingDocs = true;
+      _extractingStepText =
+          'Filtrando los nombres reales de los documentos...';
+    });
+
+    final result =
+        await SecopDocumentIntelligenceService.procesarTextoCopiadoDeSecop(
+      contrato: widget.contrato,
+      rawCopiedText: textoPegado,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _isExtractingDocs = false;
+      _docExtractionResult = result;
+    });
+  }
+
   Future<void> _abrirEnlaceSecop() async {
-    final uri = Uri.tryParse(_obtenerUrlSecop());
-    if (uri != null) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    final targetUrl = _obtenerUrlSecop();
+    final uri = Uri.tryParse(targetUrl);
+
+    if (uri == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No se encontró una dirección válida de SECOP para este contrato.',
+          ),
+          backgroundColor: Color(0xFFB91C1C),
+        ),
+      );
+      return;
+    }
+
+    try {
+      bool launched = false;
+
+      if (kIsWeb) {
+        // En Web se abre una ventana superpuesta centrada (o pestaña controlada)
+        // para que el usuario resuelva el reCAPTCHA del SECOP, consulte y
+        // descargue el listado real de documentos, y regrese cerrando la vista.
+        launched = openControlledSecopPopup(uri.toString());
+        if (!launched) {
+          launched = await launchUrl(
+            uri,
+            mode: LaunchMode.inAppBrowserView,
+            webOnlyWindowName: 'secop_expediente_oficial',
+          );
+        }
+      } else {
+        // En plataformas móviles/nativas se utiliza vista integrada In-App.
+        launched = await launchUrl(
+          uri,
+          mode: LaunchMode.inAppBrowserView,
+          webViewConfiguration: const WebViewConfiguration(
+            enableJavaScript: true,
+            enableDomStorage: true,
+          ),
+        );
+        if (!launched) {
+          launched = await launchUrl(
+            uri,
+            mode: LaunchMode.inAppWebView,
+            webViewConfiguration: const WebViewConfiguration(
+              enableJavaScript: true,
+              enableDomStorage: true,
+            ),
+          );
+        }
+        if (!launched) {
+          launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+      }
+
+      if (mounted && launched && kIsWeb) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: _azulOscuro,
+            duration: const Duration(seconds: 4),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            content: const Row(
+              children: [
+                Icon(
+                  Icons.verified_user_outlined,
+                  color: _amarillo,
+                  size: 19,
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Vista oficial del SECOP abierta. Completa el reCAPTCHA para ver o descargar los anexos y cierra la ventana para volver.',
+                    style: TextStyle(fontSize: 12.5, height: 1.35),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No fue posible abrir el visor oficial del SECOP en este momento.',
+          ),
+          backgroundColor: Color(0xFFB91C1C),
+        ),
+      );
     }
   }
 
@@ -946,9 +1297,38 @@ PREGUNTA DEL USUARIO: $cleanText
     return content;
   }
 
-  Widget _buildDocumentosTabContent() {
-    final expectedDocs =
-        ContractDocumentService.getExpectedDocumentsForContract(widget.contrato);
+  Widget _buildDocumentosTabContent({bool isMobile = false}) {
+    final referenciaDetalle = _referenciaContrato != _procesoContrato
+        ? '$_procesoContrato · Ref: $_referenciaContrato'
+        : _procesoContrato;
+
+    Widget innerContent;
+    if (_isExtractingDocs) {
+      innerContent = _buildDocumentosLoadingState(isMobile: isMobile);
+    } else if (_docExtractionResult == null) {
+      innerContent = _buildDocumentosInitialState(
+        isMobile: isMobile,
+        referenciaDetalle: referenciaDetalle,
+      );
+    } else if (_docExtractionResult!.status == SecopExtractionStatus.success &&
+        _docExtractionResult!.documents.isNotEmpty) {
+      innerContent = _buildDocumentosExtractedListState(
+        isMobile: isMobile,
+        referenciaDetalle: referenciaDetalle,
+        result: _docExtractionResult!,
+      );
+    } else if (_docExtractionResult!.status ==
+        SecopExtractionStatus.emptyOfficialList) {
+      innerContent = _buildDocumentosEmptyOfficialState(
+        isMobile: isMobile,
+        message: _docExtractionResult!.errorMessage,
+      );
+    } else {
+      innerContent = _buildDocumentosCaptchaFallbackState(
+        isMobile: isMobile,
+        message: _docExtractionResult!.errorMessage,
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -957,7 +1337,10 @@ PREGUNTA DEL USUARIO: $cleanText
         const SizedBox(height: 16),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(26),
+          padding: EdgeInsets.symmetric(
+            horizontal: isMobile ? 18 : 32,
+            vertical: isMobile ? 26 : 36,
+          ),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(18),
@@ -969,588 +1352,1082 @@ PREGUNTA DEL USUARIO: $cleanText
               ),
             ],
           ),
+          child: innerContent,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDocumentosInitialState({
+    required bool isMobile,
+    required String referenciaDetalle,
+  }) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: isMobile ? 8 : 16),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 580),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Encabezado principal del área de documentos
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEFF6FF),
-                      borderRadius: BorderRadius.circular(12),
+              SizedBox(
+                width: 96,
+                height: 96,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Container(
+                      width: 90,
+                      height: 90,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFFEFF6FF),
+                        border: Border.all(
+                          color: const Color(0xFFDBEAFE),
+                          width: 1.5,
+                        ),
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.folder_shared_rounded,
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: _azulOscuro,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _azulOscuro.withValues(alpha: 0.18),
+                            blurRadius: 14,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.find_in_page_rounded,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                    ),
+                    Positioned(
+                      right: 4,
+                      bottom: 4,
+                      child: Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: _amarillo,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2.5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: _azulOscuro.withValues(alpha: 0.12),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.auto_awesome_rounded,
+                          color: _azulOscuro,
+                          size: 15,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFBFDBFE)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.auto_awesome_rounded,
+                      size: 13,
                       color: _azulPrimario,
-                      size: 24,
                     ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Expediente Documental del Contrato',
-                          style: TextStyle(
-                            color: _azulOscuro,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Proceso oficial: $_procesoContrato   |   Ref: $_referenciaContrato',
-                          style: const TextStyle(
-                            color: Color(0xFF64748B),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+                    SizedBox(width: 6),
+                    Text(
+                      'INTELIGENCIA DOCUMENTAL · SECOP II',
+                      style: TextStyle(
+                        color: _azulPrimario,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
-
-              // Nota de Transparencia Ciudadana
+              Text(
+                'Conoce qué documentos tiene este contrato',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _azulOscuro,
+                  fontSize: isMobile ? 20 : 23,
+                  fontWeight: FontWeight.w800,
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Escanea en tiempo real la sección "Documentación" de este expediente en SECOP II para extraer y listar aquí los nombres exactos de los anexos publicados antes de ir a descargarlos.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: const Color(0xFF475569),
+                  fontSize: isMobile ? 14 : 15,
+                  fontWeight: FontWeight.w500,
+                  height: 1.55,
+                ),
+              ),
+              const SizedBox(height: 18),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(
-                      Icons.info_outline_rounded,
-                      color: Color(0xFF475569),
-                      size: 20,
+                      Icons.link_rounded,
+                      size: 16,
+                      color: _azulPrimario,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Aviso de transparencia: La API abierta nacional (datos.gov.co) almacena únicamente la información de texto del contrato. Los archivos PDF escaneados originales (firmas manuscritas, sellos y anexos técnicos de la entidad) se custodian en el portal transaccional de SECOP II. Selecciona una de las dos opciones para acceder:',
-                        style: TextStyle(
-                          color: Colors.blueGrey.shade700,
-                          fontSize: 12.8,
-                          height: 1.4,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // ENFOQUE DUAL: Botón 1 (Acceso Oficial) vs Botón 2 (Resumen Inteligente)
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final isWide = constraints.maxWidth > 860;
-                  if (isWide) {
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: _buildOpcionOficialCard()),
-                        const SizedBox(width: 20),
-                        Expanded(child: _buildOpcionResumenCard()),
-                      ],
-                    );
-                  } else {
-                    return Column(
-                      children: [
-                        _buildOpcionOficialCard(),
-                        const SizedBox(height: 18),
-                        _buildOpcionResumenCard(),
-                      ],
-                    );
-                  }
-                },
-              ),
-
-              const SizedBox(height: 32),
-              const Divider(height: 1, color: Color(0xFFE2E8F0)),
-              const SizedBox(height: 24),
-
-              // Sección Informativa: Checklist de Documentos Esperados según Ley
-              _buildDocumentosEsperadosSection(expectedDocs),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// TARJETA Y BOTÓN 1: El Acceso Oficial (Opción A)
-  Widget _buildOpcionOficialCard() {
-    return Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: _azulOscuro.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Tag superior de opción oficial
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFECFDF5),
-                  borderRadius: BorderRadius.circular(7),
-                  border: Border.all(color: const Color(0xFFA7F3D0)),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.verified, size: 13, color: Color(0xFF059669)),
-                    SizedBox(width: 5),
-                    Text(
-                      'OPCIÓN A · FUENTE OFICIAL DEL ESTADO',
-                      style: TextStyle(
-                        color: Color(0xFF047857),
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          // Título y explicación clara
-          const Text(
-            'Documentos oficiales en SECOP',
-            style: TextStyle(
-              color: _azulOscuro,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Abre directamente el expediente en el portal transaccional de Colombia Compra Eficiente (community.secop.gov.co) donde reposan los archivos escaneados originales subidos por la entidad pública.',
-            style: TextStyle(
-              color: Color(0xFF475569),
-              fontSize: 13,
-              height: 1.42,
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Características de lo que encontrará
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildBulletPoint(
-                  Icons.picture_as_pdf_outlined,
-                  'PDFs originales escaneados con firmas y sellos institucionales.',
-                ),
-                const SizedBox(height: 8),
-                _buildBulletPoint(
-                  Icons.layers_outlined,
-                  'Estudios previos completos, CDP original, pliegos definitivos y pólizas.',
-                ),
-                const SizedBox(height: 8),
-                _buildBulletPoint(
-                  Icons.download_for_offline_outlined,
-                  'Descarga directa e inmediata desde los servidores del Gobierno.',
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // BOTÓN 1: "Documentos oficiales en SECOP"
-          SizedBox(
-            width: double.infinity,
-            height: 46,
-            child: ElevatedButton.icon(
-              onPressed: () =>
-                  ContractDocumentService.abrirDocumentosOficialesSecop(
-                context,
-                widget.contrato,
-              ),
-              icon: const Icon(Icons.open_in_new_rounded, size: 17),
-              label: const Text(
-                'Documentos oficiales en SECOP',
-                style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0F2747),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// TARJETA Y BOTÓN 2: El Resumen Inteligente (Opción B)
-  Widget _buildOpcionResumenCard() {
-    return Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFDE68A), width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFF59E0B).withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Tag superior de opción generada por IA
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFFBEB),
-                  borderRadius: BorderRadius.circular(7),
-                  border: Border.all(color: const Color(0xFFFDE68A)),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.auto_awesome, size: 13, color: Color(0xFFD97706)),
-                    SizedBox(width: 5),
-                    Text(
-                      'OPCIÓN B · RESUMEN INTELIGENTE IA',
-                      style: TextStyle(
-                        color: Color(0xFFB45309),
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          // Título y explicación clara
-          const Text(
-            'Generar resumen de contrato y documentos',
-            style: TextStyle(
-              color: _azulOscuro,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Genera al instante un reporte conciso estructurado a partir de los datos abiertos de texto: monto, objeto, proceso, entidad, contratista y el checklist legal de documentos que deben existir.',
-            style: TextStyle(
-              color: Color(0xFF475569),
-              fontSize: 13,
-              height: 1.42,
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Características de lo que encontrará
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFFDF5),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFFEF3C7)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildBulletPoint(
-                  Icons.table_chart_outlined,
-                  'Ficha técnica en casillas: proceso, modalidad, sector, plazos y valor ($_valorFormateado).',
-                ),
-                const SizedBox(height: 8),
-                _buildBulletPoint(
-                  Icons.checklist_rtl_rounded,
-                  'Matriz formal de 8 documentos obligatorios con base legal y estado SECOP.',
-                ),
-                const SizedBox(height: 8),
-                _buildBulletPoint(
-                  Icons.verified_outlined,
-                  'Sello de auditoría ciudadana, hash de trazabilidad y objeto contractual completo.',
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // BOTÓN 2: "Generar resumen de contrato y documentos" + Acción secundaria "Ver en navegador"
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 46,
-                  child: ElevatedButton.icon(
-                    onPressed: () =>
-                        ContractDocumentService.descargarResumenInteligente(
-                      context,
-                      widget.contrato,
-                    ),
-                    icon: const Icon(Icons.download_rounded, size: 17),
-                    label: const Text(
-                      'Generar resumen (PDF)',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E3A8A),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              SizedBox(
-                height: 46,
-                child: OutlinedButton.icon(
-                  onPressed: () =>
-                      ContractDocumentService.abrirResumenEnNavegador(
-                    context,
-                    widget.contrato,
-                  ),
-                  icon: const Icon(Icons.visibility_outlined, size: 16),
-                  label: const Text(
-                    'Ver PDF',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF1E3A8A),
-                    side: const BorderSide(color: Color(0xFF93C5FD)),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBulletPoint(IconData icon, String text) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 16, color: _azulOscuro),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(
-              color: Color(0xFF334155),
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Sección informativa inferior con el Checklist de Documentos Esperados
-  Widget _buildDocumentosEsperadosSection(List<ExpectedDocumentItem> expectedDocs) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Icon(
-              Icons.checklist_rounded,
-              color: _azulOscuro,
-              size: 22,
-            ),
-            const SizedBox(width: 10),
-            const Expanded(
-              child: Text(
-                'Documentos que componen el expediente de este contrato',
-                style: TextStyle(
-                  color: _azulOscuro,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                'Modalidad: $_modalidadContrato',
-                style: const TextStyle(
-                  color: Color(0xFF475569),
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'Conforme a la Ley 80 de 1993, Ley 1150 de 2007 y Decreto 1082 de 2015, este proceso debe contar con los siguientes archivos en la plataforma oficial:',
-          style: TextStyle(
-            color: Color(0xFF64748B),
-            fontSize: 13,
-          ),
-        ),
-        const SizedBox(height: 18),
-
-        // Lista de documentos esperados
-        for (var i = 0; i < expectedDocs.length; i++)
-          _buildExpectedDocRow(expectedDocs[i]),
-      ],
-    );
-  }
-
-  Widget _buildExpectedDocRow(ExpectedDocumentItem item) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(item.icon, color: _azulPrimario, size: 20),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
+                    const SizedBox(width: 8),
                     Flexible(
                       child: Text(
-                        item.name,
+                        'Proceso vinculado: $referenciaDetalle',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: _azulOscuro,
-                          fontSize: 13.5,
+                          color: Color(0xFF334155),
+                          fontSize: 12.5,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 26),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: () =>
+                      _ejecutarExtraccionDocumentos(forceRefresh: false),
+                  icon: const Icon(
+                    Icons.auto_awesome_rounded,
+                    color: _amarillo,
+                    size: 20,
+                  ),
+                  label: Text(
+                    'Extraer listado de documentos del SECOP',
+                    style: TextStyle(
+                      fontSize: isMobile ? 13.5 : 15,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _azulOscuro,
+                    foregroundColor: Colors.white,
+                    elevation: 2,
+                    shadowColor: _azulOscuro.withValues(alpha: 0.25),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: _abrirEnlaceSecop,
+                icon: const Icon(Icons.open_in_new_rounded, size: 15),
+                label: const Text(
+                  'O abrir directamente la sección en SECOP II',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF64748B),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDocumentosLoadingState({required bool isMobile}) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: isMobile ? 28 : 44),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 68,
+                height: 68,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    const SizedBox(
+                      width: 64,
+                      height: 64,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3.2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          _azulPrimario,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFEFF6FF),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.auto_awesome_rounded,
+                        color: _azulOscuro,
+                        size: 22,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 22),
+              Text(
+                'Analizando sección Documentación en SECOP II',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _azulOscuro,
+                  fontSize: isMobile ? 17 : 19,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                _extractingStepText,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFF475569),
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Extrayendo únicamente los nombres reales de los anexos cargados por la entidad...',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xFF94A3B8),
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDocumentosExtractedListState({
+    required bool isMobile,
+    required String referenciaDetalle,
+    required SecopExtractionResult result,
+  }) {
+    final allDocs = result.documents;
+    final queryNorm = SecopDocumentIntelligenceService.normalizarTexto(
+      _docSearchQuery.trim(),
+    );
+    final filteredDocs = queryNorm.isEmpty
+        ? allDocs
+        : allDocs.where((d) {
+            final nameNorm =
+                SecopDocumentIntelligenceService.normalizarTexto(d.name);
+            final catNorm =
+                SecopDocumentIntelligenceService.normalizarTexto(d.category);
+            return nameNorm.contains(queryNorm) || catNorm.contains(queryNorm);
+          }).toList();
+
+    final countBadgeText = allDocs.length == 1
+        ? '1 documento detectado'
+        : '${allDocs.length} documentos detectados';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Encabezado con contador real y botón de actualizar
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.fact_check_outlined,
+                color: _azulPrimario,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        'Documentos encontrados en SECOP II',
+                        style: TextStyle(
+                          color: _azulOscuro,
+                          fontSize: isMobile ? 17.5 : 20,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFECFDF5),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFA7F3D0)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.check_circle_rounded,
+                              size: 13,
+                              color: Color(0xFF059669),
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              countBadgeText,
+                              style: const TextStyle(
+                                color: Color(0xFF047857),
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Sección "Documentación" · Proceso: $referenciaDetalle',
+                    style: const TextStyle(
+                      color: Color(0xFF64748B),
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Tooltip(
+              message: 'Volver a consultar SECOP II',
+              child: isMobile
+                  ? OutlinedButton(
+                      onPressed: () =>
+                          _ejecutarExtraccionDocumentos(forceRefresh: true),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _azulOscuro,
+                        minimumSize: const Size(40, 40),
+                        padding: EdgeInsets.zero,
+                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: const Icon(Icons.refresh_rounded, size: 18),
+                    )
+                  : OutlinedButton.icon(
+                      onPressed: () =>
+                          _ejecutarExtraccionDocumentos(forceRefresh: true),
+                      icon: const Icon(Icons.refresh_rounded, size: 16),
+                      label: const Text('Actualizar'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _azulOscuro,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Resumen ejecutivo inteligente de lo que encontrará el usuario
+        if (result.summaryText.isNotEmpty) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: _azulPrimario,
+                  size: 19,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    result.summaryText,
+                    style: const TextStyle(
+                      color: Color(0xFF334155),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      height: 1.45,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // Buscador rápido dentro de la lista cuando hay 6 o más anexos
+        if (allDocs.length >= 6) ...[
+          TextField(
+            controller: _docFilterController,
+            onChanged: (v) => setState(() => _docSearchQuery = v),
+            style: const TextStyle(fontSize: 13, color: _azulOscuro),
+            decoration: InputDecoration(
+              hintText:
+                  'Filtrar documentos por nombre o categoría (ej. Estudios previos, CDP, Adenda)...',
+              hintStyle: const TextStyle(
+                color: Color(0xFF94A3B8),
+                fontSize: 13,
+              ),
+              prefixIcon: const Icon(
+                Icons.search_rounded,
+                size: 19,
+                color: Color(0xFF64748B),
+              ),
+              suffixIcon: _docSearchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 18),
+                      onPressed: () {
+                        _docFilterController.clear();
+                        setState(() => _docSearchQuery = '');
+                      },
+                    )
+                  : null,
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 12,
+              ),
+              filled: true,
+              fillColor: const Color(0xFFF8FAFC),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(11),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(11),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(11),
+                borderSide: const BorderSide(color: _azulPrimario, width: 1.4),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+        ],
+
+        // Listado limpio de los nombres reales extraídos de SECOP
+        if (filteredDocs.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: Text(
+                'Ningún documento coincide con "$_docSearchQuery".',
+                style: const TextStyle(
+                  color: Color(0xFF64748B),
+                  fontSize: 13.5,
+                ),
+              ),
+            ),
+          )
+        else
+          for (var i = 0; i < filteredDocs.length; i++)
+            _buildExtractedDocumentItemCard(
+              index: i + 1,
+              doc: filteredDocs[i],
+              isMobile: isMobile,
+            ),
+
+        const SizedBox(height: 18),
+
+        // Pie de acción para ir a descargar los archivos reales en SECOP II
+        Container(
+          padding: EdgeInsets.all(isMobile ? 16 : 20),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFCBD5E1)),
+          ),
+          child: isMobile
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      '¿Ya identificaste los documentos que necesitas? Abre el expediente oficial para descargarlos directamente desde SECOP II.',
+                      style: TextStyle(
+                        color: Color(0xFF334155),
+                        fontSize: 13,
+                        height: 1.4,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        onPressed: _abrirEnlaceSecop,
+                        icon: const Icon(
+                          Icons.open_in_browser_rounded,
+                          color: _amarillo,
+                          size: 19,
+                        ),
+                        label: const Text(
+                          'Ir a SECOP para descargar documentos',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _azulOscuro,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(11),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(11),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: const Icon(
+                        Icons.cloud_download_outlined,
+                        color: _azulOscuro,
+                        size: 21,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '¿Listo para descargar los archivos originales?',
+                            style: TextStyle(
+                              color: _azulOscuro,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Ya sabes exactamente qué anexos contiene este proceso. Abre la vista oficial de SECOP II para descargar los PDFs.',
+                            style: TextStyle(
+                              color: Color(0xFF64748B),
+                              fontSize: 12.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    SizedBox(
+                      height: 46,
+                      child: ElevatedButton.icon(
+                        onPressed: _abrirEnlaceSecop,
+                        icon: const Icon(
+                          Icons.open_in_browser_rounded,
+                          color: _amarillo,
+                          size: 19,
+                        ),
+                        label: const Text(
+                          'Ir a SECOP a descargar',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _azulOscuro,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(11),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildExtractedDocumentItemCard({
+    required int index,
+    required SecopExtractedDocument doc,
+    required bool isMobile,
+  }) {
+    final ext = doc.extension.toUpperCase();
+    Color badgeBg;
+    Color badgeText;
+    IconData fileIcon;
+
+    if (ext == 'PDF') {
+      badgeBg = const Color(0xFFFEF2F2);
+      badgeText = const Color(0xFFDC2626);
+      fileIcon = Icons.picture_as_pdf_rounded;
+    } else if (ext == 'XLSX' || ext == 'XLS' || ext == 'CSV') {
+      badgeBg = const Color(0xFFECFDF5);
+      badgeText = const Color(0xFF059669);
+      fileIcon = Icons.table_chart_rounded;
+    } else if (ext == 'ZIP' || ext == 'RAR' || ext == '7Z') {
+      badgeBg = const Color(0xFFFFFBEB);
+      badgeText = const Color(0xFFD97706);
+      fileIcon = Icons.folder_zip_rounded;
+    } else {
+      badgeBg = const Color(0xFFEFF6FF);
+      badgeText = _azulPrimario;
+      fileIcon = Icons.description_rounded;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 12 : 16,
+        vertical: 13,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 32,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              '${index.toString().padLeft(2, '0')}.',
+              style: const TextStyle(
+                color: Color(0xFF94A3B8),
+                fontSize: 12.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: badgeBg,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(fileIcon, color: badgeText, size: 20),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SelectableText(
+                  doc.name,
+                  style: const TextStyle(
+                    color: _azulOscuro,
+                    fontSize: 13.8,
+                    fontWeight: FontWeight.w700,
+                    height: 1.3,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 7,
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFECFDF5),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFFA7F3D0)),
+                        color: badgeBg,
+                        borderRadius: BorderRadius.circular(5),
                       ),
-                      child: const Text(
-                        'Requerido por Ley',
+                      child: Text(
+                        ext,
                         style: TextStyle(
-                          color: Color(0xFF047857),
+                          color: badgeText,
                           fontSize: 10,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        doc.category,
+                        style: const TextStyle(
+                          color: Color(0xFF475569),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 2),
+              ],
+            ),
+          ),
+          if (!isMobile) ...[
+            const SizedBox(width: 12),
+            const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.verified_outlined,
+                  size: 14,
+                  color: Color(0xFF059669),
+                ),
+                SizedBox(width: 5),
                 Text(
-                  '${item.legalReference} · ${item.description}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF64748B),
+                  'En SECOP II',
+                  style: TextStyle(
+                    color: Color(0xFF059669),
                     fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: 12),
-          TextButton.icon(
-            onPressed: () =>
-                ContractDocumentService.abrirDocumentosOficialesSecop(
-              context,
-              widget.contrato,
-            ),
-            icon: const Icon(Icons.open_in_new_rounded, size: 14),
-            label: const Text('Descargar en SECOP II'),
-            style: TextButton.styleFrom(
-              foregroundColor: _azulPrimario,
-              textStyle: const TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildDocumentosEmptyOfficialState({
+    required bool isMobile,
+    String? message,
+  }) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: isMobile ? 16 : 28),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 68,
+                height: 68,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF1F5F9),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.inbox_outlined,
+                  color: Color(0xFF64748B),
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                'Sin documentos listados en esta sección',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _azulOscuro,
+                  fontSize: isMobile ? 18 : 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                message ??
+                    'Se consultó la sección Documentación de este expediente en SECOP II y no se encontraron anexos publicados.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFF64748B),
+                  fontSize: 13.5,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 22),
+              Wrap(
+                spacing: 12,
+                runSpacing: 10,
+                alignment: WrapAlignment.center,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () =>
+                        _ejecutarExtraccionDocumentos(forceRefresh: true),
+                    icon: const Icon(Icons.refresh_rounded, size: 17),
+                    label: const Text('Volver a consultar'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _azulOscuro,
+                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: _abrirEnlaceSecop,
+                    icon: const Icon(
+                      Icons.open_in_browser_rounded,
+                      size: 17,
+                      color: _amarillo,
+                    ),
+                    label: const Text('Verificar en SECOP II'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _azulOscuro,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDocumentosCaptchaFallbackState({
+    required bool isMobile,
+    String? message,
+  }) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: isMobile ? 12 : 22),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 590),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 68,
+                height: 68,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFFBEB),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFFDE68A)),
+                ),
+                child: const Icon(
+                  Icons.security_rounded,
+                  color: Color(0xFFD97706),
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                'SECOP solicitó validación anti-bots (reCAPTCHA)',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _azulOscuro,
+                  fontSize: isMobile ? 18 : 21,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                message ??
+                    'El firewall de Colombia Compra Eficiente bloqueó temporalmente la lectura automática de este contrato.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFF475569),
+                  fontSize: 13.5,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Extracción asistida en 2 clics (queda guardada en la app):',
+                      style: TextStyle(
+                        color: _azulOscuro,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      '1. Abre la vista del proceso en SECOP (resuelve el reCAPTCHA si aparece) y presiona Ctrl+A y Ctrl+C.\n'
+                      '2. Haz clic en "Extraer lista desde portapapeles" para filtrar y mostrar aquí solo los nombres de los documentos.',
+                      style: TextStyle(
+                        color: Color(0xFF475569),
+                        fontSize: 12.5,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              Wrap(
+                spacing: 12,
+                runSpacing: 10,
+                alignment: WrapAlignment.center,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _abrirEnlaceSecop,
+                    icon: const Icon(Icons.open_in_browser_rounded, size: 18),
+                    label: const Text(
+                      '1. Abrir sección en SECOP',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _azulOscuro,
+                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 14,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: _extraerDesdePortapapeles,
+                    icon: const Icon(
+                      Icons.auto_awesome_rounded,
+                      size: 18,
+                      color: _amarillo,
+                    ),
+                    label: const Text(
+                      '2. Extraer lista desde portapapeles',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _azulOscuro,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: () =>
+                    _ejecutarExtraccionDocumentos(forceRefresh: true),
+                icon: const Icon(Icons.refresh_rounded, size: 16),
+                label: const Text(
+                  'Reintentar lectura automática directa',
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: _azulPrimario,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -2239,6 +3116,7 @@ PREGUNTA DEL USUARIO: $cleanText
                   child: Image.asset(
                     'assets/images/fondo_valledupar.jpg',
                     fit: BoxFit.cover,
+                    filterQuality: FilterQuality.high,
                     alignment: const Alignment(0.0, -0.38),
                     errorBuilder: (context, error, stackTrace) =>
                         Container(),
@@ -2304,7 +3182,7 @@ PREGUNTA DEL USUARIO: $cleanText
                       if (_selectedTab == 0)
                         _buildResumenTabContent(isMobile: isMobile)
                       else if (_selectedTab == 1)
-                        _buildDocumentosTabContent()
+                        _buildDocumentosTabContent(isMobile: isMobile)
                       else
                         _buildCopilotoTabContent(isMobile: isMobile),
                     ],
