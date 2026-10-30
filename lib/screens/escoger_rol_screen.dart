@@ -523,9 +523,10 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
   Widget build(BuildContext context) {
     final roles = PaymentService.obtenerCatalogoRoles();
 
-    return Scaffold(
-      backgroundColor: OnboardingUnifiedBackground.bgCream,
-      body: OnboardingUnifiedBackground(
+    return SelectionArea(
+      child: Scaffold(
+        backgroundColor: OnboardingUnifiedBackground.bgCream,
+        body: OnboardingUnifiedBackground(
         child: LayoutBuilder(
           builder: (context, constraints) {
             final width = constraints.maxWidth;
@@ -708,8 +709,9 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
           },
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Color _cardBackgroundColorForRole(String rolId) {
     switch (rolId) {

@@ -208,8 +208,9 @@ class _HomeScreenState extends State<HomeScreen> {
           return found >= 0 ? found : 0;
         }();
 
+        Widget mainContent;
         if (isMobile) {
-          return Scaffold(
+          mainContent = Scaffold(
             key: _scaffoldKey,
             backgroundColor: _crema,
             drawer: null,
@@ -284,28 +285,30 @@ class _HomeScreenState extends State<HomeScreen> {
                   )
                 : null,
           );
+        } else {
+          mainContent = Scaffold(
+            key: _scaffoldKey,
+            backgroundColor: _crema,
+            body: Row(
+              children: [
+                CollapsibleSideMenu(
+                  selectedIndex: activeIndex,
+                  isCollapsed: _isSidebarCollapsed,
+                  onItemSelected: _onItemTapped,
+                  onToggleCollapse: _toggleSidebar,
+                  onLogout: _cerrarSesion,
+                ),
+                Expanded(
+                  child: Column(
+                    children: [_buildCurrentView(activeIndex)],
+                  ),
+                ),
+              ],
+            ),
+          );
         }
 
-        return Scaffold(
-          key: _scaffoldKey,
-          backgroundColor: _crema,
-          body: Row(
-            children: [
-              CollapsibleSideMenu(
-                selectedIndex: activeIndex,
-                isCollapsed: _isSidebarCollapsed,
-                onItemSelected: _onItemTapped,
-                onToggleCollapse: _toggleSidebar,
-                onLogout: _cerrarSesion,
-              ),
-              Expanded(
-                child: Column(
-                  children: [_buildCurrentView(activeIndex)],
-                ),
-              ),
-            ],
-          ),
-        );
+        return SelectionArea(child: mainContent);
       },
     );
   }

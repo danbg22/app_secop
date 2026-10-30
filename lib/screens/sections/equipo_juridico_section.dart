@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -50,6 +51,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
   List<bool> _checksLocales = <bool>[false, false, false, false, false];
   bool _trazabilidadExpandida = true;
   bool _procesandoAccion = false;
+  Timer? _sincronizadorContinuo;
 
   @override
   void initState() {
@@ -57,11 +59,17 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
     JuridicoContratacionService.expedientesVersion.addListener(
       _onServicioActualizado,
     );
+    JuridicoContratacionService.activarTiempoRealEquipoJuridico();
     _cargarExpedientes();
+    _sincronizadorContinuo = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) => _cargarExpedientes(silencioso: true),
+    );
   }
 
   @override
   void dispose() {
+    _sincronizadorContinuo?.cancel();
     JuridicoContratacionService.expedientesVersion.removeListener(
       _onServicioActualizado,
     );
@@ -1692,205 +1700,213 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          onTap: () => _abrirDetalleAspirante(exp),
+      child: Container(
+        padding: EdgeInsets.all(isMobile ? 16 : 20),
+        decoration: BoxDecoration(
+          color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: EdgeInsets.all(isMobile ? 16 : 20),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: _bordeSuave),
-            ),
-            child: Column(
+          border: Border.all(color: _bordeSuave),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Fila superior de identidad del aspirante (texto seleccionable + acceso al detalle)
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Fila superior de identidad del aspirante (estilo perfil)
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CircleAvatar(
-                      radius: isMobile ? 21 : 24,
-                      backgroundColor: _azulOscuro,
-                      child: Text(
-                        iniciales,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                        ),
+                InkWell(
+                  onTap: () => _abrirDetalleAspirante(exp),
+                  borderRadius: BorderRadius.circular(28),
+                  child: CircleAvatar(
+                    radius: isMobile ? 21 : 24,
+                    backgroundColor: _azulOscuro,
+                    child: Text(
+                      iniciales,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 6,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              Text(
-                                nombre,
-                                style: TextStyle(
-                                  color: _azulOscuro,
-                                  fontSize: isMobile ? 15.5 : 17,
-                                  fontWeight: FontWeight.w700,
-                                ),
+                          InkWell(
+                            onTap: () => _abrirDetalleAspirante(exp),
+                            borderRadius: BorderRadius.circular(6),
+                            child: Text(
+                              nombre,
+                              style: TextStyle(
+                                color: _azulOscuro,
+                                fontSize: isMobile ? 15.5 : 17,
+                                fontWeight: FontWeight.w700,
                               ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 9,
-                                  vertical: 3.5,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: pillBg,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Container(
-                                      width: 6.5,
-                                      height: 6.5,
-                                      decoration: BoxDecoration(
-                                        color: dotColor,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      exp.estadoGlobalEtiqueta,
-                                      style: TextStyle(
-                                        color: pillText,
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                          const SizedBox(height: 5),
-                          Wrap(
-                            spacing: 14,
-                            runSpacing: 4,
-                            children: [
-                              Text(
-                                'CC ${exp.contratistaCedulaEsperada.isEmpty ? "Por registrar" : exp.contratistaCedulaEsperada}',
-                                style: const TextStyle(
-                                  color: _textoSecundario,
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              Text(
-                                exp.contratistaCorreo,
-                                style: const TextStyle(
-                                  color: _textoSecundario,
-                                  fontSize: 12.5,
-                                ),
-                              ),
-                              Text(
-                                'Contrato ${exp.numeroContrato}',
-                                style: const TextStyle(
-                                  color: _azulOscuro,
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              if (exp.valorContratoCop > 0)
-                                Text(
-                                  '${_monedaFormat.format(exp.valorContratoCop)} · ${exp.plazoEjecucion}',
-                                  style: const TextStyle(
-                                    color: _textoSecundario,
-                                    fontSize: 12.5,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9,
+                              vertical: 3.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: pillBg,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 6.5,
+                                  height: 6.5,
+                                  decoration: BoxDecoration(
+                                    color: dotColor,
+                                    shape: BoxShape.circle,
                                   ),
                                 ),
-                            ],
+                                const SizedBox(width: 6),
+                                Text(
+                                  exp.estadoGlobalEtiqueta,
+                                  style: TextStyle(
+                                    color: pillText,
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                    if (!isMobile)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
+                      const SizedBox(height: 5),
+                      Wrap(
+                        spacing: 14,
+                        runSpacing: 4,
                         children: [
                           Text(
-                            '${exp.totalCargados}/${exp.totalApartados} documentos',
+                            'CC ${exp.contratistaCedulaEsperada.isEmpty ? "Por registrar" : exp.contratistaCedulaEsperada}',
                             style: const TextStyle(
                               color: _textoSecundario,
                               fontSize: 12.5,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                          const SizedBox(width: 6),
-                          const Icon(
-                            Icons.chevron_right_rounded,
-                            color: _textoSecundario,
-                            size: 20,
+                          Text(
+                            exp.contratistaCorreo,
+                            style: const TextStyle(
+                              color: _textoSecundario,
+                              fontSize: 12.5,
+                            ),
                           ),
+                          Text(
+                            'Contrato ${exp.numeroContrato}',
+                            style: const TextStyle(
+                              color: _azulOscuro,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          if (exp.valorContratoCop > 0)
+                            Text(
+                              '${_monedaFormat.format(exp.valorContratoCop)} · ${exp.plazoEjecucion}',
+                              style: const TextStyle(
+                                color: _textoSecundario,
+                                fontSize: 12.5,
+                              ),
+                            ),
                         ],
                       ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  exp.objetoContrato,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF334155),
-                    fontSize: 13,
-                    height: 1.4,
+                    ],
                   ),
                 ),
-                const SizedBox(height: 14),
-                const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                const SizedBox(height: 12),
-                // Pie del perfil: único botón de enlace personalizado + indicador sutil de detalle
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: () => _generarYMostrarLinkContratista(exp),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: _azulOscuro,
-                        side: const BorderSide(color: Color(0xFFCBD5E1)),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      icon: const Icon(Icons.link_rounded, size: 17),
-                      label: const Text(
-                        'Generar link para contratista',
-                        style: TextStyle(
-                          fontSize: 12.8,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                if (!isMobile)
+                  Text(
+                    '${exp.totalCargados}/${exp.totalApartados} documentos',
+                    style: const TextStyle(
+                      color: _textoSecundario,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
                     ),
-                    Text(
-                      '${exp.totalAprobados} verificados · Ver expediente →',
-                      style: const TextStyle(
-                        color: _azulPrimario,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                      ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              exp.objetoContrato,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF334155),
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Divider(height: 1, color: Color(0xFFF1F5F9)),
+            const SizedBox(height: 12),
+            // Pie del perfil: único botón para generar link + acción para ver el detalle
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => _generarYMostrarLinkContratista(exp),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _azulOscuro,
+                    side: const BorderSide(color: Color(0xFFCBD5E1)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
                     ),
-                  ],
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  icon: const Icon(Icons.link_rounded, size: 17),
+                  label: const Text(
+                    'Generar link para contratista',
+                    style: TextStyle(
+                      fontSize: 12.8,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () => _abrirDetalleAspirante(exp),
+                  style: TextButton.styleFrom(
+                    foregroundColor: _azulPrimario,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                  ),
+                  icon: Text(
+                    '${exp.totalAprobados} verificados · Ver expediente',
+                    style: const TextStyle(
+                      color: _azulPrimario,
+                      fontSize: 12.8,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  label: const Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 16,
+                    color: _azulPrimario,
+                  ),
                 ),
               ],
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -2001,6 +2017,42 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                   ),
                 ),
               ),
+              if (!isMobile) ...[
+                const SizedBox(width: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDF4),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFBBF7D0)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 6.5,
+                        height: 6.5,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF16A34A),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'Sincronización en tiempo real activa',
+                        style: TextStyle(
+                          color: Color(0xFF166534),
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const Spacer(),
               Wrap(
                 spacing: 8,

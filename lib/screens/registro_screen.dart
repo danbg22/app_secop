@@ -351,9 +351,10 @@ class _RegistroScreenState extends State<RegistroScreen> {
   Widget build(BuildContext context) {
     final rol = _rolConfig;
 
-    return Scaffold(
-      backgroundColor: OnboardingUnifiedBackground.bgCream,
-      body: OnboardingUnifiedBackground(
+    return SelectionArea(
+      child: Scaffold(
+        backgroundColor: OnboardingUnifiedBackground.bgCream,
+        body: OnboardingUnifiedBackground(
         child: LayoutBuilder(
           builder: (context, constraints) {
             final width = constraints.maxWidth;
@@ -844,8 +845,9 @@ class _RegistroScreenState extends State<RegistroScreen> {
           },
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildRegistrationCardHeader({required bool isMobile}) {
     final logo = ContrataLegalHdLogo(height: isMobile ? 50 : 62);

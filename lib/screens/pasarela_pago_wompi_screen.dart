@@ -693,9 +693,10 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
           _manejarIntentoRegresar();
         }
       },
-      child: Scaffold(
-        backgroundColor: _bgCream,
-        body: LayoutBuilder(
+      child: SelectionArea(
+        child: Scaffold(
+          backgroundColor: _bgCream,
+          body: LayoutBuilder(
           builder: (context, constraints) {
             final isMobile = constraints.maxWidth < 600;
 
@@ -771,8 +772,9 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
           },
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildActiveCard({required bool isMobile}) {
     final bool isSuccessStep = _pasoActual == 3;

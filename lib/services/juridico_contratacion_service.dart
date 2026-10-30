@@ -2,12 +2,14 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../utils/document_file_picker.dart';
 import '../utils/file_downloader.dart';
+import '../utils/realtime_tab_bridge.dart';
 import 'auth_service.dart';
 import 'security_service.dart';
 
@@ -186,7 +188,7 @@ class ApartadoDocumentoContrato {
 
   Map<String, dynamic> toMap({bool omitLargeBinary = false}) {
     final rawB64 = archivoBase64 ?? '';
-    final safeB64 = (omitLargeBinary && rawB64.length > 180000)
+    final safeB64 = (omitLargeBinary && rawB64.length > 140000)
         ? null
         : archivoBase64;
     return <String, dynamic>{
@@ -370,6 +372,8 @@ class ExpedienteContratoPs {
     required this.fechaCreacionIso,
     required this.apartados,
     required this.trazabilidad,
+    this.creadoPorUid = '',
+    this.actualizadoEnMs = 0,
     this.notificacionesCorreo = const <NotificacionCorreoSubsanacion>[],
     this.avalJuridicoEmitido = false,
     this.fechaAvalIso,
@@ -394,7 +398,9 @@ class ExpedienteContratoPs {
   final String contratistaTelefono;
   final String creadoPorEmail;
   final String creadoPorNombre;
+  final String creadoPorUid;
   final String fechaCreacionIso;
+  final int actualizadoEnMs;
   final List<ApartadoDocumentoContrato> apartados;
   final List<EventoTrazabilidadContrato> trazabilidad;
   final List<NotificacionCorreoSubsanacion> notificacionesCorreo;
@@ -460,6 +466,7 @@ class ExpedienteContratoPs {
     String? ultimoContratistaValidadoCedula,
     List<bool>? checksVerificacion,
     String? conceptoJuridico,
+    int? actualizadoEnMs,
   }) {
     return ExpedienteContratoPs(
       id: id,
@@ -479,7 +486,9 @@ class ExpedienteContratoPs {
       contratistaTelefono: contratistaTelefono,
       creadoPorEmail: creadoPorEmail,
       creadoPorNombre: creadoPorNombre,
+      creadoPorUid: creadoPorUid,
       fechaCreacionIso: fechaCreacionIso,
+      actualizadoEnMs: actualizadoEnMs ?? this.actualizadoEnMs,
       apartados: apartados ?? this.apartados,
       trazabilidad: trazabilidad ?? this.trazabilidad,
       notificacionesCorreo: notificacionesCorreo ?? this.notificacionesCorreo,
@@ -499,7 +508,7 @@ class ExpedienteContratoPs {
   Map<String, dynamic> toMap({bool omitLargeBinary = false}) {
     return <String, dynamic>{
       'id': id,
-      'tokenInvitado': tokenInvitado,
+      'tokenInvitado': tokenInvitado.toLowerCase(),
       'entidadNombre': entidadNombre,
       'entidadNit': entidadNit,
       'dependencia': dependencia,
@@ -513,7 +522,9 @@ class ExpedienteContratoPs {
       'contratistaTelefono': contratistaTelefono,
       'creadoPorEmail': creadoPorEmail,
       'creadoPorNombre': creadoPorNombre,
+      'creadoPorUid': creadoPorUid,
       'fechaCreacionIso': fechaCreacionIso,
+      'actualizadoEnMs': actualizadoEnMs,
       'apartados': apartados
           .map((a) => a.toMap(omitLargeBinary: omitLargeBinary))
           .toList(),
@@ -545,7 +556,7 @@ class ExpedienteContratoPs {
 
     return ExpedienteContratoPs(
       id: (map['id'] ?? '').toString(),
-      tokenInvitado: (map['tokenInvitado'] ?? '').toString(),
+      tokenInvitado: (map['tokenInvitado'] ?? '').toString().toLowerCase(),
       entidadNombre: (map['entidadNombre'] ?? '').toString(),
       entidadNit: (map['entidadNit'] ?? '').toString(),
       dependencia: (map['dependencia'] ?? '').toString(),
@@ -561,7 +572,9 @@ class ExpedienteContratoPs {
       contratistaTelefono: (map['contratistaTelefono'] ?? '').toString(),
       creadoPorEmail: (map['creadoPorEmail'] ?? '').toString(),
       creadoPorNombre: (map['creadoPorNombre'] ?? '').toString(),
+      creadoPorUid: (map['creadoPorUid'] ?? '').toString(),
       fechaCreacionIso: (map['fechaCreacionIso'] ?? '').toString(),
+      actualizadoEnMs: (map['actualizadoEnMs'] as num?)?.toInt() ?? 0,
       apartados: rawApartados is List
           ? rawApartados
                 .whereType<Map>()
@@ -617,20 +630,30 @@ class PlantillaApartadoPs {
   final bool obligatorioPorDefecto;
 }
 
-/// Servicio instantáneo de gestión contractual OPS, verificación documental,
+/// Servicio en tiempo real de gestión contractual OPS, verificación documental,
 /// devolución con observaciones, subsanación y enlace personalizado para contratistas.
 class JuridicoContratacionService {
   JuridicoContratacionService._();
 
   static const String _prefsKey = 'expedientes_juridicos_ops_v2';
+  static const String _sharedWebKey = 'contrata_legal_ops_shared_v2';
+  static const String _broadcastChannelName = 'contrata_legal_ops_realtime_v2';
   static const String _legacyPrefsKey = 'expedientes_juridicos_ps_v1';
 
-  /// Notificador reactivo cuando la sincronización en segundo plano actualiza datos.
+  /// Notificador reactivo disparado al instante cuando llega cualquier cambio
+  /// (ya sea desde otra pestaña del navegador o desde otro dispositivo en Firestore).
   static final ValueNotifier<int> expedientesVersion = ValueNotifier<int>(0);
 
-  /// Caché en memoria para respuesta en 0 ms sin bloqueos de red.
+  /// Caché en memoria sincronizada en tiempo real.
   static List<ExpedienteContratoPs>? _cacheMemoria;
-  static bool _sincronizandoListaEnFondo = false;
+
+  /// Suscripciones activas en tiempo real a documentos de Firestore por token.
+  static final Map<String, StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>>
+  _suscripcionesPorToken =
+      <String, StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>>{};
+  static StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+  _suscripcionCreador;
+  static bool _puenteTiempoRealInicializado = false;
 
   /// Checklist jurídico estándar para contratos de prestación de servicios (OPS).
   static const List<String> checklistVerificacionOps = <String>[
@@ -697,9 +720,304 @@ class JuridicoContratacionService {
         ),
       ];
 
-  /// Extrae de forma determinista el token de un enlace de contratista invitado,
-  /// soportando tanto query parameter directo (`?invitado_token=...`) como hash
-  /// de Flutter Web (`/#/invitado-contrato?token=...`).
+  /// Activa la escucha en tiempo real entre pestañas (`BroadcastChannel` + `localStorage`)
+  /// y en la nube (`Firestore snapshots`) para el panel del Equipo Jurídico.
+  static Future<void> activarTiempoRealEquipoJuridico() async {
+    _inicializarPuenteEntrePestanas();
+    final lista = await _obtenerCacheLocalInmediata();
+    for (final exp in lista) {
+      _asegurarSuscripcionDocumentoFirestore(exp.tokenInvitado);
+      unawaited(_publicarSemillaEnFirestoreSiNoExiste(exp));
+    }
+    _asegurarSuscripcionColeccionCreador();
+  }
+
+  /// Activa la escucha en tiempo real específica para el enlace del contratista invitado.
+  static Future<void> activarTiempoRealContratista(String rawToken) async {
+    _inicializarPuenteEntrePestanas();
+    final token = rawToken.trim().toLowerCase();
+    if (!_esTokenHexValido(token)) return;
+    await _obtenerCacheLocalInmediata();
+    _asegurarSuscripcionDocumentoFirestore(token);
+  }
+
+  static void _inicializarPuenteEntrePestanas() {
+    if (_puenteTiempoRealInicializado) return;
+    _puenteTiempoRealInicializado = true;
+
+    ensureRealtimeTabListener(
+      channelName: _broadcastChannelName,
+      storageKey: _sharedWebKey,
+      onSyncEvent: (String? payloadJson) {
+        if (payloadJson != null && payloadJson.trim().isNotEmpty) {
+          try {
+            final decoded = jsonDecode(payloadJson);
+            if (decoded is Map) {
+              final entrante = ExpedienteContratoPs.fromMap(
+                Map<String, dynamic>.from(decoded),
+              );
+              if (entrante.tokenInvitado.isNotEmpty) {
+                _integrarExpedienteEntranteEnMemoria(
+                  entrante,
+                  persistirLocal: false,
+                );
+                return;
+              }
+            }
+          } catch (_) {}
+        }
+        // Respaldo por evento storage / cambio de pestaña: releer almacenamiento compartido
+        unawaited(_releerDesdeAlmacenamientoCompartido());
+      },
+    );
+  }
+
+  static Future<void> _releerDesdeAlmacenamientoCompartido() async {
+    final candidatos = <ExpedienteContratoPs>[];
+
+    final rawWeb = readSharedStorage(_sharedWebKey);
+    if (rawWeb != null && rawWeb.trim().isNotEmpty) {
+      candidatos.addAll(_decodificarListaJson(rawWeb));
+    }
+
+    final rawFlutterPrefs = readSharedStorage('flutter.$_prefsKey');
+    if (rawFlutterPrefs != null && rawFlutterPrefs.trim().isNotEmpty) {
+      candidatos.addAll(_decodificarPosibleDobleJson(rawFlutterPrefs));
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      final fromPrefs = prefs.getString(_prefsKey);
+      if (fromPrefs != null && fromPrefs.trim().isNotEmpty) {
+        candidatos.addAll(_decodificarListaJson(fromPrefs));
+      }
+    } catch (_) {}
+
+    if (candidatos.isEmpty) return;
+
+    final actuales = _cacheMemoria ?? <ExpedienteContratoPs>[];
+    final mapa = <String, ExpedienteContratoPs>{
+      for (final e in actuales) e.tokenInvitado.toLowerCase(): e,
+    };
+
+    bool huboCambio = false;
+    for (final entrante in candidatos) {
+      final key = entrante.tokenInvitado.toLowerCase();
+      if (key.isEmpty) continue;
+      final previo = mapa[key];
+      if (previo == null) {
+        mapa[key] = entrante;
+        _asegurarSuscripcionDocumentoFirestore(key);
+        huboCambio = true;
+      } else if (_esMasReciente(entrante: entrante, actual: previo)) {
+        mapa[key] = _fusionarLocalYRemoto(local: previo, remoto: entrante);
+        huboCambio = true;
+      }
+    }
+
+    if (huboCambio) {
+      _cacheMemoria = mapa.values.toList()
+        ..sort((a, b) => b.fechaCreacionIso.compareTo(a.fechaCreacionIso));
+      final encoded = jsonEncode(_cacheMemoria!.map((e) => e.toMap()).toList());
+      writeSharedStorage(_sharedWebKey, encoded);
+      expedientesVersion.value++;
+    }
+  }
+
+  static bool _esMasReciente({
+    required ExpedienteContratoPs entrante,
+    required ExpedienteContratoPs actual,
+  }) {
+    if (entrante.actualizadoEnMs != actual.actualizadoEnMs) {
+      return entrante.actualizadoEnMs > actual.actualizadoEnMs;
+    }
+    if (entrante.trazabilidad.length != actual.trazabilidad.length) {
+      return entrante.trazabilidad.length > actual.trazabilidad.length;
+    }
+    if (entrante.totalCargados != actual.totalCargados) {
+      return entrante.totalCargados > actual.totalCargados;
+    }
+    if (entrante.totalAprobados != actual.totalAprobados) {
+      return entrante.totalAprobados > actual.totalAprobados;
+    }
+    if (entrante.totalPorSubsanar != actual.totalPorSubsanar) {
+      return true;
+    }
+    return false;
+  }
+
+  static void _integrarExpedienteEntranteEnMemoria(
+    ExpedienteContratoPs entrante, {
+    bool persistirLocal = true,
+  }) {
+    final key = entrante.tokenInvitado.toLowerCase();
+    if (key.isEmpty) return;
+
+    final lista = _cacheMemoria ?? <ExpedienteContratoPs>[];
+    final idx = lista.indexWhere((e) => e.tokenInvitado.toLowerCase() == key);
+
+    if (idx < 0) {
+      lista.insert(0, entrante);
+      _cacheMemoria = lista;
+      _asegurarSuscripcionDocumentoFirestore(key);
+      if (persistirLocal) {
+        unawaited(_persistirEnAlmacenamientoLocal(lista));
+      }
+      expedientesVersion.value++;
+      return;
+    }
+
+    final actual = lista[idx];
+    if (!_esMasReciente(entrante: entrante, actual: actual) &&
+        !_aportaBinariosFaltantes(entrante: entrante, actual: actual)) {
+      return;
+    }
+
+    final fusionado = _fusionarLocalYRemoto(local: actual, remoto: entrante);
+    lista[idx] = fusionado;
+    _cacheMemoria = lista;
+    if (persistirLocal) {
+      unawaited(_persistirEnAlmacenamientoLocal(lista));
+    }
+    expedientesVersion.value++;
+  }
+
+  static bool _aportaBinariosFaltantes({
+    required ExpedienteContratoPs entrante,
+    required ExpedienteContratoPs actual,
+  }) {
+    for (final apEntrante in entrante.apartados) {
+      if (apEntrante.archivoBase64 != null &&
+          apEntrante.archivoBase64!.isNotEmpty) {
+        final match = actual.apartados.where((a) => a.id == apEntrante.id);
+        if (match.isNotEmpty &&
+            (match.first.archivoBase64 == null ||
+                match.first.archivoBase64!.isEmpty)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  static void _asegurarSuscripcionDocumentoFirestore(String rawToken) {
+    final token = rawToken.trim().toLowerCase();
+    if (!_esTokenHexValido(token)) return;
+    if (_suscripcionesPorToken.containsKey(token)) return;
+
+    try {
+      final sub = FirebaseFirestore.instance
+          .collection('expedientes_juridicos')
+          .doc(token)
+          .snapshots()
+          .listen(
+            (DocumentSnapshot<Map<String, dynamic>> snap) {
+              if (!snap.exists || snap.data() == null) return;
+              final remoto = ExpedienteContratoPs.fromMap(snap.data()!);
+              _integrarExpedienteEntranteEnMemoria(remoto);
+              unawaited(_hidratarBinariosFaltantesDesdeFirestore(remoto));
+            },
+            onError: (_) {},
+          );
+      _suscripcionesPorToken[token] = sub;
+    } catch (_) {}
+  }
+
+  static void _asegurarSuscripcionColeccionCreador() {
+    if (_suscripcionCreador != null) return;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty) return;
+
+    try {
+      _suscripcionCreador = FirebaseFirestore.instance
+          .collection('expedientes_juridicos')
+          .where('creadoPorUid', isEqualTo: uid)
+          .snapshots()
+          .listen(
+            (QuerySnapshot<Map<String, dynamic>> querySnap) {
+              for (final doc in querySnap.docs) {
+                final remoto = ExpedienteContratoPs.fromMap(doc.data());
+                if (remoto.tokenInvitado.isNotEmpty) {
+                  _integrarExpedienteEntranteEnMemoria(remoto);
+                  _asegurarSuscripcionDocumentoFirestore(remoto.tokenInvitado);
+                }
+              }
+            },
+            onError: (_) {},
+          );
+    } catch (_) {}
+  }
+
+  static Future<void> _publicarSemillaEnFirestoreSiNoExiste(
+    ExpedienteContratoPs exp,
+  ) async {
+    try {
+      final ref = FirebaseFirestore.instance
+          .collection('expedientes_juridicos')
+          .doc(exp.tokenInvitado.toLowerCase());
+      final snap = await ref
+          .get()
+          .timeout(const Duration(milliseconds: 1800));
+      if (!snap.exists) {
+        await ref
+            .set(exp.toMap(omitLargeBinary: true))
+            .timeout(const Duration(milliseconds: 1800));
+      }
+    } catch (_) {}
+  }
+
+  static Future<void> _hidratarBinariosFaltantesDesdeFirestore(
+    ExpedienteContratoPs expediente,
+  ) async {
+    final faltantes = expediente.apartados.where(
+      (a) =>
+          a.tieneArchivoCargado &&
+          (a.archivoBase64 == null || a.archivoBase64!.isEmpty),
+    );
+    if (faltantes.isEmpty) return;
+
+    try {
+      final token = expediente.tokenInvitado.toLowerCase();
+      bool actualizoBinario = false;
+      final mapaBinarios = <String, String>{};
+
+      for (final ap in faltantes) {
+        final doc = await FirebaseFirestore.instance
+            .collection('expedientes_juridicos')
+            .doc(token)
+            .collection('archivos')
+            .doc(ap.id)
+            .get()
+            .timeout(const Duration(milliseconds: 2000));
+        final b64 = doc.data()?['archivoBase64']?.toString();
+        if (b64 != null && b64.isNotEmpty) {
+          mapaBinarios[ap.id] = b64;
+          actualizoBinario = true;
+        }
+      }
+
+      if (actualizoBinario && _cacheMemoria != null) {
+        final idx = _cacheMemoria!.indexWhere(
+          (e) => e.tokenInvitado.toLowerCase() == token,
+        );
+        if (idx >= 0) {
+          final actual = _cacheMemoria![idx];
+          final nuevosApartados = actual.apartados.map((a) {
+            if (mapaBinarios.containsKey(a.id)) {
+              return a.copyWith(archivoBase64: mapaBinarios[a.id]);
+            }
+            return a;
+          }).toList();
+          _cacheMemoria![idx] = actual.copyWith(apartados: nuevosApartados);
+          await _persistirEnAlmacenamientoLocal(_cacheMemoria!);
+          expedientesVersion.value++;
+        }
+      }
+    } catch (_) {}
+  }
+
+  /// Extrae de forma determinista el token de un enlace de contratista invitado.
   static String extraerTokenInvitadoDeUri(Uri uri) {
     final directToken = (uri.queryParameters['invitado_token'] ?? '').trim();
     if (_esTokenHexValido(directToken)) {
@@ -754,7 +1072,9 @@ class JuridicoContratacionService {
     if (iso == null || iso.trim().isEmpty) return '';
     final parsed = DateTime.tryParse(iso.trim());
     if (parsed == null) {
-      return iso.length >= 16 ? iso.substring(0, 16).replaceFirst('T', ' ') : iso;
+      return iso.length >= 16
+          ? iso.substring(0, 16).replaceFirst('T', ' ')
+          : iso;
     }
     final local = parsed.toLocal();
     const dias = <String>['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'];
@@ -779,19 +1099,21 @@ class JuridicoContratacionService {
     return '$diaSemana ${local.day} $mes ${local.year}, $hh:$mm';
   }
 
-  /// Carga instantáneamente los expedientes desde memoria/almacenamiento local (0 ms)
-  /// y sincroniza con Firestore en segundo plano sin bloquear jamás la interfaz.
+  /// Carga instantáneamente los expedientes y activa la sincronización en tiempo real.
   static Future<List<ExpedienteContratoPs>> listarExpedientes() async {
+    _inicializarPuenteEntrePestanas();
+    await _releerDesdeAlmacenamientoCompartido();
     final locales = await _obtenerCacheLocalInmediata();
-    unawaited(_sincronizarListaDesdeNubeEnSegundoPlano());
+    for (final exp in locales) {
+      _asegurarSuscripcionDocumentoFirestore(exp.tokenInvitado);
+    }
+    _asegurarSuscripcionColeccionCreador();
     final copia = List<ExpedienteContratoPs>.from(locales)
       ..sort((a, b) => b.fechaCreacionIso.compareTo(a.fechaCreacionIso));
     return copia;
   }
 
-  /// Obtiene un expediente por su token único de invitado de forma instantánea.
-  /// Si ya está en memoria/local retorna en 0 ms y actualiza en segundo plano;
-  /// solo si no existe localmente consulta Firestore con timeout corto de 1.5 s.
+  /// Obtiene un expediente por su token único de invitado y activa escucha en tiempo real.
   static Future<ExpedienteContratoPs?> obtenerExpedientePorTokenInvitado(
     String rawToken,
   ) async {
@@ -800,10 +1122,13 @@ class JuridicoContratacionService {
       return null;
     }
 
+    _inicializarPuenteEntrePestanas();
+    await _releerDesdeAlmacenamientoCompartido();
+    _asegurarSuscripcionDocumentoFirestore(token);
+
     final locales = await _obtenerCacheLocalInmediata();
     for (final exp in locales) {
       if (exp.tokenInvitado.toLowerCase() == token) {
-        unawaited(_refrescarTokenDesdeNubeEnSegundoPlano(token));
         return exp;
       }
     }
@@ -813,10 +1138,15 @@ class JuridicoContratacionService {
           .collection('expedientes_juridicos')
           .doc(token)
           .get()
-          .timeout(const Duration(milliseconds: 1500));
+          .timeout(const Duration(milliseconds: 1800));
       if (doc.exists && doc.data() != null) {
         final remoto = ExpedienteContratoPs.fromMap(doc.data()!);
-        await _guardarExpedienteInmediato(remoto, sincronizarRemoto: false);
+        await _guardarExpedienteInmediato(
+          remoto,
+          sincronizarRemoto: false,
+          emitirBroadcast: false,
+        );
+        unawaited(_hidratarBinariosFaltantesDesdeFirestore(remoto));
         return remoto;
       }
     } catch (_) {}
@@ -863,11 +1193,18 @@ class JuridicoContratacionService {
       );
     }
 
-    final ahoraIso = DateTime.now().toUtc().toIso8601String();
+    final ahoraMs = DateTime.now().millisecondsSinceEpoch;
+    final ahoraIso = DateTime.fromMillisecondsSinceEpoch(
+      ahoraMs,
+      isUtc: true,
+    ).toIso8601String();
     final token = SecurityService.generateSecureTokenHex(16);
-    final id = 'EXP-OPS-${DateTime.now().millisecondsSinceEpoch}';
+    final id = 'EXP-OPS-$ahoraMs';
     final creadorNombre = AuthService.getActiveUserDisplayName();
     final creadorEmail = AuthService.getActiveUserEmail();
+    final creadorUid =
+        FirebaseAuth.instance.currentUser?.uid ??
+        AuthService.getActiveUserStorageScope();
 
     final eventoInicial = EventoTrazabilidadContrato(
       id: 'EVT-${SecurityService.generateSecureTokenHex(6)}',
@@ -919,16 +1256,19 @@ class JuridicoContratacionService {
       ),
       creadoPorEmail: creadorEmail,
       creadoPorNombre: creadorNombre,
+      creadoPorUid: creadorUid,
       fechaCreacionIso: ahoraIso,
+      actualizadoEnMs: ahoraMs,
       apartados: apartados,
       trazabilidad: <EventoTrazabilidadContrato>[eventoInicial],
     );
 
+    _asegurarSuscripcionDocumentoFirestore(token);
     await _guardarExpedienteInmediato(nuevo);
     return nuevo;
   }
 
-  /// Agrega un nuevo documento requerido a un contrato existente.
+  /// Agrega un nuevo documento requerido a un contrato existente en tiempo real.
   static Future<ExpedienteContratoPs> agregarApartadoAlExpediente({
     required String tokenInvitado,
     required String nombreApartado,
@@ -948,6 +1288,12 @@ class JuridicoContratacionService {
       throw ArgumentError('Escribe el nombre del documento requerido.');
     }
 
+    final ahoraMs = DateTime.now().millisecondsSinceEpoch;
+    final ahoraIso = DateTime.fromMillisecondsSinceEpoch(
+      ahoraMs,
+      isUtc: true,
+    ).toIso8601String();
+
     final nuevoApartado = ApartadoDocumentoContrato(
       id: 'APT-${SecurityService.generateSecureTokenHex(6)}',
       nombre: nombreLimpio,
@@ -960,7 +1306,7 @@ class JuridicoContratacionService {
 
     final evento = EventoTrazabilidadContrato(
       id: 'EVT-${SecurityService.generateSecureTokenHex(6)}',
-      fechaIso: DateTime.now().toUtc().toIso8601String(),
+      fechaIso: ahoraIso,
       tipo: 'CREACION',
       actorNombre: AuthService.getActiveUserDisplayName(),
       actorRol: 'Equipo jurídico',
@@ -974,6 +1320,7 @@ class JuridicoContratacionService {
       apartados: <ApartadoDocumentoContrato>[...exp.apartados, nuevoApartado],
       trazabilidad: <EventoTrazabilidadContrato>[evento, ...exp.trazabilidad],
       avalJuridicoEmitido: false,
+      actualizadoEnMs: ahoraMs,
     );
 
     await _guardarExpedienteInmediato(actualizado);
@@ -1019,7 +1366,12 @@ class JuridicoContratacionService {
       );
     }
 
-    final ahoraIso = DateTime.now().toUtc().toIso8601String();
+    final ahoraMs = DateTime.now().millisecondsSinceEpoch;
+    final ahoraIso = DateTime.fromMillisecondsSinceEpoch(
+      ahoraMs,
+      isUtc: true,
+    ).toIso8601String();
+
     final eventoIngreso = EventoTrazabilidadContrato(
       id: 'EVT-${SecurityService.generateSecureTokenHex(6)}',
       fechaIso: ahoraIso,
@@ -1038,6 +1390,7 @@ class JuridicoContratacionService {
       contratistaCedulaEsperada: esperada.isEmpty ? cleanCedula : esperada,
       ultimoContratistaValidadoNombre: cleanNombre,
       ultimoContratistaValidadoCedula: cleanCedula,
+      actualizadoEnMs: ahoraMs,
       trazabilidad: <EventoTrazabilidadContrato>[
         eventoIngreso,
         ...exp.trazabilidad,
@@ -1048,7 +1401,8 @@ class JuridicoContratacionService {
     return actualizado;
   }
 
-  /// Carga o reemplaza (subsanación) un documento por parte del contratista invitado.
+  /// Carga o reemplaza (subsanación) un documento por parte del contratista invitado,
+  /// notificando en tiempo real al Equipo Jurídico y actualizando la trazabilidad de ambos.
   static Future<ExpedienteContratoPs> subirDocumentoContratistaInvitado({
     required String tokenInvitado,
     required String apartadoId,
@@ -1084,7 +1438,11 @@ class JuridicoContratacionService {
         actual.estado == EstadoDocumentoJuridico.devueltoSubsanar ||
         actual.estado == EstadoDocumentoJuridico.subsanadoEnRevision;
     final int nuevaVersion = actual.versionCarga + 1;
-    final ahoraIso = DateTime.now().toUtc().toIso8601String();
+    final ahoraMs = DateTime.now().millisecondsSinceEpoch;
+    final ahoraIso = DateTime.fromMillisecondsSinceEpoch(
+      ahoraMs,
+      isUtc: true,
+    ).toIso8601String();
     final notaLimpia = SecurityService.sanitizePlainText(
       notaContratista,
       maxLength: 350,
@@ -1094,13 +1452,15 @@ class JuridicoContratacionService {
         ? EstadoDocumentoJuridico.subsanadoEnRevision
         : EstadoDocumentoJuridico.enRevision;
 
+    final encodedFileB64 = base64Encode(archivo.bytes);
+
     final apartadoActualizado = actual.copyWith(
       estado: nuevoEstado,
       archivoNombre: archivo.fileName,
       archivoMime: archivo.mimeType,
       archivoTamanoBytes: archivo.sizeBytes,
       archivoSha256: archivo.sha256Hash,
-      archivoBase64: base64Encode(archivo.bytes),
+      archivoBase64: encodedFileB64,
       versionCarga: nuevaVersion,
       notaContratista: notaLimpia,
       fechaCargaIso: ahoraIso,
@@ -1130,10 +1490,17 @@ class JuridicoContratacionService {
 
     final actualizado = exp.copyWith(
       apartados: nuevosApartados,
+      actualizadoEnMs: ahoraMs,
       trazabilidad: <EventoTrazabilidadContrato>[evento, ...exp.trazabilidad],
     );
 
     await _guardarExpedienteInmediato(actualizado);
+    unawaited(
+      _subirBinarioIndividualFirestoreEnFondo(
+        tokenInvitado: exp.tokenInvitado,
+        apartado: apartadoActualizado,
+      ),
+    );
     return actualizado;
   }
 
@@ -1153,6 +1520,7 @@ class JuridicoContratacionService {
     );
     final actualizado = exp.copyWith(
       checksVerificacion: normalizados,
+      actualizadoEnMs: DateTime.now().millisecondsSinceEpoch,
       conceptoJuridico: conceptoJuridico != null
           ? SecurityService.sanitizePlainText(conceptoJuridico, maxLength: 300)
           : exp.conceptoJuridico,
@@ -1161,7 +1529,7 @@ class JuridicoContratacionService {
     return actualizado;
   }
 
-  /// Aprueba un documento individual cargado por el contratista.
+  /// Aprueba un documento individual cargado por el contratista en tiempo real.
   static Future<ExpedienteContratoPs> aprobarApartadoJuridico({
     required String tokenInvitado,
     required String apartadoId,
@@ -1184,7 +1552,11 @@ class JuridicoContratacionService {
       );
     }
 
-    final ahoraIso = DateTime.now().toUtc().toIso8601String();
+    final ahoraMs = DateTime.now().millisecondsSinceEpoch;
+    final ahoraIso = DateTime.fromMillisecondsSinceEpoch(
+      ahoraMs,
+      isUtc: true,
+    ).toIso8601String();
     final revisor = AuthService.getActiveUserDisplayName();
     final comentarioLimpio = SecurityService.sanitizePlainText(
       comentarioJuridico,
@@ -1222,6 +1594,7 @@ class JuridicoContratacionService {
 
     final actualizado = exp.copyWith(
       apartados: nuevosApartados,
+      actualizadoEnMs: ahoraMs,
       trazabilidad: <EventoTrazabilidadContrato>[evento, ...exp.trazabilidad],
       avalJuridicoEmitido: todosListos ? true : exp.avalJuridicoEmitido,
       fechaAvalIso: todosListos ? ahoraIso : exp.fechaAvalIso,
@@ -1231,9 +1604,7 @@ class JuridicoContratacionService {
     return actualizado;
   }
 
-  /// Acción principal del botón "Revisado y verificado" en el panel derecho:
-  /// Verifica todos los documentos cargados (que no estén marcados para devolución),
-  /// guarda el checklist jurídico + concepto opcional y registra la trazabilidad.
+  /// Acción principal del botón "Revisado y verificado" en tiempo real.
   static Future<ExpedienteContratoPs> marcarRevisadoYVerificado({
     required String tokenInvitado,
     required List<bool> checks,
@@ -1259,7 +1630,11 @@ class JuridicoContratacionService {
       );
     }
 
-    final ahoraIso = DateTime.now().toUtc().toIso8601String();
+    final ahoraMs = DateTime.now().millisecondsSinceEpoch;
+    final ahoraIso = DateTime.fromMillisecondsSinceEpoch(
+      ahoraMs,
+      isUtc: true,
+    ).toIso8601String();
     final revisor = AuthService.getActiveUserDisplayName();
     final conceptoLimpio = SecurityService.sanitizePlainText(
       conceptoOpcional,
@@ -1312,6 +1687,7 @@ class JuridicoContratacionService {
       conceptoJuridico: textoConcepto,
       avalJuridicoEmitido: todosObligatoriosVerificados,
       fechaAvalIso: todosObligatoriosVerificados ? ahoraIso : exp.fechaAvalIso,
+      actualizadoEnMs: ahoraMs,
       trazabilidad: <EventoTrazabilidadContrato>[evento, ...exp.trazabilidad],
     );
 
@@ -1319,9 +1695,7 @@ class JuridicoContratacionService {
     return actualizado;
   }
 
-  /// Acción del botón "Devolver al contratista": devuelve todos los documentos
-  /// marcados con la casilla "Devolver este documento" junto con las observaciones
-  /// jurídicas y registra la notificación al contratista.
+  /// Acción del botón "Devolver al contratista" en tiempo real.
   static Future<({
     ExpedienteContratoPs expediente,
     NotificacionCorreoSubsanacion notificacion,
@@ -1353,7 +1727,11 @@ class JuridicoContratacionService {
 
     final idsSet = apartadosIds.toSet();
     final nombresDevueltos = <String>[];
-    final ahoraIso = DateTime.now().toUtc().toIso8601String();
+    final ahoraMs = DateTime.now().millisecondsSinceEpoch;
+    final ahoraIso = DateTime.fromMillisecondsSinceEpoch(
+      ahoraMs,
+      isUtc: true,
+    ).toIso8601String();
     final revisor = AuthService.getActiveUserDisplayName();
 
     final nuevosApartados = exp.apartados.map((ap) {
@@ -1424,6 +1802,7 @@ class JuridicoContratacionService {
     final actualizado = exp.copyWith(
       apartados: nuevosApartados,
       avalJuridicoEmitido: false,
+      actualizadoEnMs: ahoraMs,
       notificacionesCorreo: <NotificacionCorreoSubsanacion>[
         notificacion,
         ...exp.notificacionesCorreo,
@@ -1478,7 +1857,11 @@ class JuridicoContratacionService {
         .map((a) => a.nombre)
         .toList();
 
-    final ahoraIso = DateTime.now().toUtc().toIso8601String();
+    final ahoraMs = DateTime.now().millisecondsSinceEpoch;
+    final ahoraIso = DateTime.fromMillisecondsSinceEpoch(
+      ahoraMs,
+      isUtc: true,
+    ).toIso8601String();
     final revisor = AuthService.getActiveUserDisplayName();
     final link = construirLinkInvitadoWeb(exp.tokenInvitado);
     final extra = SecurityService.sanitizePlainText(
@@ -1506,7 +1889,9 @@ class JuridicoContratacionService {
           'Atentamente,\n$revisor',
       fechaEnvioIso: ahoraIso,
       apartadoNombre: detallePendientes,
-      observacion: extra.isEmpty ? 'Requerimiento de cargue documental' : extra,
+      observacion: extra.isEmpty
+          ? 'Requerimiento de cargue documental'
+          : extra,
       linkInvitado: link,
     );
 
@@ -1523,6 +1908,7 @@ class JuridicoContratacionService {
     );
 
     final actualizado = exp.copyWith(
+      actualizadoEnMs: ahoraMs,
       notificacionesCorreo: <NotificacionCorreoSubsanacion>[
         notif,
         ...exp.notificacionesCorreo,
@@ -1677,70 +2063,123 @@ class JuridicoContratacionService {
   }
 
   // ===========================================================================
-  // CACHÉ EN MEMORIA + SHARED_PREFERENCES (0 MS) + SYNC EN SEGUNDO PLANO
+  // MOTOR DE PERSISTENCIA COMPARTIDA + BROADCAST EN TIEMPO REAL + FIRESTORE
   // ===========================================================================
+
+  static List<ExpedienteContratoPs> _decodificarListaJson(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return decoded
+            .whereType<Map>()
+            .map(
+              (m) => ExpedienteContratoPs.fromMap(
+                Map<String, dynamic>.from(m),
+              ),
+            )
+            .toList();
+      }
+    } catch (_) {}
+    return const <ExpedienteContratoPs>[];
+  }
+
+  static List<ExpedienteContratoPs> _decodificarPosibleDobleJson(String raw) {
+    try {
+      final first = jsonDecode(raw);
+      if (first is String) {
+        return _decodificarListaJson(first);
+      }
+      if (first is List) {
+        return first
+            .whereType<Map>()
+            .map(
+              (m) => ExpedienteContratoPs.fromMap(
+                Map<String, dynamic>.from(m),
+              ),
+            )
+            .toList();
+      }
+    } catch (_) {}
+    return const <ExpedienteContratoPs>[];
+  }
 
   static Future<List<ExpedienteContratoPs>> _obtenerCacheLocalInmediata() async {
     if (_cacheMemoria != null) {
       return _cacheMemoria!;
     }
 
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_prefsKey);
-    if (raw != null && raw.trim().isNotEmpty) {
-      try {
-        final decoded = jsonDecode(raw);
-        if (decoded is List && decoded.isNotEmpty) {
-          _cacheMemoria = decoded
-              .whereType<Map>()
-              .map(
-                (m) => ExpedienteContratoPs.fromMap(
-                  Map<String, dynamic>.from(m),
-                ),
-              )
-              .toList();
-          return _cacheMemoria!;
+    final mapaUnificado = <String, ExpedienteContratoPs>{};
+
+    void absorberLista(List<ExpedienteContratoPs> origen) {
+      for (final item in origen) {
+        final key = item.tokenInvitado.toLowerCase();
+        if (key.isEmpty) continue;
+        final previo = mapaUnificado[key];
+        if (previo == null) {
+          mapaUnificado[key] = item;
+        } else if (_esMasReciente(entrante: item, actual: previo)) {
+          mapaUnificado[key] = _fusionarLocalYRemoto(
+            local: previo,
+            remoto: item,
+          );
         }
-      } catch (_) {}
+      }
     }
 
-    // Preservar contratos creados previamente por el usuario en v1 (no demo)
-    final prevUserContracts = <ExpedienteContratoPs>[];
-    final legacyRaw = prefs.getString(_legacyPrefsKey);
-    if (legacyRaw != null && legacyRaw.trim().isNotEmpty) {
-      try {
-        final decodedLegacy = jsonDecode(legacyRaw);
-        if (decodedLegacy is List) {
-          for (final item in decodedLegacy.whereType<Map>()) {
-            final parsed = ExpedienteContratoPs.fromMap(
-              Map<String, dynamic>.from(item),
-            );
-            if (!parsed.id.startsWith('EXP-PS-2026-0418') &&
-                !parsed.id.startsWith('EXP-PS-2026-0502') &&
-                parsed.tokenInvitado.isNotEmpty) {
-              prevUserContracts.add(parsed);
+    final rawWeb = readSharedStorage(_sharedWebKey);
+    if (rawWeb != null && rawWeb.trim().isNotEmpty) {
+      absorberLista(_decodificarListaJson(rawWeb));
+    }
+
+    final rawFlutterLocal = readSharedStorage('flutter.$_prefsKey');
+    if (rawFlutterLocal != null && rawFlutterLocal.trim().isNotEmpty) {
+      absorberLista(_decodificarPosibleDobleJson(rawFlutterLocal));
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final rawPrefs = prefs.getString(_prefsKey);
+      if (rawPrefs != null && rawPrefs.trim().isNotEmpty) {
+        absorberLista(_decodificarListaJson(rawPrefs));
+      }
+
+      if (mapaUnificado.isEmpty) {
+        final legacyRaw = prefs.getString(_legacyPrefsKey);
+        if (legacyRaw != null && legacyRaw.trim().isNotEmpty) {
+          for (final item in _decodificarListaJson(legacyRaw)) {
+            if (!item.id.startsWith('EXP-PS-2026-0418') &&
+                !item.id.startsWith('EXP-PS-2026-0502') &&
+                item.tokenInvitado.isNotEmpty) {
+              mapaUnificado[item.tokenInvitado.toLowerCase()] = item;
             }
           }
         }
-      } catch (_) {}
+      }
+    } catch (_) {}
+
+    if (mapaUnificado.isNotEmpty) {
+      _cacheMemoria = mapaUnificado.values.toList()
+        ..sort((a, b) => b.fechaCreacionIso.compareTo(a.fechaCreacionIso));
+      unawaited(_persistirEnAlmacenamientoLocal(_cacheMemoria!));
+      return _cacheMemoria!;
     }
 
-    final semillas = <ExpedienteContratoPs>[
-      ...prevUserContracts,
-      ..._crearExpedientesDemostracionInicial(),
-    ];
+    final semillas = _crearExpedientesDemostracionInicial();
     _cacheMemoria = semillas;
-    unawaited(_persistirEnSharedPreferences(semillas));
+    unawaited(_persistirEnAlmacenamientoLocal(semillas));
     return _cacheMemoria!;
   }
 
   static Future<void> _guardarExpedienteInmediato(
     ExpedienteContratoPs expediente, {
     bool sincronizarRemoto = true,
+    bool emitirBroadcast = true,
   }) async {
     final lista = await _obtenerCacheLocalInmediata();
     final idx = lista.indexWhere(
-      (e) => e.tokenInvitado.toLowerCase() == expediente.tokenInvitado.toLowerCase(),
+      (e) =>
+          e.tokenInvitado.toLowerCase() ==
+          expediente.tokenInvitado.toLowerCase(),
     );
     if (idx >= 0) {
       lista[idx] = expediente;
@@ -1748,20 +2187,35 @@ class JuridicoContratacionService {
       lista.insert(0, expediente);
     }
     _cacheMemoria = lista;
-    expedientesVersion.value++;
-    await _persistirEnSharedPreferences(lista);
 
+    // 1. Escribir inmediatamente en almacenamiento compartido de navegador y SharedPreferences
+    await _persistirEnAlmacenamientoLocal(lista);
+
+    // 2. Emitir actualización instantánea (< 2 ms) a todas las pestañas abiertas
+    if (emitirBroadcast) {
+      final payloadCompleto = jsonEncode(
+        expediente.toMap(omitLargeBinary: false),
+      );
+      broadcastRealtimePayload(_broadcastChannelName, payloadCompleto);
+    }
+
+    // 3. Notificar a la UI de esta pestaña
+    expedientesVersion.value++;
+
+    // 4. Sincronizar en tiempo real con Firestore para otros dispositivos
     if (sincronizarRemoto) {
+      _asegurarSuscripcionDocumentoFirestore(expediente.tokenInvitado);
       unawaited(_enviarExpedienteAFirestoreEnFondo(expediente));
     }
   }
 
-  static Future<void> _persistirEnSharedPreferences(
+  static Future<void> _persistirEnAlmacenamientoLocal(
     List<ExpedienteContratoPs> expedientes,
   ) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
       final encoded = jsonEncode(expedientes.map((e) => e.toMap()).toList());
+      writeSharedStorage(_sharedWebKey, encoded);
+      final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_prefsKey, encoded);
     } catch (_) {}
   }
@@ -1774,7 +2228,33 @@ class JuridicoContratacionService {
           .collection('expedientes_juridicos')
           .doc(expediente.tokenInvitado.toLowerCase())
           .set(expediente.toMap(omitLargeBinary: true))
-          .timeout(const Duration(milliseconds: 1500));
+          .timeout(const Duration(milliseconds: 2500));
+    } catch (_) {}
+  }
+
+  static Future<void> _subirBinarioIndividualFirestoreEnFondo({
+    required String tokenInvitado,
+    required ApartadoDocumentoContrato apartado,
+  }) async {
+    final rawB64 = apartado.archivoBase64 ?? '';
+    if (rawB64.isEmpty || rawB64.length > 940000) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('expedientes_juridicos')
+          .doc(tokenInvitado.toLowerCase())
+          .collection('archivos')
+          .doc(apartado.id)
+          .set(<String, dynamic>{
+            'apartadoId': apartado.id,
+            'archivoNombre': apartado.archivoNombre,
+            'archivoMime': apartado.archivoMime,
+            'archivoSha256': apartado.archivoSha256,
+            'archivoBase64': rawB64,
+            'versionCarga': apartado.versionCarga,
+            'fechaCargaIso': apartado.fechaCargaIso,
+          })
+          .timeout(const Duration(milliseconds: 3500));
     } catch (_) {}
   }
 
@@ -1782,88 +2262,13 @@ class JuridicoContratacionService {
     NotificacionCorreoSubsanacion notificacion,
   ) async {
     try {
+      final map = Map<String, dynamic>.from(notificacion.toMap());
+      map['remitenteUid'] = FirebaseAuth.instance.currentUser?.uid ?? '';
       await FirebaseFirestore.instance
           .collection('notificaciones_correo')
           .doc(notificacion.id)
-          .set(notificacion.toMap())
-          .timeout(const Duration(milliseconds: 1500));
-    } catch (_) {}
-  }
-
-  static Future<void> _sincronizarListaDesdeNubeEnSegundoPlano() async {
-    if (_sincronizandoListaEnFondo) return;
-    _sincronizandoListaEnFondo = true;
-    try {
-      final snap = await FirebaseFirestore.instance
-          .collection('expedientes_juridicos')
-          .limit(60)
-          .get()
-          .timeout(const Duration(milliseconds: 1500));
-      if (snap.docs.isEmpty) return;
-
-      final locales = await _obtenerCacheLocalInmediata();
-      final mapaCombinado = <String, ExpedienteContratoPs>{
-        for (final exp in locales) exp.tokenInvitado.toLowerCase(): exp,
-      };
-      bool huboCambios = false;
-
-      for (final doc in snap.docs) {
-        final remoto = ExpedienteContratoPs.fromMap(doc.data());
-        final key = remoto.tokenInvitado.toLowerCase();
-        if (key.isEmpty) continue;
-        final localPrevio = mapaCombinado[key];
-        if (localPrevio == null) {
-          mapaCombinado[key] = remoto;
-          huboCambios = true;
-        } else if (remoto.trazabilidad.length > localPrevio.trazabilidad.length) {
-          mapaCombinado[key] = _fusionarLocalYRemoto(
-            local: localPrevio,
-            remoto: remoto,
-          );
-          huboCambios = true;
-        }
-      }
-
-      if (huboCambios) {
-        final nuevaLista = mapaCombinado.values.toList()
-          ..sort((a, b) => b.fechaCreacionIso.compareTo(a.fechaCreacionIso));
-        _cacheMemoria = nuevaLista;
-        await _persistirEnSharedPreferences(nuevaLista);
-        expedientesVersion.value++;
-      }
-    } catch (_) {
-      // Sin conexión o reglas pendientes: la operación local sigue instantánea.
-    } finally {
-      _sincronizandoListaEnFondo = false;
-    }
-  }
-
-  static Future<void> _refrescarTokenDesdeNubeEnSegundoPlano(
-    String token,
-  ) async {
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('expedientes_juridicos')
-          .doc(token)
-          .get()
-          .timeout(const Duration(milliseconds: 1500));
-      if (!doc.exists || doc.data() == null) return;
-      final remoto = ExpedienteContratoPs.fromMap(doc.data()!);
-      final locales = await _obtenerCacheLocalInmediata();
-      final idx = locales.indexWhere(
-        (e) => e.tokenInvitado.toLowerCase() == token,
-      );
-      if (idx >= 0) {
-        if (remoto.trazabilidad.length > locales[idx].trazabilidad.length) {
-          locales[idx] = _fusionarLocalYRemoto(
-            local: locales[idx],
-            remoto: remoto,
-          );
-          _cacheMemoria = locales;
-          await _persistirEnSharedPreferences(locales);
-          expedientesVersion.value++;
-        }
-      }
+          .set(map)
+          .timeout(const Duration(milliseconds: 2000));
     } catch (_) {}
   }
 
@@ -1871,9 +2276,8 @@ class JuridicoContratacionService {
     required ExpedienteContratoPs local,
     required ExpedienteContratoPs remoto,
   }) {
-    final base = remoto.trazabilidad.length >= local.trazabilidad.length
-        ? remoto
-        : local;
+    final usarRemotoComoBase = _esMasReciente(entrante: remoto, actual: local);
+    final base = usarRemotoComoBase ? remoto : local;
     final respaldo = identical(base, remoto) ? local : remoto;
 
     final mapaRespaldo = <String, ApartadoDocumentoContrato>{
@@ -1883,6 +2287,7 @@ class JuridicoContratacionService {
     final apartadosFusionados = base.apartados.map((ap) {
       if ((ap.archivoBase64 == null || ap.archivoBase64!.isEmpty) &&
           mapaRespaldo[ap.id]?.archivoBase64 != null &&
+          mapaRespaldo[ap.id]!.archivoBase64!.isNotEmpty &&
           mapaRespaldo[ap.id]?.archivoSha256 == ap.archivoSha256) {
         return ap.copyWith(archivoBase64: mapaRespaldo[ap.id]!.archivoBase64);
       }
@@ -1896,11 +2301,9 @@ class JuridicoContratacionService {
     const tokenDemo1 = 'a8f49c217e5b4d3091bc6e2f84a105d9';
     const tokenDemo2 = 'c31e7b904f2a48d5b6190e84d2c7f3a2';
     final ahora = DateTime.now().toUtc();
-    final hace2Dias = ahora.subtract(const Duration(days: 2)).toIso8601String();
-    final hace1Dia = ahora.subtract(const Duration(days: 1)).toIso8601String();
-    final hace2Horas = ahora
-        .subtract(const Duration(hours: 2))
-        .toIso8601String();
+    final hace2Dias = ahora.subtract(const Duration(days: 2));
+    final hace1Dia = ahora.subtract(const Duration(days: 1));
+    final hace2Horas = ahora.subtract(const Duration(hours: 2));
 
     List<int> crearPdfDemo(String titulo, String titular, String detalle) {
       return _construirPdf14Simple(<String>[
@@ -1915,7 +2318,7 @@ class JuridicoContratacionService {
     final pdfHv = crearPdfDemo(
       'HOJA DE VIDA FUNCION PUBLICA (SIGEP)',
       'Carolina Mendez Rojas - CC 1020784512',
-      'Contrato OPS-2026-0418 -Formato firmado y actualizado.',
+      'Contrato OPS-2026-0418 - Formato firmado y actualizado.',
     );
     final pdfCedula = crearPdfDemo(
       'CEDULA DE CIUDADANIA',
@@ -1958,7 +2361,8 @@ class JuridicoContratacionService {
       contratistaTelefono: '3157428910',
       creadoPorEmail: 'juridica@entidad.gov.co',
       creadoPorNombre: 'Oficina Asesora Jurídica',
-      fechaCreacionIso: hace2Dias,
+      fechaCreacionIso: hace2Dias.toIso8601String(),
+      actualizadoEnMs: hace2Horas.millisecondsSinceEpoch,
       ultimoContratistaValidadoNombre: 'Carolina Méndez Rojas',
       ultimoContratistaValidadoCedula: '1020784512',
       checksVerificacion: const <bool>[true, true, true, false, false],
@@ -1975,7 +2379,7 @@ class JuridicoContratacionService {
           archivoSha256: hashDe(pdfHv),
           archivoBase64: base64Encode(pdfHv),
           versionCarga: 1,
-          fechaCargaIso: hace2Horas,
+          fechaCargaIso: hace2Horas.toIso8601String(),
           cargadoPorNombre: 'Carolina Méndez Rojas',
           cargadoPorCedula: '1020784512',
         ),
@@ -1991,7 +2395,7 @@ class JuridicoContratacionService {
           archivoSha256: hashDe(pdfCedula),
           archivoBase64: base64Encode(pdfCedula),
           versionCarga: 1,
-          fechaCargaIso: hace2Horas,
+          fechaCargaIso: hace2Horas.toIso8601String(),
           cargadoPorNombre: 'Carolina Méndez Rojas',
           cargadoPorCedula: '1020784512',
         ),
@@ -2007,7 +2411,7 @@ class JuridicoContratacionService {
           archivoSha256: hashDe(pdfRut),
           archivoBase64: base64Encode(pdfRut),
           versionCarga: 1,
-          fechaCargaIso: hace2Horas,
+          fechaCargaIso: hace2Horas.toIso8601String(),
           cargadoPorNombre: 'Carolina Méndez Rojas',
           cargadoPorCedula: '1020784512',
         ),
@@ -2022,7 +2426,7 @@ class JuridicoContratacionService {
           archivoSha256: hashDe(pdfArl),
           archivoBase64: base64Encode(pdfArl),
           versionCarga: 1,
-          fechaCargaIso: hace2Horas,
+          fechaCargaIso: hace2Horas.toIso8601String(),
           cargadoPorNombre: 'Carolina Méndez Rojas',
           cargadoPorCedula: '1020784512',
         ),
@@ -2038,7 +2442,7 @@ class JuridicoContratacionService {
           archivoSha256: hashDe(pdfBanco),
           archivoBase64: base64Encode(pdfBanco),
           versionCarga: 1,
-          fechaCargaIso: hace2Horas,
+          fechaCargaIso: hace2Horas.toIso8601String(),
           cargadoPorNombre: 'Carolina Méndez Rojas',
           cargadoPorCedula: '1020784512',
         ),
@@ -2058,7 +2462,7 @@ class JuridicoContratacionService {
       trazabilidad: <EventoTrazabilidadContrato>[
         EventoTrazabilidadContrato(
           id: 'EVT-D3',
-          fechaIso: hace2Horas,
+          fechaIso: hace2Horas.toIso8601String(),
           tipo: 'CARGA_DOCUMENTO',
           actorNombre: 'Carolina Méndez Rojas',
           actorRol: 'Contratista (CC 1020784512)',
@@ -2068,7 +2472,7 @@ class JuridicoContratacionService {
         ),
         EventoTrazabilidadContrato(
           id: 'EVT-D2',
-          fechaIso: hace1Dia,
+          fechaIso: hace1Dia.toIso8601String(),
           tipo: 'INGRESO_INVITADO',
           actorNombre: 'Carolina Méndez Rojas',
           actorRol: 'Contratista (CC 1020784512)',
@@ -2078,7 +2482,7 @@ class JuridicoContratacionService {
         ),
         EventoTrazabilidadContrato(
           id: 'EVT-D1',
-          fechaIso: hace2Dias,
+          fechaIso: hace2Dias.toIso8601String(),
           tipo: 'CREACION',
           actorNombre: 'Oficina Asesora Jurídica',
           actorRol: 'Equipo jurídico',
@@ -2092,7 +2496,8 @@ class JuridicoContratacionService {
     final exp2 = ExpedienteContratoPs(
       id: 'EXP-OPS-2026-0502',
       tokenInvitado: tokenDemo2,
-      entidadNombre: 'Gobernación Departamental · Secretaría de Infraestructura',
+      entidadNombre:
+          'Gobernación Departamental · Secretaría de Infraestructura',
       entidadNit: '800.103.920-1',
       dependencia: 'Dirección Técnica Contractual',
       numeroContrato: 'OPS-2026-0502',
@@ -2106,7 +2511,8 @@ class JuridicoContratacionService {
       contratistaTelefono: '3104892211',
       creadoPorEmail: 'juridica@gobernacion.gov.co',
       creadoPorNombre: 'Oficina Asesora Jurídica',
-      fechaCreacionIso: hace1Dia,
+      fechaCreacionIso: hace1Dia.toIso8601String(),
+      actualizadoEnMs: hace1Dia.millisecondsSinceEpoch,
       apartados: plantillasEstandarColombia
           .take(7)
           .toList()
@@ -2124,7 +2530,7 @@ class JuridicoContratacionService {
       trazabilidad: <EventoTrazabilidadContrato>[
         EventoTrazabilidadContrato(
           id: 'EVT-201',
-          fechaIso: hace1Dia,
+          fechaIso: hace1Dia.toIso8601String(),
           tipo: 'CREACION',
           actorNombre: 'Oficina Asesora Jurídica',
           actorRol: 'Equipo jurídico',

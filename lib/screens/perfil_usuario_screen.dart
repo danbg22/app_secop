@@ -1130,8 +1130,9 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.sizeOf(context).width < 768;
 
-    if (isMobile) {
-      return Scaffold(
+    return SelectionArea(
+      child: isMobile
+          ? Scaffold(
         backgroundColor: _bgCrema,
         body: SafeArea(child: _buildMainPane(isMobile: true)),
         bottomNavigationBar: BottomNavigationBar(
@@ -1176,24 +1177,23 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
             ),
           ],
         ),
-      );
-    }
-
-    return Scaffold(
-      backgroundColor: _bgCrema,
-      body: Row(
-        children: [
-          CollapsibleSideMenu(
-            selectedIndex: -1,
-            isCollapsed: _isSidebarCollapsed,
-            onItemSelected: _navegarASeccion,
-            onToggleCollapse: () => setState(
-              () => _isSidebarCollapsed = !_isSidebarCollapsed,
+      )
+    : Scaffold(
+        backgroundColor: _bgCrema,
+        body: Row(
+          children: [
+            CollapsibleSideMenu(
+              selectedIndex: -1,
+              isCollapsed: _isSidebarCollapsed,
+              onItemSelected: _navegarASeccion,
+              onToggleCollapse: () => setState(
+                () => _isSidebarCollapsed = !_isSidebarCollapsed,
+              ),
+              onLogout: _cerrarSesion,
             ),
-            onLogout: _cerrarSesion,
-          ),
-          Expanded(child: _buildMainPane(isMobile: false)),
-        ],
+            Expanded(child: _buildMainPane(isMobile: false)),
+          ],
+        ),
       ),
     );
   }

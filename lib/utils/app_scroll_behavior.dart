@@ -1,11 +1,24 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
-/// Comportamiento global de scroll para Web y Escritorio que habilita el
-/// arrastre horizontal y vertical con clic del mouse, pantalla táctil,
-/// trackpad y lápiz óptico de forma nativa.
+/// Comportamiento global de scroll para Web y Escritorio.
+/// No incluye [PointerDeviceKind.mouse] a nivel global para permitir seleccionar
+/// libremente textos, cifras, cédulas, NIT y objetos contractuales con el cursor
+/// en todas las pantallas mediante [SelectionArea].
 class AppScrollBehavior extends MaterialScrollBehavior {
   const AppScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => const <PointerDeviceKind>{
+        PointerDeviceKind.touch,
+        PointerDeviceKind.trackpad,
+        PointerDeviceKind.stylus,
+        PointerDeviceKind.unknown,
+      };
+}
+
+class _HorizontalMouseDragScrollBehavior extends MaterialScrollBehavior {
+  const _HorizontalMouseDragScrollBehavior();
 
   @override
   Set<PointerDeviceKind> get dragDevices => const <PointerDeviceKind>{
@@ -81,7 +94,7 @@ class _HorizontalWebScrollState extends State<HorizontalWebScroll> {
   @override
   Widget build(BuildContext context) {
     Widget scrollable = ScrollConfiguration(
-      behavior: const AppScrollBehavior(),
+      behavior: const _HorizontalMouseDragScrollBehavior(),
       child: SingleChildScrollView(
         controller: _effectiveController,
         scrollDirection: Axis.horizontal,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -40,10 +42,17 @@ class _PortalContratistaInvitadoScreenState
   bool _validandoIngreso = false;
   String? _apartadoSubiendoId;
   String? _mensajeErrorIngreso;
-  bool _trazabilidadAbierta = false;
+  bool _trazabilidadAbierta = true;
+  Timer? _sincronizadorContinuo;
 
   String _contratistaNombreActivo = '';
   String _contratistaCedulaActiva = '';
+
+  String get _tokenEfectivo {
+    final limpio = widget.token.trim();
+    if (limpio.isNotEmpty) return limpio;
+    return JuridicoContratacionService.extraerTokenInvitadoDeUri(Uri.base);
+  }
 
   @override
   void initState() {
@@ -51,11 +60,17 @@ class _PortalContratistaInvitadoScreenState
     JuridicoContratacionService.expedientesVersion.addListener(
       _sincronizarCambios,
     );
+    JuridicoContratacionService.activarTiempoRealContratista(_tokenEfectivo);
     _cargarContratoInicial();
+    _sincronizadorContinuo = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) => _sincronizarCambios(),
+    );
   }
 
   @override
   void dispose() {
+    _sincronizadorContinuo?.cancel();
     JuridicoContratacionService.expedientesVersion.removeListener(
       _sincronizarCambios,
     );
@@ -67,20 +82,16 @@ class _PortalContratistaInvitadoScreenState
   Future<void> _sincronizarCambios() async {
     final actualizado =
         await JuridicoContratacionService.obtenerExpedientePorTokenInvitado(
-          widget.token,
+          _tokenEfectivo,
         );
     if (!mounted || actualizado == null) return;
     setState(() => _expediente = actualizado);
   }
 
   Future<void> _cargarContratoInicial() async {
-    final tokenLimpio = widget.token.trim().isNotEmpty
-        ? widget.token.trim()
-        : JuridicoContratacionService.extraerTokenInvitadoDeUri(Uri.base);
-
     final exp =
         await JuridicoContratacionService.obtenerExpedientePorTokenInvitado(
-          tokenLimpio,
+          _tokenEfectivo,
         );
     if (!mounted) return;
     setState(() {
@@ -208,16 +219,18 @@ class _PortalContratistaInvitadoScreenState
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.sizeOf(context).width < 768;
 
-    return Scaffold(
-      backgroundColor: _bgCrema,
-      body: SafeArea(
-        child: _cargando
-            ? const Center(child: CircularProgressIndicator())
-            : _expediente == null
-            ? _buildEnlaceNoValido()
-            : !_accesoValidado
-            ? _buildPantallaIngresoContratista(_expediente!, isMobile)
-            : _buildExpedienteContratistaView(_expediente!, isMobile),
+    return SelectionArea(
+      child: Scaffold(
+        backgroundColor: _bgCrema,
+        body: SafeArea(
+          child: _cargando
+              ? const Center(child: CircularProgressIndicator())
+              : _expediente == null
+              ? _buildEnlaceNoValido()
+              : !_accesoValidado
+              ? _buildPantallaIngresoContratista(_expediente!, isMobile)
+              : _buildExpedienteContratistaView(_expediente!, isMobile),
+        ),
       ),
     );
   }
@@ -544,6 +557,41 @@ class _PortalContratistaInvitadoScreenState
                           filterQuality: FilterQuality.high,
                         ),
                         const Spacer(),
+                        if (!isMobile) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFECFDF5),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: const Color(0xFFA7F3D0),
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.circle,
+                                  size: 7,
+                                  color: Color(0xFF10B981),
+                                ),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Sincronización en tiempo real',
+                                  style: TextStyle(
+                                    color: Color(0xFF047857),
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
                         TextButton.icon(
                           onPressed: () {
                             setState(() => _accesoValidado = false);

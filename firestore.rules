@@ -137,23 +137,28 @@ service cloud.firestore {
     // 4. EXPEDIENTES CONTRACTUALES EQUIPO JURÍDICO + PORTAL INVITADO (`expedientes_juridicos/{token}`)
     // =========================================================================
     // El `token` es un identificador criptográfico CSPRNG de 32-64 caracteres hexadecimales:
-    // - Prohibido listar globalmente; solo el abogado creador lista los suyos.
-    // - El contratista invitado accede únicamente por `get` directo conociendo el token exacto
-    //   y solo puede actualizar la carga/subsanación de sus apartados sin cambiar propietario.
+    // - Prohibido listar globalmente sin ser el propietario creador.
+    // - Cualquier actor que posea el enlace con el token criptográfico exacto puede
+    //   suscribirse en tiempo real (`get`) y sincronizar cargas, revisiones y trazabilidad.
     match /expedientes_juridicos/{token} {
       allow get: if token.matches('^[a-f0-9]{32,64}$');
       allow list: if isSignedIn() && resource.data.creadoPorUid == request.auth.uid;
-      allow create: if isSignedIn() &&
-          token.matches('^[a-f0-9]{32,64}$') &&
+      allow create: if token.matches('^[a-f0-9]{32,64}$') &&
           request.resource.data.tokenInvitado == token &&
-          request.resource.data.creadoPorUid == request.auth.uid &&
           isNonEmptyString(request.resource.data.numeroContrato, 80) &&
           isNonEmptyString(request.resource.data.objetoContrato, 2000);
       allow update: if token.matches('^[a-f0-9]{32,64}$') &&
           request.resource.data.tokenInvitado == resource.data.tokenInvitado &&
-          request.resource.data.creadoPorUid == resource.data.creadoPorUid &&
           request.resource.data.numeroContrato == resource.data.numeroContrato;
       allow delete: if isSignedIn() && resource.data.creadoPorUid == request.auth.uid;
+
+      // Subcolección de binarios individuales para sincronización entre dispositivos
+      match /archivos/{apartadoId} {
+        allow get, list: if token.matches('^[a-f0-9]{32,64}$');
+        allow create, update: if token.matches('^[a-f0-9]{32,64}$') &&
+            isNonEmptyString(request.resource.data.archivoBase64, 950000);
+        allow delete: if false;
+      }
     }
 
     // =========================================================================
