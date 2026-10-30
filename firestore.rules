@@ -149,7 +149,10 @@ service cloud.firestore {
           isNonEmptyString(request.resource.data.objetoContrato, 2000);
       allow update: if token.matches('^[a-f0-9]{32,64}$') &&
           request.resource.data.tokenInvitado == resource.data.tokenInvitado &&
-          request.resource.data.numeroContrato == resource.data.numeroContrato;
+          request.resource.data.numeroContrato == resource.data.numeroContrato &&
+          // El propietario no puede ser reasignado por quien tenga el enlace.
+          (!('creadoPorUid' in resource.data) ||
+           request.resource.data.creadoPorUid == resource.data.creadoPorUid);
       allow delete: if isSignedIn() && resource.data.creadoPorUid == request.auth.uid;
 
       // Subcolección de binarios individuales para sincronización entre dispositivos

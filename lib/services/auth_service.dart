@@ -957,9 +957,9 @@ class AuthService {
     } on FirebaseAuthException catch (error) {
       // Respaldo estrictamente offline: solo se permite si falló la red y el
       // verificador criptográfico PBKDF2-HMAC-SHA256 coincide en tiempo constante.
+      // (`operation-not-allowed` indica un proveedor deshabilitado, no falta de red.)
       final bool isOfflineFallbackAllowed =
-          error.code == 'network-request-failed' ||
-          error.code == 'operation-not-allowed';
+          error.code == 'network-request-failed';
 
       if (isOfflineFallbackAllowed && localEntry != null) {
         final iterations = localEntry['passwordKdfIterations'] is int
