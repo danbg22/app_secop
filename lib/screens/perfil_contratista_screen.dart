@@ -58,6 +58,22 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
   List<dynamic> historialContratos = [];
   String _filtroAnio = '';
 
+  /// Conteo de contratos por año, calculado una vez al cargar el historial.
+  Map<String, int> _contratosPorAnio = const {};
+
+  /// Cuántas tarjetas del historial se muestran: construir miles de
+  /// tarjetas de una vez bloqueaba el navegador.
+  static const int _tamanoPaginaHistorial = 30;
+  int _historialVisible = _tamanoPaginaHistorial;
+
+  static const String _camposHistorial =
+      'id_contrato,referencia_del_contrato,proceso_de_compra,nombre_entidad,'
+      'nit_entidad,orden,departamento,ciudad,sector,estado_contrato,'
+      'modalidad_de_contratacion,tipo_de_contrato,valor_del_contrato,'
+      'proveedor_adjudicado,tipodocproveedor,documento_proveedor,'
+      'fecha_de_firma,fecha_de_inicio_del_contrato,fecha_de_fin_del_contrato,'
+      'objeto_del_contrato,descripcion_del_proceso,urlproceso';
+
   static List<String> get _aniosHistorial =>
       [for (final a in AniosSecop.disponibles) '$a'];
 
@@ -281,17 +297,24 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
           .trim();
 
       // Las consultas son independientes: SECOP II por documento (índice
-      // B-tree) y por nombre exacto, y SECOP I (2015-2019), en paralelo.
+      // B-tree) y por nombre exacto, y SECOP I, en paralelo. Solo se piden
+      // las columnas que usa la vista (todas pesaban ~3 veces más: 16,7 MB
+      // para un contratista con 4.000 contratos) y la consulta por nombre
+      // excluye lo que ya trae la del documento.
       final consultasSecopII = <Future<List<dynamic>>>[
         if (cleanDoc.length >= 5)
           consultar('jbjy-vk9h', {
+            r'$select': _camposHistorial,
             'documento_proveedor': cleanDoc,
             r'$order': 'fecha_de_firma DESC',
             r'$limit': '50000',
           }),
         if (_nombreAuditar.isNotEmpty)
           consultar('jbjy-vk9h', {
+            r'$select': _camposHistorial,
             'proveedor_adjudicado': _nombreAuditar,
+            if (cleanDoc.length >= 5)
+              r'$where': "documento_proveedor != '$cleanDoc'",
             r'$order': 'fecha_de_firma DESC',
             r'$limit': '50000',
           }),
@@ -362,8 +385,16 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
       final resumen = _calcularResumen(allContracts);
 
       if (!mounted) return;
+      final porAnio = <String, int>{};
+      for (final c in allContracts) {
+        final anio = _anioContrato(c);
+        if (anio.isNotEmpty) porAnio[anio] = (porAnio[anio] ?? 0) + 1;
+      }
+
       setState(() {
         historialContratos = allContracts;
+        _contratosPorAnio = porAnio;
+        _historialVisible = _tamanoPaginaHistorial;
         cantidadContratos = allContracts.isNotEmpty
             ? resumen.$1
             : (widget.totalContractsSeed ?? 0);
@@ -1357,7 +1388,10 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                           child: Row(
                             children: [
                               InkWell(
-                                onTap: () => setState(() => _filtroAnio = ''),
+                                onTap: () => setState(() {
+                                  _filtroAnio = '';
+                                  _historialVisible = _tamanoPaginaHistorial;
+                                }),
                                 borderRadius: BorderRadius.circular(20),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
@@ -1376,7 +1410,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                                     ),
                                   ),
                                   child: Text(
-                                    'Todos (2015–2026): ${historialContratos.length}',
+                                    'Todos (${AniosSecop.primero}–${AniosSecop.actual}): ${historialContratos.length}',
                                     style: TextStyle(
                                       color: _filtroAnio.isEmpty
                                           ? Colors.white
@@ -1391,13 +1425,14 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                                 const SizedBox(width: 8),
                                 Builder(
                                   builder: (context) {
-                                    final count = historialContratos
-                                        .where((c) => _anioContrato(c) == a)
-                                        .length;
+                                    final count = _contratosPorAnio[a] ?? 0;
                                     final isSelected = _filtroAnio == a;
                                     return InkWell(
                                       onTap: count > 0 || isSelected
-                                          ? () => setState(() => _filtroAnio = isSelected ? '' : a)
+                                          ? () => setState(() {
+                                              _filtroAnio = isSelected ? '' : a;
+                                              _historialVisible = _tamanoPaginaHistorial;
+                                            })
                                           : null,
                                       borderRadius: BorderRadius.circular(20),
                                       child: Container(
@@ -1501,10 +1536,28 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                             ),
                           ),
                         )
-                      else
-                        for (final contrato
-                            in _contratosFiltrados)
+                      else ...[
+                        for (final contrato in _contratosFiltrados.take(
+                          _historialVisible,
+                        ))
                           _buildHistorialContractCard(contrato, isMobile),
+                        if (_contratosFiltrados.length > _historialVisible)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Center(
+                              child: OutlinedButton.icon(
+                                onPressed: () => setState(
+                                  () => _historialVisible +=
+                                      _tamanoPaginaHistorial,
+                                ),
+                                icon: const Icon(Icons.expand_more_rounded),
+                                label: Text(
+                                  'Ver más (${_contratosFiltrados.length - _historialVisible} restantes)',
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ],
                   ),
                 ),
