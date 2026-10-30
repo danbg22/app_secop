@@ -167,13 +167,18 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
 
     setState(() => _isSavingProfile = true);
     try {
-      await AuthService.updateActiveUserProfile(
+      final sincronizado = await AuthService.updateActiveUserProfile(
         nombres: _nombresController.text,
         apellidos: _apellidosController.text,
         telefono: _telefonoController.text,
         pais: _pais,
       );
-      _mostrarMensaje('Información personal actualizada correctamente.');
+      _mostrarMensaje(
+        sincronizado
+            ? 'Información personal actualizada correctamente.'
+            : 'Los cambios se guardaron solo en este dispositivo: no fue posible sincronizarlos. Inténtalo de nuevo con conexión.',
+        esError: !sincronizado,
+      );
       if (mounted) setState(() {});
     } catch (e) {
       _mostrarMensaje(

@@ -291,6 +291,14 @@ class PqrsService {
       }
     }
 
+    // Si la solicitud no llegó a ningún destino, nadie la recibiría: se
+    // informa al usuario para que reintente en lugar de confirmarla.
+    if (!guardadoFirestore && !enviadoGoogleDrive) {
+      throw Exception(
+        'No fue posible enviar tu solicitud. Revisa tu conexión e inténtalo nuevamente.',
+      );
+    }
+
     final record = PqrsRecord(
       radicado: radicado,
       tipoSolicitud: cleanTipo,

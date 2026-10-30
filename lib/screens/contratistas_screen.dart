@@ -892,9 +892,11 @@ class _ContratistasScreenState extends State<ContratistasScreen>
     List<ContractorSummaryRecord> targets,
     int requestId,
   ) async {
-    for (final target in targets) {
+    // Las verificaciones son independientes: se hacen en paralelo y cada fila
+    // se actualiza en cuanto llega su respuesta.
+    await Future.wait(targets.map((target) async {
       if (!mounted || requestId != _latestRequestId) return;
-      if (target.personType == 'Persona jurídica') continue;
+      if (target.personType == 'Persona jurídica') return;
 
       try {
         final match = await SigepService.verificarServidorPublico(
@@ -927,7 +929,7 @@ class _ContratistasScreenState extends State<ContratistasScreen>
           _syncStateToPersistenceStore();
         }
       } catch (_) {}
-    }
+    }));
   }
 
   bool _matchesAnyBulkTerm(

@@ -1751,8 +1751,9 @@ class AuthService {
   }
 
   /// Actualiza únicamente los datos editables del perfil (conservando bloqueados
-  /// el correo electrónico y la cédula/documento).
-  static Future<void> updateActiveUserProfile({
+  /// el correo electrónico y la cédula/documento). Devuelve `false` si el
+  /// cambio quedó solo en este dispositivo porque no se pudo guardar en la nube.
+  static Future<bool> updateActiveUserProfile({
     required String nombres,
     required String apellidos,
     required String telefono,
@@ -1789,6 +1790,7 @@ class AuthService {
         ? '$cleanNombres $cleanApellidos'.trim()
         : getActiveUserDisplayName();
 
+    var sincronizado = false;
     final fbUser = _auth.currentUser;
     if (fbUser != null) {
       try {
@@ -1809,6 +1811,7 @@ class AuthService {
               'actualizado_en': FieldValue.serverTimestamp(),
             }, SetOptions(merge: true))
             .timeout(const Duration(seconds: 4));
+        sincronizado = true;
       } catch (_) {}
     }
 
@@ -1822,6 +1825,7 @@ class AuthService {
         'pais': cleanPais,
       },
     );
+    return sincronizado;
   }
 
   /// Cambia la contraseña del usuario activo validando primero su contraseña actual,
@@ -1898,22 +1902,11 @@ class AuthService {
         throw AuthServiceException(_messageFor(error));
       }
     } else {
-      final iterations = localEntry['passwordKdfIterations'] is int
-          ? localEntry['passwordKdfIterations'] as int
-          : 15000;
-      final validCurrent = SecurityService.verifyPasswordVerifier(
-        password: currentPassword,
-        saltBase64: localEntry['passwordSalt']?.toString(),
-        verifierBase64: localEntry['passwordVerifier']?.toString(),
-        iterations: iterations,
+      // Sin sesión de Firebase solo cambiaría la copia local y la contraseña
+      // real de la cuenta seguiría siendo la anterior.
+      throw const AuthServiceException(
+        'Para cambiar tu contraseña necesitas conexión. Vuelve a iniciar sesión e inténtalo de nuevo.',
       );
-      if (!validCurrent) {
-        await SecurityService.recordAuthFailure('pwd_change:$activeEmail');
-        throw const AuthServiceException(
-          'La contraseña actual ingresada no es correcta.',
-        );
-      }
-      await SecurityService.resetAuthFailures('pwd_change:$activeEmail');
     }
 
     // Guarda únicamente el verificador criptográfico PBKDF2-HMAC-SHA256 (sin texto plano)

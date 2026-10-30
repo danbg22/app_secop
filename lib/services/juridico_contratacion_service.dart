@@ -1495,13 +1495,18 @@ class JuridicoContratacionService {
       trazabilidad: <EventoTrazabilidadContrato>[evento, ...exp.trazabilidad],
     );
 
-    await _guardarExpedienteInmediato(actualizado);
-    unawaited(
-      _subirBinarioIndividualFirestoreEnFondo(
-        tokenInvitado: exp.tokenInvitado,
-        apartado: apartadoActualizado,
-      ),
+    // Se espera la subida: si el archivo no llega a Firestore, el equipo
+    // jurídico no lo recibiría en su dispositivo.
+    final subido = await _subirBinarioIndividualFirestoreEnFondo(
+      tokenInvitado: exp.tokenInvitado,
+      apartado: apartadoActualizado,
     );
+    if (!subido) {
+      throw StateError(
+        'No fue posible enviar el documento al equipo jurídico. Revisa tu conexión e inténtalo de nuevo.',
+      );
+    }
+    await _guardarExpedienteInmediato(actualizado);
     return actualizado;
   }
 
@@ -2231,12 +2236,12 @@ class JuridicoContratacionService {
     } catch (_) {}
   }
 
-  static Future<void> _subirBinarioIndividualFirestoreEnFondo({
+  static Future<bool> _subirBinarioIndividualFirestoreEnFondo({
     required String tokenInvitado,
     required ApartadoDocumentoContrato apartado,
   }) async {
     final rawB64 = apartado.archivoBase64 ?? '';
-    if (rawB64.isEmpty || rawB64.length > 940000) return;
+    if (rawB64.isEmpty || rawB64.length > 940000) return false;
 
     try {
       await FirebaseFirestore.instance
@@ -2253,8 +2258,11 @@ class JuridicoContratacionService {
             'versionCarga': apartado.versionCarga,
             'fechaCargaIso': apartado.fechaCargaIso,
           })
-          .timeout(const Duration(milliseconds: 3500));
-    } catch (_) {}
+          .timeout(const Duration(seconds: 20));
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   static Future<void> _registrarCorreoEnFirestoreEnFondo(

@@ -172,7 +172,9 @@ class _PortalContratistaInvitadoScreenState
       if (!mounted) return;
       setState(() => _apartadoSubiendoId = null);
       _mostrarMensaje(
-        e.toString().replaceFirst('Invalid argument(s): ', ''),
+        e.toString()
+            .replaceFirst('Invalid argument(s): ', '')
+            .replaceFirst('Bad state: ', ''),
         esError: true,
       );
     }

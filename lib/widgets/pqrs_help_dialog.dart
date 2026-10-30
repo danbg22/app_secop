@@ -119,15 +119,20 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
         _asuntoController.clear();
         _mensajeController.clear();
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() => _isSending = false);
+      final detalle = e is Exception
+          ? e.toString().replaceFirst('Exception: ', '')
+          : '';
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        const SnackBar(
+        SnackBar(
           behavior: SnackBarBehavior.floating,
-          backgroundColor: Color(0xFFDC2626),
+          backgroundColor: const Color(0xFFDC2626),
           content: Text(
-            'Ocurrió un inconveniente al enviar tu solicitud. Inténtalo nuevamente.',
+            detalle.isNotEmpty
+                ? detalle
+                : 'Ocurrió un inconveniente al enviar tu solicitud. Inténtalo nuevamente.',
           ),
         ),
       );

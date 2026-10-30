@@ -9,7 +9,7 @@ import 'document_file_picker_types.dart';
 bool get supportsContractDocumentPicker => true;
 
 /// Selector seguro de documentos contractuales en Web (PDF, PNG, JPG, JPEG, WEBP, DOC, DOCX).
-/// Verifica Magic Bytes reales y bloquea SVG/HTML/JS ejecutables o archivos > 4 MB.
+/// Verifica Magic Bytes reales y bloquea SVG/HTML/JS ejecutables o archivos > 680 KB.
 Future<PickedContractDocumentFile?> pickContractDocumentFile() async {
   final completer = Completer<PickedContractDocumentFile?>();
   final uploadInput = html.FileUploadInputElement()
@@ -53,7 +53,7 @@ Future<PickedContractDocumentFile?> pickContractDocumentFile() async {
             bytes: Uint8List(0),
             sha256Hash: '',
             errorMessage:
-                'El archivo supera el límite permitido de 4 MB. Por favor adjunta un documento más liviano o comprimido.',
+                'El archivo supera el límite permitido de 680 KB. Por favor adjunta un documento más liviano o comprimido.',
           ),
         );
       }
