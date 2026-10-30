@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -12,6 +13,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/auth_service.dart';
 import '../services/secop_document_intelligence_service.dart';
 import '../services/security_service.dart';
+import '../utils/contract_financial_calculator.dart';
 import '../utils/secop_launcher.dart';
 import '../widgets/collapsible_side_menu.dart';
 import '../widgets/dashboard_top_bar.dart';
@@ -58,12 +60,26 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
   String _docSearchQuery = '';
   late int _selectedTab;
 
+  /// Copia mutable del contrato enriquecida con TODAS las columnas oficiales
+  /// del expediente en Datos Abiertos (SECOP II `jbjy-vk9h` / SECOP I `f789-7hwg`).
+  late Map<String, dynamic> _contratoData;
+  bool _cargandoExpedienteCompleto = false;
+  bool _expedienteEnriquecido = false;
+
+  ContractFinancialAnalysis get _analisis =>
+      ContractFinancialAnalysis.fromContract(_contratoData);
+
   @override
   void initState() {
     super.initState();
+    _contratoData = widget.contrato is Map
+        ? (widget.contrato as Map)
+            .map((k, v) => MapEntry(k.toString(), v))
+        : <String, dynamic>{};
     _selectedTab = widget.initialTab.clamp(0, 2);
     _cargarEstadoFavorito();
     _cargarDocumentosCacheados();
+    _cargarExpedienteCompletoSecop();
     final desc = _descripcionContrato.toUpperCase();
     _mensajes.add({
       'sender': 'ai',
@@ -81,9 +97,131 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
     super.dispose();
   }
 
+  /// Limpia identificadores para literales SoQL conservando su formato real
+  /// (puntos, guiones, guion bajo), sin comillas ni operadores peligrosos.
+  static String _soqlIdLiteral(dynamic raw) {
+    var clean = (raw ?? '')
+        .toString()
+        .replaceAll(RegExp(r'[^A-Za-z0-9.\-_/ ÁÉÍÓÚÑáéíóúñ]'), '')
+        .replaceAll('--', '-')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (clean.length > 90) clean = clean.substring(0, 90);
+    return clean;
+  }
+
+  static bool _valorSecopVacio(dynamic v) {
+    if (v == null) return true;
+    final s = v.toString().trim();
+    return s.isEmpty || s.toLowerCase() == 'no definido';
+  }
+
+  /// Homologa alias de SECOP I a las claves usadas por la vista (SECOP II).
+  static void _normalizarAliasSecopI(Map<String, dynamic> c) {
+    void alias(String destino, String origen) {
+      if (_valorSecopVacio(c[destino]) && !_valorSecopVacio(c[origen])) c[destino] = c[origen];
+    }
+
+    alias('nombre_entidad', 'nombre_de_la_entidad');
+    alias('nit_entidad', 'nit_de_la_entidad');
+    alias('proveedor_adjudicado', 'nom_raz_social_contratista');
+    alias('documento_proveedor', 'identificacion_del_contratista');
+    alias('valor_del_contrato', 'cuantia_contrato');
+    alias('descripcion_del_proceso', 'detalle_del_objeto_a_contratar');
+    alias('objeto_del_contrato', 'objeto_a_contratar');
+    alias('fecha_de_firma', 'fecha_de_firma_del_contrato');
+    alias('estado_contrato', 'estado_del_proceso');
+    alias('referencia_del_contrato', 'numero_del_contrato');
+  }
+
+  bool get _esContratoSecopI {
+    final c = _contratoData;
+    return c.containsKey('ruta_proceso_en_secop_i') ||
+        c.containsKey('nom_raz_social_contratista') ||
+        c.containsKey('numero_de_constancia') ||
+        (c.containsKey('uid') && !c.containsKey('id_contrato'));
+  }
+
+  /// Descarga la fila completa del contrato (todas las columnas oficiales)
+  /// desde Datos Abiertos Colombia, sin `$select` para evitar errores 400.
+  Future<void> _cargarExpedienteCompletoSecop() async {
+    _normalizarAliasSecopI(_contratoData);
+    if (_cargandoExpedienteCompleto || _expedienteEnriquecido) return;
+
+    final c = _contratoData;
+    final clauses = <String>[];
+    String dataset;
+
+    if (_esContratoSecopI) {
+      dataset = 'f789-7hwg';
+      final uid = _soqlIdLiteral(c['uid']);
+      final constancia = _soqlIdLiteral(c['numero_de_constancia']);
+      final numContrato = _soqlIdLiteral(c['numero_del_contrato']);
+      final nit = _soqlIdLiteral(c['nit_de_la_entidad'] ?? c['nit_entidad']);
+      if (uid.isNotEmpty) {
+        clauses.add("uid='$uid'");
+      } else if (constancia.isNotEmpty) {
+        clauses.add("numero_de_constancia='$constancia'");
+      } else if (numContrato.isNotEmpty && nit.isNotEmpty) {
+        clauses.add("numero_del_contrato='$numContrato'");
+        clauses.add("nit_de_la_entidad='$nit'");
+      }
+    } else {
+      dataset = 'jbjy-vk9h';
+      final id = _soqlIdLiteral(c['id_contrato']);
+      final ref = _soqlIdLiteral(c['referencia_del_contrato']);
+      final nit = _soqlIdLiteral(c['nit_entidad']);
+      final proceso = _soqlIdLiteral(c['proceso_de_compra']);
+      final docProv = _soqlIdLiteral(c['documento_proveedor']);
+      if (id.isNotEmpty) {
+        clauses.add("id_contrato='$id'");
+      } else if (ref.isNotEmpty && nit.isNotEmpty) {
+        clauses.add("referencia_del_contrato='$ref'");
+        clauses.add("nit_entidad='$nit'");
+      } else if (proceso.isNotEmpty &&
+          proceso.toUpperCase() != 'NO DEFINIDO') {
+        clauses.add("proceso_de_compra='$proceso'");
+        if (docProv.isNotEmpty) clauses.add("documento_proveedor='$docProv'");
+      }
+    }
+
+    if (clauses.isEmpty) return;
+
+    // Se invoca desde initState (antes del primer build): no requiere setState.
+    _cargandoExpedienteCompleto = true;
+    try {
+      final uri = Uri.https('www.datos.gov.co', '/resource/$dataset.json', {
+        r'$where': clauses.join(' AND '),
+        r'$limit': '1',
+      });
+      final res = await http.get(uri).timeout(const Duration(seconds: 15));
+      if (res.statusCode == 200) {
+        final decoded = json.decode(utf8.decode(res.bodyBytes));
+        if (decoded is List && decoded.isNotEmpty && decoded.first is Map) {
+          final fila = (decoded.first as Map)
+              .map((k, v) => MapEntry(k.toString(), v));
+          final merged = Map<String, dynamic>.from(_contratoData);
+          fila.forEach((k, v) {
+            if (!_valorSecopVacio(v) || !merged.containsKey(k)) merged[k] = v;
+          });
+          _normalizarAliasSecopI(merged);
+          if (!mounted) return;
+          setState(() {
+            _contratoData = merged;
+            _expedienteEnriquecido = true;
+          });
+        }
+      }
+    } catch (_) {
+      // Se conserva la información ya disponible si la consulta falla.
+    } finally {
+      if (mounted) setState(() => _cargandoExpedienteCompleto = false);
+    }
+  }
+
   String get _descripcionContrato {
-    final raw = (widget.contrato['descripcion_del_proceso'] ??
-            widget.contrato['objeto_del_contrato'] ??
+    final raw = (_contratoData['descripcion_del_proceso'] ??
+            _contratoData['objeto_del_contrato'] ??
             'Contrato estatal SECOP II')
         .toString()
         .replaceAll(RegExp(r'\s+'), ' ')
@@ -92,14 +230,14 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
   }
 
   String get _entidadContrato {
-    final raw = (widget.contrato['nombre_entidad'] ?? 'Entidad Pública')
+    final raw = (_contratoData['nombre_entidad'] ?? 'Entidad Pública')
         .toString()
         .trim();
     return raw.isEmpty ? 'Entidad Pública' : raw;
   }
 
   String get _contratistaContrato {
-    final raw = (widget.contrato['proveedor_adjudicado'] ?? 'No disponible')
+    final raw = (_contratoData['proveedor_adjudicado'] ?? 'No disponible')
         .toString()
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
@@ -108,23 +246,23 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
 
   String get _modalidadContrato {
     final raw =
-        (widget.contrato['modalidad_de_contratacion'] ?? 'Contratación directa')
+        (_contratoData['modalidad_de_contratacion'] ?? 'Contratación directa')
             .toString()
             .trim();
     return raw.isEmpty ? 'Contratación directa' : raw;
   }
 
   String get _estadoContrato {
-    final raw = (widget.contrato['estado_contrato'] ?? 'Aprobado')
+    final raw = (_contratoData['estado_contrato'] ?? 'Aprobado')
         .toString()
         .trim();
     return raw.isEmpty ? 'Aprobado' : raw;
   }
 
   String get _procesoContrato {
-    final raw = (widget.contrato['proceso_de_compra'] ??
-            widget.contrato['id_contrato'] ??
-            widget.contrato['referencia_del_contrato'] ??
+    final raw = (_contratoData['proceso_de_compra'] ??
+            _contratoData['id_contrato'] ??
+            _contratoData['referencia_del_contrato'] ??
             'Proceso SECOP II')
         .toString()
         .trim();
@@ -132,8 +270,8 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
   }
 
   String get _referenciaContrato {
-    final raw = (widget.contrato['referencia_del_contrato'] ??
-            widget.contrato['id_contrato'] ??
+    final raw = (_contratoData['referencia_del_contrato'] ??
+            _contratoData['id_contrato'] ??
             _procesoContrato)
         .toString()
         .trim();
@@ -141,8 +279,8 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
   }
 
   String get _fechaFirmaIso {
-    final raw = (widget.contrato['fecha_de_firma'] ??
-            widget.contrato['fecha_de_inicio_del_contrato'] ??
+    final raw = (_contratoData['fecha_de_firma'] ??
+            _contratoData['fecha_de_inicio_del_contrato'] ??
             '2026-10-09')
         .toString();
     return raw.split('T').first;
@@ -175,7 +313,7 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
 
   double get _valorNumerico {
     return double.tryParse(
-          widget.contrato['valor_del_contrato']?.toString() ?? '0',
+          _contratoData['valor_del_contrato']?.toString() ?? '0',
         ) ??
         0;
   }
@@ -296,7 +434,7 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
 
   String? _extraerUrlProcesoReal() {
     if (widget.contrato is! Map) return null;
-    final rawUrl = widget.contrato['urlproceso'];
+    final rawUrl = _contratoData['urlproceso'];
     String candidate = '';
 
     if (rawUrl is Map && rawUrl['url'] != null) {
@@ -326,7 +464,7 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
     }
 
     final proceso =
-        (widget.contrato['proceso_de_compra'] ?? '').toString().trim();
+        (_contratoData['proceso_de_compra'] ?? '').toString().trim();
     if (proceso.isNotEmpty && proceso.toUpperCase() != 'NO DEFINIDO') {
       return 'https://community.secop.gov.co/Public/Tendering/OpportunityDetail/Index?noticeUID=${Uri.encodeComponent(proceso)}';
     }
@@ -653,11 +791,11 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
 
   void _abrirPerfilContratista() {
     final rawContractor =
-        widget.contrato['proveedor_adjudicado']?.toString().trim() ??
+        _contratoData['proveedor_adjudicado']?.toString().trim() ??
             _contratistaContrato;
     if (rawContractor.isEmpty || rawContractor == 'No disponible') return;
     final docProveedor =
-        widget.contrato['documento_proveedor']?.toString().trim();
+        _contratoData['documento_proveedor']?.toString().trim();
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -768,6 +906,7 @@ Analiza la consulta en lenguaje claro, aportando valor ciudadano y jurídico sin
 - Modalidad: ${SecurityService.sanitizePromptInput(_modalidadContrato, maxLength: 140)}
 - Estado actual: ${SecurityService.sanitizePromptInput(_estadoContrato, maxLength: 80)}
 - Fecha de firma: ${SecurityService.sanitizePromptInput(_fechaFirmaIso, maxLength: 60)}
+${SecurityService.sanitizePromptInput(_contextoFinancieroParaIa(), maxLength: 2600)}
 </datos_contrato_no_confiables>
 
 <consulta_usuario_no_confiable>
@@ -800,8 +939,69 @@ $sanitizedQuestion
     _bajarScrollChat();
   }
 
+  /// Resumen financiero/plazo + campos clave para el contexto del Copiloto IA.
+  String _contextoFinancieroParaIa() {
+    final a = _analisis;
+    final c = _contratoData;
+    final buffer = StringBuffer();
+    String campo(String key) =>
+        ContractFieldCatalog.formatValue(key, c[key]).trim();
+    void linea(String label, String value) {
+      if (value.isNotEmpty) buffer.writeln('- $label: $value');
+    }
+
+    linea('Tipo de contrato', campo('tipo_de_contrato'));
+    linea('Plazo', a.tienePlazo ? a.equivalenciaTexto : '');
+    linea('Inicio', a.fechaInicio != null
+        ? ContractFinancialAnalysis.formatFecha(a.fechaInicio)
+        : '');
+    linea('Fin', a.fechaFin != null
+        ? ContractFinancialAnalysis.formatFecha(a.fechaFin)
+        : '');
+    if (a.tienePlazo && a.valorTotal > 0) {
+      linea('Valor diario promedio', ContractFinancialAnalysis.formatCop(a.valorDiario));
+      linea(
+        'Valor mensual estimado (base 30 días)',
+        ContractFinancialAnalysis.formatCop(a.valorMensualEstimado),
+      );
+    }
+    if (a.diasAdicionados > 0) linea('Días adicionados', '${a.diasAdicionados}');
+    a.pagos.forEach(
+      (k, v) => linea(k, ContractFinancialAnalysis.formatCop(v)),
+    );
+    linea('Supervisor', campo('nombre_supervisor'));
+    linea('Ordenador del gasto', campo('nombre_ordenador_del_gasto'));
+    linea('NIT entidad', campo('nit_entidad'));
+    linea('Documento contratista', campo('documento_proveedor'));
+    linea('Representante legal', campo('nombre_representante_legal'));
+    linea('Departamento / ciudad',
+        [campo('departamento'), campo('ciudad')].where((e) => e.isNotEmpty).join(' / '));
+    linea('Categoría UNSPSC', campo('codigo_de_categoria_principal'));
+    linea('Justificación modalidad', campo('justificacion_modalidad_de_contratacion'));
+    linea('Origen de los recursos', campo('origen_de_los_recursos'));
+    return buffer.toString().trimRight();
+  }
+
   String _generarRespuestaLocalInteligente(String pregunta) {
     final q = pregunta.toLowerCase();
+    final a = _analisis;
+    if ((q.contains('mensual') ||
+            q.contains('meses') ||
+            RegExp(r'\bmes\b').hasMatch(q) ||
+            q.contains('diario') ||
+            q.contains('por día') ||
+            q.contains('por dia') ||
+            q.contains('plazo') ||
+            q.contains('duraci')) &&
+        a.tienePlazo) {
+      final mensual = a.valorTotal > 0
+          ? '\n\nValor por día: ${ContractFinancialAnalysis.formatCop(a.valorDiario)}.\n'
+              'Valor mensual estimado (base 30 días): ${ContractFinancialAnalysis.formatCop(a.valorMensualEstimado)}.'
+          : '';
+      return 'El plazo del contrato es de ${a.equivalenciaTexto}.$mensual\n\n'
+          'Este cálculo divide el valor total ($_valorFormateado) entre los días del plazo y lo multiplica por 30 (mes comercial). '
+          'La forma de pago real (mensualidades, anticipo o pago único) se define en la minuta y los estudios previos.';
+    }
     if (q.contains('resum') || q.contains('objeto') || q.contains('trata')) {
       return 'Este contrato fue suscrito por $_entidadContrato con el propósito de ejecutar: "$_descripcionContrato".\n\nEn términos prácticos, busca atender una necesidad operativa e institucional mediante la modalidad de $_modalidadContrato, con un presupuesto oficial de $_valorFormateado y estado actual $_estadoContrato.';
     }
@@ -1131,6 +1331,7 @@ $sanitizedQuestion
               fontWeight: FontWeight.w800,
             ),
           ),
+          _buildValorMensualHeadline(isMobile: isMobile),
           const SizedBox(height: 18),
           _buildTabsBar(insideSummaryCard: true),
           const SizedBox(height: 22),
@@ -1219,6 +1420,10 @@ $sanitizedQuestion
               ],
             ),
           ],
+          const SizedBox(height: 22),
+          _buildAnalisisFinancieroCard(isMobile: isMobile),
+          const SizedBox(height: 22),
+          _buildFichaTecnicaIntegral(isMobile: isMobile),
           const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
@@ -1247,6 +1452,663 @@ $sanitizedQuestion
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // DESGLOSE FINANCIERO, PLAZO Y VALOR MENSUAL + FICHA TÉCNICA INTEGRAL
+  // ===========================================================================
+
+  static const Color _finCrema = Color(0xFFFAF5EA);
+  static const Color _finVerdeValor = Color(0xFF15803D);
+
+  Widget _buildValorMensualHeadline({required bool isMobile}) {
+    final a = _analisis;
+    final chips = <Widget>[];
+
+    if (a.tienePlazo && a.valorTotal > 0) {
+      chips.add(
+        _finHeadlineChip(
+          icon: Icons.payments_outlined,
+          text: a.esMenorAUnMes
+              ? 'Pago total por ${a.plazoDias} días'
+              : '≈ ${ContractFinancialAnalysis.formatCop(a.valorMensualEstimado)} / mes',
+          bg: _azulOscuro,
+          fg: Colors.white,
+          iconColor: _amarillo,
+        ),
+      );
+    }
+    if (a.tienePlazo) {
+      chips.add(
+        _finHeadlineChip(
+          icon: Icons.timelapse_rounded,
+          text: '${a.plazoDias} días · ${a.mesesDecimalTexto}',
+          bg: const Color(0xFFFEF5D8),
+          fg: _azulOscuro,
+          iconColor: const Color(0xFFB45309),
+        ),
+      );
+    }
+    if (_cargandoExpedienteCompleto) {
+      chips.add(
+        _finHeadlineChip(
+          icon: Icons.sync_rounded,
+          text: 'Completando expediente oficial…',
+          bg: const Color(0xFFF1F5F9),
+          fg: const Color(0xFF475569),
+          iconColor: const Color(0xFF64748B),
+        ),
+      );
+    }
+    if (chips.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Wrap(spacing: 8, runSpacing: 8, children: chips),
+    );
+  }
+
+  Widget _finHeadlineChip({
+    required IconData icon,
+    required String text,
+    required Color bg,
+    required Color fg,
+    required Color iconColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: iconColor),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: fg,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _finSectionHeader({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    Widget? trailing,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: _azulOscuro,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: _amarillo, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: _azulOscuro,
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w800,
+                  height: 1.25,
+                ),
+              ),
+              if (subtitle != null) ...[
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 12,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        if (trailing != null) ...[const SizedBox(width: 8), trailing],
+      ],
+    );
+  }
+
+  Widget _finMetricTile({
+    required double width,
+    required IconData icon,
+    required String label,
+    required String value,
+    String? caption,
+    bool highlight = false,
+  }) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: highlight ? _azulOscuro : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: highlight ? _azulOscuro : const Color(0xFFEDE3CC),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: highlight ? _amarillo : const Color(0xFFB45309),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: highlight
+                        ? Colors.white.withValues(alpha: 0.85)
+                        : const Color(0xFF64748B),
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SelectableText(
+            value,
+            style: TextStyle(
+              color: highlight ? _amarillo : _azulOscuro,
+              fontSize: highlight ? 20 : 16.5,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          if (caption != null && caption.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              caption,
+              style: TextStyle(
+                color: highlight
+                    ? Colors.white.withValues(alpha: 0.75)
+                    : const Color(0xFF64748B),
+                fontSize: 11.5,
+                height: 1.35,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnalisisFinancieroCard({required bool isMobile}) {
+    final a = _analisis;
+    final fmt = ContractFinancialAnalysis.formatCop;
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(isMobile ? 14 : 20),
+      decoration: BoxDecoration(
+        color: _finCrema,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFEDE3CC)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _finSectionHeader(
+            icon: Icons.calculate_outlined,
+            title: 'Desglose financiero, plazo y valor mensual estimado',
+            subtitle:
+                'Calculado con los datos oficiales de SECOP · 1 mes comercial = 30 días',
+          ),
+          const SizedBox(height: 16),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cols = isMobile
+                  ? 1
+                  : (constraints.maxWidth > 820 ? 3 : 2);
+              const gap = 12.0;
+              final w = (constraints.maxWidth - gap * (cols - 1)) / cols;
+              final tiles = <Widget>[
+                _finMetricTile(
+                  width: w,
+                  icon: Icons.account_balance_wallet_outlined,
+                  label: 'Valor total del contrato',
+                  value: a.valorTotal > 0 ? fmt(a.valorTotal) : 'No reportado',
+                ),
+                if (a.tienePlazo && a.valorTotal > 0)
+                  _finMetricTile(
+                    width: w,
+                    highlight: true,
+                    icon: Icons.payments_outlined,
+                    label: a.esMenorAUnMes
+                        ? 'Pago total por ${a.plazoDias} días'
+                        : 'Valor mensual estimado a recibir',
+                    value: a.esMenorAUnMes
+                        ? fmt(a.valorTotal)
+                        : '${fmt(a.valorMensualEstimado)} / mes',
+                    caption: a.esMenorAUnMes
+                        ? 'Equivale a ${fmt(a.valorMensualEstimado)} si se proyecta a 30 días'
+                        : '(Valor total ÷ ${a.plazoDias} días) × 30 días',
+                  ),
+                if (a.tienePlazo && a.valorTotal > 0)
+                  _finMetricTile(
+                    width: w,
+                    icon: Icons.today_outlined,
+                    label: 'Valor por día',
+                    value: fmt(a.valorDiario),
+                    caption: 'Valor total ÷ ${a.plazoDias} días del plazo',
+                  ),
+                _finMetricTile(
+                  width: w,
+                  icon: Icons.date_range_outlined,
+                  label: 'Plazo de ejecución',
+                  value: a.tienePlazo ? '${a.plazoDias} días' : 'No reportado',
+                  caption: a.tienePlazo
+                      ? [
+                          if (a.diasCalendario != null &&
+                              a.diasCalendario != a.plazoDias)
+                            '${a.diasCalendario} días calendario',
+                          if (a.duracionReportada.isNotEmpty)
+                            'SECOP reporta: ${a.duracionReportada}',
+                        ].join(' · ')
+                      : 'SECOP no reporta fechas ni duración',
+                ),
+                _finMetricTile(
+                  width: w,
+                  icon: Icons.event_repeat_outlined,
+                  label: 'Equivalencia en meses',
+                  value: a.mesesDecimalTexto,
+                  caption: a.tienePlazo ? a.mesesDesglosadosTexto : null,
+                ),
+                if (a.diasAdicionados > 0)
+                  _finMetricTile(
+                    width: w,
+                    icon: Icons.more_time_rounded,
+                    label: 'Días adicionados (prórrogas)',
+                    value: '${a.diasAdicionados} días',
+                    caption:
+                        '≈ ${ContractFinancialAnalysis.formatDecimal(a.diasAdicionados / 30)} meses adicionales',
+                  ),
+              ];
+              return Wrap(spacing: gap, runSpacing: gap, children: tiles);
+            },
+          ),
+          if (a.tienePlazo && a.valorTotal > 0) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFEDE3CC)),
+              ),
+              child: SelectableText(
+                'Cálculo: ${fmt(a.valorTotal)} ÷ ${a.plazoDias} días = '
+                '${fmt(a.valorDiario)} por día × 30 días = '
+                '${fmt(a.valorMensualEstimado)} por mes.\n'
+                '${a.fuentePlazo}. Es una estimación referencial: la forma de '
+                'pago real (mensualidades, anticipo o pago único) se define en '
+                'la minuta y los estudios previos del contrato.',
+                style: const TextStyle(
+                  color: Color(0xFF475569),
+                  fontSize: 12,
+                  height: 1.45,
+                ),
+              ),
+            ),
+          ],
+          if (a.fechaInicio != null || a.fechaFin != null) ...[
+            const SizedBox(height: 16),
+            _finLineaTiempo(a),
+          ],
+          if (a.pagos.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            _finDesgloseMontos(
+              titulo: 'Ejecución de pagos reportada',
+              icono: Icons.receipt_long_outlined,
+              valores: a.pagos,
+              base: a.valorTotal,
+            ),
+          ],
+          if (a.fuentesRecursos.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            _finDesgloseMontos(
+              titulo: 'Fuentes de financiación',
+              icono: Icons.account_tree_outlined,
+              valores: a.fuentesRecursos,
+              base: a.valorTotal,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _finLineaTiempo(ContractFinancialAnalysis a) {
+    final avance = a.avanceTemporal;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Inicio: ${ContractFinancialAnalysis.formatFecha(a.fechaInicio)}',
+                style: const TextStyle(
+                  color: _azulOscuro,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            Text(
+              'Fin: ${ContractFinancialAnalysis.formatFecha(a.fechaFin)}',
+              style: const TextStyle(
+                color: _azulOscuro,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        if (avance != null) ...[
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: avance,
+              minHeight: 9,
+              backgroundColor: const Color(0xFFEDE3CC),
+              valueColor: const AlwaysStoppedAnimation<Color>(_amarillo),
+            ),
+          ),
+        ],
+        const SizedBox(height: 6),
+        Text(
+          avance != null
+              ? '${a.estadoTemporal} · ${(avance * 100).toStringAsFixed(0)}% del plazo transcurrido'
+              : a.estadoTemporal,
+          style: const TextStyle(color: Color(0xFF64748B), fontSize: 11.5),
+        ),
+      ],
+    );
+  }
+
+  Widget _finDesgloseMontos({
+    required String titulo,
+    required IconData icono,
+    required Map<String, double> valores,
+    required double base,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icono, size: 17, color: const Color(0xFFB45309)),
+            const SizedBox(width: 6),
+            Text(
+              titulo,
+              style: const TextStyle(
+                color: _azulOscuro,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        ...valores.entries.map((e) {
+          final pct = base > 0 ? (e.value / base).clamp(0.0, 1.0) : 0.0;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        e.key,
+                        style: const TextStyle(
+                          color: Color(0xFF475569),
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      ContractFinancialAnalysis.formatCop(e.value),
+                      style: const TextStyle(
+                        color: _finVerdeValor,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    if (base > 0) ...[
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 44,
+                        child: Text(
+                          '${(pct * 100).toStringAsFixed(0)}%',
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            color: Color(0xFF64748B),
+                            fontSize: 11.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (base > 0) ...[
+                  const SizedBox(height: 5),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: pct,
+                      minHeight: 6,
+                      backgroundColor: const Color(0xFFEDE3CC),
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        _azulOscuro,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  IconData _finIconoSeccion(String id) {
+    switch (id) {
+      case 'identificacion':
+        return Icons.badge_outlined;
+      case 'cronograma':
+        return Icons.event_note_outlined;
+      case 'entidad':
+        return Icons.account_balance_outlined;
+      case 'contratista':
+        return Icons.person_outline;
+      case 'supervision':
+        return Icons.verified_user_outlined;
+      case 'presupuesto':
+        return Icons.savings_outlined;
+      default:
+        return Icons.dataset_outlined;
+    }
+  }
+
+  Widget _buildFichaTecnicaIntegral({required bool isMobile}) {
+    final secciones = ContractFieldCatalog.buildSections(_contratoData);
+    final totalCampos =
+        secciones.fold<int>(0, (sum, s) => sum + s.entries.length);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _finSectionHeader(
+          icon: Icons.fact_check_outlined,
+          title: 'Ficha técnica integral del contrato',
+          subtitle: _expedienteEnriquecido
+              ? '$totalCampos campos oficiales extraídos de Datos Abiertos SECOP'
+              : '$totalCampos campos disponibles'
+                  '${_cargandoExpedienteCompleto ? ' · consultando expediente completo…' : ''}',
+          trailing: _cargandoExpedienteCompleto
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: _azulOscuro,
+                  ),
+                )
+              : null,
+        ),
+        const SizedBox(height: 14),
+        if (secciones.isEmpty)
+          const Text(
+            'SECOP no reporta información adicional para este contrato.',
+            style: TextStyle(color: Color(0xFF64748B), fontSize: 12.5),
+          ),
+        ...secciones.map(
+          (s) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _finSeccionFicha(s, isMobile: isMobile),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _finSeccionFicha(
+    ContractFieldSection seccion, {
+    required bool isMobile,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: seccion.id != 'adicionales',
+          tilePadding: const EdgeInsets.symmetric(horizontal: 14),
+          childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+          leading: Icon(
+            _finIconoSeccion(seccion.id),
+            color: _azulOscuro,
+            size: 20,
+          ),
+          title: Text(
+            seccion.title,
+            style: const TextStyle(
+              color: _azulOscuro,
+              fontSize: 13.5,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          subtitle: Text(
+            '${seccion.entries.length} campos',
+            style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11.5),
+          ),
+          children: [
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final cols = isMobile ? 1 : 2;
+                const gap = 10.0;
+                final w = (constraints.maxWidth - gap * (cols - 1)) / cols;
+                return Wrap(
+                  spacing: gap,
+                  runSpacing: gap,
+                  children: seccion.entries
+                      .map((e) => _finCampoFicha(e, width: w))
+                      .toList(),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _finCampoFicha(ContractFieldEntry e, {required double width}) {
+    final esContratista = e.key == 'proveedor_adjudicado' ||
+        e.key == 'nom_raz_social_contratista';
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            e.label,
+            style: const TextStyle(
+              color: Color(0xFF64748B),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          if (esContratista)
+            InkWell(
+              onTap: _abrirPerfilContratista,
+              child: Text(
+                e.value,
+                style: const TextStyle(
+                  color: _azulPrimario,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            )
+          else
+            SelectableText(
+              e.value,
+              style: const TextStyle(
+                color: _azulOscuro,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                height: 1.35,
+              ),
+            ),
         ],
       ),
     );
@@ -2886,6 +3748,54 @@ $sanitizedQuestion
                 ),
               ),
             ),
+            _buildContextItem(
+              icon: Icons.monetization_on_outlined,
+              iconColor: const Color(0xFF16A34A),
+              iconBg: const Color(0xFFE6F6EC),
+              label: 'Valor total',
+              valueWidget: Text(
+                _valorFormateado,
+                style: const TextStyle(
+                  color: Color(0xFF15803D),
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            if (_analisis.tienePlazo && _analisis.valorTotal > 0)
+              _buildContextItem(
+                icon: Icons.payments_outlined,
+                iconColor: const Color(0xFF1D4ED8),
+                iconBg: const Color(0xFFEFF6FF),
+                label: _analisis.esMenorAUnMes
+                    ? 'Pago por ${_analisis.plazoDias} días'
+                    : 'Valor mensual estimado',
+                valueWidget: Text(
+                  _analisis.esMenorAUnMes
+                      ? ContractFinancialAnalysis.formatCop(_analisis.valorTotal)
+                      : '${ContractFinancialAnalysis.formatCop(_analisis.valorMensualEstimado)} / mes',
+                  style: const TextStyle(
+                    color: Color(0xFF1D4ED8),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            if (_analisis.tienePlazo)
+              _buildContextItem(
+                icon: Icons.timelapse_rounded,
+                iconColor: const Color(0xFFD97706),
+                iconBg: const Color(0xFFFEF5D8),
+                label: 'Plazo (base 30 días/mes)',
+                valueWidget: Text(
+                  '${_analisis.plazoDias} días · ${_analisis.mesesDecimalTexto}',
+                  style: const TextStyle(
+                    color: _azulOscuro,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
             _buildContextItem(
               icon: Icons.account_balance_outlined,
               iconColor: const Color(0xFF2563EB),

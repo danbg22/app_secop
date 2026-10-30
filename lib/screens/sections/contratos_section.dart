@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../data/colombia_secop_catalog.dart';
 import '../../services/security_service.dart';
 import '../../utils/app_scroll_behavior.dart';
+import '../../utils/contract_financial_calculator.dart';
 import '../../utils/csv_exporter.dart';
 import '../../widgets/user_profile_header_action.dart';
 import '../detalle_screen.dart';
@@ -84,8 +85,8 @@ class _ContratosSectionState extends State<ContratosSection> {
   static const Color _cremaTarjeta = Color(0xFFFFFDF8);
   static const Color _bordeCalido = Color(0xFFE6DEC8);
   static const int _pageSize = 10;
-  static const int _initialResultsLimit = 120;
-  static const int _searchResultsLimit = 160;
+  static const int _initialResultsLimit = 250;
+  static const int _searchResultsLimit = 600;
   static final Map<String, List<ContractRecord>> _fastContractsQueryCache = {};
   static const String _secopSelectFields =
       'id_contrato,referencia_del_contrato,proceso_de_compra,nombre_entidad,'
@@ -332,6 +333,13 @@ class _ContratosSectionState extends State<ContratosSection> {
     '2024',
     '2023',
     '2022',
+    '2021',
+    '2020',
+    '2019',
+    '2018',
+    '2017',
+    '2016',
+    '2015',
   ];
 
   // Semilla inicial con contratos reales de SECOP II de distintos órdenes y regiones del país
@@ -646,6 +654,34 @@ class _ContratosSectionState extends State<ContratosSection> {
       }
     }
     return result;
+  }
+
+  static Map<String, dynamic> _normalizarSecopIRaw(Map<String, dynamic> c) {
+    final m = Map<String, dynamic>.from(c);
+    m['id_contrato'] ??= m['numero_del_contrato'] ?? m['uid'] ?? m['numero_de_constancia'];
+    m['proceso_de_compra'] ??= m['numero_de_proceso'] ?? m['id_contrato'];
+    m['referencia_del_contrato'] ??= m['numero_del_contrato'] ?? m['numero_de_proceso'];
+    m['proveedor_adjudicado'] ??= m['nom_raz_social_contratista'];
+    m['documento_proveedor'] ??= m['identificacion_del_contratista'];
+    m['tipodocproveedor'] ??= m['tipo_identificacion_del_contratista'] ?? 'Cédula de Ciudadanía';
+    final rawVal = (m['cuantia_contrato'] ?? m['valor_del_contrato'] ?? '').toString();
+    final cleanVal = rawVal.replaceAll(r'$', '').replaceAll(' ', '').replaceAll(',', '');
+    m['valor_del_contrato'] = cleanVal.isNotEmpty ? cleanVal : rawVal;
+    m['fecha_de_firma'] ??= m['fecha_de_firma_del_contrato'] ?? m['fecha_ini_ejec_contrato'];
+    m['fecha_de_inicio_del_contrato'] ??= m['fecha_ini_ejec_contrato'] ?? m['fecha_de_firma_del_contrato'];
+    m['fecha_de_fin_del_contrato'] ??= m['fecha_fin_ejec_contrato'];
+    m['nombre_entidad'] ??= m['nombre_de_la_entidad'];
+    m['nit_entidad'] ??= m['nit_de_la_entidad'];
+    m['descripcion_del_proceso'] ??= m['detalle_del_objeto_a_contratar'] ?? m['objeto_a_contratar'];
+    m['objeto_del_contrato'] ??= m['objeto_a_contratar'] ?? m['detalle_del_objeto_a_contratar'];
+    m['modalidad_de_contratacion'] ??= m['tipo_de_proceso'];
+    m['tipo_de_contrato'] ??= m['tipo_de_contrato'];
+    m['estado_contrato'] ??= m['estado_del_proceso'] ?? 'Celebrado';
+    m['departamento'] ??= m['departamento_entidad'];
+    m['ciudad'] ??= m['municipio_entidad'];
+    m['orden'] ??= m['nivel_entidad'] ?? 'Territorial';
+    m['urlproceso'] ??= m['ruta_proceso_en_secop_i'];
+    return m;
   }
 
   ContractRecord? _parseSecopJsonToRecord(
@@ -1541,10 +1577,16 @@ class _ContratosSectionState extends State<ContratosSection> {
           if (sectorClause != null) whereClauses.add(sectorClause);
         }
 
-        // Filtro por Año
+        // Filtro por Año (cobertura completa 2015 a 2026 en fecha de firma o fecha de inicio)
         if (applyYearFilter && RegExp(r'^\d{4}$').hasMatch(_selectedAnio)) {
           whereClauses.add(
-            "(fecha_de_firma >= '$_selectedAnio-01-01T00:00:00.000' AND fecha_de_firma <= '$_selectedAnio-12-31T23:59:59.999')",
+            "((fecha_de_firma >= '$_selectedAnio-01-01T00:00:00.000' AND fecha_de_firma <= '$_selectedAnio-12-31T23:59:59.999') OR "
+            "(fecha_de_firma IS NULL AND fecha_de_inicio_del_contrato >= '$_selectedAnio-01-01T00:00:00.000' AND fecha_de_inicio_del_contrato <= '$_selectedAnio-12-31T23:59:59.999'))",
+          );
+        } else if (_selectedAnio.isEmpty) {
+          // Cobertura histórica oficial desde 2015 en adelante
+          whereClauses.add(
+            "(fecha_de_firma >= '2015-01-01T00:00:00.000' OR fecha_de_inicio_del_contrato >= '2015-01-01T00:00:00.000')",
           );
         }
 
@@ -1743,7 +1785,7 @@ class _ContratosSectionState extends State<ContratosSection> {
               '/resource/jbjy-vk9h.json',
               <String, String>{
                 r'$select': _secopSelectFields,
-                r'$limit': '80',
+                r'$limit': '300',
                 r'$order': 'fecha_de_firma DESC',
                 r'$where': likeClauses.join(' AND '),
               },
@@ -1759,14 +1801,96 @@ class _ContratosSectionState extends State<ContratosSection> {
         return [];
       }
 
+      Future<List<ContractRecord>> fetchSecopIContracts({
+        bool applyYearFilter = true,
+      }) async {
+        try {
+          final whereClauses = <String>[];
+          if (applyYearFilter && RegExp(r'^\d{4}$').hasMatch(_selectedAnio)) {
+            whereClauses.add("(anno_firma_del_contrato = '$_selectedAnio' OR anno_del_cargue_del_proceso = '$_selectedAnio')");
+          } else {
+            whereClauses.add("anno_firma_del_contrato >= '2015'");
+          }
+
+          if (_selectedDepartamento.isNotEmpty) {
+            final safeDep = SecurityService.sanitizeSoqlToken(_selectedDepartamento, maxLength: 60);
+            final dNorm = _normalizar(safeDep);
+            if (dNorm.isNotEmpty) {
+              whereClauses.add("upper(departamento_entidad) LIKE '%$dNorm%'");
+            }
+          }
+
+          if (_selectedMunicipio.isNotEmpty) {
+            final safeMun = SecurityService.sanitizeSoqlToken(_selectedMunicipio, maxLength: 60);
+            final mNorm = _normalizar(safeMun);
+            if (mNorm.isNotEmpty) {
+              whereClauses.add("upper(municipio_entidad) LIKE '%$mNorm%'");
+            }
+          }
+
+          if (_selectedEntidad.isNotEmpty) {
+            final safeEnt = SecurityService.sanitizeSoqlToken(_selectedEntidad, maxLength: 60);
+            final eNorm = _normalizar(safeEnt);
+            if (eNorm.isNotEmpty) {
+              whereClauses.add("upper(nombre_de_la_entidad) LIKE '%$eNorm%'");
+            }
+          }
+
+          if (queryText.isNotEmpty) {
+            final cleanQ = SecurityService.sanitizeSoqlToken(queryText, maxLength: 80);
+            final digits = cleanQ.replaceAll(RegExp(r'[^0-9]'), '');
+            final qNorm = _normalizar(cleanQ);
+            if (digits.length >= 4) {
+              whereClauses.add("(starts_with(identificacion_del_contratista, '$digits') OR upper(numero_del_contrato) LIKE '%$digits%')");
+            } else if (qNorm.isNotEmpty) {
+              whereClauses.add("(upper(nom_raz_social_contratista) LIKE '%$qNorm%' OR upper(detalle_del_objeto_a_contratar) LIKE '%$qNorm%')");
+            }
+          }
+
+          final uri = Uri.https(
+            'www.datos.gov.co',
+            '/resource/f789-7hwg.json',
+            <String, String>{
+              r'$limit': '$queryLimit',
+              r'$order': 'fecha_de_firma_del_contrato DESC',
+              r'$where': whereClauses.join(' AND '),
+            },
+          );
+
+          final response = await http.get(uri).timeout(const Duration(seconds: 10));
+          if (response.statusCode == 200) {
+            final decoded = json.decode(utf8.decode(response.bodyBytes));
+            if (decoded is List) {
+              final list = <ContractRecord>[];
+              for (var i = 0; i < decoded.length; i++) {
+                if (decoded[i] is Map) {
+                  final norm = _normalizarSecopIRaw(
+                    Map<String, dynamic>.from(decoded[i] as Map),
+                  );
+                  final record = _parseSecopJsonToRecord(norm, i);
+                  if (record != null) list.add(record);
+                }
+              }
+              return list;
+            }
+          }
+        } catch (_) {}
+        return [];
+      }
+
       var results = await runSoqlQuery(applyYearFilter: true);
       if (!mounted || requestId != _latestRequestId) return;
 
-      if (results.isEmpty && _selectedAnio.isNotEmpty) {
-        results = await runSoqlQuery(applyYearFilter: false);
-        if (!mounted || requestId != _latestRequestId) return;
-        if (results.isNotEmpty && mounted) {
-          setState(() => _selectedAnio = '');
+      final anioNum = int.tryParse(_selectedAnio);
+      final esAnioHistoricoSecop1 = anioNum != null && anioNum <= 2019;
+      final necesitaSecop1 = esAnioHistoricoSecop1 ||
+          (_selectedAnio.isNotEmpty && results.length < 20) ||
+          (_selectedAnio.isEmpty && results.length < 60 && queryText.isNotEmpty);
+
+      if (necesitaSecop1) {
+        final secop1Results = await fetchSecopIContracts();
+        if (secop1Results.isNotEmpty) {
+          results = _mergeAndDeduplicateRecords(results, secop1Results);
         }
       }
 
@@ -1785,12 +1909,15 @@ class _ContratosSectionState extends State<ContratosSection> {
       });
 
       if (!silent && mounted && requestId == _latestRequestId) {
+        final sourceMsg = esAnioHistoricoSecop1
+            ? 'desde SECOP I y SECOP II'
+            : 'desde SECOP';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               results.isNotEmpty
-                  ? 'Se cargaron ${results.length} contratos desde SECOP II.'
-                  : 'No se encontraron contratos en SECOP II con ese criterio.',
+                  ? 'Se cargaron ${results.length} contratos $sourceMsg.'
+                  : 'No se encontraron contratos con ese criterio.',
             ),
             duration: const Duration(seconds: 2),
           ),
@@ -1932,25 +2059,36 @@ class _ContratosSectionState extends State<ContratosSection> {
         'Estado',
         'Modalidad',
         'Valor del Contrato',
+        'Plazo Días',
+        'Equivalencia Meses',
+        'Valor Mensual Estimado',
         'Fecha de Inicio',
         'Fecha de Fin',
       ],
       for (final contract in list)
-        [
-          contract.processCode,
-          contract.orden,
-          contract.location,
-          contract.entity,
-          contract.department,
-          contract.title.replaceAll('\n', ' ').replaceAll(';', ','),
-          contract.contractor.replaceAll(';', ','),
-          contract.contractorId,
-          contract.status,
-          contract.modality,
-          contract.valueFormatted,
-          contract.startDate,
-          contract.endDate,
-        ],
+        () {
+          final an = ContractFinancialAnalysis.fromContract(contract.rawSecopJson);
+          return [
+            contract.processCode,
+            contract.orden,
+            contract.location,
+            contract.entity,
+            contract.department,
+            contract.title.replaceAll('\n', ' ').replaceAll(';', ','),
+            contract.contractor.replaceAll(';', ','),
+            contract.contractorId,
+            contract.status,
+            contract.modality,
+            contract.valueFormatted,
+            an.tienePlazo ? '${an.plazoDias}' : 'N/R',
+            an.tienePlazo ? an.mesesDecimalTexto : 'N/R',
+            an.tienePlazo && an.valorTotal > 0
+                ? ContractFinancialAnalysis.formatCop(an.valorMensualEstimado)
+                : 'N/R',
+            contract.startDate,
+            contract.endDate,
+          ];
+        }(),
     ];
 
     exportCsv(
@@ -1998,6 +2136,7 @@ class _ContratosSectionState extends State<ContratosSection> {
             ? map['urlproceso']['url']?.toString()
             : null) ??
         'https://community.secop.gov.co/Public/Tendering/ContractNoticeManagement/Index';
+    final analisis = ContractFinancialAnalysis.fromContract(contract.rawSecopJson);
 
     showDialog<void>(
       context: context,
@@ -2083,14 +2222,31 @@ class _ContratosSectionState extends State<ContratosSection> {
                   runSpacing: 12,
                   children: [
                     _quickInfoTile(
-                      'Valor del contrato',
+                      'Valor total del contrato',
                       contract.valueFormatted,
                     ),
+                    if (analisis.tienePlazo && analisis.valorTotal > 0)
+                      _quickInfoTile(
+                        analisis.esMenorAUnMes
+                            ? 'Pago por ${analisis.plazoDias} días'
+                            : 'Valor mensual estimado a recibir',
+                        analisis.esMenorAUnMes
+                            ? ContractFinancialAnalysis.formatCop(analisis.valorTotal)
+                            : '${ContractFinancialAnalysis.formatCop(analisis.valorMensualEstimado)} / mes',
+                        caption: '(Valor total ÷ ${analisis.plazoDias} días) × 30 días',
+                        highlight: true,
+                      ),
+                    if (analisis.tienePlazo)
+                      _quickInfoTile(
+                        'Plazo (base 30 días = 1 mes)',
+                        '${analisis.plazoDias} días · ${analisis.mesesDecimalTexto}',
+                        caption: analisis.mesesDesglosadosTexto,
+                      ),
                     _quickInfoTile('Estado', contract.status),
                     _quickInfoTile('Dependencia / Sector', contract.department),
                     _quickInfoTile('Modalidad', contract.modality),
                     _quickInfoTile(
-                      'Plazo de ejecución',
+                      'Vigencia de ejecución',
                       '${contract.startDate} → ${contract.endDate}',
                     ),
                     _quickInfoTile('Ubicación', contract.location),
@@ -2187,7 +2343,12 @@ class _ContratosSectionState extends State<ContratosSection> {
     );
   }
 
-  Widget _quickInfoTile(String label, String value) {
+  Widget _quickInfoTile(
+    String label,
+    String value, {
+    String? caption,
+    bool highlight = false,
+  }) {
     return SizedBox(
       width: 230,
       child: Column(
@@ -2200,12 +2361,22 @@ class _ContratosSectionState extends State<ContratosSection> {
           const SizedBox(height: 2),
           Text(
             value,
-            style: const TextStyle(
-              color: _azulOscuro,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
+            style: TextStyle(
+              color: highlight ? const Color(0xFF1D4ED8) : _azulOscuro,
+              fontSize: highlight ? 14 : 13,
+              fontWeight: FontWeight.w800,
             ),
           ),
+          if (caption != null && caption.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              caption,
+              style: const TextStyle(
+                color: Color(0xFF94A3B8),
+                fontSize: 10.5,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -3634,6 +3805,56 @@ class _ContratosSectionState extends State<ContratosSection> {
                   ),
                 ),
               ),
+              // Selector rápido de Vigencia (2015 a 2026)
+              Container(
+                height: 36,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: _selectedAnio.isNotEmpty
+                      ? const Color(0xFFFFF4D6)
+                      : _cremaFondo,
+                  borderRadius: BorderRadius.circular(9),
+                  border: Border.all(
+                    color: _selectedAnio.isNotEmpty
+                        ? _doradoPlataforma
+                        : _bordeCalido,
+                  ),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedAnio.isEmpty ? '' : _selectedAnio,
+                    icon: const Icon(
+                      Icons.calendar_today_outlined,
+                      size: 14,
+                      color: _azulOscuro,
+                    ),
+                    isDense: true,
+                    style: const TextStyle(
+                      color: _azulOscuro,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    items: [
+                      const DropdownMenuItem(
+                        value: '',
+                        child: Text('Vigencia: Todas (2015–2026)'),
+                      ),
+                      for (final anio in _anioOptions)
+                        DropdownMenuItem(
+                          value: anio,
+                          child: Text('Año $anio'),
+                        ),
+                    ],
+                    onChanged: (val) {
+                      setState(() {
+                        _selectedAnio = val ?? '';
+                        _currentPage = 1;
+                      });
+                      _fetchLiveSecopContracts(silent: true);
+                    },
+                  ),
+                ),
+              ),
               SizedBox(
                 height: 36,
                 child: OutlinedButton(
@@ -4200,6 +4421,7 @@ class _ContratosSectionState extends State<ContratosSection> {
   }
 
   Widget _buildTableRow(ContractRecord contract) {
+    final analisis = ContractFinancialAnalysis.fromContract(contract.rawSecopJson);
     final Color statusColor = switch (contract.status) {
       'En ejecución' => const Color(0xFF15803D),
       'Aprobado' || 'En aprobación' => const Color(0xFFB45309),
@@ -4350,15 +4572,36 @@ class _ContratosSectionState extends State<ContratosSection> {
         ),
         cell(
           1,
-          Text(
-            contract.valueFormatted,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: _azulOscuro,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                contract.valueFormatted,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: _azulOscuro,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (analisis.tienePlazo && analisis.valorTotal > 0) ...[
+                const SizedBox(height: 1),
+                Text(
+                  analisis.esMenorAUnMes
+                      ? '${analisis.plazoDias}d total'
+                      : '≈ ${ContractFinancialAnalysis.formatCop(analisis.valorMensualEstimado)}/m',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF15803D),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
         cell(
@@ -4385,14 +4628,33 @@ class _ContratosSectionState extends State<ContratosSection> {
         ),
         cell(
           1,
-          Text(
-            '${contract.startDate}\n${contract.endDate}',
-            maxLines: 2,
-            style: const TextStyle(
-              color: Color(0xFF475569),
-              fontSize: 10.5,
-              height: 1.3,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '${contract.startDate}\n${contract.endDate}',
+                maxLines: 2,
+                style: const TextStyle(
+                  color: Color(0xFF475569),
+                  fontSize: 10.5,
+                  height: 1.25,
+                ),
+              ),
+              if (analisis.tienePlazo) ...[
+                const SizedBox(height: 1),
+                Text(
+                  '${analisis.plazoDias}d · ${analisis.mesesDecimalTexto}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFFB45309),
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
         SizedBox(

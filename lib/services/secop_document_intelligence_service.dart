@@ -810,7 +810,7 @@ class SecopDocumentIntelligenceService {
     final v = value.trim();
     if (v.length < 4 || v.length > 260) return false;
     return RegExp(
-      r'\.(pdf|zip|rar|7z|doc|docx|xls|xlsx|xlsm|csv|ppt|pptx|jpg|jpeg|png|tif|tiff|txt|rtf|odt|ods|msg)\s*$',
+      r'(\.(pdf|zip|rar|7z|doc|docx|xls|xlsx|xlsm|csv|ppt|pptx|jpg|jpeg|png|tif|tiff|txt|rtf|odt|ods|msg)|[\s\-_](pdf|xlsx|xls|docx|doc|zip|rar))\s*$',
       caseSensitive: false,
     ).hasMatch(v);
   }
