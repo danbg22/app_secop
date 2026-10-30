@@ -13,33 +13,55 @@ class SecopExtractedDocument {
     required this.name,
     required this.extension,
     required this.category,
+    this.downloadUrl,
+    this.group,
   });
 
   final String name;
   final String extension;
   final String category;
 
+  /// Enlace directo de descarga del archivo en SECOP II (Datos Abiertos).
+  final String? downloadUrl;
+
+  /// Sección del expediente a la que pertenece el archivo. `null` cuando el
+  /// listado proviene de la lectura de la página (sin agrupación).
+  final SecopDocumentGroup? group;
+
   Map<String, dynamic> toJson() => {
         'name': name,
         'extension': extension,
         'category': category,
+        if (downloadUrl != null) 'downloadUrl': downloadUrl,
+        if (group != null) 'group': group!.name,
       };
 
-  factory SecopExtractedDocument.fromName(String rawName) {
+  factory SecopExtractedDocument.fromName(
+    String rawName, {
+    String? downloadUrl,
+    SecopDocumentGroup? group,
+  }) {
     final cleanName = rawName.replaceAll(RegExp(r'\s+'), ' ').trim();
     return SecopExtractedDocument(
       name: cleanName,
       extension: _detectarExtension(cleanName),
       category: _inferirCategoria(cleanName),
+      downloadUrl: downloadUrl,
+      group: group,
     );
   }
 
   factory SecopExtractedDocument.fromJson(Map<String, dynamic> json) {
     final name = (json['name'] ?? '').toString().trim();
+    final rawGroup = json['group']?.toString();
     return SecopExtractedDocument(
       name: name,
       extension: (json['extension'] ?? _detectarExtension(name)).toString(),
       category: (json['category'] ?? _inferirCategoria(name)).toString(),
+      downloadUrl: json['downloadUrl']?.toString(),
+      group: SecopDocumentGroup.values
+          .where((g) => g.name == rawGroup)
+          .firstOrNull,
     );
   }
 
@@ -145,6 +167,14 @@ class SecopExtractedDocument {
   }
 }
 
+enum SecopDocumentGroup {
+  /// Sección "Documentación" del proceso (estudios previos, pliegos, avisos...).
+  proceso,
+
+  /// Archivos cargados al contrato (minuta firmada, RP, informes, actas...).
+  contrato,
+}
+
 enum SecopExtractionStatus {
   success,
   emptyOfficialList,
@@ -171,7 +201,7 @@ class SecopExtractionResult {
 }
 
 class SecopDocumentIntelligenceService {
-  static const String _cachePrefix = 'secop_docs_extract_v1_';
+  static const String _cachePrefix = 'secop_docs_extract_v3_';
   static final Map<String, List<SecopExtractedDocument>> _memoryCache = {};
 
   static String normalizarTexto(String input) {
@@ -374,6 +404,132 @@ class SecopDocumentIntelligenceService {
     return uri.toString();
   }
 
+  /// Datasets "SECOP II - Archivos Descarga" de Datos Abiertos, particionados
+  /// por año de carga del archivo. Agregar aquí el dataset de cada año nuevo.
+  static const List<String> _datasetsArchivosSecopII = [
+    'f8va-cf4m', // Histórico hasta 2021
+    'kgcd-kt7i', // 2022
+    '3skv-9na7', // 2023
+    'nbae-kzan', // 2024
+    'h4m3-b4e2', // 2025
+    'dmgg-8hin', // 2026
+  ];
+
+  static final RegExp _idSecopIIValido = RegExp(r'^CO1\.[A-Z]+\.\d+$');
+
+  /// Consulta en Datos Abiertos los archivos publicados en SECOP II para el
+  /// contrato: los cargados al contrato (`n_mero_de_contrato`) y los del
+  /// proceso que no pertenecen a ningún contrato (estudios previos, pliegos...).
+  ///
+  /// Devuelve `null` si el contrato no tiene identificadores SECOP II o si
+  /// ninguna consulta respondió, para que se intente el flujo alternativo.
+  static Future<SecopExtractionResult?> obtenerDocumentosDatosAbiertos(
+    dynamic contrato,
+  ) async {
+    if (contrato is! Map) return null;
+    String leerId(String key) {
+      final v = (contrato[key] ?? '').toString().trim().toUpperCase();
+      return _idSecopIIValido.hasMatch(v) ? v : '';
+    }
+
+    final idContrato = leerId('id_contrato');
+    final proceso = leerId('proceso_de_compra');
+    if (idContrato.isEmpty && proceso.isEmpty) return null;
+
+    final clauses = <String>[
+      if (idContrato.isNotEmpty) "n_mero_de_contrato = '$idContrato'",
+      if (proceso.isNotEmpty)
+        idContrato.isNotEmpty
+            ? "(proceso = '$proceso' AND n_mero_de_contrato IS NULL)"
+            : "proceso = '$proceso'",
+    ];
+    final where = clauses.join(' OR ');
+
+    Future<List<Map>?> consultar(String dataset) async {
+      try {
+        final uri = Uri.https('www.datos.gov.co', '/resource/$dataset.json', {
+          r'$select': 'id_documento,nombre_archivo,fecha_carga,'
+              'n_mero_de_contrato,url_descarga_documento',
+          r'$where': where,
+          r'$limit': '2000',
+        });
+        final res = await http.get(uri).timeout(const Duration(seconds: 15));
+        if (res.statusCode != 200) return null;
+        final decoded = json.decode(utf8.decode(res.bodyBytes));
+        return decoded is List ? decoded.whereType<Map>().toList() : null;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    final respuestas =
+        await Future.wait(_datasetsArchivosSecopII.map(consultar));
+    if (respuestas.every((r) => r == null)) return null;
+
+    final filas = respuestas.whereType<List<Map>>().expand((r) => r).toList()
+      ..sort((a, b) {
+        final porFecha = (a['fecha_carga'] ?? '')
+            .toString()
+            .compareTo((b['fecha_carga'] ?? '').toString());
+        if (porFecha != 0) return porFecha;
+        return (int.tryParse('${a['id_documento']}') ?? 0)
+            .compareTo(int.tryParse('${b['id_documento']}') ?? 0);
+      });
+
+    // SECOP copia los anexos del proceso al contrato y los vuelve a guardar en
+    // cada versión del contrato, así que se deduplica por nombre: un nombre
+    // del proceso no se repite en el contrato y, dentro de cada grupo, se
+    // conserva la copia más reciente (la de la última versión).
+    final porGrupo = {
+      for (final g in SecopDocumentGroup.values)
+        g: <String, SecopExtractedDocument>{},
+    };
+    for (final fila in filas) {
+      final nombre = (fila['nombre_archivo'] ?? '').toString().trim();
+      if (nombre.isEmpty) continue;
+      final grupo = (fila['n_mero_de_contrato'] ?? '').toString().trim().isEmpty
+          ? SecopDocumentGroup.proceso
+          : SecopDocumentGroup.contrato;
+      final rawUrl = fila['url_descarga_documento'];
+      final url = SecurityService.validateOfficialGovUrl(
+        (rawUrl is Map ? rawUrl['url'] : rawUrl)?.toString(),
+      )?.toString();
+      final doc = SecopExtractedDocument.fromName(
+        nombre,
+        downloadUrl: url,
+        group: grupo,
+      );
+      final clave = normalizarTexto(doc.name);
+      // Sobrescribir conserva la posición de la primera aparición.
+      porGrupo[grupo]![clave] = doc;
+    }
+    porGrupo[SecopDocumentGroup.contrato]!.removeWhere(
+      (clave, _) => porGrupo[SecopDocumentGroup.proceso]!.containsKey(clave),
+    );
+    final docs = [
+      for (final g in SecopDocumentGroup.values) ...porGrupo[g]!.values,
+    ];
+
+    final secopUrl =
+        construirUrlVistaDocumental(await resolverUrlProcesoOficial(contrato));
+    if (docs.isEmpty) {
+      return SecopExtractionResult(
+        status: SecopExtractionStatus.emptyOfficialList,
+        documents: const [],
+        resolvedSecopUrl: secopUrl,
+        errorMessage:
+            'Datos Abiertos no registra archivos publicados en SECOP II para este contrato.',
+      );
+    }
+    await _guardarEnCache(_cacheKeyForContract(contrato, secopUrl), docs);
+    return SecopExtractionResult(
+      status: SecopExtractionStatus.success,
+      documents: docs,
+      resolvedSecopUrl: secopUrl,
+      summaryText: generarResumenEjecutivo(docs),
+    );
+  }
+
   /// Conecta con la sección `Documentación` del proceso en SECOP II, extrae
   /// únicamente los nombres reales de los documentos publicados y los clasifica.
   static Future<SecopExtractionResult> extraerDocumentosContrato(
@@ -390,6 +546,10 @@ class SecopDocumentIntelligenceService {
       final cached = await obtenerCacheSiExiste(contrato);
       if (cached != null) return cached;
     }
+
+    onProgress?.call('Consultando archivos publicados en Datos Abiertos...');
+    final datosAbiertos = await obtenerDocumentosDatosAbiertos(contrato);
+    if (datosAbiertos != null) return datosAbiertos;
 
     onProgress?.call(
       'Conectando con la sección Documentación de Colombia Compra Eficiente...',

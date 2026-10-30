@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+import '../utils/anios_secop.dart';
 import 'detalle_screen.dart';
 import 'perfil_contratista_screen.dart';
 import 'sections/entidades_section.dart';
@@ -120,22 +121,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
 
   // Vigencia anualizada (2026 por defecto; soporta 2015 a 2026 o historial completo)
   bool _onlyCurrentYear2026 = true;
-  int _activeBudgetYear = 2026;
-  int? _selectedContratosYear = 2026;
-  static const List<int> _aniosDisponibles = [
-    2026,
-    2025,
-    2024,
-    2023,
-    2022,
-    2021,
-    2020,
-    2019,
-    2018,
-    2017,
-    2016,
-    2015,
-  ];
+  int _activeBudgetYear = AniosSecop.actual;
+  int? _selectedContratosYear = AniosSecop.actual;
+  static List<int> get _aniosDisponibles => AniosSecop.disponibles;
 
   // Selector de Regional / Seccional Territorial (null = Consolidado Nacional / Total Entidad)
   String? _selectedRegionalDept;
@@ -146,7 +134,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   double _presupuestoTotalCop = 0;
   double _ejecutadoCop = 0;
   double _disponibleCop = 0;
-  int _porcentajeEjecutado = 72;
+  int _porcentajeEjecutado = 0;
 
   int _totalContratos = 0;
   double _valorTotalContratadoCop = 0;
@@ -189,13 +177,10 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   void _initBaselineMetrics() {
     final baseContractedCop = widget.entity.amountMillions * 1000000;
     final safeContracted = baseContractedCop > 0 ? baseContractedCop : 0.0;
-    const ratio = 0.76;
-    _ejecutadoCop = safeContracted;
-    _presupuestoTotalCop = safeContracted > 0
-        ? (safeContracted / ratio).roundToDouble()
-        : 0.0;
-    _disponibleCop = math.max(0, _presupuestoTotalCop - _ejecutadoCop);
-    _porcentajeEjecutado = 76;
+    _presupuestoTotalCop = safeContracted;
+    _ejecutadoCop = 0;
+    _disponibleCop = 0;
+    _porcentajeEjecutado = 0;
 
     _totalContratos = widget.entity.contractsCount;
     _valorTotalContratadoCop = safeContracted;
@@ -376,7 +361,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         : _nitEntidad.replaceAll(RegExp(r'[^0-9]'), '');
 
     if (nitClean.length >= 8) {
-      clauses.add("(nit_entidad = '$nitClean' OR documento_proveedor = '$nitClean')");
+      clauses.add("nit_entidad = '$nitClean'");
     } else {
       final rawTarget = widget.entity.secopKeywords.isNotEmpty
           ? widget.entity.secopKeywords.first
@@ -525,7 +510,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     setState(() => _isLoadingLive = true);
 
     try {
-      int yearToUse = 2026;
+      int yearToUse = AniosSecop.actual;
       String whereEntityYear = _buildEntityWhereClause(
         onlyYear2026: _onlyCurrentYear2026,
         includeRegionalFilter: true,
@@ -538,7 +523,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       );
 
       // 1) Consulta en paralelo a SECOP II (jbjy-vk9h.json):
-      //    a) Presupuesto y ejecución por estado_contrato (año en curso 2026)
+      //    a) Valor contratado y ejecución por estado_contrato (vigencia activa)
       //    b) Discriminación exacta por modalidad_de_contratacion (todos los contratos reales en SECOP II)
       //    c) Distribución nacional por Regionales / Departamentos ($group=departamento)
       //    d) Primera página de contratos + muestra amplia para dependencias y contratistas
@@ -582,11 +567,18 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           '&\$limit=200',
         );
 
+        final uniqueContractorsUrl = Uri.parse(
+          'https://www.datos.gov.co/resource/jbjy-vk9h.json?'
+          '\$select=count(distinct%20documento_proveedor)%20as%20contratistas'
+          '&\$where=$wRegEnc',
+        );
+
         return Future.wait([
           http.get(stateAggUrl).timeout(const Duration(seconds: 12)),
           http.get(modalityAggUrl).timeout(const Duration(seconds: 12)),
           http.get(regionalAggUrl).timeout(const Duration(seconds: 12)),
           http.get(sampleContractsUrl).timeout(const Duration(seconds: 12)),
+          http.get(uniqueContractorsUrl).timeout(const Duration(seconds: 12)),
         ]);
       }
 
@@ -603,7 +595,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         }
       }
       if (checkCount == 0 && _onlyCurrentYear2026) {
-        yearToUse = 2025;
+        yearToUse = AniosSecop.actual - 1;
         whereEntityYear = _buildEntityWhereClause(
           onlyYear2026: true,
           includeRegionalFilter: true,
@@ -645,6 +637,15 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       final modResp = responses[1];
       final regResp = responses[2];
       final sampleResp = responses[3];
+      final uniqueResp = responses[4];
+      int? uniqueContractors;
+      if (uniqueResp.statusCode == 200) {
+        final uniqueList = jsonDecode(uniqueResp.body);
+        if (uniqueList is List && uniqueList.isNotEmpty && uniqueList.first is Map) {
+          uniqueContractors =
+              int.tryParse('${uniqueList.first['contratistas'] ?? ''}');
+        }
+      }
 
       // 1. Procesamos Regionales / Seccionales Territoriales ($group=departamento)
       final builtRegionals = <_RegionalBreakdownItem>[];
@@ -670,7 +671,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         }
       }
 
-      // 2. Procesamos Presupuesto Anualizado y Ejecución Real por Estado de Contrato
+      // 2. Procesamos valor contratado y ejecución real por estado de contrato
       int aggTotalContracts = 0;
       double aggTotalCop = 0;
       double executedCop = 0;
@@ -843,27 +844,16 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           _totalMatchingContractsForTable = aggTotalContracts;
           _totalMatchingCopForTable = aggTotalCop;
 
-          _contratistasUnicos = math.max(
-            builtContractors.length,
-            (aggTotalContracts * 0.64).round(),
-          );
+          _contratistasUnicos =
+              uniqueContractors ?? builtContractors.length;
 
-          // Presupuesto oficial anualizado de la vigencia en curso vs. ejecutado en contratos activos/celebrados
-          final effectiveExecuted = executedCop > 0
-              ? executedCop
-              : (aggTotalCop * 0.78);
-          // El presupuesto anual asignado de la vigencia cubre lo contratado más el saldo disponible de apropiación
-          final estimatedAnnualAppropriation = (aggTotalCop * 1.18)
-              .roundToDouble();
-          _ejecutadoCop = effectiveExecuted;
-          _presupuestoTotalCop = math.max(
-            aggTotalCop,
-            estimatedAnnualAppropriation,
-          );
-          _disponibleCop = math.max(0, _presupuestoTotalCop - _ejecutadoCop);
-          _porcentajeEjecutado = ((_ejecutadoCop / _presupuestoTotalCop) * 100)
-              .round()
-              .clamp(1, 99);
+          // Cifras reales de SECOP II: valor contratado y la parte que
+          // corresponde a contratos celebrados, en ejecución o terminados.
+          _presupuestoTotalCop = aggTotalCop;
+          _ejecutadoCop = executedCop;
+          _disponibleCop = math.max(0, aggTotalCop - executedCop);
+          _porcentajeEjecutado =
+              ((executedCop / aggTotalCop) * 100).round().clamp(0, 100);
         }
         _selectedModality = 'Todas';
         _contractsPage = 1;
@@ -1486,7 +1476,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                                   const SizedBox(width: 6),
                                   Text(
                                     _onlyCurrentYear2026
-                                        ? 'Presupuesto Anualizado Vigencia $_activeBudgetYear'
+                                        ? 'Vigencia $_activeBudgetYear'
                                         : 'Consolidado Histórico SECOP II',
                                     style: const TextStyle(
                                       color: Color(0xFF15803D),
@@ -1648,7 +1638,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                                 ),
                                 const SizedBox(height: 5),
                                 Text(
-                                  'Presupuesto anualizado vigencia $_activeBudgetYear y contratación verificada en tiempo real con Datos Abiertos SECOP II.',
+                                  'Contratación de la vigencia $_activeBudgetYear consultada en Datos Abiertos SECOP II.',
                                   style: const TextStyle(
                                     color: Color(0xFF475569),
                                     fontSize: 12.5,
@@ -1833,7 +1823,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                     ),
                     const SizedBox(height: 3),
                     const Text(
-                      'Selecciona cualquier Regional (ej. Regional Atlántico, Regional Cesar, Regional La Guajira) para discriminar su presupuesto 2026, contratos, modalidades y dependencias internas.',
+                      'Selecciona cualquier Regional (ej. Regional Atlántico, Regional Cesar, Regional La Guajira) para discriminar su contratación, modalidades y dependencias internas.',
                       style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
                     ),
                   ],
@@ -2136,11 +2126,11 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   }
 
   // ===========================================================================
-  // PESTAÑA 1: RESUMEN (PRESUPUESTO ANUALIZADO 2026 + CONTRATOS DE LA ENTIDAD)
+  // PESTAÑA 1: RESUMEN (EJECUCIÓN CONTRACTUAL + CONTRATOS DE LA ENTIDAD)
   // ===========================================================================
 
   Widget _buildResumenTab() {
-    final pctEjecutado = _porcentajeEjecutado.clamp(1, 99);
+    final pctEjecutado = _porcentajeEjecutado.clamp(0, 100);
     final pctDisponible = 100 - pctEjecutado;
     final scopeSuffix = _selectedRegionalDept != null
         ? ' (${_formatRegionalDisplayName(_selectedRegionalDept!)})'
@@ -2159,7 +2149,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // TARJETA 1: Presupuesto y ejecución anualizado Vigencia 2026 (dinámica en cada consulta)
+              // TARJETA 1: Ejecución contractual de la vigencia (cifras reales de SECOP II)
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
@@ -2183,7 +2173,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Presupuesto y ejecución · Vigencia $_activeBudgetYear$scopeSuffix',
+                                'Ejecución contractual · Vigencia $_activeBudgetYear$scopeSuffix',
                                 style: const TextStyle(
                                   color: _azulOscuro,
                                   fontSize: 19,
@@ -2192,7 +2182,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Presupuesto anualizado del año en curso ($_activeBudgetYear) y ejecución contractual verificada en SECOP II.',
+                                'Valor contratado en $_activeBudgetYear según Datos Abiertos SECOP II y su estado de ejecución.',
                                 style: const TextStyle(
                                   color: Color(0xFF64748B),
                                   fontSize: 12.5,
@@ -2211,7 +2201,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                               color: _azulOscuro,
                             ),
                             label: const Text(
-                              'Ver detalle del presupuesto →',
+                              'Ver contratos →',
                               style: TextStyle(
                                 color: _azulOscuro,
                                 fontSize: 11.5,
@@ -2264,7 +2254,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                                     ),
                                   ),
                                   const Text(
-                                    'ejecutado',
+                                    'en ejecución',
                                     style: TextStyle(
                                       color: Color(0xFF64748B),
                                       fontSize: 11.5,
@@ -2283,7 +2273,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Presupuesto anualizado vigencia $_activeBudgetYear$scopeSuffix',
+                                'Valor total contratado · vigencia $_activeBudgetYear$scopeSuffix',
                                 style: const TextStyle(
                                   color: Color(0xFF64748B),
                                   fontSize: 12.5,
@@ -2327,7 +2317,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      'Ejecutado en vigencia $_activeBudgetYear',
+                                      'Celebrados, en ejecución o terminados',
                                       style: const TextStyle(
                                         color: Color(0xFF475569),
                                         fontSize: 13,
@@ -2359,7 +2349,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      'Disponible vigencia $_activeBudgetYear',
+                                      'Otros estados (borrador, suspendido, cancelado…)',
                                       style: const TextStyle(
                                         color: Color(0xFF475569),
                                         fontSize: 13,

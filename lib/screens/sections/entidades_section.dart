@@ -825,7 +825,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
         if (topNit.length >= 8) {
           final nitUrl = Uri.parse(
             'https://www.datos.gov.co/resource/jbjy-vk9h.json?'
-            '\$where=${Uri.encodeComponent("(nit_entidad = '$topNit' OR documento_proveedor = '$topNit')")}'
+            '\$where=${Uri.encodeComponent("nit_entidad = '$topNit'")}'
             '&\$order=fecha_de_firma%20DESC'
             '&\$limit=35',
           );
@@ -2152,7 +2152,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Busca sin filtros cualquier par de entidades verificadas de SECOP II y compara su presupuesto, contratos y contratistas.',
+                          'Busca sin filtros cualquier par de entidades verificadas de SECOP II y compara su valor contratado, contratos y contratistas.',
                           style: TextStyle(
                             color: Color(0xFF475569),
                             fontSize: 11.6,

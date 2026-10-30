@@ -7,10 +7,10 @@ import 'package:flutter/services.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/auth_service.dart';
+import '../services/favorites_service.dart';
 import '../services/secop_document_intelligence_service.dart';
 import '../services/security_service.dart';
 import '../utils/contract_financial_calculator.dart';
@@ -36,7 +36,6 @@ class DetalleContratoScreen extends StatefulWidget {
 }
 
 class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
-  static const _claveContratosFavoritos = 'contratos_favoritos';
   static const Color _azulOscuro = Color(0xFF1A2B4C);
   static const Color _azulPrimario = Color(0xFF1D4ED8);
   static const Color _amarillo = Color(0xFFF5B82E);
@@ -349,54 +348,18 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
     return out.join(' ');
   }
 
-  String _idContrato(dynamic contrato) {
-    if (contrato is! Map) return '';
-    final proceso = contrato['proceso_de_compra']?.toString() ??
-        contrato['id_contrato']?.toString() ??
-        contrato['referencia_del_contrato']?.toString();
-    if (proceso != null && proceso.isNotEmpty) return proceso;
-    return '${contrato['nombre_entidad'] ?? ''}'
-        '${contrato['descripcion_del_proceso'] ?? ''}';
-  }
-
   Future<void> _cargarEstadoFavorito() async {
-    final prefs = await SharedPreferences.getInstance();
-    final favoritos = prefs.getStringList(_claveContratosFavoritos) ?? [];
-    final idContrato = _idContrato(widget.contrato);
-    final estaGuardado = favoritos.any((favorito) {
-      try {
-        final contrato = json.decode(favorito);
-        return contrato is Map && _idContrato(contrato) == idContrato;
-      } catch (_) {
-        return false;
-      }
-    });
-
+    final ids = await FavoritesService.idsContratos();
     if (!mounted) return;
-    setState(() => _esFavorito = estaGuardado);
+    setState(
+      () => _esFavorito = ids.contains(FavoritesService.idContrato(widget.contrato)),
+    );
   }
 
   Future<void> _alternarFavorito() async {
-    final prefs = await SharedPreferences.getInstance();
-    final favoritos = prefs.getStringList(_claveContratosFavoritos) ?? [];
-    final idContrato = _idContrato(widget.contrato);
-    final indice = favoritos.indexWhere((favorito) {
-      try {
-        final contrato = json.decode(favorito);
-        return contrato is Map && _idContrato(contrato) == idContrato;
-      } catch (_) {
-        return false;
-      }
-    });
-    final guardado = indice == -1;
-
-    if (guardado) {
-      favoritos.add(json.encode(widget.contrato));
-    } else {
-      favoritos.removeAt(indice);
-    }
-    await prefs.setStringList(_claveContratosFavoritos, favoritos);
-
+    if (widget.contrato is! Map) return;
+    final guardado =
+        await FavoritesService.alternarContrato(widget.contrato as Map);
     if (!mounted) return;
     setState(() => _esFavorito = guardado);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -486,9 +449,25 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
     final cached = await SecopDocumentIntelligenceService.obtenerCacheSiExiste(
       widget.contrato,
     );
-    if (!mounted || cached == null) return;
+    if (!mounted) return;
+    if (cached != null) {
+      setState(() => _docExtractionResult = cached);
+      return;
+    }
+
+    // Sin caché: se carga automáticamente el listado desde Datos Abiertos.
     setState(() {
-      _docExtractionResult = cached;
+      _isExtractingDocs = true;
+      _extractingStepText = 'Consultando archivos publicados en SECOP II...';
+    });
+    final result =
+        await SecopDocumentIntelligenceService.obtenerDocumentosDatosAbiertos(
+      widget.contrato,
+    );
+    if (!mounted) return;
+    setState(() {
+      _isExtractingDocs = false;
+      if (result != null) _docExtractionResult = result;
     });
   }
 
@@ -2792,137 +2771,98 @@ $sanitizedQuestion
               ),
             ),
           )
-        else
+        else if (filteredDocs.every((d) => d.group == null))
           for (var i = 0; i < filteredDocs.length; i++)
             _buildExtractedDocumentItemCard(
               index: i + 1,
               doc: filteredDocs[i],
               isMobile: isMobile,
+            )
+        else
+          for (final grupo in SecopDocumentGroup.values)
+            ..._buildGrupoDocumentos(
+              grupo: grupo,
+              docs: filteredDocs.where((d) => d.group == grupo).toList(),
+              isMobile: isMobile,
             ),
-
-        const SizedBox(height: 18),
-
-        // Pie de acción para ir a descargar los archivos reales en SECOP II
-        Container(
-          padding: EdgeInsets.all(isMobile ? 16 : 20),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFCBD5E1)),
-          ),
-          child: isMobile
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text(
-                      '¿Ya identificaste los documentos que necesitas? Abre el expediente oficial para descargarlos directamente desde SECOP II.',
-                      style: TextStyle(
-                        color: Color(0xFF334155),
-                        fontSize: 13,
-                        height: 1.4,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    SizedBox(
-                      height: 48,
-                      child: ElevatedButton.icon(
-                        onPressed: _abrirEnlaceSecop,
-                        icon: const Icon(
-                          Icons.open_in_browser_rounded,
-                          color: _amarillo,
-                          size: 19,
-                        ),
-                        label: const Text(
-                          'Ir a SECOP para descargar documentos',
-                          style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _azulOscuro,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(11),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-              : Row(
-                  children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(11),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                      ),
-                      child: const Icon(
-                        Icons.cloud_download_outlined,
-                        color: _azulOscuro,
-                        size: 21,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '¿Listo para descargar los archivos originales?',
-                            style: TextStyle(
-                              color: _azulOscuro,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Ya sabes exactamente qué anexos contiene este proceso. Abre la vista oficial de SECOP II para descargar los PDFs.',
-                            style: TextStyle(
-                              color: Color(0xFF64748B),
-                              fontSize: 12.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    SizedBox(
-                      height: 46,
-                      child: ElevatedButton.icon(
-                        onPressed: _abrirEnlaceSecop,
-                        icon: const Icon(
-                          Icons.open_in_browser_rounded,
-                          color: _amarillo,
-                          size: 19,
-                        ),
-                        label: const Text(
-                          'Ir a SECOP a descargar',
-                          style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _azulOscuro,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(11),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-        ),
       ],
     );
+  }
+
+  List<Widget> _buildGrupoDocumentos({
+    required SecopDocumentGroup grupo,
+    required List<SecopExtractedDocument> docs,
+    required bool isMobile,
+  }) {
+    if (docs.isEmpty) return const [];
+    final esProceso = grupo == SecopDocumentGroup.proceso;
+    return [
+      Padding(
+        padding: const EdgeInsets.only(top: 6, bottom: 10),
+        child: Row(
+          children: [
+            Icon(
+              esProceso ? Icons.folder_open_rounded : Icons.handshake_outlined,
+              color: _azulPrimario,
+              size: 19,
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                esProceso ? 'Documentos del proceso' : 'Documentos del contrato',
+                style: const TextStyle(
+                  color: _azulOscuro,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '(${docs.length})',
+              style: const TextStyle(
+                color: Color(0xFF64748B),
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+      for (var i = 0; i < docs.length; i++)
+        _buildExtractedDocumentItemCard(
+          index: i + 1,
+          doc: docs[i],
+          isMobile: isMobile,
+        ),
+      const SizedBox(height: 8),
+    ];
+  }
+
+  Future<void> _descargarDocumento(SecopExtractedDocument doc) async {
+    final uri = SecurityService.validateOfficialGovUrl(doc.downloadUrl);
+    var launched = false;
+    if (uri != null) {
+      try {
+        // SECOP responde con `Content-Disposition: attachment`, por lo que el
+        // navegador / sistema descarga el archivo directamente.
+        launched = await launchUrl(
+          uri,
+          mode: kIsWeb
+              ? LaunchMode.platformDefault
+              : LaunchMode.externalApplication,
+          webOnlyWindowName: '_blank',
+        );
+      } catch (_) {}
+    }
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No fue posible descargar el documento desde SECOP II.'),
+          backgroundColor: Color(0xFFB91C1C),
+        ),
+      );
+    }
   }
 
   Widget _buildExtractedDocumentItemCard({
@@ -3049,7 +2989,33 @@ $sanitizedQuestion
               ],
             ),
           ),
-          if (!isMobile) ...[
+          if (doc.downloadUrl != null) ...[
+            const SizedBox(width: 12),
+            isMobile
+                ? IconButton(
+                    onPressed: () => _descargarDocumento(doc),
+                    tooltip: 'Descargar',
+                    icon: const Icon(
+                      Icons.download_rounded,
+                      color: _azulPrimario,
+                    ),
+                  )
+                : OutlinedButton.icon(
+                    onPressed: () => _descargarDocumento(doc),
+                    icon: const Icon(Icons.download_rounded, size: 17),
+                    label: const Text(
+                      'Descargar',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _azulPrimario,
+                      side: const BorderSide(color: Color(0xFFBFDBFE)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+          ] else if (!isMobile) ...[
             const SizedBox(width: 12),
             const Row(
               mainAxisSize: MainAxisSize.min,

@@ -1137,7 +1137,7 @@ class _ContratistasScreenState extends State<ContratistasScreen>
     if (parts.length == 3) {
       return '${parts[2].padLeft(2, '0')}/${parts[1].padLeft(2, '0')}/${parts[0]}';
     }
-    return '16/10/2026';
+    return 'Sin fecha';
   }
 
   @override
@@ -2609,7 +2609,7 @@ class _ContractorAccumulator {
 
     final year = latestIsoDate.length >= 4
         ? latestIsoDate.substring(0, 4)
-        : '2026';
+        : '';
 
     return ContractorSummaryRecord(
       initials: buildInitials(displayName),

@@ -1,9 +1,7 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/favorites_service.dart';
 import '../widgets/user_profile_header_action.dart';
 import 'detalle_screen.dart';
 import 'perfil_contratista_screen.dart';
@@ -18,10 +16,7 @@ class FavoritosScreen extends StatefulWidget {
 }
 
 class _FavoritosScreenState extends State<FavoritosScreen> {
-  static const _claveContratos = 'contratos_favoritos';
-  static const _claveContratistas = 'favoritos_contratistas';
-
-  List<dynamic> contratosFavoritos = [];
+  List<Map<String, dynamic>> contratosFavoritos = [];
   List<Map<String, dynamic>> contratistasFavoritos = [];
   bool isLoading = true;
   final formatoMoneda = NumberFormat.currency(
@@ -37,45 +32,23 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
   }
 
   Future<void> _cargarFavoritos() async {
-    final prefs = await SharedPreferences.getInstance();
-    final contratosGuardados = prefs.getStringList(_claveContratos) ?? [];
-    final perfilesGuardados = prefs.getStringList(_claveContratistas) ?? [];
-
+    final contratos = await FavoritesService.contratos();
+    final perfiles = await FavoritesService.contratistas();
     if (!mounted) return;
     setState(() {
-      contratosFavoritos = contratosGuardados
-          .map((contrato) => json.decode(contrato))
-          .toList();
-      contratistasFavoritos = perfilesGuardados
-          .map(
-            (perfil) => Map<String, dynamic>.from(json.decode(perfil) as Map),
-          )
-          .toList();
+      contratosFavoritos = contratos;
+      contratistasFavoritos = perfiles;
       isLoading = false;
     });
   }
 
   Future<void> _eliminarFavorito(String idUnico) async {
-    final prefs = await SharedPreferences.getInstance();
-    final listaStrings = prefs.getStringList(_claveContratos) ?? [];
-
-    listaStrings.removeWhere((contrato) {
-      final map = json.decode(contrato);
-      final mapId =
-          map['proceso_de_compra'] ??
-          '${map['nombre_entidad']}${map['descripcion_del_proceso']}';
-      return mapId.toString() == idUnico;
-    });
-
-    await prefs.setStringList(_claveContratos, listaStrings);
+    await FavoritesService.eliminarContrato(idUnico);
     if (!mounted) return;
     setState(() {
-      contratosFavoritos.removeWhere((contrato) {
-        final mapId =
-            contrato['proceso_de_compra'] ??
-            '${contrato['nombre_entidad']}${contrato['descripcion_del_proceso']}';
-        return mapId.toString() == idUnico;
-      });
+      contratosFavoritos.removeWhere(
+        (contrato) => FavoritesService.idContrato(contrato) == idUnico,
+      );
     });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Contrato eliminado de favoritos')),
@@ -83,15 +56,7 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
   }
 
   Future<void> _eliminarContratista(String id) async {
-    final prefs = await SharedPreferences.getInstance();
-    final listaStrings = prefs.getStringList(_claveContratistas) ?? [];
-
-    listaStrings.removeWhere((perfil) {
-      final datos = Map<String, dynamic>.from(json.decode(perfil) as Map);
-      return datos['id']?.toString() == id;
-    });
-
-    await prefs.setStringList(_claveContratistas, listaStrings);
+    await FavoritesService.eliminarContratista(id);
     if (!mounted) return;
     setState(() {
       contratistasFavoritos.removeWhere(
@@ -246,10 +211,7 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
         final colorEstado = _obtenerColorEstado(
           contrato['estado_contrato']?.toString() ?? '',
         );
-        final idUnico =
-            (contrato['proceso_de_compra'] ??
-                    '${contrato['nombre_entidad']}${contrato['descripcion_del_proceso']}')
-                .toString();
+        final idUnico = FavoritesService.idContrato(contrato);
         final valor =
             double.tryParse(contrato['valor_del_contrato']?.toString() ?? '') ??
             0;

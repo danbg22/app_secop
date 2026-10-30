@@ -3,11 +3,12 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/colombia_secop_catalog.dart';
+import '../../services/favorites_service.dart';
 import '../../services/security_service.dart';
+import '../../utils/anios_secop.dart';
 import '../../utils/app_scroll_behavior.dart';
 import '../../utils/contract_financial_calculator.dart';
 import '../../utils/csv_exporter.dart';
@@ -327,20 +328,8 @@ class _ContratosSectionState extends State<ContratosSection> {
     'Liquidado',
   ];
 
-  static const List<String> _anioOptions = [
-    '2026',
-    '2025',
-    '2024',
-    '2023',
-    '2022',
-    '2021',
-    '2020',
-    '2019',
-    '2018',
-    '2017',
-    '2016',
-    '2015',
-  ];
+  static List<String> get _anioOptions =>
+      [for (final a in AniosSecop.disponibles) '$a'];
 
   // Semilla inicial con contratos reales de SECOP II de distintos órdenes y regiones del país
   static final List<Map<String, dynamic>> _verifiedInitialSecopRaw = [
@@ -708,13 +697,13 @@ class _ContratosSectionState extends State<ContratosSection> {
 
     final rawSignDate = raw['fecha_de_firma']?.toString() ??
         raw['fecha_de_inicio_del_contrato']?.toString() ??
-        '2026-01-15';
+        '';
     final rawStartDate =
         raw['fecha_de_inicio_del_contrato']?.toString() ?? rawSignDate;
     final rawEndDate =
         raw['fecha_de_fin_del_contrato']?.toString() ?? rawSignDate;
     final year =
-        rawSignDate.length >= 4 ? rawSignDate.substring(0, 4) : '2026';
+        rawSignDate.length >= 4 ? rawSignDate.substring(0, 4) : '';
 
     final rawEntity = (raw['nombre_entidad'] ?? 'Entidad Pública').toString();
     final displayEntity = _beautifyEntityName(rawEntity);
@@ -1059,60 +1048,29 @@ class _ContratosSectionState extends State<ContratosSection> {
   }
 
   Future<void> _loadFavorites() async {
-    final prefs = await SharedPreferences.getInstance();
-    final favs = prefs.getStringList('contratos_favoritos') ?? [];
-    final ids = <String>{};
-    for (final item in favs) {
-      try {
-        final decoded = jsonDecode(item) as Map<String, dynamic>;
-        final id = decoded['proceso_de_compra']?.toString() ??
-            decoded['id_contrato']?.toString() ??
-            decoded['referencia_del_contrato']?.toString() ??
-            '';
-        if (id.isNotEmpty) ids.add(id);
-      } catch (_) {}
-    }
+    final ids = await FavoritesService.idsContratos();
     if (mounted) {
       setState(() => _favoriteIds = ids);
     }
   }
 
   Future<void> _toggleFavorite(ContractRecord record) async {
-    final prefs = await SharedPreferences.getInstance();
-    final favs = prefs.getStringList('contratos_favoritos') ?? [];
     final map = record.toSecopMap();
-    final contractId = map['proceso_de_compra']?.toString() ??
-        map['id_contrato']?.toString() ??
-        record.processCode;
-
-    final isSaved = _favoriteIds.contains(contractId);
-    if (isSaved) {
-      favs.removeWhere((item) {
-        try {
-          final decoded = jsonDecode(item) as Map<String, dynamic>;
-          final savedId = decoded['proceso_de_compra']?.toString() ??
-              decoded['id_contrato']?.toString() ??
-              '';
-          return savedId == contractId;
-        } catch (_) {
-          return false;
-        }
-      });
-      _favoriteIds.remove(contractId);
-    } else {
-      favs.add(jsonEncode(map));
+    final contractId = FavoritesService.idContrato(map);
+    final guardado = await FavoritesService.alternarContrato(map);
+    if (guardado) {
       _favoriteIds.add(contractId);
+    } else {
+      _favoriteIds.remove(contractId);
     }
-
-    await prefs.setStringList('contratos_favoritos', favs);
     if (!mounted) return;
     setState(() {});
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          isSaved
-              ? 'Contrato eliminado de Favoritos'
-              : 'Contrato guardado en Favoritos ⭐',
+          guardado
+              ? 'Contrato guardado en Favoritos ⭐'
+              : 'Contrato eliminado de Favoritos',
         ),
         duration: const Duration(seconds: 2),
       ),
@@ -2128,9 +2086,7 @@ class _ContratosSectionState extends State<ContratosSection> {
 
   void _showQuickViewModal(ContractRecord contract) {
     final map = contract.toSecopMap();
-    final contractId = map['proceso_de_compra']?.toString() ??
-        map['id_contrato']?.toString() ??
-        contract.processCode;
+    final contractId = FavoritesService.idContrato(map);
     final isFav = _favoriteIds.contains(contractId);
     final secopUrl = (map['urlproceso'] is Map
             ? map['urlproceso']['url']?.toString()
@@ -3111,7 +3067,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                                         label: 'Año de firma',
                                         placeholder: 'Todos',
                                         value: tempAnio,
-                                        items: const ['', ..._anioOptions],
+                                        items: ['', ..._anioOptions],
                                         onChanged: (v) => setDialogState(
                                           () => tempAnio = v ?? '',
                                         ),

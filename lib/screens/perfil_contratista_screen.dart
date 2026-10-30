@@ -3,11 +3,12 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/favorites_service.dart';
 import '../services/auth_service.dart';
 import '../services/security_service.dart';
 import '../services/sigep_service.dart';
+import '../utils/anios_secop.dart';
 import '../utils/contract_financial_calculator.dart';
 import '../widgets/collapsible_side_menu.dart';
 import '../widgets/route_security_guard.dart';
@@ -39,8 +40,6 @@ class PerfilContratistaScreen extends StatefulWidget {
 }
 
 class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
-  static const _claveFavoritosContratistas = 'favoritos_contratistas';
-  static const _claveContratosFavoritos = 'contratos_favoritos';
   static const Color _azulOscuro = Color(0xFF1A2B4C);
   static const Color _amarillo = Color(0xFFF5B82E);
 
@@ -58,20 +57,8 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
   List<dynamic> historialContratos = [];
   String _filtroAnio = '';
 
-  static const List<String> _aniosHistorial = [
-    '2026',
-    '2025',
-    '2024',
-    '2023',
-    '2022',
-    '2021',
-    '2020',
-    '2019',
-    '2018',
-    '2017',
-    '2016',
-    '2015',
-  ];
+  static List<String> get _aniosHistorial =>
+      [for (final a in AniosSecop.disponibles) '$a'];
 
   String _anioContrato(dynamic c) {
     if (c is! Map) return '';
@@ -188,44 +175,17 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
   }
 
   Future<void> _cargarEstadoFavorito() async {
-    final prefs = await SharedPreferences.getInstance();
-    final favoritos = prefs.getStringList(_claveFavoritosContratistas) ?? [];
-    final estaGuardado = favoritos.any((favorito) {
-      try {
-        final perfil = json.decode(favorito);
-        return perfil is Map && perfil['id'] == _idContratista;
-      } catch (_) {
-        return false;
-      }
-    });
-
+    final estaGuardado =
+        await FavoritesService.esContratistaFavorito(_idContratista);
     if (!mounted) return;
     setState(() => _perfilFavoritoGuardado = estaGuardado);
   }
 
   Future<void> _alternarFavorito() async {
-    final prefs = await SharedPreferences.getInstance();
-    final favoritos = prefs.getStringList(_claveFavoritosContratistas) ?? [];
-    final indice = favoritos.indexWhere((favorito) {
-      try {
-        final perfil = json.decode(favorito);
-        return perfil is Map && perfil['id'] == _idContratista;
-      } catch (_) {
-        return false;
-      }
-    });
-
-    final guardado = indice == -1;
-    if (guardado) {
-      favoritos.add(
-        json.encode({'id': _idContratista, 'nombre': _nombreAuditar}),
-      );
-    } else {
-      favoritos.removeAt(indice);
-    }
-
-    await prefs.setStringList(_claveFavoritosContratistas, favoritos);
-
+    final guardado = await FavoritesService.alternarContratista(
+      id: _idContratista,
+      nombre: _nombreAuditar,
+    );
     if (!mounted) return;
     setState(() => _perfilFavoritoGuardado = guardado);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -240,53 +200,16 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
     );
   }
 
-  String _idContrato(dynamic contrato) {
-    if (contrato is! Map) return '';
-    final proceso = contrato['proceso_de_compra']?.toString() ??
-        contrato['id_contrato']?.toString() ??
-        contrato['referencia_del_contrato']?.toString();
-    if (proceso != null && proceso.isNotEmpty) return proceso;
-    return '${contrato['nombre_entidad'] ?? ''}'
-        '${contrato['descripcion_del_proceso'] ?? ''}';
-  }
-
   Future<void> _cargarFavoritosContratosLocales() async {
-    final prefs = await SharedPreferences.getInstance();
-    final favoritos = prefs.getStringList(_claveContratosFavoritos) ?? [];
-    final ids = <String>{};
-    for (final favorito in favoritos) {
-      try {
-        final contrato = json.decode(favorito);
-        final id = _idContrato(contrato);
-        if (id.isNotEmpty) ids.add(id);
-      } catch (_) {}
-    }
-
+    final ids = await FavoritesService.idsContratos();
     if (!mounted) return;
     setState(() => _contratosFavoritosIds = ids);
   }
 
   Future<void> _alternarFavoritoContrato(dynamic contrato) async {
-    final prefs = await SharedPreferences.getInstance();
-    final favoritos = prefs.getStringList(_claveContratosFavoritos) ?? [];
-    final idContrato = _idContrato(contrato);
-    final indice = favoritos.indexWhere((favorito) {
-      try {
-        final contratoGuardado = json.decode(favorito);
-        return _idContrato(contratoGuardado) == idContrato;
-      } catch (_) {
-        return false;
-      }
-    });
-    final guardado = indice == -1;
-
-    if (guardado) {
-      favoritos.add(json.encode(contrato));
-    } else {
-      favoritos.removeAt(indice);
-    }
-    await prefs.setStringList(_claveContratosFavoritos, favoritos);
-
+    if (contrato is! Map) return;
+    final idContrato = FavoritesService.idContrato(contrato);
+    final guardado = await FavoritesService.alternarContrato(contrato);
     if (!mounted) return;
     setState(() {
       if (guardado) {
@@ -324,101 +247,32 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
       final List<dynamic> allContracts = [];
       final Set<String> seenContractIds = {};
 
+      // Un proceso de compra puede tener varios contratos con el mismo
+      // proveedor, por eso se deduplica por el identificador del contrato.
       void addContractIfNew(dynamic c) {
         if (c is! Map) return;
-        final id = (c['proceso_de_compra'] ??
-                c['id_contrato'] ??
-                c['referencia_del_contrato'] ??
-                '${c['numero_del_contrato']}_${c['nombre_entidad']}')
-            .toString()
-            .trim();
-        final key = id.isNotEmpty ? id : jsonEncode(c);
-        if (seenContractIds.add(key)) {
+        final id = FavoritesService.idContrato(c);
+        if (seenContractIds.add(id.isNotEmpty ? id : jsonEncode(c))) {
           allContracts.add(c);
         }
       }
 
-      final cleanDoc = (widget.documentoProveedor ?? widget.nit ?? '')
-          .replaceAll(RegExp(r'[^0-9]'), '')
-          .trim();
-
-      // 1. Consulta por documento_proveedor (B-tree indexado en Socrata, exhaustivo en todo el historial)
-      if (cleanDoc.length >= 5) {
-        final docUrl =
-            'https://www.datos.gov.co/resource/jbjy-vk9h.json?documento_proveedor=$cleanDoc&\$order=fecha_de_firma%20DESC&\$limit=50000';
+      Future<List<dynamic>> consultar(
+        String dataset,
+        Map<String, String> params,
+      ) async {
         try {
-          final resDoc = await http
-              .get(Uri.parse(docUrl))
-              .timeout(const Duration(seconds: 12));
-          if (resDoc.statusCode == 200) {
-            final decoded = json.decode(resDoc.body);
-            if (decoded is List) {
-              for (final c in decoded) {
-                addContractIfNew(c);
-              }
-            }
-          }
-        } catch (_) {}
-      }
-
-      // 2. Consulta por nombre exacto del proveedor
-      if (_nombreAuditar.isNotEmpty) {
-        final nameUrl =
-            'https://www.datos.gov.co/resource/jbjy-vk9h.json?proveedor_adjudicado=${Uri.encodeComponent(_nombreAuditar)}&\$order=fecha_de_firma%20DESC&\$limit=50000';
-        try {
-          final resName = await http
-              .get(Uri.parse(nameUrl))
-              .timeout(const Duration(seconds: 12));
-          if (resName.statusCode == 200) {
-            final decoded = json.decode(resName.body);
-            if (decoded is List) {
-              for (final c in decoded) {
-                addContractIfNew(c);
-              }
-            }
-          }
-        } catch (_) {}
-      }
-
-      // 3. Fallback tolerante si no encontró nada aún por nombre o documento
-      if (allContracts.isEmpty && _nombreAuditar.isNotEmpty) {
-        final tokens = SecurityService.sanitizeSoqlToken(
-              _nombreAuditar
-                  .toUpperCase()
-                  .replaceAll('Á', 'A')
-                  .replaceAll('É', 'E')
-                  .replaceAll('Í', 'I')
-                  .replaceAll('Ó', 'O')
-                  .replaceAll('Ú', 'U'),
-              maxLength: 100,
-            )
-            .split(RegExp(r'\s+'))
-            .where((w) => w.length >= 2)
-            .take(6)
-            .toList();
-        if (tokens.isNotEmpty) {
-          final clauses = tokens
-              .map((t) => "upper(proveedor_adjudicado) LIKE '%$t%'")
-              .join(' AND ');
-          final fallbackUrl =
-              'https://www.datos.gov.co/resource/jbjy-vk9h.json?\$where=${Uri.encodeComponent(clauses)}&\$order=fecha_de_firma%20DESC&\$limit=2000';
-          try {
-            final fallbackRes = await http
-                .get(Uri.parse(fallbackUrl))
-                .timeout(const Duration(seconds: 12));
-            if (fallbackRes.statusCode == 200) {
-              final fallbackDecoded = json.decode(fallbackRes.body);
-              if (fallbackDecoded is List) {
-                for (final c in fallbackDecoded) {
-                  addContractIfNew(c);
-                }
-              }
-            }
-          } catch (_) {}
+          final res = await http
+              .get(Uri.https('www.datos.gov.co', '/resource/$dataset.json', params))
+              .timeout(const Duration(seconds: 15));
+          if (res.statusCode != 200) return const [];
+          final decoded = json.decode(utf8.decode(res.bodyBytes));
+          return decoded is List ? decoded : const [];
+        } catch (_) {
+          return const [];
         }
       }
 
-      // 4. Consulta complementaria a SECOP I (f789-7hwg.json) para contratos 2015-2019
       void normalizarContratoSecopI(Map<String, dynamic> c) {
         c['proveedor_adjudicado'] ??= c['nom_raz_social_contratista'];
         c['documento_proveedor'] ??= c['identificacion_del_contratista'];
@@ -436,49 +290,83 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
         c['urlproceso'] ??= c['ruta_proceso_en_secop_i'];
       }
 
-      try {
-        if (cleanDoc.length >= 5) {
-          final uriSecop1 = Uri.https('www.datos.gov.co', '/resource/f789-7hwg.json', {
-            'identificacion_del_contratista': cleanDoc,
-            r'$where': "anno_firma_del_contrato >= '2015'",
-            r'$order': 'fecha_de_firma_del_contrato DESC',
+      final cleanDoc = (widget.documentoProveedor ?? widget.nit ?? '')
+          .replaceAll(RegExp(r'[^0-9]'), '')
+          .trim();
+
+      // Las consultas son independientes: SECOP II por documento (índice
+      // B-tree) y por nombre exacto, y SECOP I (2015-2019), en paralelo.
+      final consultasSecopII = <Future<List<dynamic>>>[
+        if (cleanDoc.length >= 5)
+          consultar('jbjy-vk9h', {
+            'documento_proveedor': cleanDoc,
+            r'$order': 'fecha_de_firma DESC',
+            r'$limit': '50000',
+          }),
+        if (_nombreAuditar.isNotEmpty)
+          consultar('jbjy-vk9h', {
+            'proveedor_adjudicado': _nombreAuditar,
+            r'$order': 'fecha_de_firma DESC',
+            r'$limit': '50000',
+          }),
+      ];
+      final consultaSecopI = cleanDoc.length >= 5
+          ? consultar('f789-7hwg', {
+              'identificacion_del_contratista': cleanDoc,
+              r'$where': "anno_firma_del_contrato >= '2015'",
+              r'$order': 'fecha_de_firma_del_contrato DESC',
+              r'$limit': '2000',
+            })
+          : _nombreAuditar.isNotEmpty
+              ? consultar('f789-7hwg', {
+                  'nom_raz_social_contratista': _nombreAuditar,
+                  r'$where': "anno_firma_del_contrato >= '2015'",
+                  r'$order': 'fecha_de_firma_del_contrato DESC',
+                  r'$limit': '2000',
+                })
+              : Future.value(const <dynamic>[]);
+
+      final resultados =
+          await Future.wait([...consultasSecopII, consultaSecopI]);
+      for (final lista in resultados.take(consultasSecopII.length)) {
+        lista.forEach(addContractIfNew);
+      }
+
+      // Fallback tolerante por palabras del nombre si SECOP II no encontró nada
+      if (allContracts.isEmpty && _nombreAuditar.isNotEmpty) {
+        final tokens = SecurityService.sanitizeSoqlToken(
+              _nombreAuditar
+                  .toUpperCase()
+                  .replaceAll('Á', 'A')
+                  .replaceAll('É', 'E')
+                  .replaceAll('Í', 'I')
+                  .replaceAll('Ó', 'O')
+                  .replaceAll('Ú', 'U'),
+              maxLength: 100,
+            )
+            .split(RegExp(r'\s+'))
+            .where((w) => w.length >= 2)
+            .take(6)
+            .toList();
+        if (tokens.isNotEmpty) {
+          final fallback = await consultar('jbjy-vk9h', {
+            r'$where': tokens
+                .map((t) => "upper(proveedor_adjudicado) LIKE '%$t%'")
+                .join(' AND '),
+            r'$order': 'fecha_de_firma DESC',
             r'$limit': '2000',
           });
-          final res1 = await http.get(uriSecop1).timeout(const Duration(seconds: 12));
-          if (res1.statusCode == 200) {
-            final decoded1 = json.decode(utf8.decode(res1.bodyBytes));
-            if (decoded1 is List) {
-              for (final raw in decoded1) {
-                if (raw is Map) {
-                  final c = Map<String, dynamic>.from(raw);
-                  normalizarContratoSecopI(c);
-                  addContractIfNew(c);
-                }
-              }
-            }
-          }
-        } else if (_nombreAuditar.isNotEmpty) {
-          final uriSecop1Name = Uri.https('www.datos.gov.co', '/resource/f789-7hwg.json', {
-            'nom_raz_social_contratista': _nombreAuditar,
-            r'$where': "anno_firma_del_contrato >= '2015'",
-            r'$order': 'fecha_de_firma_del_contrato DESC',
-            r'$limit': '2000',
-          });
-          final res1Name = await http.get(uriSecop1Name).timeout(const Duration(seconds: 12));
-          if (res1Name.statusCode == 200) {
-            final decoded1Name = json.decode(utf8.decode(res1Name.bodyBytes));
-            if (decoded1Name is List) {
-              for (final raw in decoded1Name) {
-                if (raw is Map) {
-                  final c = Map<String, dynamic>.from(raw);
-                  normalizarContratoSecopI(c);
-                  addContractIfNew(c);
-                }
-              }
-            }
-          }
+          fallback.forEach(addContractIfNew);
         }
-      } catch (_) {}
+      }
+
+      for (final raw in resultados.last) {
+        if (raw is Map) {
+          final c = Map<String, dynamic>.from(raw);
+          normalizarContratoSecopI(c);
+          addContractIfNew(c);
+        }
+      }
 
       // Ordenar contratos consolidados cronológicamente (más recientes primero)
       allContracts.sort((a, b) {
@@ -1037,7 +925,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
     final fecha = _fechaContrato(
       contrato['fecha_de_firma'] ?? contrato['fecha_de_inicio_del_contrato'],
     );
-    final idContrato = _idContrato(contrato);
+    final idContrato = FavoritesService.idContrato(contrato);
     final esFavorito = _contratosFavoritosIds.contains(idContrato);
     final analisis = ContractFinancialAnalysis.fromContract(contrato);
 
@@ -1763,48 +1651,28 @@ class _ContratosPorEntidadScreenState extends State<ContratosPorEntidadScreen> {
   }
 
   Future<void> _cargarFavoritosLocales() async {
-    final prefs = await SharedPreferences.getInstance();
-    final listaStrings = prefs.getStringList('contratos_favoritos') ?? [];
-    setState(() {
-      favoritosIds = listaStrings.map((c) {
-        final map = json.decode(c);
-        return (map['proceso_de_compra'] ??
-                (map['nombre_entidad'] + map['descripcion_del_proceso']))
-            .toString();
-      }).toSet();
-    });
+    final ids = await FavoritesService.idsContratos();
+    if (!mounted) return;
+    setState(() => favoritosIds = ids);
   }
 
   Future<void> _toggleFavorito(dynamic contrato) async {
-    final String idUnico =
-        contrato['proceso_de_compra'] ??
-        (contrato['nombre_entidad'] + contrato['descripcion_del_proceso']);
-    final prefs = await SharedPreferences.getInstance();
-    final List<String> listaStrings =
-        prefs.getStringList('contratos_favoritos') ?? [];
-
+    if (contrato is! Map) return;
+    final idUnico = FavoritesService.idContrato(contrato);
+    final guardado = await FavoritesService.alternarContrato(contrato);
+    if (!mounted) return;
     setState(() {
-      if (favoritosIds.contains(idUnico)) {
-        favoritosIds.remove(idUnico);
-        listaStrings.removeWhere((c) {
-          final map = json.decode(c);
-          final mapId =
-              map['proceso_de_compra'] ??
-              (map['nombre_entidad'] + map['descripcion_del_proceso']);
-          return mapId == idUnico;
-        });
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Eliminado de Favoritos')));
-      } else {
+      if (guardado) {
         favoritosIds.add(idUnico);
-        listaStrings.add(json.encode(contrato));
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Añadido a Favoritos ⭐')));
+      } else {
+        favoritosIds.remove(idUnico);
       }
     });
-    await prefs.setStringList('contratos_favoritos', listaStrings);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(guardado ? 'Añadido a Favoritos ⭐' : 'Eliminado de Favoritos'),
+      ),
+    );
   }
 
   Color _obtenerColorEstado(String estado) {
@@ -1882,10 +1750,7 @@ class _ContratosPorEntidadScreenState extends State<ContratosPorEntidadScreen> {
                     contrato['estado_contrato'] ?? 'Desconocido';
                 final Color colorEstado = _obtenerColorEstado(estado);
 
-                final String idUnico =
-                    contrato['proceso_de_compra'] ??
-                    (contrato['nombre_entidad'] +
-                        contrato['descripcion_del_proceso']);
+                final idUnico = FavoritesService.idContrato(contrato);
                 final bool esFavorito = favoritosIds.contains(idUnico);
 
                 return Card(
