@@ -10,6 +10,7 @@ import '../services/security_service.dart';
 import '../services/sigep_service.dart';
 import '../utils/anios_secop.dart';
 import '../utils/contract_financial_calculator.dart';
+import '../utils/secop_i.dart';
 import '../widgets/collapsible_side_menu.dart';
 import '../widgets/route_security_guard.dart';
 import '../widgets/user_profile_header_action.dart';
@@ -64,7 +65,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
     if (c is! Map) return '';
     final raw = (c['fecha_de_firma'] ??
             c['fecha_de_inicio_del_contrato'] ??
-            c['anno_firma_del_contrato'] ??
+            c['anno_firma_contrato'] ??
             c['fecha_ini_ejec_contrato'] ??
             '')
         .toString();
@@ -273,22 +274,6 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
         }
       }
 
-      void normalizarContratoSecopI(Map<String, dynamic> c) {
-        c['proveedor_adjudicado'] ??= c['nom_raz_social_contratista'];
-        c['documento_proveedor'] ??= c['identificacion_del_contratista'];
-        c['valor_del_contrato'] ??= c['cuantia_contrato'];
-        c['fecha_de_firma'] ??= c['fecha_de_firma_del_contrato'] ?? c['fecha_ini_ejec_contrato'];
-        c['fecha_de_inicio_del_contrato'] ??= c['fecha_ini_ejec_contrato'];
-        c['fecha_de_fin_del_contrato'] ??= c['fecha_fin_ejec_contrato'];
-        c['nombre_entidad'] ??= c['nombre_de_la_entidad'];
-        c['nit_entidad'] ??= c['nit_de_la_entidad'];
-        c['descripcion_del_proceso'] ??= c['detalle_del_objeto_a_contratar'];
-        c['objeto_del_contrato'] ??= c['objeto_a_contratar'] ?? c['detalle_del_objeto_a_contratar'];
-        c['proceso_de_compra'] ??= c['numero_de_proceso'];
-        c['referencia_del_contrato'] ??= c['numero_del_contrato'];
-        c['estado_contrato'] ??= c['estado_del_proceso'];
-        c['urlproceso'] ??= c['ruta_proceso_en_secop_i'];
-      }
 
       final cleanDoc = (widget.documentoProveedor ?? widget.nit ?? '')
           .replaceAll(RegExp(r'[^0-9]'), '')
@@ -311,16 +296,16 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
           }),
       ];
       final consultaSecopI = cleanDoc.length >= 5
-          ? consultar('f789-7hwg', {
+          ? consultar(SecopI.dataset, {
               'identificacion_del_contratista': cleanDoc,
-              r'$where': "anno_firma_del_contrato >= '2015'",
+              r'$where': SecopI.filtroAnio(),
               r'$order': 'fecha_de_firma_del_contrato DESC',
               r'$limit': '2000',
             })
           : _nombreAuditar.isNotEmpty
-              ? consultar('f789-7hwg', {
-                  'nom_raz_social_contratista': _nombreAuditar,
-                  r'$where': "anno_firma_del_contrato >= '2015'",
+              ? consultar(SecopI.dataset, {
+                  'nom_razon_social_contratista': _nombreAuditar,
+                  r'$where': SecopI.filtroAnio(),
                   r'$order': 'fecha_de_firma_del_contrato DESC',
                   r'$limit': '2000',
                 })
@@ -362,9 +347,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
 
       for (final raw in resultados.last) {
         if (raw is Map) {
-          final c = Map<String, dynamic>.from(raw);
-          normalizarContratoSecopI(c);
-          addContractIfNew(c);
+          addContractIfNew(SecopI.normalizar(raw));
         }
       }
 

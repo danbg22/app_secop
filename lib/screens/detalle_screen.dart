@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -14,6 +15,7 @@ import '../services/favorites_service.dart';
 import '../services/secop_document_intelligence_service.dart';
 import '../services/security_service.dart';
 import '../utils/contract_financial_calculator.dart';
+import '../utils/secop_i.dart';
 import '../utils/secop_launcher.dart';
 import '../widgets/collapsible_side_menu.dart';
 import '../widgets/route_security_guard.dart';
@@ -58,12 +60,21 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
 
   /// Copia mutable del contrato enriquecida con TODAS las columnas oficiales
   /// del expediente en Datos Abiertos (SECOP II `jbjy-vk9h` / SECOP I `f789-7hwg`).
-  late Map<String, dynamic> _contratoData;
+  late Map<String, dynamic> _contratoDataActual;
   bool _cargandoExpedienteCompleto = false;
   bool _expedienteEnriquecido = false;
 
+  Map<String, dynamic> get _contratoData => _contratoDataActual;
+  set _contratoData(Map<String, dynamic> value) {
+    _contratoDataActual = value;
+    _analisisCache = null;
+  }
+
+  // El análisis se consulta muchas veces por cada build; se recalcula solo
+  // cuando cambian los datos del contrato.
+  ContractFinancialAnalysis? _analisisCache;
   ContractFinancialAnalysis get _analisis =>
-      ContractFinancialAnalysis.fromContract(_contratoData);
+      _analisisCache ??= ContractFinancialAnalysis.fromContract(_contratoData);
 
   @override
   void initState() {
@@ -111,28 +122,10 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
     return s.isEmpty || s.toLowerCase() == 'no definido';
   }
 
-  /// Homologa alias de SECOP I a las claves usadas por la vista (SECOP II).
-  static void _normalizarAliasSecopI(Map<String, dynamic> c) {
-    void alias(String destino, String origen) {
-      if (_valorSecopVacio(c[destino]) && !_valorSecopVacio(c[origen])) c[destino] = c[origen];
-    }
-
-    alias('nombre_entidad', 'nombre_de_la_entidad');
-    alias('nit_entidad', 'nit_de_la_entidad');
-    alias('proveedor_adjudicado', 'nom_raz_social_contratista');
-    alias('documento_proveedor', 'identificacion_del_contratista');
-    alias('valor_del_contrato', 'cuantia_contrato');
-    alias('descripcion_del_proceso', 'detalle_del_objeto_a_contratar');
-    alias('objeto_del_contrato', 'objeto_a_contratar');
-    alias('fecha_de_firma', 'fecha_de_firma_del_contrato');
-    alias('estado_contrato', 'estado_del_proceso');
-    alias('referencia_del_contrato', 'numero_del_contrato');
-  }
-
   bool get _esContratoSecopI {
     final c = _contratoData;
     return c.containsKey('ruta_proceso_en_secop_i') ||
-        c.containsKey('nom_raz_social_contratista') ||
+        c.containsKey('nom_razon_social_contratista') ||
         c.containsKey('numero_de_constancia') ||
         (c.containsKey('uid') && !c.containsKey('id_contrato'));
   }
@@ -140,7 +133,7 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
   /// Descarga la fila completa del contrato (todas las columnas oficiales)
   /// desde Datos Abiertos Colombia, sin `$select` para evitar errores 400.
   Future<void> _cargarExpedienteCompletoSecop() async {
-    _normalizarAliasSecopI(_contratoData);
+    _contratoData = SecopI.normalizar(_contratoData);
     if (_cargandoExpedienteCompleto || _expedienteEnriquecido) return;
 
     final c = _contratoData;
@@ -148,17 +141,17 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
     String dataset;
 
     if (_esContratoSecopI) {
-      dataset = 'f789-7hwg';
+      dataset = SecopI.dataset;
       final uid = _soqlIdLiteral(c['uid']);
       final constancia = _soqlIdLiteral(c['numero_de_constancia']);
-      final numContrato = _soqlIdLiteral(c['numero_del_contrato']);
+      final numContrato = _soqlIdLiteral(c['numero_de_contrato']);
       final nit = _soqlIdLiteral(c['nit_de_la_entidad'] ?? c['nit_entidad']);
       if (uid.isNotEmpty) {
         clauses.add("uid='$uid'");
       } else if (constancia.isNotEmpty) {
         clauses.add("numero_de_constancia='$constancia'");
       } else if (numContrato.isNotEmpty && nit.isNotEmpty) {
-        clauses.add("numero_del_contrato='$numContrato'");
+        clauses.add("numero_de_contrato='$numContrato'");
         clauses.add("nit_de_la_entidad='$nit'");
       }
     } else {
@@ -199,10 +192,9 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
           fila.forEach((k, v) {
             if (!_valorSecopVacio(v) || !merged.containsKey(k)) merged[k] = v;
           });
-          _normalizarAliasSecopI(merged);
           if (!mounted) return;
           setState(() {
-            _contratoData = merged;
+            _contratoData = SecopI.normalizar(merged);
             _expedienteEnriquecido = true;
           });
         }
@@ -422,9 +414,10 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
       }
     }
 
+    // `noticeUID` solo acepta avisos (CO1.NTC.*), no procesos CO1.BDOS.*
     final proceso =
         (_contratoData['proceso_de_compra'] ?? '').toString().trim();
-    if (proceso.isNotEmpty && proceso.toUpperCase() != 'NO DEFINIDO') {
+    if (proceso.toUpperCase().startsWith('CO1.NTC.')) {
       return 'https://community.secop.gov.co/Public/Tendering/OpportunityDetail/Index?noticeUID=${Uri.encodeComponent(proceso)}';
     }
 
@@ -861,6 +854,24 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
         ),
       );
 
+      // Últimos turnos de la conversación (sin el saludo ni la pregunta
+      // actual) para que las preguntas de seguimiento conserven el contexto.
+      final turnos = _mensajes.skip(1).toList()..removeLast();
+      final historial = <Content>[
+        for (final m in turnos.skip(math.max(0, turnos.length - 6)))
+          m['sender'] == 'user'
+              ? Content.text(
+                  SecurityService.sanitizePromptInput(
+                    m['text'].toString(),
+                    maxLength: 600,
+                  ),
+                )
+              : Content.model([TextPart(m['text'].toString())]),
+      ];
+      while (historial.isNotEmpty && historial.first.role != 'user') {
+        historial.removeAt(0);
+      }
+
       final String contextoContrato = '''
 Analiza la consulta en lenguaje claro, aportando valor ciudadano y jurídico sin repetir mecánicamente una lista robótica.
 
@@ -873,6 +884,7 @@ Analiza la consulta en lenguaje claro, aportando valor ciudadano y jurídico sin
 - Estado actual: ${SecurityService.sanitizePromptInput(_estadoContrato, maxLength: 80)}
 - Fecha de firma: ${SecurityService.sanitizePromptInput(_fechaFirmaIso, maxLength: 60)}
 ${SecurityService.sanitizePromptInput(_contextoFinancieroParaIa(), maxLength: 2600)}
+${SecurityService.sanitizePromptInput(_contextoDocumentosParaIa(), maxLength: 2500)}
 </datos_contrato_no_confiables>
 
 <consulta_usuario_no_confiable>
@@ -881,14 +893,17 @@ $sanitizedQuestion
 ''';
 
       final response = await model
-          .generateContent([Content.text(contextoContrato)])
+          .startChat(history: historial)
+          .sendMessage(Content.text(contextoContrato))
           .timeout(const Duration(seconds: 18));
 
       if (!mounted) return;
       setState(() {
         _isTyping = false;
-        final respuestaLimpia = response.text?.replaceAll('**', '').trim() ??
-            _generarRespuestaLocalInteligente(cleanText);
+        final texto = response.text?.replaceAll('**', '').trim() ?? '';
+        final respuestaLimpia = texto.isNotEmpty
+            ? texto
+            : _respuestaSinConexion(cleanText);
         _mensajes.add({'sender': 'ai', 'text': respuestaLimpia});
       });
     } catch (_) {
@@ -897,7 +912,7 @@ $sanitizedQuestion
         _isTyping = false;
         _mensajes.add({
           'sender': 'ai',
-          'text': _generarRespuestaLocalInteligente(cleanText),
+          'text': _respuestaSinConexion(cleanText),
         });
       });
     }
@@ -948,6 +963,27 @@ $sanitizedQuestion
     return buffer.toString().trimRight();
   }
 
+  /// Nombres de los documentos publicados (si ya se cargaron) para que el
+  /// Copiloto pueda indicar qué soportes existen en el expediente.
+  String _contextoDocumentosParaIa() {
+    final docs = _docExtractionResult?.documents ?? const [];
+    if (docs.isEmpty) return '';
+    final buffer = StringBuffer('- Documentos publicados en SECOP:\n');
+    for (final d in docs.take(60)) {
+      final grupo = switch (d.group) {
+        SecopDocumentGroup.proceso => ' (proceso)',
+        SecopDocumentGroup.contrato => ' (contrato)',
+        null => '',
+      };
+      buffer.writeln('  · ${d.name}$grupo');
+    }
+    return buffer.toString().trimRight();
+  }
+
+  String _respuestaSinConexion(String pregunta) =>
+      '${_generarRespuestaLocalInteligente(pregunta)}\n\n'
+      '(Respuesta automática con los datos del contrato: el Copiloto IA no está disponible en este momento.)';
+
   String _generarRespuestaLocalInteligente(String pregunta) {
     final q = pregunta.toLowerCase();
     final a = _analisis;
@@ -969,7 +1005,7 @@ $sanitizedQuestion
           'La forma de pago real (mensualidades, anticipo o pago único) se define en la minuta y los estudios previos.';
     }
     if (q.contains('resum') || q.contains('objeto') || q.contains('trata')) {
-      return 'Este contrato fue suscrito por $_entidadContrato con el propósito de ejecutar: "$_descripcionContrato".\n\nEn términos prácticos, busca atender una necesidad operativa e institucional mediante la modalidad de $_modalidadContrato, con un presupuesto oficial de $_valorFormateado y estado actual $_estadoContrato.';
+      return 'Este contrato fue suscrito por $_entidadContrato con el propósito de ejecutar: "$_descripcionContrato".\n\nEn términos prácticos, busca atender una necesidad operativa e institucional mediante la modalidad de $_modalidadContrato, por un valor de $_valorFormateado y estado actual $_estadoContrato.';
     }
     if (q.contains('presupuesto') ||
         q.contains('cuánto') ||
@@ -2034,7 +2070,7 @@ $sanitizedQuestion
 
   Widget _finCampoFicha(ContractFieldEntry e, {required double width}) {
     final esContratista = e.key == 'proveedor_adjudicado' ||
-        e.key == 'nom_raz_social_contratista';
+        e.key == 'nom_razon_social_contratista';
     return Container(
       width: width,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -3698,20 +3734,6 @@ $sanitizedQuestion
                 _valorFormateado,
                 style: const TextStyle(
                   color: _azulOscuro,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            _buildContextItem(
-              icon: Icons.monetization_on_outlined,
-              iconColor: const Color(0xFF16A34A),
-              iconBg: const Color(0xFFE6F6EC),
-              label: 'Valor total',
-              valueWidget: Text(
-                _valorFormateado,
-                style: const TextStyle(
-                  color: Color(0xFF15803D),
                   fontSize: 12.5,
                   fontWeight: FontWeight.w800,
                 ),

@@ -12,6 +12,7 @@ import '../../utils/anios_secop.dart';
 import '../../utils/app_scroll_behavior.dart';
 import '../../utils/contract_financial_calculator.dart';
 import '../../utils/csv_exporter.dart';
+import '../../utils/secop_i.dart';
 import '../../widgets/user_profile_header_action.dart';
 import '../detalle_screen.dart';
 import '../perfil_contratista_screen.dart';
@@ -646,30 +647,12 @@ class _ContratosSectionState extends State<ContratosSection> {
   }
 
   static Map<String, dynamic> _normalizarSecopIRaw(Map<String, dynamic> c) {
-    final m = Map<String, dynamic>.from(c);
-    m['id_contrato'] ??= m['numero_del_contrato'] ?? m['uid'] ?? m['numero_de_constancia'];
-    m['proceso_de_compra'] ??= m['numero_de_proceso'] ?? m['id_contrato'];
-    m['referencia_del_contrato'] ??= m['numero_del_contrato'] ?? m['numero_de_proceso'];
-    m['proveedor_adjudicado'] ??= m['nom_raz_social_contratista'];
-    m['documento_proveedor'] ??= m['identificacion_del_contratista'];
-    m['tipodocproveedor'] ??= m['tipo_identificacion_del_contratista'] ?? 'Cédula de Ciudadanía';
-    final rawVal = (m['cuantia_contrato'] ?? m['valor_del_contrato'] ?? '').toString();
+    final m = SecopI.normalizar(c);
+    final rawVal = (m['valor_del_contrato'] ?? '').toString();
     final cleanVal = rawVal.replaceAll(r'$', '').replaceAll(' ', '').replaceAll(',', '');
     m['valor_del_contrato'] = cleanVal.isNotEmpty ? cleanVal : rawVal;
-    m['fecha_de_firma'] ??= m['fecha_de_firma_del_contrato'] ?? m['fecha_ini_ejec_contrato'];
-    m['fecha_de_inicio_del_contrato'] ??= m['fecha_ini_ejec_contrato'] ?? m['fecha_de_firma_del_contrato'];
-    m['fecha_de_fin_del_contrato'] ??= m['fecha_fin_ejec_contrato'];
-    m['nombre_entidad'] ??= m['nombre_de_la_entidad'];
-    m['nit_entidad'] ??= m['nit_de_la_entidad'];
-    m['descripcion_del_proceso'] ??= m['detalle_del_objeto_a_contratar'] ?? m['objeto_a_contratar'];
-    m['objeto_del_contrato'] ??= m['objeto_a_contratar'] ?? m['detalle_del_objeto_a_contratar'];
-    m['modalidad_de_contratacion'] ??= m['tipo_de_proceso'];
-    m['tipo_de_contrato'] ??= m['tipo_de_contrato'];
-    m['estado_contrato'] ??= m['estado_del_proceso'] ?? 'Celebrado';
-    m['departamento'] ??= m['departamento_entidad'];
-    m['ciudad'] ??= m['municipio_entidad'];
-    m['orden'] ??= m['nivel_entidad'] ?? 'Territorial';
-    m['urlproceso'] ??= m['ruta_proceso_en_secop_i'];
+    m['estado_contrato'] ??= 'Celebrado';
+    m['orden'] ??= 'Territorial';
     return m;
   }
 
@@ -1764,11 +1747,9 @@ class _ContratosSectionState extends State<ContratosSection> {
       }) async {
         try {
           final whereClauses = <String>[];
-          if (applyYearFilter && RegExp(r'^\d{4}$').hasMatch(_selectedAnio)) {
-            whereClauses.add("(anno_firma_del_contrato = '$_selectedAnio' OR anno_del_cargue_del_proceso = '$_selectedAnio')");
-          } else {
-            whereClauses.add("anno_firma_del_contrato >= '2015'");
-          }
+          whereClauses.add(
+            SecopI.filtroAnio(applyYearFilter ? _selectedAnio : null),
+          );
 
           if (_selectedDepartamento.isNotEmpty) {
             final safeDep = SecurityService.sanitizeSoqlToken(_selectedDepartamento, maxLength: 60);
@@ -1790,7 +1771,7 @@ class _ContratosSectionState extends State<ContratosSection> {
             final safeEnt = SecurityService.sanitizeSoqlToken(_selectedEntidad, maxLength: 60);
             final eNorm = _normalizar(safeEnt);
             if (eNorm.isNotEmpty) {
-              whereClauses.add("upper(nombre_de_la_entidad) LIKE '%$eNorm%'");
+              whereClauses.add("upper(nombre_entidad) LIKE '%$eNorm%'");
             }
           }
 
@@ -1799,15 +1780,15 @@ class _ContratosSectionState extends State<ContratosSection> {
             final digits = cleanQ.replaceAll(RegExp(r'[^0-9]'), '');
             final qNorm = _normalizar(cleanQ);
             if (digits.length >= 4) {
-              whereClauses.add("(starts_with(identificacion_del_contratista, '$digits') OR upper(numero_del_contrato) LIKE '%$digits%')");
+              whereClauses.add("(starts_with(identificacion_del_contratista, '$digits') OR upper(numero_de_contrato) LIKE '%$digits%')");
             } else if (qNorm.isNotEmpty) {
-              whereClauses.add("(upper(nom_raz_social_contratista) LIKE '%$qNorm%' OR upper(detalle_del_objeto_a_contratar) LIKE '%$qNorm%')");
+              whereClauses.add("(upper(nom_razon_social_contratista) LIKE '%$qNorm%' OR upper(detalle_del_objeto_a_contratar) LIKE '%$qNorm%')");
             }
           }
 
           final uri = Uri.https(
             'www.datos.gov.co',
-            '/resource/f789-7hwg.json',
+            '/resource/${SecopI.dataset}.json',
             <String, String>{
               r'$limit': '$queryLimit',
               r'$order': 'fecha_de_firma_del_contrato DESC',

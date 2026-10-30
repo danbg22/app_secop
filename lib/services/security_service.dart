@@ -961,6 +961,7 @@ class SecurityService {
 
   static const List<String> _officialGovAllowedDomains = <String>[
     'secop.gov.co',
+    'contratos.gov.co', // Portal de SECOP I
     'colombiacompra.gov.co',
     'datos.gov.co',
     'funcionpublica.gov.co',

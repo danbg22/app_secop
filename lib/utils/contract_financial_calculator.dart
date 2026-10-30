@@ -224,6 +224,7 @@ class ContractFinancialAnalysis {
         0;
 
     final duracionReportada = _firstText(c, const [
+      'duraci_n_del_contrato',
       'duracion_del_contrato',
       'plazo_de_ejec_del_contrato',
     ]);
@@ -325,7 +326,9 @@ class ContractFinancialAnalysis {
   /// Interpreta "120 Dia(s)", "4 Mes(es)", "1 Año(s)", "2 Semana(s)" o el
   /// par SECOP I `plazo_de_ejec_del_contrato` + `rango_de_ejec_del_contrato`.
   static int? _parseDuracion(Map<String, dynamic> c) {
-    final raw = (c['duracion_del_contrato'] ?? '').toString().trim();
+    final raw = (c['duraci_n_del_contrato'] ?? c['duracion_del_contrato'] ?? '')
+        .toString()
+        .trim();
     if (raw.isNotEmpty) {
       final m = RegExp(r'([0-9]+(?:[.,][0-9]+)?)\s*([A-Za-zÁÉÍÓÚáéíóúñÑ]*)')
           .firstMatch(raw);
@@ -437,7 +440,7 @@ class ContractFieldCatalog {
       [
         ('id_contrato', 'ID del contrato'),
         ('referencia_del_contrato', 'Referencia del contrato'),
-        ('numero_del_contrato', 'Número del contrato'),
+        ('numero_de_contrato', 'Número del contrato'),
         ('proceso_de_compra', 'Proceso de compra'),
         ('numero_de_proceso', 'Número de proceso'),
         ('tipo_de_contrato', 'Tipo de contrato'),
@@ -479,7 +482,7 @@ class ContractFieldCatalog {
         ('fecha_de_fin_de_ejecucion', 'Fin de ejecución'),
         ('fecha_ini_ejec_contrato', 'Inicio de ejecución'),
         ('fecha_fin_ejec_contrato', 'Fin de ejecución'),
-        ('duracion_del_contrato', 'Duración reportada'),
+        ('duraci_n_del_contrato', 'Duración reportada'),
         ('plazo_de_ejec_del_contrato', 'Plazo de ejecución'),
         ('rango_de_ejec_del_contrato', 'Unidad del plazo'),
         ('dias_adicionados', 'Días adicionados'),
@@ -495,11 +498,10 @@ class ContractFieldCatalog {
       'Entidad estatal contratante',
       [
         ('nombre_entidad', 'Entidad'),
-        ('nombre_de_la_entidad', 'Entidad'),
         ('nit_entidad', 'NIT de la entidad'),
         ('nit_de_la_entidad', 'NIT de la entidad'),
         ('codigo_entidad', 'Código de la entidad'),
-        ('codigo_de_la_entidad', 'Código de la entidad'),
+        ('c_digo_de_la_entidad', 'Código de la entidad'),
         ('orden', 'Orden'),
         ('orden_entidad', 'Orden'),
         ('sector', 'Sector'),
@@ -518,7 +520,7 @@ class ContractFieldCatalog {
       'Contratista adjudicado y representación legal',
       [
         ('proveedor_adjudicado', 'Contratista'),
-        ('nom_raz_social_contratista', 'Contratista'),
+        ('nom_razon_social_contratista', 'Contratista'),
         ('tipodocproveedor', 'Tipo de documento'),
         ('tipo_identifi_del_contratista', 'Tipo de documento'),
         ('documento_proveedor', 'Número de documento'),
@@ -545,7 +547,7 @@ class ContractFieldCatalog {
           'identificacion_representante_legal',
           'Documento del representante',
         ),
-        ('identific_del_represen_legal', 'Documento del representante'),
+        ('identific_representante_legal', 'Documento del representante'),
         ('nacionalidad_representante_legal', 'Nacionalidad del representante'),
         ('domicilio_representante_legal', 'Domicilio del representante'),
         ('g_nero_representante_legal', 'Género del representante'),

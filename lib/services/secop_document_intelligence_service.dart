@@ -6,6 +6,7 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'favorites_service.dart';
 import 'security_service.dart';
 
 class SecopExtractedDocument {
@@ -306,11 +307,21 @@ class SecopDocumentIntelligenceService {
     } catch (_) {}
   }
 
-  /// Resuelve la URL real del expediente (`urlproceso`) en SECOP II.
-  static Future<String> resolverUrlProcesoOficial(dynamic contrato) async {
+  static final Map<String, Future<String>> _urlProcesoCache = {};
+
+  /// Resuelve la URL real del expediente (`urlproceso`) en SECOP I o II. Se
+  /// memoriza por contrato porque varias consultas de la vista la piden.
+  static Future<String> resolverUrlProcesoOficial(dynamic contrato) {
+    final clave = contrato is Map
+        ? FavoritesService.idContrato(contrato)
+        : contrato.toString();
+    return _urlProcesoCache[clave] ??= _resolverUrlProcesoOficial(contrato);
+  }
+
+  static Future<String> _resolverUrlProcesoOficial(dynamic contrato) async {
     String candidate = '';
     if (contrato is Map) {
-      final rawUrl = contrato['urlproceso'];
+      final rawUrl = contrato['urlproceso'] ?? contrato['ruta_proceso_en_secop_i'];
       if (rawUrl is Map && rawUrl['url'] != null) {
         candidate = rawUrl['url'].toString().trim();
       } else if (rawUrl is String) {
@@ -357,7 +368,8 @@ class SecopDocumentIntelligenceService {
             }
           } catch (_) {}
 
-          if (candidate.isEmpty) {
+          // `noticeUID` solo acepta avisos (CO1.NTC.*), no procesos CO1.BDOS.*
+          if (candidate.isEmpty && proceso.toUpperCase().startsWith('CO1.NTC.')) {
             candidate =
                 'https://community.secop.gov.co/Public/Tendering/OpportunityDetail/Index?noticeUID=${Uri.encodeComponent(proceso)}';
           }
