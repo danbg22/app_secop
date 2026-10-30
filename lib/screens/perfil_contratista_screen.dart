@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
 import '../services/security_service.dart';
 import '../services/sigep_service.dart';
+import '../utils/contract_financial_calculator.dart';
 import '../widgets/collapsible_side_menu.dart';
 import '../widgets/route_security_guard.dart';
 import '../widgets/user_profile_header_action.dart';
@@ -55,6 +56,44 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
   double valorTotalAcumulado = 0;
   int cantidadContratos = 0;
   List<dynamic> historialContratos = [];
+  String _filtroAnio = '';
+
+  static const List<String> _aniosHistorial = [
+    '2026',
+    '2025',
+    '2024',
+    '2023',
+    '2022',
+    '2021',
+    '2020',
+    '2019',
+    '2018',
+    '2017',
+    '2016',
+    '2015',
+  ];
+
+  String _anioContrato(dynamic c) {
+    if (c is! Map) return '';
+    final raw = (c['fecha_de_firma'] ??
+            c['fecha_de_inicio_del_contrato'] ??
+            c['anno_firma_del_contrato'] ??
+            c['fecha_ini_ejec_contrato'] ??
+            '')
+        .toString();
+    if (raw.length >= 4) {
+      final y = raw.substring(0, 4);
+      if (RegExp(r'^\d{4}$').hasMatch(y)) return y;
+    }
+    return '';
+  }
+
+  List<dynamic> get _contratosFiltrados {
+    if (_filtroAnio.isEmpty) return historialContratos;
+    return historialContratos
+        .where((c) => _anioContrato(c) == _filtroAnio)
+        .toList();
+  }
 
   String get _nombreAuditar =>
       (widget.nombreBuscado ?? widget.nombreContratista ?? '').trim();
@@ -378,6 +417,75 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
           } catch (_) {}
         }
       }
+
+      // 4. Consulta complementaria a SECOP I (f789-7hwg.json) para contratos 2015-2019
+      void normalizarContratoSecopI(Map<String, dynamic> c) {
+        c['proveedor_adjudicado'] ??= c['nom_raz_social_contratista'];
+        c['documento_proveedor'] ??= c['identificacion_del_contratista'];
+        c['valor_del_contrato'] ??= c['cuantia_contrato'];
+        c['fecha_de_firma'] ??= c['fecha_de_firma_del_contrato'] ?? c['fecha_ini_ejec_contrato'];
+        c['fecha_de_inicio_del_contrato'] ??= c['fecha_ini_ejec_contrato'];
+        c['fecha_de_fin_del_contrato'] ??= c['fecha_fin_ejec_contrato'];
+        c['nombre_entidad'] ??= c['nombre_de_la_entidad'];
+        c['nit_entidad'] ??= c['nit_de_la_entidad'];
+        c['descripcion_del_proceso'] ??= c['detalle_del_objeto_a_contratar'];
+        c['objeto_del_contrato'] ??= c['objeto_a_contratar'] ?? c['detalle_del_objeto_a_contratar'];
+        c['proceso_de_compra'] ??= c['numero_de_proceso'];
+        c['referencia_del_contrato'] ??= c['numero_del_contrato'];
+        c['estado_contrato'] ??= c['estado_del_proceso'];
+        c['urlproceso'] ??= c['ruta_proceso_en_secop_i'];
+      }
+
+      try {
+        if (cleanDoc.length >= 5) {
+          final uriSecop1 = Uri.https('www.datos.gov.co', '/resource/f789-7hwg.json', {
+            'identificacion_del_contratista': cleanDoc,
+            r'$where': "anno_firma_del_contrato >= '2015'",
+            r'$order': 'fecha_de_firma_del_contrato DESC',
+            r'$limit': '2000',
+          });
+          final res1 = await http.get(uriSecop1).timeout(const Duration(seconds: 12));
+          if (res1.statusCode == 200) {
+            final decoded1 = json.decode(utf8.decode(res1.bodyBytes));
+            if (decoded1 is List) {
+              for (final raw in decoded1) {
+                if (raw is Map) {
+                  final c = Map<String, dynamic>.from(raw);
+                  normalizarContratoSecopI(c);
+                  addContractIfNew(c);
+                }
+              }
+            }
+          }
+        } else if (_nombreAuditar.isNotEmpty) {
+          final uriSecop1Name = Uri.https('www.datos.gov.co', '/resource/f789-7hwg.json', {
+            'nom_raz_social_contratista': _nombreAuditar,
+            r'$where': "anno_firma_del_contrato >= '2015'",
+            r'$order': 'fecha_de_firma_del_contrato DESC',
+            r'$limit': '2000',
+          });
+          final res1Name = await http.get(uriSecop1Name).timeout(const Duration(seconds: 12));
+          if (res1Name.statusCode == 200) {
+            final decoded1Name = json.decode(utf8.decode(res1Name.bodyBytes));
+            if (decoded1Name is List) {
+              for (final raw in decoded1Name) {
+                if (raw is Map) {
+                  final c = Map<String, dynamic>.from(raw);
+                  normalizarContratoSecopI(c);
+                  addContractIfNew(c);
+                }
+              }
+            }
+          }
+        }
+      } catch (_) {}
+
+      // Ordenar contratos consolidados cronológicamente (más recientes primero)
+      allContracts.sort((a, b) {
+        final dateA = (a is Map ? (a['fecha_de_firma'] ?? a['fecha_de_inicio_del_contrato'] ?? '') : '').toString();
+        final dateB = (b is Map ? (b['fecha_de_firma'] ?? b['fecha_de_inicio_del_contrato'] ?? '') : '').toString();
+        return dateB.compareTo(dateA);
+      });
 
       final resumen = _calcularResumen(allContracts);
 
@@ -931,6 +1039,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
     );
     final idContrato = _idContrato(contrato);
     final esFavorito = _contratosFavoritosIds.contains(idContrato);
+    final analisis = ContractFinancialAnalysis.fromContract(contrato);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -1040,32 +1149,67 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                     const Divider(height: 16, color: Color(0xFFF1F5F9)),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(
-                          '\$ ${formatoMoneda.format(valor.round())}',
-                          style: const TextStyle(
-                            color: Color(0xFF2E7D32),
-                            fontSize: 15.5,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(
-                              Icons.calendar_today_outlined,
-                              size: 13,
-                              color: Color(0xFF64748B),
-                            ),
-                            const SizedBox(width: 5),
                             Text(
-                              fecha,
+                              '\$ ${formatoMoneda.format(valor.round())}',
                               style: const TextStyle(
-                                color: Color(0xFF475569),
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF2E7D32),
+                                fontSize: 15.5,
+                                fontWeight: FontWeight.w800,
                               ),
                             ),
+                            if (analisis.tienePlazo && analisis.valorTotal > 0) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                analisis.esMenorAUnMes
+                                    ? '${analisis.plazoDias} días total'
+                                    : '≈ ${ContractFinancialAnalysis.formatCop(analisis.valorMensualEstimado)} / mes',
+                                style: const TextStyle(
+                                  color: Color(0xFF1D4ED8),
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.calendar_today_outlined,
+                                  size: 13,
+                                  color: Color(0xFF64748B),
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  fecha,
+                                  style: const TextStyle(
+                                    color: Color(0xFF475569),
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (analisis.tienePlazo) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                '${analisis.plazoDias}d · ${analisis.mesesDecimalTexto}',
+                                style: const TextStyle(
+                                  color: Color(0xFFB45309),
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ],
@@ -1128,13 +1272,42 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                             ],
                           ),
                           const SizedBox(height: 8),
-                          Text(
-                            '\$ ${formatoMoneda.format(valor.round())}',
-                            style: const TextStyle(
-                              color: Color(0xFF2E7D32),
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                            ),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Text(
+                                '\$ ${formatoMoneda.format(valor.round())}',
+                                style: const TextStyle(
+                                  color: Color(0xFF2E7D32),
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              if (analisis.tienePlazo && analisis.valorTotal > 0) ...[
+                                const SizedBox(width: 10),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFEFF6FF),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    analisis.esMenorAUnMes
+                                        ? '${analisis.plazoDias} días'
+                                        : '≈ ${ContractFinancialAnalysis.formatCop(analisis.valorMensualEstimado)} / mes (${analisis.mesesDecimalTexto})',
+                                    style: const TextStyle(
+                                      color: Color(0xFF1D4ED8),
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ],
                       ),
@@ -1306,6 +1479,97 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                         ],
                       ),
                       const SizedBox(height: 14),
+                      if (historialContratos.isNotEmpty) ...[
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              InkWell(
+                                onTap: () => setState(() => _filtroAnio = ''),
+                                borderRadius: BorderRadius.circular(20),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: _filtroAnio.isEmpty
+                                        ? _azulOscuro
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: _filtroAnio.isEmpty
+                                          ? _azulOscuro
+                                          : const Color(0xFFCBD5E1),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Todos (2015–2026): ${historialContratos.length}',
+                                    style: TextStyle(
+                                      color: _filtroAnio.isEmpty
+                                          ? Colors.white
+                                          : const Color(0xFF475569),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              for (final a in _aniosHistorial) ...[
+                                const SizedBox(width: 8),
+                                Builder(
+                                  builder: (context) {
+                                    final count = historialContratos
+                                        .where((c) => _anioContrato(c) == a)
+                                        .length;
+                                    final isSelected = _filtroAnio == a;
+                                    return InkWell(
+                                      onTap: count > 0 || isSelected
+                                          ? () => setState(() => _filtroAnio = isSelected ? '' : a)
+                                          : null,
+                                      borderRadius: BorderRadius.circular(20),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 11,
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: isSelected
+                                              ? _azulOscuro
+                                              : (count > 0 ? Colors.white : const Color(0xFFF1F5F9)),
+                                          borderRadius: BorderRadius.circular(20),
+                                          border: Border.all(
+                                            color: isSelected
+                                                ? _azulOscuro
+                                                : (count > 0
+                                                    ? const Color(0xFFCBD5E1)
+                                                    : const Color(0xFFE2E8F0)),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          '$a ($count)',
+                                          style: TextStyle(
+                                            color: isSelected
+                                                ? Colors.white
+                                                : (count > 0
+                                                    ? _azulOscuro
+                                                    : const Color(0xFF94A3B8)),
+                                            fontSize: 12,
+                                            fontWeight: isSelected
+                                                ? FontWeight.w700
+                                                : FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                      ],
                       if (isLoading)
                         const Padding(
                           padding: EdgeInsets.symmetric(
@@ -1341,16 +1605,33 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                                 BorderRadius.circular(16),
                           ),
                           child: const Text(
-                            'No se encontraron contratos registrados en SECOP II para este contratista.',
+                            'No se encontraron contratos registrados en SECOP para este contratista desde 2015.',
                             style: TextStyle(
                               color: Color(0xFF64748B),
                               fontSize: 13.5,
                             ),
                           ),
                         )
+                      else if (_contratosFiltrados.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'No se registran contratos en el año $_filtroAnio para este contratista.',
+                              style: const TextStyle(
+                                color: Color(0xFF64748B),
+                                fontSize: 13.5,
+                              ),
+                            ),
+                          ),
+                        )
                       else
                         for (final contrato
-                            in historialContratos)
+                            in _contratosFiltrados)
                           _buildHistorialContractCard(contrato, isMobile),
                     ],
                   ),

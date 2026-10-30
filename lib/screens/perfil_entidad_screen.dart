@@ -118,9 +118,24 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   bool _isLoadingContractsPage = false;
   bool _isLoadingDependencyLive = false;
 
-  // Vigencia anualizada en curso (2026 por defecto; permite alternar a historial completo en Contratos)
+  // Vigencia anualizada (2026 por defecto; soporta 2015 a 2026 o historial completo)
   bool _onlyCurrentYear2026 = true;
   int _activeBudgetYear = 2026;
+  int? _selectedContratosYear = 2026;
+  static const List<int> _aniosDisponibles = [
+    2026,
+    2025,
+    2024,
+    2023,
+    2022,
+    2021,
+    2020,
+    2019,
+    2018,
+    2017,
+    2016,
+    2015,
+  ];
 
   // Selector de Regional / Seccional Territorial (null = Consolidado Nacional / Total Entidad)
   String? _selectedRegionalDept;
@@ -342,10 +357,17 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       'valor_del_contrato < 500000000000',
     ];
 
-    final targetYear = forceYear ?? 2026;
-    if (onlyYear2026) {
-      clauses.add("fecha_de_firma >= '$targetYear-01-01T00:00:00.000'");
-      clauses.add("fecha_de_firma <= '$targetYear-12-31T23:59:59.999'");
+    final targetYear = forceYear ?? _selectedContratosYear;
+    if (onlyYear2026 && targetYear != null) {
+      clauses.add(
+        "((fecha_de_firma >= '$targetYear-01-01T00:00:00.000' AND fecha_de_firma <= '$targetYear-12-31T23:59:59.999') OR "
+        "(fecha_de_firma IS NULL AND fecha_de_inicio_del_contrato >= '$targetYear-01-01T00:00:00.000' AND fecha_de_inicio_del_contrato <= '$targetYear-12-31T23:59:59.999'))",
+      );
+    } else {
+      // Cobertura completa histórica desde 2015 en adelante
+      clauses.add(
+        "(fecha_de_firma >= '2015-01-01T00:00:00.000' OR fecha_de_inicio_del_contrato >= '2015-01-01T00:00:00.000')",
+      );
     }
 
     final nitClean =
@@ -2813,82 +2835,47 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                     ),
                   ),
                   if (_isMobile) const SizedBox(height: 10),
-                  // Selector rápido entre Vigencia 2026 (Año en curso) y Todo el historial SECOP II
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          InkWell(
-                            onTap: () {
-                              if (!_onlyCurrentYear2026) {
-                                setState(() => _onlyCurrentYear2026 = true);
-                                _fetchLiveEntityProfileData();
-                              }
-                            },
-                            borderRadius: BorderRadius.circular(9),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: _onlyCurrentYear2026
-                                    ? _azulOscuro
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(9),
-                              ),
-                              child: Text(
-                                'Vigencia $_activeBudgetYear',
-                                style: TextStyle(
-                                  color: _onlyCurrentYear2026
-                                      ? Colors.white
-                                      : const Color(0xFF475569),
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ),
+                  // Selector de Vigencia / Año (2015 a 2026 e Historial consolidado)
+                  Container(
+                    height: 38,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFCBD5E1)),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int?>(
+                        value: _selectedContratosYear,
+                        icon: const Icon(
+                          Icons.calendar_today_outlined,
+                          size: 14,
+                          color: _azulOscuro,
+                        ),
+                        isDense: true,
+                        style: const TextStyle(
+                          color: _azulOscuro,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                        items: [
+                          const DropdownMenuItem<int?>(
+                            value: null,
+                            child: Text('Historial completo (2015–2026)'),
                           ),
-                          InkWell(
-                            onTap: () {
-                              if (_onlyCurrentYear2026) {
-                                setState(() => _onlyCurrentYear2026 = false);
-                                _fetchLiveEntityProfileData();
-                              }
-                            },
-                            borderRadius: BorderRadius.circular(9),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: !_onlyCurrentYear2026
-                                    ? _azulOscuro
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(9),
-                              ),
-                              child: Text(
-                                'Todo el historial SECOP II',
-                                style: TextStyle(
-                                  color: !_onlyCurrentYear2026
-                                      ? Colors.white
-                                      : const Color(0xFF475569),
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
+                          for (final anio in _aniosDisponibles)
+                            DropdownMenuItem<int?>(
+                              value: anio,
+                              child: Text('Vigencia $anio'),
                             ),
-                          ),
                         ],
+                        onChanged: (val) {
+                          setState(() {
+                            _selectedContratosYear = val;
+                            _onlyCurrentYear2026 = val != null;
+                          });
+                          _fetchLiveEntityProfileData();
+                        },
                       ),
                     ),
                   ),
