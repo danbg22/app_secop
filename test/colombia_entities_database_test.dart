@@ -21,4 +21,10 @@ void main() {
     expect(sena.map((e) => e.nit.replaceAll(RegExp(r'\D'), '')),
         contains('899999034'));
   });
+
+  test('nitsPorSigla encuentra siglas exactas, con o sin puntos', () {
+    expect(ColombiaEntitiesDatabase.nitsPorSigla('UIS'), contains('890201213'));
+    expect(ColombiaEntitiesDatabase.nitsPorSigla('u.i.s.'), contains('890201213'));
+    expect(ColombiaEntitiesDatabase.nitsPorSigla('UNIVERSIDAD'), isEmpty);
+  });
 }

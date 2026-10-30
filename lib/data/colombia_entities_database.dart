@@ -25,6 +25,32 @@ class EntidadCatalogo {
 class ColombiaEntitiesDatabase {
   ColombiaEntitiesDatabase._();
 
+  static String _normalizar(String texto) => texto
+      .toUpperCase()
+      .replaceAll('Á', 'A')
+      .replaceAll('É', 'E')
+      .replaceAll('Í', 'I')
+      .replaceAll('Ó', 'O')
+      .replaceAll('Ú', 'U')
+      .replaceAll('Ü', 'U')
+      .replaceAll(RegExp(r'[.\-]'), '')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+
+  /// NIT de las entidades cuya sigla o nombre coincide exactamente con
+  /// [termino] (p. ej. "UIS", "U.I.S." o "SENA"). Coincidencia exacta para
+  /// no traer entidades que solo comparten una palabra.
+  static List<String> nitsPorSigla(String termino) {
+    final buscado = _normalizar(termino);
+    if (buscado.length < 2) return const [];
+    return [
+      for (final e in allEntities)
+        if (_normalizar(e.name) == buscado ||
+            e.secopKeywords.any((k) => _normalizar(k) == buscado))
+          e.nit.replaceAll(RegExp(r'[^0-9]'), ''),
+    ];
+  }
+
   static const List<EntidadCatalogo> allEntities = [
     EntidadCatalogo(
       name: 'Universidad Industrial de Santander - UIS',

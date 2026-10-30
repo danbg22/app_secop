@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+import '../data/colombia_entities_database.dart';
 import '../services/security_service.dart';
 import '../services/sigep_service.dart';
 import '../utils/app_scroll_behavior.dart';
@@ -595,6 +596,14 @@ class _ContratistasScreenState extends State<ContratistasScreen>
         }
 
         if (normName.isNotEmpty && !isNumericTerm) {
+          // Siglas de entidades públicas que también son contratistas
+          // ("UIS" -> NIT de la Universidad Industrial de Santander).
+          for (final nit in ColombiaEntitiesDatabase.nitsPorSigla(normName)) {
+            if (nit.length >= 8) {
+              subConditions.add("documento_proveedor = '$nit'");
+            }
+          }
+
           // Búsqueda en tiempo real por Nombre y Apellido o Razón Social (desde 1 letra en adelante)
           final titleName = _toTitleCaseWords(normName);
           final words = normName

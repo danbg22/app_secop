@@ -7,11 +7,13 @@ import 'package:http/http.dart' as http;
 
 import '../../data/colombia_entities_database.dart';
 import '../../services/auth_service.dart';
+import '../../services/secop_i_procesos_service.dart';
 import '../../services/security_service.dart';
 import '../../utils/anios_secop.dart';
 import '../../utils/app_scroll_behavior.dart';
 import '../../widgets/user_profile_header_action.dart';
 import '../perfil_entidad_screen.dart';
+import '../procesos_secop_i_screen.dart';
 
 enum EntityEmblemType {
   alcaldiaCoatOfArms,
@@ -147,6 +149,10 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
   int _kpiTotalContracts = 0;
   double _kpiTotalAmountMillions = 0;
   int _kpiUniqueContractors = 0;
+
+  /// Entidades sin contratos en SECOP II que sí publicaron procesos en
+  /// SECOP I (régimen especial). Solo se consultan si SECOP II no tiene nada.
+  List<EntidadSecopI> _entidadesSecopI = const [];
 
   /// Periodo de las cifras mostradas (vigencia actual o histórico).
   String _kpiPeriodo = 'Vigencia ${AniosSecop.actual}';
@@ -654,6 +660,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     }
     final visibles = _topContractingEntities.take(10).toList();
     setState(() {
+      _entidadesSecopI = const [];
       _activeEntities = visibles;
       _recalculateKpisFromList(visibles);
       _kpiPeriodo = 'Vigencia ${AniosSecop.actual}';
@@ -676,6 +683,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       final cached = _queryCache[cacheKey]!;
       if (!mounted) return;
       setState(() {
+        _entidadesSecopI = const [];
         _activeEntities = cached.entities;
         _kpiTotalEntities = cached.totalEntities;
         _kpiTotalContracts = cached.totalContracts;
@@ -708,6 +716,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       if (bundle != null && bundle.entities.isNotEmpty) {
         _queryCache[cacheKey] = bundle;
         setState(() {
+          _entidadesSecopI = const [];
           _activeEntities = bundle.entities;
           _kpiTotalEntities = bundle.totalEntities;
           _kpiTotalContracts = bundle.totalContracts;
@@ -717,8 +726,16 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
           _isLoadingLive = false;
         });
       } else {
+        // Sin contratos en SECOP II: puede ser una entidad de régimen
+        // especial con procesos publicados en SECOP I.
+        final secopI = await SecopIProcesosService.buscarEntidades(
+          queryText,
+          nitsCatalogo: _buscarEnCatalogo(queryText).map((e) => e.nit).toList(),
+        );
+        if (!mounted || _searchController.text.trim() != queryText) return;
         setState(() {
           _activeEntities = const [];
+          _entidadesSecopI = secopI;
           _recalculateKpisFromList(const []);
           _isLoadingLive = false;
         });
@@ -1869,7 +1886,9 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
             )
           else
             const Divider(height: 1, color: Color(0xFFEEF2F6)),
-          if (entities.isEmpty)
+          if (entities.isEmpty && !_isLoadingLive && _entidadesSecopI.isNotEmpty)
+            _buildEntidadesSecopI()
+          else if (entities.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 42, horizontal: 20),
               child: Column(
@@ -1883,13 +1902,21 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                   Text(
                     _isLoadingLive
                         ? 'Consultando entidades verificadas en SECOP II...'
-                        : 'No se encontraron entidades en SECOP II con ese criterio.',
+                        : 'No se encontraron entidades en SECOP II ni en SECOP I con ese criterio.',
                     style: const TextStyle(
                       color: _azulOscuro,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
+                  if (!_isLoadingLive && !_isEmptySearch) ...[
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Si es una entidad de régimen especial (por ejemplo, una universidad pública), puede publicar su contratación en su propio portal.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Color(0xFF64748B), fontSize: 12.5),
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   if (!_isLoadingLive)
                     TextButton.icon(
@@ -1916,6 +1943,68 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
             ],
         ],
       ),
+    );
+  }
+
+  Widget _buildEntidadesSecopI() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFFBEB),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFFCD34D)),
+          ),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Procesos publicados en SECOP I (régimen especial)',
+                style: TextStyle(
+                  color: Color(0xFF78350F),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Esta entidad no registra contratos en SECOP II. Estos son procesos que convocó en SECOP I: muestran la cuantía estimada, no el contratista ni el valor del contrato firmado.',
+                style: TextStyle(color: Color(0xFF92400E), fontSize: 12.5),
+              ),
+            ],
+          ),
+        ),
+        for (final e in _entidadesSecopI)
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+            leading: const Icon(Icons.account_balance_outlined, color: _azulOscuro),
+            title: Text(
+              e.nombre,
+              style: const TextStyle(
+                color: _azulOscuro,
+                fontWeight: FontWeight.w800,
+                fontSize: 13.5,
+              ),
+            ),
+            subtitle: Text(
+              '${_formatIntWithDots(e.procesos)} procesos · '
+              '${_formatMillions(e.valorEstimado / 1000000)} estimados · ${e.periodo}'
+              '${e.nit.isNotEmpty ? ' · NIT ${e.nit}' : ''}',
+              style: const TextStyle(fontSize: 12),
+            ),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ProcesosSecopIScreen(entidad: e),
+              ),
+            ),
+          ),
+        const SizedBox(height: 8),
+      ],
     );
   }
 
