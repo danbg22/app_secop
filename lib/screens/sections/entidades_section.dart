@@ -587,7 +587,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
   }
 
   /// Busca en el catálogo de nombres y siglas para obtener los NIT candidatos.
-  List<EntitySummaryRecord> _filterVerifiedSeedEntities(String rawQuery) {
+  List<EntidadCatalogo> _buscarEnCatalogo(String rawQuery) {
     final clean = _normalizar(rawQuery.trim());
     if (clean.isEmpty) return const [];
 
@@ -918,7 +918,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
 
     // Siglas y nombres conocidos ("SENA", "UIS", "ICBF") se traducen al NIT
     // con el catálogo; el texto se busca en el nombre registrado en SECOP.
-    final nitsCatalogo = _filterVerifiedSeedEntities(queryText)
+    final nitsCatalogo = _buscarEnCatalogo(queryText)
         .map((e) => e.nit.replaceAll(RegExp(r'[^0-9]'), ''))
         .where((n) => n.length >= 8)
         .toSet()
