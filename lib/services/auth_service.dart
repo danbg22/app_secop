@@ -33,10 +33,14 @@ class AuthService {
   static String _cachedFullName = '';
   static String _cachedPhotoData = '';
   static List<String> _cachedRoles = <String>['persona'];
+  static bool _cachedPaymentPending = false;
+  static String _cachedPendingRoleId = 'persona';
   static bool _isLocalSessionActive = false;
 
   static const String _kUsersRegistryKey = 'registered_users_v1';
   static const String _kRolesSealMigrationFlag = '_sec_roles_seal_migrated_v1';
+  static const String _kPaymentSealMigrationFlag =
+      '_sec_payment_seal_migrated_v1';
   static const String coleccionIndicesUnicidad = 'indices_unicidad';
 
   /// Inicializa y verifica criptográficamente en memoria los datos de sesión
@@ -62,7 +66,51 @@ class AuthService {
         final fbName = (fbUser.displayName ?? '').trim();
         final profileName = await _lookupStoredNameForEmail(prefs, fbEmail);
         _cachedPhotoData = await _lookupStoredPhotoForEmail(prefs, fbEmail);
-        _cachedRoles = await _lookupVerifiedRolesForEmail(prefs, fbEmail);
+        var state = await _lookupVerifiedAccountStateForEmail(prefs, fbEmail);
+
+        // Si existe documento en Firestore con pago pendiente sin liquidar,
+        // prevalece el bloqueo hasta que exista pago aprobado en Wompi.
+        try {
+          final snap = await FirebaseFirestore.instance
+              .collection(ConsentService.coleccionUsuarios)
+              .doc(fbUser.uid)
+              .get()
+              .timeout(const Duration(seconds: 3));
+          final remote = snap.data();
+          if (remote != null) {
+            final remotePending =
+                remote['pagoWompiPendiente'] == true &&
+                remote['pagoWompiActivo'] != true;
+            final remoteReqRole = PaymentService.normalizarRolId(
+              (remote['rolSolicitadoRegistro'] ?? state.pendingRoleId)
+                  .toString(),
+            );
+            if (remotePending) {
+              state = (
+                roles: <String>[],
+                paymentPending: true,
+                pendingRoleId: remoteReqRole,
+              );
+            } else if (remote['pagoWompiActivo'] == true &&
+                remote['rolesActivos'] is List) {
+              final remoteRoles = _extractNormalizedRolesFromMap(
+                remote,
+                fallbackToPersonaWhenEmpty: false,
+              );
+              if (remoteRoles.isNotEmpty) {
+                state = (
+                  roles: remoteRoles,
+                  paymentPending: false,
+                  pendingRoleId: remoteReqRole,
+                );
+              }
+            }
+          }
+        } catch (_) {}
+
+        _cachedRoles = state.roles;
+        _cachedPaymentPending = state.paymentPending;
+        _cachedPendingRoleId = state.pendingRoleId;
         _cachedFullName = fbName.isNotEmpty
             ? fbName
             : (profileName.isNotEmpty
@@ -75,16 +123,20 @@ class AuthService {
           prefs: prefs,
           email: fbEmail,
           roles: _cachedRoles,
+          paymentPending: _cachedPaymentPending,
+          pendingRoleId: _cachedPendingRoleId,
         );
       } else if (isLogged && activeEmail.isNotEmpty) {
-        final verifiedRoles = await _lookupVerifiedRolesForEmail(
+        final state = await _lookupVerifiedAccountStateForEmail(
           prefs,
           activeEmail,
         );
         final isSealValid = await SecurityService.verifyAndTouchSessionSeal(
           prefs: prefs,
           expectedEmail: activeEmail,
-          expectedRoles: verifiedRoles,
+          expectedRoles: state.roles,
+          expectedPaymentPending: state.paymentPending,
+          expectedPendingRoleId: state.pendingRoleId,
         );
 
         if (isSealValid) {
@@ -96,7 +148,9 @@ class AuthService {
             prefs,
             activeEmail,
           );
-          _cachedRoles = verifiedRoles;
+          _cachedRoles = state.roles;
+          _cachedPaymentPending = state.paymentPending;
+          _cachedPendingRoleId = state.pendingRoleId;
           _cachedEmail = activeEmail;
           _cachedFullName = profileName.isNotEmpty
               ? profileName
@@ -125,6 +179,8 @@ class AuthService {
     _cachedFullName = '';
     _cachedPhotoData = '';
     _cachedRoles = <String>['persona'];
+    _cachedPaymentPending = false;
+    _cachedPendingRoleId = 'persona';
     _isLocalSessionActive = false;
   }
 
@@ -136,8 +192,25 @@ class AuthService {
     await SecurityService.clearSessionSeal(prefs);
   }
 
-  /// Devuelve la lista de roles acumulados del usuario activo (por defecto `['persona']`).
+  /// Indica si la cuenta autenticada tiene un pago inicial obligatorio pendiente
+  /// en Wompi y por lo tanto TIENE BLOQUEADO el acceso al panel principal `/home`.
+  static bool get requiresMandatoryWompiPayment =>
+      hasActiveSession && _cachedPaymentPending;
+
+  /// Indica si existe sesión autenticada Y con pago validado/autorizado para usar la app.
+  static bool get hasAuthorizedPlatformAccess =>
+      hasActiveSession && !_cachedPaymentPending;
+
+  /// Rol elegido durante el registro que está pendiente de activación en Wompi.
+  static String getPendingRegistrationRoleId() =>
+      PaymentService.normalizarRolId(_cachedPendingRoleId);
+
+  /// Devuelve la lista de roles acumulados del usuario activo.
+  /// Si el pago obligatorio está pendiente, devuelve lista vacía (cero permisos).
   static List<String> getActiveUserRoles() {
+    if (requiresMandatoryWompiPayment) {
+      return const <String>[];
+    }
     if (_cachedRoles.isEmpty) {
       return const <String>['persona'];
     }
@@ -146,7 +219,9 @@ class AuthService {
 
   /// Devuelve la etiqueta visible de los roles activos (ej. `'Persona'` o `'Persona + Empresa licitante'`).
   static String getActiveUserRoleDisplayLabel() {
-    return PaymentService.formatearEtiquetaRolesAcumulados(getActiveUserRoles());
+    return PaymentService.formatearEtiquetaRolesAcumulados(
+      getActiveUserRoles(),
+    );
   }
 
   /// Verifica si el usuario activo tiene un rol específico dentro de sus roles acumulados.
@@ -273,9 +348,14 @@ class AuthService {
       final registry = await _loadRegistry(prefs);
       final initialSealMigrationDone =
           prefs.getBool(_kRolesSealMigrationFlag) ?? false;
+      final paymentSealMigrationDone =
+          prefs.getBool(_kPaymentSealMigrationFlag) ?? false;
       if (registry.isEmpty) {
         if (!initialSealMigrationDone) {
           await prefs.setBool(_kRolesSealMigrationFlag, true);
+        }
+        if (!paymentSealMigrationDone) {
+          await prefs.setBool(_kPaymentSealMigrationFlag, true);
         }
         return;
       }
@@ -285,8 +365,10 @@ class AuthService {
         final rawEntry = registry[entryKey];
         if (rawEntry is Map) {
           final map = Map<String, dynamic>.from(rawEntry);
-          final emailKey =
-              (map['email'] ?? entryKey).toString().trim().toLowerCase();
+          final emailKey = (map['email'] ?? entryKey)
+              .toString()
+              .trim()
+              .toLowerCase();
 
           // 1. Purga definitiva de contraseñas en texto claro (CWE-256 / CWE-312)
           if (map.containsKey('password')) {
@@ -303,7 +385,8 @@ class AuthService {
           // 2. Sanitización de avatares almacenados previamente
           final rawPhoto = (map['photoData'] ?? '').toString().trim();
           if (rawPhoto.isNotEmpty) {
-            final validDataUrl = rawPhoto.startsWith('data:image/') &&
+            final validDataUrl =
+                rawPhoto.startsWith('data:image/') &&
                 SecurityService.decodeSafeRasterDataUrl(rawPhoto) != null;
             final validHttpsUrl =
                 SecurityService.validateSafeExternalImageUrl(rawPhoto) != null;
@@ -313,9 +396,29 @@ class AuthService {
             }
           }
 
-          // 3. Verificación o sellado inicial de integridad de roles (CWE-269)
-          var normalizedRoles = _extractNormalizedRolesFromMap(map);
+          // 3. Verificación o sellado de integridad de roles y pago obligatorio Wompi
+          bool payPending =
+              map['pagoWompiPendiente'] == true &&
+              map['pagoWompiActivo'] != true;
+          bool payActive = map['pagoWompiActivo'] == true;
+          final requestedRole = PaymentService.normalizarRolId(
+            (map['rolSolicitadoRegistro'] ??
+                    map['rolPrincipal'] ??
+                    map['rol'] ??
+                    'persona')
+                .toString(),
+          );
+
+          var normalizedRoles = _extractNormalizedRolesFromMap(
+            map,
+            fallbackToPersonaWhenEmpty: !payPending,
+          );
+          if (payPending) {
+            normalizedRoles = <String>[];
+          }
+
           final existingSeal = map['rolesSeal']?.toString();
+          final existingPaySeal = map['paymentStateSeal']?.toString();
 
           if (!initialSealMigrationDone && existingSeal == null) {
             map['rolesSeal'] = await SecurityService.computeUserRolesSeal(
@@ -332,13 +435,67 @@ class AuthService {
               seal: existingSeal,
             );
             if (!validSeal) {
-              // Si alguien alteró `rolesActivos` desde DevTools, se degrada al rol base.
-              normalizedRoles = <String>['persona'];
+              // Si alguien alteró `rolesActivos` desde DevTools, se bloquea y exige validación.
+              payPending = true;
+              payActive = false;
+              normalizedRoles = <String>[];
+              map['pagoWompiPendiente'] = true;
+              map['pagoWompiActivo'] = false;
               map['rolesSeal'] = await SecurityService.computeUserRolesSeal(
                 prefs: prefs,
                 email: emailKey,
                 roles: normalizedRoles,
               );
+              changed = true;
+            }
+          }
+
+          if (!paymentSealMigrationDone && existingPaySeal == null) {
+            map['pagoWompiPendiente'] = payPending;
+            map['pagoWompiActivo'] = payActive;
+            map['rolSolicitadoRegistro'] = requestedRole;
+            map['paymentStateSeal'] =
+                await SecurityService.computePaymentStateSeal(
+                  prefs: prefs,
+                  email: emailKey,
+                  paymentPending: payPending,
+                  paymentActive: payActive,
+                  requestedRoleId: requestedRole,
+                  roles: normalizedRoles,
+                );
+            changed = true;
+          } else {
+            final validPaySeal = await SecurityService.verifyPaymentStateSeal(
+              prefs: prefs,
+              email: emailKey,
+              paymentPending: payPending,
+              paymentActive: payActive,
+              requestedRoleId: requestedRole,
+              roles: normalizedRoles,
+              seal: existingPaySeal,
+            );
+            if (!validPaySeal) {
+              // Intento de evadir pago editando `pagoWompiPendiente` en localStorage:
+              payPending = true;
+              payActive = false;
+              normalizedRoles = <String>[];
+              map['pagoWompiPendiente'] = true;
+              map['pagoWompiActivo'] = false;
+              map['rolSolicitadoRegistro'] = requestedRole;
+              map['rolesSeal'] = await SecurityService.computeUserRolesSeal(
+                prefs: prefs,
+                email: emailKey,
+                roles: normalizedRoles,
+              );
+              map['paymentStateSeal'] =
+                  await SecurityService.computePaymentStateSeal(
+                    prefs: prefs,
+                    email: emailKey,
+                    paymentPending: true,
+                    paymentActive: false,
+                    requestedRoleId: requestedRole,
+                    roles: normalizedRoles,
+                  );
               changed = true;
             }
           }
@@ -357,7 +514,9 @@ class AuthService {
               );
           if (needsRoleSync) {
             map['rolesActivos'] = normalizedRoles;
-            map['rolPrincipal'] = normalizedRoles.first;
+            map['rolPrincipal'] = normalizedRoles.isNotEmpty
+                ? normalizedRoles.first
+                : requestedRole;
             map['rolEtiqueta'] = expectedLabel;
             changed = true;
           }
@@ -370,6 +529,9 @@ class AuthService {
       }
       if (!initialSealMigrationDone) {
         await prefs.setBool(_kRolesSealMigrationFlag, true);
+      }
+      if (!paymentSealMigrationDone) {
+        await prefs.setBool(_kPaymentSealMigrationFlag, true);
       }
     } catch (_) {}
   }
@@ -426,50 +588,111 @@ class AuthService {
     return '';
   }
 
-  static Future<List<String>> _lookupVerifiedRolesForEmail(
+  static Future<
+    ({List<String> roles, bool paymentPending, String pendingRoleId})
+  >
+  _lookupVerifiedAccountStateForEmail(
     SharedPreferences prefs,
     String email,
   ) async {
     final clean = email.trim().toLowerCase();
-    if (clean.isEmpty) return <String>['persona'];
+    if (clean.isEmpty) {
+      return (
+        roles: <String>['persona'],
+        paymentPending: false,
+        pendingRoleId: 'persona',
+      );
+    }
     final reg = await _loadRegistry(prefs);
     final entry = reg[clean];
     if (entry is Map) {
       final map = Map<String, dynamic>.from(entry);
-      final roles = _extractNormalizedRolesFromMap(map);
-      final valid = await SecurityService.verifyUserRolesSeal(
+      final payPending =
+          map['pagoWompiPendiente'] == true && map['pagoWompiActivo'] != true;
+      final payActive = map['pagoWompiActivo'] == true;
+      final reqRole = PaymentService.normalizarRolId(
+        (map['rolSolicitadoRegistro'] ??
+                map['rolPrincipal'] ??
+                map['rol'] ??
+                'persona')
+            .toString(),
+      );
+      final roles = payPending
+          ? <String>[]
+          : _extractNormalizedRolesFromMap(
+              map,
+              fallbackToPersonaWhenEmpty: true,
+            );
+
+      final validRoles = await SecurityService.verifyUserRolesSeal(
         prefs: prefs,
         email: clean,
         roles: roles,
         seal: map['rolesSeal']?.toString(),
       );
-      if (valid) return roles;
+      final validPay = await SecurityService.verifyPaymentStateSeal(
+        prefs: prefs,
+        email: clean,
+        paymentPending: payPending,
+        paymentActive: payActive,
+        requestedRoleId: reqRole,
+        roles: roles,
+        seal: map['paymentStateSeal']?.toString(),
+      );
+
+      if (validRoles && validPay) {
+        return (
+          roles: roles,
+          paymentPending: payPending,
+          pendingRoleId: reqRole,
+        );
+      }
+      // Si el sello fue alterado manualmente en localStorage, bloquea acceso y exige pago.
+      return (roles: <String>[], paymentPending: true, pendingRoleId: reqRole);
     }
-    return <String>['persona'];
+    return (
+      roles: <String>['persona'],
+      paymentPending: false,
+      pendingRoleId: 'persona',
+    );
+  }
+
+  static Future<List<String>> _lookupVerifiedRolesForEmail(
+    SharedPreferences prefs,
+    String email,
+  ) async {
+    final state = await _lookupVerifiedAccountStateForEmail(prefs, email);
+    return state.roles;
   }
 
   static List<String> _extractNormalizedRolesFromMap(
-    Map<String, dynamic> data,
-  ) {
+    Map<String, dynamic> data, {
+    bool fallbackToPersonaWhenEmpty = true,
+  }) {
     final roles = <String>[];
+    final hasExplicitList = data['rolesActivos'] is List || data['roles'] is List;
     final rawList = data['rolesActivos'] ?? data['roles'];
     if (rawList is List) {
       for (final item in rawList) {
-        final norm = PaymentService.normalizarRolId(item?.toString());
+        final rawStr = (item ?? '').toString().trim();
+        if (rawStr.isEmpty) continue;
+        final norm = PaymentService.normalizarRolId(rawStr);
         if (!roles.contains(norm)) {
           roles.add(norm);
         }
       }
     }
-    final singleRol =
-        data['rol'] ?? data['rolPrincipal'] ?? data['rolSeleccionado'];
-    if (singleRol != null && singleRol.toString().trim().isNotEmpty) {
-      final norm = PaymentService.normalizarRolId(singleRol.toString());
-      if (!roles.contains(norm)) {
-        roles.add(norm);
+    if (!hasExplicitList) {
+      final singleRol =
+          data['rol'] ?? data['rolPrincipal'] ?? data['rolSeleccionado'];
+      if (singleRol != null && singleRol.toString().trim().isNotEmpty) {
+        final norm = PaymentService.normalizarRolId(singleRol.toString());
+        if (!roles.contains(norm)) {
+          roles.add(norm);
+        }
       }
     }
-    if (roles.isEmpty) {
+    if (roles.isEmpty && fallbackToPersonaWhenEmpty) {
       roles.add('persona');
     }
     return roles;
@@ -481,6 +704,10 @@ class AuthService {
     Map<String, dynamic>? extraProfileData,
     String? passwordForVaultUpdate,
     bool allowNewRolesFromExtra = false,
+    bool? paymentPendingOverride,
+    bool? paymentActiveOverride,
+    String? pendingRoleIdOverride,
+    List<String>? explicitRolesOverride,
   }) async {
     final cleanEmail = email.trim().toLowerCase();
     final resolvedName = displayName.trim().isNotEmpty
@@ -489,40 +716,60 @@ class AuthService {
 
     final prefs = await SharedPreferences.getInstance();
     final registry = await _loadRegistry(prefs);
-    final existing = registry[cleanEmail] is Map
+    final hasExisting = registry[cleanEmail] is Map;
+    final existing = hasExisting
         ? Map<String, dynamic>.from(registry[cleanEmail] as Map)
         : <String, dynamic>{};
 
-    // Verifica sello existente antes de conservar roles previos
-    final existingCandidateRoles = _extractNormalizedRolesFromMap(existing);
-    final existingRolesValid = await SecurityService.verifyUserRolesSeal(
-      prefs: prefs,
-      email: cleanEmail,
-      roles: existingCandidateRoles,
-      seal: existing['rolesSeal']?.toString(),
-    );
-    final trustedExistingRoles = existingRolesValid
-        ? existingCandidateRoles
-        : <String>['persona'];
+    final verifiedState = hasExisting
+        ? await _lookupVerifiedAccountStateForEmail(prefs, cleanEmail)
+        : (
+            roles: <String>['persona'],
+            paymentPending: false,
+            pendingRoleId: 'persona',
+          );
 
-    final combinedRoles = <String>[
-      ...trustedExistingRoles,
-      if (allowNewRolesFromExtra && extraProfileData != null)
-        ..._extractNormalizedRolesFromMap(extraProfileData),
-    ];
-    final deduplicatedRoles = <String>[];
-    for (final r in combinedRoles) {
-      if (!deduplicatedRoles.contains(r)) {
-        deduplicatedRoles.add(r);
+    final bool resolvedPayPending =
+        paymentPendingOverride ?? verifiedState.paymentPending;
+    final bool resolvedPayActive =
+        paymentActiveOverride ??
+        (!resolvedPayPending && (existing['pagoWompiActivo'] == true));
+    final String resolvedPendingRole = PaymentService.normalizarRolId(
+      pendingRoleIdOverride ??
+          extraProfileData?['rolSolicitadoRegistro']?.toString() ??
+          verifiedState.pendingRoleId,
+    );
+
+    List<String> deduplicatedRoles;
+    if (explicitRolesOverride != null) {
+      deduplicatedRoles = <String>[
+        for (final r in explicitRolesOverride)
+          if (r.trim().isNotEmpty) PaymentService.normalizarRolId(r),
+      ];
+    } else if (resolvedPayPending) {
+      deduplicatedRoles = <String>[];
+    } else {
+      final combinedRoles = <String>[
+        ...verifiedState.roles,
+        if (allowNewRolesFromExtra && extraProfileData != null)
+          ..._extractNormalizedRolesFromMap(
+            extraProfileData,
+            fallbackToPersonaWhenEmpty: false,
+          ),
+      ];
+      deduplicatedRoles = <String>[];
+      for (final r in combinedRoles) {
+        if (!deduplicatedRoles.contains(r)) {
+          deduplicatedRoles.add(r);
+        }
+      }
+      if (deduplicatedRoles.isEmpty) {
+        deduplicatedRoles.add('persona');
       }
     }
-    if (deduplicatedRoles.isEmpty) {
-      deduplicatedRoles.add('persona');
-    }
 
-    final sanitizedExtra = <String, dynamic>{
-      if (extraProfileData != null) ...extraProfileData,
-    }..remove('password');
+    final sanitizedExtra = <String, dynamic>{...?extraProfileData}
+      ..remove('password');
 
     existing.remove('password');
 
@@ -536,6 +783,14 @@ class AuthService {
       email: cleanEmail,
       roles: deduplicatedRoles,
     );
+    final paymentStateSeal = await SecurityService.computePaymentStateSeal(
+      prefs: prefs,
+      email: cleanEmail,
+      paymentPending: resolvedPayPending,
+      paymentActive: resolvedPayActive,
+      requestedRoleId: resolvedPendingRole,
+      roles: deduplicatedRoles,
+    );
 
     final merged = <String, dynamic>{
       ...existing,
@@ -544,11 +799,17 @@ class AuthService {
       'email': cleanEmail,
       'displayName': resolvedName,
       'rolesActivos': deduplicatedRoles,
-      'rolPrincipal': deduplicatedRoles.first,
+      'rolPrincipal': deduplicatedRoles.isNotEmpty
+          ? deduplicatedRoles.first
+          : resolvedPendingRole,
+      'rolSolicitadoRegistro': resolvedPendingRole,
       'rolEtiqueta': PaymentService.formatearEtiquetaRolesAcumulados(
         deduplicatedRoles,
       ),
+      'pagoWompiPendiente': resolvedPayPending,
+      'pagoWompiActivo': resolvedPayActive,
       'rolesSeal': rolesSeal,
+      'paymentStateSeal': paymentStateSeal,
       'updatedAt': DateTime.now().toIso8601String(),
     };
     registry[cleanEmail] = merged;
@@ -562,12 +823,16 @@ class AuthService {
       prefs: prefs,
       email: cleanEmail,
       roles: deduplicatedRoles,
+      paymentPending: resolvedPayPending,
+      pendingRoleId: resolvedPendingRole,
     );
 
     _cachedEmail = cleanEmail;
     _cachedFullName = resolvedName;
     _cachedPhotoData = await _lookupStoredPhotoForEmail(prefs, cleanEmail);
     _cachedRoles = deduplicatedRoles;
+    _cachedPaymentPending = resolvedPayPending;
+    _cachedPendingRoleId = resolvedPendingRole;
     _isLocalSessionActive = true;
     authStateVersion.value++;
   }
@@ -588,8 +853,7 @@ class AuthService {
       actionKey: 'auth_login_global',
       maxAttempts: 12,
       window: const Duration(minutes: 2),
-      customErrorMessage:
-          'Demasiados intentos de acceso en poco tiempo. Espera para volver a intentar.',
+      customErrorMessage: 'Demasiados intentos de acceso en poco tiempo. Espera para volver a intentar.',
     );
     if (!globalLimit.allowed) {
       throw AuthServiceException(globalLimit.message);
@@ -639,8 +903,11 @@ class AuthService {
         resolvedName = _humanizeEmailPrefix(cleanEmail);
       }
 
-      // Sincroniza roles autoritativos desde Firestore si existen
+      // Sincroniza roles autoritativos y estado de pago desde Firestore si existen
       List<String>? remoteRoles;
+      bool? remotePaymentPending;
+      bool? remotePaymentActive;
+      String? remoteRequestedRole;
       if (user != null) {
         try {
           final snap = await FirebaseFirestore.instance
@@ -649,8 +916,25 @@ class AuthService {
               .get()
               .timeout(const Duration(seconds: 4));
           final data = snap.data();
-          if (data != null && data['rolesActivos'] is List) {
-            remoteRoles = _extractNormalizedRolesFromMap(data);
+          if (data != null) {
+            remotePaymentActive = data['pagoWompiActivo'] == true;
+            if (data.containsKey('pagoWompiPendiente')) {
+              remotePaymentPending =
+                  data['pagoWompiPendiente'] == true && !remotePaymentActive;
+            }
+            if (data['rolSolicitadoRegistro'] != null) {
+              remoteRequestedRole = PaymentService.normalizarRolId(
+                data['rolSolicitadoRegistro'].toString(),
+              );
+            }
+            if (remotePaymentPending == true) {
+              remoteRoles = <String>[];
+            } else if (data['rolesActivos'] is List) {
+              remoteRoles = _extractNormalizedRolesFromMap(
+                data,
+                fallbackToPersonaWhenEmpty: true,
+              );
+            }
           }
         } catch (_) {}
       }
@@ -659,6 +943,12 @@ class AuthService {
         email: cleanEmail,
         displayName: resolvedName,
         passwordForVaultUpdate: password,
+        paymentPendingOverride: remotePaymentPending,
+        paymentActiveOverride: remotePaymentActive,
+        pendingRoleIdOverride: remoteRequestedRole,
+        explicitRolesOverride: remotePaymentPending == true
+            ? const <String>[]
+            : remoteRoles,
         extraProfileData: remoteRoles != null
             ? <String, dynamic>{'rolesActivos': remoteRoles}
             : null,
@@ -797,7 +1087,7 @@ class AuthService {
   /// unidireccionales SHA-256 (`indices_unicidad/{hash}`), protegiendo los datos
   /// personales conforme a la Ley 1581 de 2012 sin permitir listado de `usuarios`.
   static Future<({bool emailEnUso, bool documentoEnUso})>
-      checkDuplicateCredentials({
+  checkDuplicateCredentials({
     required String email,
     required String documento,
   }) async {
@@ -826,8 +1116,10 @@ class AuthService {
 
       for (final entry in registry.values) {
         if (entry is Map) {
-          final entryEmail =
-              (entry['email'] ?? '').toString().trim().toLowerCase();
+          final entryEmail = (entry['email'] ?? '')
+              .toString()
+              .trim()
+              .toLowerCase();
           final entryDoc = normalizeDocumentoDigits(
             (entry['documento'] ?? entry['documentoNormalizado'] ?? '')
                 .toString(),
@@ -891,8 +1183,7 @@ class AuthService {
       actionKey: 'auth_signup',
       maxAttempts: 5,
       window: const Duration(minutes: 10),
-      customErrorMessage:
-          'Se alcanzó el límite temporal de intentos de registro. Espera unos minutos.',
+      customErrorMessage: 'Se alcanzó el límite temporal de intentos de registro. Espera unos minutos.',
     );
     if (!signupLimit.allowed) {
       throw AuthServiceException(signupLimit.message);
@@ -963,9 +1254,10 @@ class AuthService {
     final selectedRolId = PaymentService.normalizarRolId(
       (userData['rol'] ?? userData['rolPrincipal'] ?? 'persona').toString(),
     );
-    // Por seguridad, en registro inicial solo se preasigna el rol base hasta
-    // que `assignPaidRoleToActiveUser` valide un recibo criptográfico de Wompi.
-    final initialRoles = <String>['persona'];
+    // CERO ACCESO SIN PAGO: durante el registro la cuenta inicia con 0 roles activos
+    // y `pagoWompiPendiente = true` sellado criptográficamente. Ningún módulo se
+    // desbloquea hasta que Wompi confirme `APPROVED` en `assignPaidRoleToActiveUser`.
+    const initialRoles = <String>[];
     final rolEtiqueta = PaymentService.formatearEtiquetaRolesAcumulados(
       initialRoles,
     );
@@ -1014,10 +1306,11 @@ class AuthService {
               'documento': cleanDocumento,
               'documentoNormalizado': normDoc,
               'rolesActivos': initialRoles,
-              'rolPrincipal': initialRoles.first,
+              'rolPrincipal': selectedRolId,
               'rolSolicitadoRegistro': selectedRolId,
               'rolEtiqueta': rolEtiqueta,
               'pagoWompiPendiente': true,
+              'pagoWompiActivo': false,
               'actualizado_en': FieldValue.serverTimestamp(),
             },
             SetOptions(merge: true),
@@ -1048,7 +1341,10 @@ class AuthService {
         email: cleanEmail,
         displayName: displayName,
         passwordForVaultUpdate: password,
-        allowNewRolesFromExtra: true,
+        paymentPendingOverride: true,
+        paymentActiveOverride: false,
+        pendingRoleIdOverride: selectedRolId,
+        explicitRolesOverride: initialRoles,
         extraProfileData: {
           ...userData,
           'email': cleanEmail,
@@ -1056,9 +1352,11 @@ class AuthService {
           'documentoNormalizado': normDoc,
           'displayName': displayName,
           'rolesActivos': initialRoles,
-          'rolPrincipal': initialRoles.first,
+          'rolPrincipal': selectedRolId,
           'rolSolicitadoRegistro': selectedRolId,
           'rolEtiqueta': rolEtiqueta,
+          'pagoWompiPendiente': true,
+          'pagoWompiActivo': false,
           'aceptacion_datos': true,
           'version_politica': ConsentService.versionPolitica,
           'fecha_aceptacion_datos': DateTime.now().toIso8601String(),
@@ -1089,8 +1387,7 @@ class AuthService {
       actionKey: 'pwd_reset:$cleanEmail',
       maxAttempts: 2,
       window: const Duration(minutes: 10),
-      customErrorMessage:
-          'Ya se envió una solicitud reciente para este correo. Espera unos minutos antes de reintentar.',
+      customErrorMessage: 'Ya se envió una solicitud reciente para este correo. Espera unos minutos antes de reintentar.',
     );
     if (!perEmailLimit.allowed) {
       throw AuthServiceException(perEmailLimit.message);
@@ -1210,6 +1507,38 @@ class AuthService {
     };
   }
 
+  /// Permite a un usuario con pago inicial pendiente cambiar el paquete/rol
+  /// que desea activar antes de pagar, manteniendo `pagoWompiPendiente = true`.
+  static Future<void> updatePendingRegistrationRole(String rolId) async {
+    final cleanEmail = getActiveUserEmail().trim().toLowerCase();
+    if (cleanEmail.isEmpty) return;
+    final cleanRol = PaymentService.normalizarRolId(rolId);
+    _cachedPendingRoleId = cleanRol;
+
+    final fbUser = _auth.currentUser;
+    if (fbUser != null) {
+      try {
+        await FirebaseFirestore.instance
+            .collection(ConsentService.coleccionUsuarios)
+            .doc(fbUser.uid)
+            .set({
+              'rolSolicitadoRegistro': cleanRol,
+              'actualizado_en': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true))
+            .timeout(const Duration(seconds: 3));
+      } catch (_) {}
+    }
+
+    await _persistActiveSession(
+      email: cleanEmail,
+      displayName: getActiveUserDisplayName(),
+      paymentPendingOverride: true,
+      paymentActiveOverride: false,
+      pendingRoleIdOverride: cleanRol,
+      explicitRolesOverride: const <String>[],
+    );
+  }
+
   /// Valida criptográficamente el recibo de Wompi (incluyendo protección anti-replay)
   /// y asigna/acumula el rol pagado sellando su integridad en cliente y Firestore.
   static Future<void> assignPaidRoleToActiveUser(
@@ -1254,11 +1583,19 @@ class AuthService {
     }
     history.add(receipt.toMap());
 
-    final currentRoles = await _lookupVerifiedRolesForEmail(prefs, activeEmail);
+    final verifiedState = await _lookupVerifiedAccountStateForEmail(
+      prefs,
+      activeEmail,
+    );
+    // Si la cuenta tenía pago inicial pendiente, parte de [] y recibe su primer rol pagado;
+    // si ya tenía roles activos (ej. `['persona']`), ACUMULA el nuevo rol (`['persona', 'equipo_juridico']`).
+    final baseRoles = verifiedState.paymentPending
+        ? <String>[]
+        : verifiedState.roles;
     final paidRolId = PaymentService.normalizarRolId(receipt.rolId);
     final updatedRoles = <String>[
-      ...currentRoles,
-      if (!currentRoles.contains(paidRolId)) paidRolId,
+      ...baseRoles,
+      if (!baseRoles.contains(paidRolId)) paidRolId,
     ];
     final rolEtiqueta = PaymentService.formatearEtiquetaRolesAcumulados(
       updatedRoles,
@@ -1268,12 +1605,22 @@ class AuthService {
       email: activeEmail,
       roles: updatedRoles,
     );
+    final paymentStateSeal = await SecurityService.computePaymentStateSeal(
+      prefs: prefs,
+      email: activeEmail,
+      paymentPending: false,
+      paymentActive: true,
+      requestedRoleId: paidRolId,
+      roles: updatedRoles,
+    );
 
     existing.remove('password');
     existing['rolesActivos'] = updatedRoles;
     existing['rolPrincipal'] = updatedRoles.first;
+    existing['rolSolicitadoRegistro'] = paidRolId;
     existing['rolEtiqueta'] = rolEtiqueta;
     existing['rolesSeal'] = rolesSeal;
+    existing['paymentStateSeal'] = paymentStateSeal;
     existing['pagoWompiActivo'] = true;
     existing['pagoWompiPendiente'] = false;
     existing['ultimoPagoWompi'] = receipt.toMap();
@@ -1285,9 +1632,13 @@ class AuthService {
       prefs: prefs,
       email: activeEmail,
       roles: updatedRoles,
+      paymentPending: false,
+      pendingRoleId: paidRolId,
     );
 
     _cachedRoles = updatedRoles;
+    _cachedPaymentPending = false;
+    _cachedPendingRoleId = paidRolId;
     authStateVersion.value++;
 
     final fbUser = _auth.currentUser;

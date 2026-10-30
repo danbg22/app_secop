@@ -872,9 +872,10 @@ class _SmartSummaryPdfEngine {
     y -= 14;
     final objLines = _wrap(d.objeto, _cw - 20, 7.6);
     final shown = objLines.take(5).toList();
-    if (objLines.length > 5)
+    if (objLines.length > 5) {
       shown[4] =
           '${_fit(shown[4], _cw - 40, 7.6)} (continúa en la sección 2 del análisis)';
+    }
     final objH = 20.0 + shown.length * 11;
     _rect(
       p,
@@ -1540,7 +1541,7 @@ class _SmartSummaryPdfEngine {
       final lines = _wrap(item, _cw - 14, size);
       for (var i = 0; i < lines.length; i++) {
         doc.ensure(lh);
-        if (i == 0)
+        if (i == 0) {
           _text(
             doc.cur,
             '\u2022',
@@ -1550,6 +1551,7 @@ class _SmartSummaryPdfEngine {
             bold: true,
             color: '0.10 0.30 0.60',
           );
+        }
         _text(
           doc.cur,
           lines[i],

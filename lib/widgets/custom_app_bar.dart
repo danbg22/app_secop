@@ -260,6 +260,11 @@ class CustomUserHeaderActions extends StatelessWidget {
       return;
     }
 
+    if (value == 'accumulate_role') {
+      Navigator.of(context).pushNamed('/planes');
+      return;
+    }
+
     if (value == 'logout') {
       if (onLogout != null) {
         onLogout();
@@ -309,11 +314,51 @@ class CustomUserHeaderActions extends StatelessWidget {
                   fontWeight: FontWeight.w500,
                 ),
               ),
+              const SizedBox(height: 5),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  'Roles: ${AuthService.getActiveUserRoleDisplayLabel()}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF15803D),
+                    fontSize: 10.8,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
       ),
       const PopupMenuDivider(height: 10),
+      const PopupMenuItem<String>(
+        value: 'accumulate_role',
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        child: Row(
+          children: [
+            Icon(
+              Icons.add_moderator_outlined,
+              size: 19,
+              color: Color(0xFF1D4ED8),
+            ),
+            SizedBox(width: 10),
+            Text(
+              'Acumular / Añadir rol',
+              style: TextStyle(
+                color: Color(0xFF1D4ED8),
+                fontSize: 13.3,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
       const PopupMenuItem<String>(
         value: 'profile',
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),

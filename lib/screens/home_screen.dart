@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 import '../widgets/collapsible_side_menu.dart';
-import '../widgets/dashboard_top_bar.dart';
 import '../widgets/user_profile_header_action.dart';
 import 'favoritos_screen.dart';
 import 'resultados_busqueda_screen.dart';
 import 'sections/contratistas_section.dart';
 import 'sections/contratos_section.dart';
 import 'sections/entidades_section.dart';
+import 'sections/equipo_juridico_section.dart';
 import 'sections/estadisticas_section.dart';
 import 'sections/explorar_section.dart';
 import 'sections/inicio_section.dart';
@@ -32,7 +32,29 @@ class _HomeScreenState extends State<HomeScreen> {
   late int _selectedIndex;
   bool _isSidebarCollapsed = false;
 
-  static const List<int> _mobileTabIndices = [0, 2, 3, 4, 7];
+  List<int> _resolverIndicesPermitidos() {
+    return CollapsibleSideMenu.obtenerIndicesVisiblesPorRol();
+  }
+
+  List<int> _resolverMobileTabIndices() {
+    final tienePersona = AuthService.hasActiveRole('persona');
+    final tieneJuridico = AuthService.hasActiveRole('equipo_juridico');
+    if (tienePersona && tieneJuridico) {
+      return const <int>[0, 2, 3, 4, 7, 8];
+    }
+    if (tieneJuridico) {
+      return const <int>[8];
+    }
+    return const <int>[0, 2, 3, 4, 7];
+  }
+
+  int _effectiveSelectedIndex() {
+    final permitidos = _resolverIndicesPermitidos();
+    if (permitidos.contains(_selectedIndex)) {
+      return _selectedIndex;
+    }
+    return permitidos.first;
+  }
 
   @override
   void initState() {
@@ -83,8 +105,8 @@ class _HomeScreenState extends State<HomeScreen> {
     ).pushNamedAndRemoveUntil('/portada', (route) => false);
   }
 
-  Widget _buildCurrentView() {
-    switch (_selectedIndex) {
+  Widget _buildCurrentView(int activeIndex) {
+    switch (activeIndex) {
       case 0:
         return InicioSection(
           searchController: _searchController,
@@ -111,175 +133,180 @@ class _HomeScreenState extends State<HomeScreen> {
       case 5:
         return const EstadisticasSection();
       case 7:
-        return const Expanded(child: FavoritosScreen());
+        return Expanded(child: FavoritosScreen(onLogout: _cerrarSesion));
+      case 8:
+        return Expanded(
+          child: EquipoJuridicoSection(onLogout: _cerrarSesion),
+        );
       default:
         return Expanded(
           child: Center(
             child: Text(
-              'Pantalla ${CollapsibleSideMenu.opcionesMenu[_selectedIndex].titulo}',
+              'Pantalla ${CollapsibleSideMenu.opcionesMenu[activeIndex].titulo}',
             ),
           ),
         );
     }
   }
 
-  int get _activeMobileBottomIndex {
-    final idx = _mobileTabIndices.indexOf(_selectedIndex);
-    return idx >= 0 ? idx : 0;
+  BottomNavigationBarItem _buildMobileNavItem(int sectionIdx) {
+    switch (sectionIdx) {
+      case 0:
+        return const BottomNavigationBarItem(
+          icon: Icon(Icons.home_outlined),
+          activeIcon: Icon(Icons.home_rounded, color: _dorado),
+          label: 'Inicio',
+        );
+      case 2:
+        return const BottomNavigationBarItem(
+          icon: Icon(Icons.description_outlined),
+          activeIcon: Icon(Icons.description_rounded, color: _dorado),
+          label: 'Contratos',
+        );
+      case 3:
+        return const BottomNavigationBarItem(
+          icon: Icon(Icons.account_balance_outlined),
+          activeIcon: Icon(Icons.account_balance_rounded, color: _dorado),
+          label: 'Entidades',
+        );
+      case 4:
+        return const BottomNavigationBarItem(
+          icon: Icon(Icons.people_outline),
+          activeIcon: Icon(Icons.people_alt_rounded, color: _dorado),
+          label: 'Contratistas',
+        );
+      case 7:
+        return const BottomNavigationBarItem(
+          icon: Icon(Icons.star_border_rounded),
+          activeIcon: Icon(Icons.star_rounded, color: _dorado),
+          label: 'Favoritos',
+        );
+      case 8:
+        return const BottomNavigationBarItem(
+          icon: Icon(Icons.gavel_outlined),
+          activeIcon: Icon(Icons.gavel_rounded, color: _dorado),
+          label: 'Gestión',
+        );
+      default:
+        return const BottomNavigationBarItem(
+          icon: Icon(Icons.circle_outlined),
+          label: 'Sección',
+        );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.sizeOf(context).width < 768;
+    return ValueListenableBuilder<int>(
+      valueListenable: AuthService.authStateVersion,
+      builder: (context, _, _) {
+        final isMobile = MediaQuery.sizeOf(context).width < 768;
+        final activeIndex = _effectiveSelectedIndex();
+        final mobileTabs = _resolverMobileTabIndices();
+        final int activeBottomIdx = () {
+          final found = mobileTabs.indexOf(activeIndex);
+          return found >= 0 ? found : 0;
+        }();
 
-    if (isMobile) {
-      return Scaffold(
-        key: _scaffoldKey,
-        backgroundColor: _crema,
-        // En celular se bloquea y elimina la barra lateral por completo:
-        // la navegación se maneja exclusivamente por la barra inferior.
-        drawer: null,
-        drawerEnableOpenDragGesture: false,
-        appBar: AppBar(
-          backgroundColor: const Color(0xFFFFFDF8),
-          elevation: 0,
-          scrolledUnderElevation: 1,
-          automaticallyImplyLeading: false,
-          titleSpacing: 16,
-          title: Row(
-            children: [
-              Image.asset(
-                'assets/images/logo.png',
-                height: 34,
-                fit: BoxFit.contain,
-                alignment: Alignment.centerLeft,
-                filterQuality: FilterQuality.high,
-              ),
-              const SizedBox(width: 10),
-              Flexible(
-                child: Text(
-                  CollapsibleSideMenu.opcionesMenu[_selectedIndex].titulo,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _azulOscuro,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
+        if (isMobile) {
+          return Scaffold(
+            key: _scaffoldKey,
+            backgroundColor: _crema,
+            drawer: null,
+            drawerEnableOpenDragGesture: false,
+            appBar: AppBar(
+              backgroundColor: const Color(0xFFFFFDF8),
+              elevation: 0,
+              scrolledUnderElevation: 1,
+              automaticallyImplyLeading: false,
+              titleSpacing: 16,
+              title: Row(
+                children: [
+                  Image.asset(
+                    'assets/images/logo.png',
+                    height: 34,
+                    fit: BoxFit.contain,
+                    alignment: Alignment.centerLeft,
+                    filterQuality: FilterQuality.high,
                   ),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Text(
+                      CollapsibleSideMenu.opcionesMenu[activeIndex].titulo,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _azulOscuro,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                UserProfileHeaderAction(onLogout: _cerrarSesion),
+                const SizedBox(width: 8),
+              ],
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(1),
+                child: Container(
+                  height: 1,
+                  color: const Color(0xFFEDE6D6),
+                ),
+              ),
+            ),
+            body: Column(
+              children: [_buildCurrentView(activeIndex)],
+            ),
+            bottomNavigationBar: mobileTabs.length >= 2
+                ? BottomNavigationBar(
+                    currentIndex: activeBottomIdx,
+                    onTap: (bottomIdx) {
+                      if (bottomIdx >= 0 && bottomIdx < mobileTabs.length) {
+                        _onItemTapped(mobileTabs[bottomIdx]);
+                      }
+                    },
+                    type: BottomNavigationBarType.fixed,
+                    backgroundColor: Colors.white,
+                    selectedItemColor: _azulOscuro,
+                    unselectedItemColor: const Color(0xFF64748B),
+                    selectedLabelStyle: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                    unselectedLabelStyle: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    items: [
+                      for (final idx in mobileTabs) _buildMobileNavItem(idx),
+                    ],
+                  )
+                : null,
+          );
+        }
+
+        return Scaffold(
+          key: _scaffoldKey,
+          backgroundColor: _crema,
+          body: Row(
+            children: [
+              CollapsibleSideMenu(
+                selectedIndex: activeIndex,
+                isCollapsed: _isSidebarCollapsed,
+                onItemSelected: _onItemTapped,
+                onToggleCollapse: _toggleSidebar,
+                onLogout: _cerrarSesion,
+              ),
+              Expanded(
+                child: Column(
+                  children: [_buildCurrentView(activeIndex)],
                 ),
               ),
             ],
           ),
-          actions: [
-            UserProfileHeaderAction(onLogout: _cerrarSesion),
-            const SizedBox(width: 8),
-          ],
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(1),
-            child: Container(
-              height: 1,
-              color: const Color(0xFFEDE6D6),
-            ),
-          ),
-        ),
-        body: Column(
-          children: [
-            if (_selectedIndex != 0 &&
-                _selectedIndex != 2 &&
-                _selectedIndex != 3 &&
-                _selectedIndex != 4 &&
-                _selectedIndex != 7)
-              DashboardTopBar(
-                searchController: _searchController,
-                onSearchSubmitted: _handleUniversalSearch,
-                onLogout: _cerrarSesion,
-                showUserActions: false,
-              ),
-            _buildCurrentView(),
-          ],
-        ),
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: _activeMobileBottomIndex,
-          onTap: (bottomIdx) {
-            if (bottomIdx >= 0 && bottomIdx < _mobileTabIndices.length) {
-              _onItemTapped(_mobileTabIndices[bottomIdx]);
-            }
-          },
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
-          selectedItemColor: _azulOscuro,
-          unselectedItemColor: const Color(0xFF64748B),
-          selectedLabelStyle: const TextStyle(
-            fontSize: 11.5,
-            fontWeight: FontWeight.w800,
-          ),
-          unselectedLabelStyle: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-          ),
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home_rounded, color: _dorado),
-              label: 'Inicio',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.description_outlined),
-              activeIcon: Icon(Icons.description_rounded, color: _dorado),
-              label: 'Contratos',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.account_balance_outlined),
-              activeIcon: Icon(Icons.account_balance_rounded, color: _dorado),
-              label: 'Entidades',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.people_outline),
-              activeIcon: Icon(Icons.people_alt_rounded, color: _dorado),
-              label: 'Contratistas',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.star_border_rounded),
-              activeIcon: Icon(Icons.star_rounded, color: _dorado),
-              label: 'Favoritos',
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Scaffold(
-      key: _scaffoldKey,
-      backgroundColor: _crema,
-      body: Row(
-        children: [
-          CollapsibleSideMenu(
-            selectedIndex: _selectedIndex,
-            isCollapsed: _isSidebarCollapsed,
-            onItemSelected: _onItemTapped,
-            onToggleCollapse: _toggleSidebar,
-            onLogout: _cerrarSesion,
-          ),
-          Expanded(
-            child: Column(
-              children: [
-                if (_selectedIndex == 0 ||
-                    _selectedIndex == 2 ||
-                    _selectedIndex == 3 ||
-                    _selectedIndex == 4)
-                  _buildCurrentView()
-                else ...[
-                  DashboardTopBar(
-                    searchController: _searchController,
-                    onSearchSubmitted: _handleUniversalSearch,
-                    onLogout: _cerrarSesion,
-                  ),
-                  _buildCurrentView(),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

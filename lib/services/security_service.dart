@@ -42,6 +42,9 @@ class SecurityService {
   /// Tamaño máximo permitido para avatares codificados localmente (1.5 MB).
   static const int maxAvatarBytes = 1572864;
 
+  /// Tamaño máximo permitido por documento contractual cargado en línea (4 MB).
+  static const int maxContractDocumentBytes = 4194304;
+
   static final Map<String, List<int>> _slidingWindows = <String, List<int>>{};
 
   static const List<int> _sha256K = <int>[
@@ -417,11 +420,57 @@ class SecurityService {
     return constantTimeEquals(utf8.encode(expected), utf8.encode(seal));
   }
 
+  /// Firma criptográficamente el estado de pago obligatorio de Wompi de una cuenta
+  /// (`pagoWompiPendiente`, `pagoWompiActivo` y `rolSolicitadoRegistro`) para que
+  /// sea imposible saltarse el cobro editando `localStorage` o devolviéndose.
+  static Future<String> computePaymentStateSeal({
+    required SharedPreferences prefs,
+    required String email,
+    required bool paymentPending,
+    required bool paymentActive,
+    required String requestedRoleId,
+    required List<String> roles,
+  }) async {
+    final secret = await _getOrCreateDeviceSealSecret(prefs);
+    final normalizedRoles = roles
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    final canonical =
+        'paystate_v1|${email.trim().toLowerCase()}|${paymentPending ? 1 : 0}|${paymentActive ? 1 : 0}|${requestedRoleId.trim().toLowerCase()}|${normalizedRoles.join(',')}';
+    return hmacSha256Hex(secret, canonical);
+  }
+
+  static Future<bool> verifyPaymentStateSeal({
+    required SharedPreferences prefs,
+    required String email,
+    required bool paymentPending,
+    required bool paymentActive,
+    required String requestedRoleId,
+    required List<String> roles,
+    required String? seal,
+  }) async {
+    if (seal == null || seal.length != 64) return false;
+    final expected = await computePaymentStateSeal(
+      prefs: prefs,
+      email: email,
+      paymentPending: paymentPending,
+      paymentActive: paymentActive,
+      requestedRoleId: requestedRoleId,
+      roles: roles,
+    );
+    return constantTimeEquals(utf8.encode(expected), utf8.encode(seal));
+  }
+
   /// Emite y persiste un sello criptográfico para la sesión activa con TTL.
   static Future<void> sealActiveSession({
     required SharedPreferences prefs,
     required String email,
     required List<String> roles,
+    bool paymentPending = false,
+    String pendingRoleId = 'persona',
     int? issuedAtMs,
   }) async {
     final secret = await _getOrCreateDeviceSealSecret(prefs);
@@ -434,13 +483,16 @@ class SecurityService {
         .toSet()
         .toList()
       ..sort();
+    final cleanPendingRole = pendingRoleId.trim().toLowerCase();
 
     final payload =
-        'session_v1|${email.trim().toLowerCase()}|${sortedRoles.join(',')}|$effectiveIssuedMs|$nowMs|$expiresAtMs';
+        'session_v2|${email.trim().toLowerCase()}|${sortedRoles.join(',')}|${paymentPending ? 1 : 0}|$cleanPendingRole|$effectiveIssuedMs|$nowMs|$expiresAtMs';
     final mac = hmacSha256Hex(secret, payload);
     final record = jsonEncode(<String, dynamic>{
       'email': email.trim().toLowerCase(),
       'roles': sortedRoles,
+      'payPend': paymentPending,
+      'pendRol': cleanPendingRole,
       'iat': effectiveIssuedMs,
       'lat': nowMs,
       'exp': expiresAtMs,
@@ -455,6 +507,8 @@ class SecurityService {
     required SharedPreferences prefs,
     required String expectedEmail,
     required List<String> expectedRoles,
+    bool expectedPaymentPending = false,
+    String expectedPendingRoleId = 'persona',
   }) async {
     final raw = prefs.getString(_kSessionSealPref);
     if (raw == null || raw.trim().isEmpty) return false;
@@ -496,8 +550,18 @@ class SecurityService {
       }
 
       final secret = await _getOrCreateDeviceSealSecret(prefs);
-      final payload =
-          'session_v1|$email|${sealedRoles.join(',')}|$iat|$lat|$exp';
+      final bool hasV2Fields = decoded.containsKey('payPend');
+      final bool sealedPayPend = decoded['payPend'] == true;
+      final String sealedPendRol =
+          (decoded['pendRol'] ?? 'persona').toString().trim().toLowerCase();
+
+      if (hasV2Fields && sealedPayPend != expectedPaymentPending) {
+        return false;
+      }
+
+      final payload = hasV2Fields
+          ? 'session_v2|$email|${sealedRoles.join(',')}|${sealedPayPend ? 1 : 0}|$sealedPendRol|$iat|$lat|$exp'
+          : 'session_v1|$email|${sealedRoles.join(',')}|$iat|$lat|$exp';
       final expectedMac = hmacSha256Hex(secret, payload);
       if (!constantTimeEquals(utf8.encode(expectedMac), utf8.encode(mac))) {
         return false;
@@ -513,6 +577,8 @@ class SecurityService {
         prefs: prefs,
         email: email,
         roles: sealedRoles,
+        paymentPending: expectedPaymentPending,
+        pendingRoleId: expectedPendingRoleId,
         issuedAtMs: iat,
       );
       return true;
@@ -840,6 +906,28 @@ class SecurityService {
     return clean;
   }
 
+  /// Sanitiza texto plano de formularios eliminando caracteres de control e
+  /// inyecciones HTML/script y aplicando límite estricto de longitud.
+  static String sanitizePlainText(String? raw, {int maxLength = 300}) {
+    if (raw == null) return '';
+    var clean = raw
+        .replaceAll(RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]'), ' ')
+        .replaceAll('<', '‹')
+        .replaceAll('>', '›')
+        .trim();
+    if (clean.length > maxLength) {
+      clean = clean.substring(0, maxLength).trim();
+    }
+    return clean;
+  }
+
+  /// Normaliza dígitos de cédula o NIT dejando únicamente dígitos numéricos limpios.
+  static String normalizeDocumentDigits(String? raw) {
+    if (raw == null) return '';
+    final digits = raw.replaceAll(RegExp(r'\D'), '');
+    return digits.length > 20 ? digits.substring(0, 20) : digits;
+  }
+
   /// Sanitiza entradas no confiables antes de interpolarlas en prompts de Gemini,
   /// mitigando Prompt Injection directo e indirecto.
   static String sanitizePromptInput(String raw, {int maxLength = 1200}) {
@@ -1037,6 +1125,53 @@ class SecurityService {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Valida Magic Bytes para documentos contractuales (PDF, PNG, JPEG, WEBP,
+  /// DOCX/ZIP y DOC OLE2), rechazando ejecutables, scripts, HTML o SVG (XSS).
+  static String? detectSafeContractDocumentMime(
+    Uint8List bytes, {
+    String fileName = '',
+    int maxBytes = maxContractDocumentBytes,
+  }) {
+    if (bytes.length < 8 || bytes.length > maxBytes) return null;
+
+    // PDF: "%PDF-" (25 50 44 46 2D)
+    if (bytes[0] == 0x25 &&
+        bytes[1] == 0x50 &&
+        bytes[2] == 0x44 &&
+        bytes[3] == 0x46 &&
+        bytes[4] == 0x2D) {
+      return 'application/pdf';
+    }
+
+    // Imágenes raster seguras (PNG, JPEG, WEBP)
+    final raster = detectSafeRasterImageMime(bytes, maxBytes: maxBytes);
+    if (raster != null && raster != 'image/gif') {
+      return raster;
+    }
+
+    final lowerName = fileName.trim().toLowerCase();
+
+    // DOCX (contenedor OpenXML PK\x03\x04)
+    if (bytes[0] == 0x50 &&
+        bytes[1] == 0x4B &&
+        bytes[2] == 0x03 &&
+        bytes[3] == 0x04 &&
+        lowerName.endsWith('.docx')) {
+      return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    }
+
+    // DOC clásico OLE2 (D0 CF 11 E0 A1 B1 1A E1)
+    if (bytes[0] == 0xD0 &&
+        bytes[1] == 0xCF &&
+        bytes[2] == 0x11 &&
+        bytes[3] == 0xE0 &&
+        lowerName.endsWith('.doc')) {
+      return 'application/msword';
+    }
+
+    return null;
   }
 
   /// Redacta detalles técnicos internos, trazas y posibles llaves antes de

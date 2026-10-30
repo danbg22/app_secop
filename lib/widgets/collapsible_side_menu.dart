@@ -40,7 +40,28 @@ class CollapsibleSideMenu extends StatelessWidget {
     MenuOptionItem(titulo: 'Estadísticas', icono: Icons.bar_chart),
     MenuOptionItem(titulo: 'Alertas', icono: Icons.notifications_none),
     MenuOptionItem(titulo: 'Favoritos', icono: Icons.bookmark_border),
+    MenuOptionItem(
+      titulo: 'Gestión contractual',
+      icono: Icons.gavel_outlined,
+    ),
   ];
+
+  /// Calcula dinámicamente las secciones habilitadas según los roles pagados y acumulados.
+  static List<int> obtenerIndicesVisiblesPorRol() {
+    final tienePersona = AuthService.hasActiveRole('persona');
+    final tieneJuridico = AuthService.hasActiveRole('equipo_juridico');
+    final indices = <int>[];
+    if (tienePersona) {
+      indices.addAll(const <int>[0, 2, 3, 4, 7]);
+    }
+    if (tieneJuridico) {
+      indices.add(8);
+    }
+    if (indices.isEmpty) {
+      indices.addAll(const <int>[0, 2, 3, 4, 7]);
+    }
+    return indices;
+  }
 
   void _showHelpDialog(BuildContext context) {
     PqrsHelpDialog.show(context);
@@ -181,9 +202,7 @@ class CollapsibleSideMenu extends StatelessWidget {
           Expanded(
             child: Builder(
               builder: (context) {
-                // Se ocultan visualmente Explorar (1), Estadísticas (5) y Alertas (6)
-                // dejando habilitadas únicamente: Inicio (0), Contratos (2), Entidades (3), Contratistas (4) y Favoritos (7).
-                const visibleIndices = <int>[0, 2, 3, 4, 7];
+                final visibleIndices = obtenerIndicesVisiblesPorRol();
                 return ListView.builder(
                   padding: const EdgeInsets.only(top: 2),
                   itemCount: visibleIndices.length,
@@ -195,13 +214,15 @@ class CollapsibleSideMenu extends StatelessWidget {
                         ? Icons.description
                         : (index == 7 && seleccionado)
                             ? Icons.bookmark_rounded
-                            : opcion.icono;
+                            : (index == 8 && seleccionado)
+                                ? Icons.gavel_rounded
+                                : opcion.icono;
 
                     if (isCollapsed) {
                       return Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (index == 7)
+                          if (index == 7 || (index == 8 && pos > 0))
                             Padding(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
@@ -209,7 +230,7 @@ class CollapsibleSideMenu extends StatelessWidget {
                               ),
                               child: Divider(
                                 height: 1,
-                                color: _azulOscuro.withValues(alpha: 0.10),
+                                color: _azulOscuro.withValues(alpha: 0.12),
                               ),
                             ),
                           Padding(
@@ -257,6 +278,28 @@ class CollapsibleSideMenu extends StatelessWidget {
                               color: _azulOscuro.withValues(alpha: 0.10),
                             ),
                           ),
+                        if (index == 8) ...[
+                          if (pos > 0)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                              child: Divider(
+                                height: 1,
+                                color: _azulOscuro.withValues(alpha: 0.12),
+                              ),
+                            ),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 12, bottom: 6),
+                            child: Text(
+                              'EQUIPO JURÍDICO',
+                              style: TextStyle(
+                                color: _azulOscuro.withValues(alpha: 0.52),
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.9,
+                              ),
+                            ),
+                          ),
+                        ],
                         Padding(
                           padding: const EdgeInsets.only(bottom: 6),
                           child: ListTile(
@@ -356,6 +399,44 @@ class CollapsibleSideMenu extends StatelessWidget {
               ),
             ),
           ] else ...[
+            InkWell(
+              onTap: () => Navigator.of(context).pushNamed('/planes'),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 9,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEEFC3),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFF5C032)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(
+                      Icons.add_moderator_rounded,
+                      color: _azulOscuro,
+                      size: 18,
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Acumular otro rol (+)',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: _azulOscuro,
+                          fontSize: 12.2,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
             InkWell(
               onTap: () => _showHelpDialog(context),
               borderRadius: BorderRadius.circular(14),

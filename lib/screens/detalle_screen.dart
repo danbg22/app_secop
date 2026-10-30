@@ -14,12 +14,10 @@ import '../services/secop_document_intelligence_service.dart';
 import '../services/security_service.dart';
 import '../utils/secop_launcher.dart';
 import '../widgets/collapsible_side_menu.dart';
-import '../widgets/dashboard_top_bar.dart';
 import '../widgets/route_security_guard.dart';
 import '../widgets/user_profile_header_action.dart';
 import 'home_screen.dart';
 import 'perfil_contratista_screen.dart';
-import 'resultados_busqueda_screen.dart';
 
 class DetalleContratoScreen extends StatefulWidget {
   final dynamic contrato;
@@ -42,7 +40,6 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
   static const Color _amarillo = Color(0xFFF5B82E);
 
   final NumberFormat _formatoDecimal = NumberFormat.decimalPattern('es_CO');
-  final TextEditingController _topSearchController = TextEditingController();
   final TextEditingController _chatController = TextEditingController();
   final TextEditingController _docFilterController = TextEditingController();
   final ScrollController _chatScrollController = ScrollController();
@@ -74,7 +71,6 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
 
   @override
   void dispose() {
-    _topSearchController.dispose();
     _chatController.dispose();
     _docFilterController.dispose();
     _chatScrollController.dispose();
@@ -695,15 +691,6 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
     ).pushNamedAndRemoveUntil('/portada', (route) => false);
   }
 
-  void _handleTopSearch(String query) {
-    final q = query.trim();
-    if (q.isEmpty) return;
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => ResultadosBusquedaScreen(query: q)),
-    );
-  }
-
   Future<void> _enviarMensaje(String texto) async {
     final cleanText = texto.trim();
     if (cleanText.isEmpty) return;
@@ -914,6 +901,8 @@ $sanitizedQuestion
             elevatedWhite: true,
           ),
         ],
+        const SizedBox(width: 10),
+        UserProfileHeaderAction(onLogout: _cerrarSesion),
       ],
     );
   }
@@ -3240,56 +3229,6 @@ $sanitizedQuestion
         backgroundColor: const Color(0xFFFFF8EE),
         drawer: null,
         drawerEnableOpenDragGesture: false,
-        appBar: AppBar(
-          backgroundColor: const Color(0xFFFFFDF8),
-          elevation: 0,
-          scrolledUnderElevation: 1,
-          automaticallyImplyLeading: false,
-          leading: IconButton(
-            tooltip: 'Regresar',
-            icon: const Icon(Icons.arrow_back, color: _azulOscuro),
-            onPressed: () => Navigator.maybePop(context),
-          ),
-          titleSpacing: 0,
-          title: const Text(
-            'Detalle del Contrato',
-            style: TextStyle(
-              color: _azulOscuro,
-              fontSize: 16.5,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          actions: [
-            Tooltip(
-              message: _esFavorito
-                  ? 'Eliminar de favoritos'
-                  : 'Guardar en favoritos',
-              child: IconButton(
-                icon: Icon(
-                  _esFavorito
-                      ? Icons.bookmark_rounded
-                      : Icons.bookmark_border_rounded,
-                  color: _esFavorito ? Colors.amber.shade700 : _azulOscuro,
-                ),
-                onPressed: _alternarFavorito,
-              ),
-            ),
-            IconButton(
-              tooltip: 'Compartir contrato',
-              icon: const Icon(Icons.share_outlined, color: _azulOscuro),
-              onPressed: _compartirContrato,
-            ),
-            UserProfileHeaderAction(onLogout: _cerrarSesion),
-            const SizedBox(width: 8),
-          ],
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(1),
-            child: Container(
-              height: 1,
-              color: const Color(0xFFEDE6D6),
-            ),
-          ),
-        ),
         body: SafeArea(child: bodyContent),
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: 1, // Contratos tab
@@ -3362,18 +3301,7 @@ $sanitizedQuestion
             ),
             onLogout: _cerrarSesion,
           ),
-          Expanded(
-            child: Column(
-              children: [
-                DashboardTopBar(
-                  searchController: _topSearchController,
-                  onSearchSubmitted: _handleTopSearch,
-                  onLogout: _cerrarSesion,
-                ),
-                Expanded(child: bodyContent),
-              ],
-            ),
-          ),
+          Expanded(child: bodyContent),
         ],
       ),
     );

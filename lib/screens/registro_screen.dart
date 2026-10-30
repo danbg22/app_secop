@@ -532,304 +532,310 @@ class _RegistroScreenState extends State<RegistroScreen> {
             return SafeArea(
               child: SingleChildScrollView(
                 padding: EdgeInsets.symmetric(
-                  horizontal: isMobile ? 12 : 36,
-                  vertical: isMobile ? 12 : 22,
+                  horizontal: isMobile ? 12 : 32,
+                  vertical: isMobile ? 12 : 18,
                 ),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1180),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // Barra superior sin logo duplicado (el logo HD grande va dentro de la tarjeta)
-                        OnboardingUnifiedTopBar(
-                          currentStep: 2,
-                          totalSteps: 3,
-                          onBack: _cambiarRol,
-                          backLabel: 'Cambiar rol',
-                          showBrandLogo: false,
-                        ),
-                        SizedBox(height: isMobile ? 14 : 20),
-
-                        // Título y subtítulo centrados
-                        Text(
-                          'Crea tu cuenta para continuar',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: _navyDark,
-                            fontSize: isMobile ? 25 : 36,
-                            fontWeight: FontWeight.w800,
-                            height: 1.12,
-                            letterSpacing: -0.6,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: (constraints.maxHeight - 36).clamp(0.0, 2000.0),
+                  ),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1080),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Barra superior sin logo duplicado (el logo HD grande va dentro de la tarjeta)
+                          OnboardingUnifiedTopBar(
+                            currentStep: 2,
+                            totalSteps: 3,
+                            onBack: _cambiarRol,
+                            backLabel: 'Cambiar rol',
+                            showBrandLogo: false,
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: Text(
-                            'Completa tus datos personales. Tu cédula y tu correo electrónico son obligatorios y únicos.',
+                          SizedBox(height: isMobile ? 10 : 14),
+
+                          // Título y subtítulo centrados
+                          Text(
+                            'Crea tu cuenta para continuar',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: _subtitleBlue,
-                              fontSize: isMobile ? 13.8 : 16,
-                              fontWeight: FontWeight.w500,
-                              height: 1.38,
+                              color: _navyDark,
+                              fontSize: isMobile ? 23 : 30,
+                              fontWeight: FontWeight.w800,
+                              height: 1.12,
+                              letterSpacing: -0.5,
                             ),
                           ),
-                        ),
-                        SizedBox(height: isMobile ? 16 : 24),
-
-                        // Tarjeta centralizada más amplia, con fondo blanco puro para el logo HD
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 760),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(26),
-                              border: Border.all(
-                                color: const Color(0xFFF5C032),
-                                width: 1.8,
+                          const SizedBox(height: 6),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Text(
+                              'Completa tus datos personales. Tu cédula y tu correo electrónico son obligatorios y únicos.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: _subtitleBlue,
+                                fontSize: isMobile ? 13.2 : 14.8,
+                                fontWeight: FontWeight.w500,
+                                height: 1.35,
                               ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFFF5B82E).withValues(
-                                    alpha: 0.16,
-                                  ),
-                                  blurRadius: 32,
-                                  spreadRadius: 1,
-                                  offset: const Offset(0, 12),
-                                ),
-                                BoxShadow(
-                                  color: _navyDark.withValues(alpha: 0.07),
-                                  blurRadius: 24,
-                                  offset: const Offset(0, 8),
-                                ),
-                              ],
                             ),
-                            padding: EdgeInsets.symmetric(
-                              horizontal: isMobile ? 16 : 36,
-                              vertical: isMobile ? 20 : 30,
-                            ),
-                            child: Form(
-                              key: _formKey,
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  // Cabecera superior de la tarjeta: UN SOLO LOGO HD GRANDE + Stepper
-                                  _buildRegistrationCardHeader(
-                                    isMobile: isMobile,
+                          ),
+                          SizedBox(height: isMobile ? 14 : 18),
+
+                          // Tarjeta centralizada más compacta y visualmente equilibrada
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 625),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(
+                                  color: const Color(0xFFF5C032),
+                                  width: 1.8,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFFF5B82E).withValues(
+                                      alpha: 0.16,
+                                    ),
+                                    blurRadius: 28,
+                                    spreadRadius: 1,
+                                    offset: const Offset(0, 10),
                                   ),
-                                  SizedBox(height: isMobile ? 16 : 22),
-
-                                  // Banner del rol seleccionado con la ilustración original de la foto y su precio ($100 COP)
-                                  _buildSelectedRoleBanner(
-                                    rol: rol,
-                                    isMobile: isMobile,
-                                  ),
-                                  SizedBox(height: isMobile ? 16 : 22),
-
-                                  // Campos en cuadrícula limpia de 2 columnas en escritorio / 1 columna ajustada en celular
-                                  if (isTwoCols) ...[
-                                    Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Expanded(child: fieldNombres),
-                                        const SizedBox(width: 14),
-                                        Expanded(child: fieldApellidos),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 14),
-                                    Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Expanded(child: fieldEmail),
-                                        const SizedBox(width: 14),
-                                        Expanded(child: fieldDocumento),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 14),
-                                    Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Expanded(child: fieldPais),
-                                        const SizedBox(width: 14),
-                                        Expanded(child: fieldTelefono),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 14),
-                                    Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Expanded(child: fieldPassword),
-                                        const SizedBox(width: 14),
-                                        Expanded(child: fieldConfirmPassword),
-                                      ],
-                                    ),
-                                  ] else ...[
-                                    fieldNombres,
-                                    const SizedBox(height: 12),
-                                    fieldApellidos,
-                                    const SizedBox(height: 12),
-                                    fieldEmail,
-                                    const SizedBox(height: 12),
-                                    fieldDocumento,
-                                    const SizedBox(height: 12),
-                                    fieldPais,
-                                    const SizedBox(height: 12),
-                                    fieldTelefono,
-                                    const SizedBox(height: 12),
-                                    fieldPassword,
-                                    const SizedBox(height: 12),
-                                    fieldConfirmPassword,
-                                  ],
-                                  const SizedBox(height: 16),
-
-                                  // Aviso de verificación de unicidad de cédula y correo
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 11,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFEEF5FD),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: const Color(0xFFDCE8F8),
-                                      ),
-                                    ),
-                                    child: const Row(
-                                      children: [
-                                        Icon(
-                                          Icons.verified_user_outlined,
-                                          color: Color(0xFF1D4ED8),
-                                          size: 20,
-                                        ),
-                                        SizedBox(width: 10),
-                                        Expanded(
-                                          child: Text(
-                                            'Tu número de cédula y tu correo electrónico son de uso único por cuenta y quedarán vinculados de forma segura.',
-                                            style: TextStyle(
-                                              color: Color(0xFF334155),
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w600,
-                                              height: 1.35,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 14),
-
-                                  // Autorización obligatoria de tratamiento de datos (Ley 1581 de 2012)
-                                  _buildConsentimientoDatos(),
-                                  const SizedBox(height: 20),
-
-                                  // Botón principal grande y proporcionado
-                                  SizedBox(
-                                    height: 54,
-                                    child: ElevatedButton(
-                                      onPressed: _isLoading ? null : _register,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: _aceptaPolitica
-                                            ? _goldAccent
-                                            : const Color(0xFFE2E8F0),
-                                        foregroundColor: _navyDark,
-                                        elevation: 0,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(28),
-                                        ),
-                                      ),
-                                      child: _isLoading
-                                          ? const SizedBox(
-                                              width: 24,
-                                              height: 24,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2.5,
-                                                color: _navyDark,
-                                              ),
-                                            )
-                                          : Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: [
-                                                Flexible(
-                                                  child: Text(
-                                                    'Continuar al pago (${rol.precioFormateadoCop})',
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: TextStyle(
-                                                      color: _navyDark,
-                                                      fontSize:
-                                                          isMobile ? 15.2 : 16.5,
-                                                      fontWeight:
-                                                          FontWeight.w800,
-                                                    ),
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 10),
-                                                const Icon(
-                                                  Icons.arrow_forward_rounded,
-                                                  size: 20,
-                                                  color: _navyDark,
-                                                ),
-                                              ],
-                                            ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-
-                                  // Enlace inferior a Iniciar sesión
-                                  Wrap(
-                                    alignment: WrapAlignment.center,
-                                    crossAxisAlignment:
-                                        WrapCrossAlignment.center,
-                                    children: [
-                                      const Text(
-                                        '¿Ya tienes cuenta registrada? ',
-                                        style: TextStyle(
-                                          color: Color(0xFF475569),
-                                          fontSize: 14.2,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      InkWell(
-                                        onTap: _isLoading
-                                            ? null
-                                            : _navigateToLogin,
-                                        borderRadius: BorderRadius.circular(6),
-                                        child: const Padding(
-                                          padding: EdgeInsets.symmetric(
-                                            horizontal: 6,
-                                            vertical: 4,
-                                          ),
-                                          child: Text(
-                                            'Inicia sesión aquí →',
-                                            style: TextStyle(
-                                              color: _navyDark,
-                                              fontSize: 14.5,
-                                              fontWeight: FontWeight.w800,
-                                              decoration:
-                                                  TextDecoration.underline,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                                  BoxShadow(
+                                    color: _navyDark.withValues(alpha: 0.07),
+                                    blurRadius: 22,
+                                    offset: const Offset(0, 7),
                                   ),
                                 ],
                               ),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isMobile ? 16 : 28,
+                                vertical: isMobile ? 18 : 24,
+                              ),
+                              child: Form(
+                                key: _formKey,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    // Cabecera superior de la tarjeta: UN SOLO LOGO HD GRANDE + Stepper
+                                    _buildRegistrationCardHeader(
+                                      isMobile: isMobile,
+                                    ),
+                                    SizedBox(height: isMobile ? 14 : 16),
+
+                                    // Banner del rol seleccionado con la ilustración original de la foto y su precio ($100 COP)
+                                    _buildSelectedRoleBanner(
+                                      rol: rol,
+                                      isMobile: isMobile,
+                                    ),
+                                    SizedBox(height: isMobile ? 14 : 16),
+
+                                    // Campos en cuadrícula limpia de 2 columnas en escritorio / 1 columna ajustada en celular
+                                    if (isTwoCols) ...[
+                                      Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(child: fieldNombres),
+                                          const SizedBox(width: 12),
+                                          Expanded(child: fieldApellidos),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 11),
+                                      Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(child: fieldEmail),
+                                          const SizedBox(width: 12),
+                                          Expanded(child: fieldDocumento),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 11),
+                                      Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(child: fieldPais),
+                                          const SizedBox(width: 12),
+                                          Expanded(child: fieldTelefono),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 11),
+                                      Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(child: fieldPassword),
+                                          const SizedBox(width: 12),
+                                          Expanded(child: fieldConfirmPassword),
+                                        ],
+                                      ),
+                                    ] else ...[
+                                      fieldNombres,
+                                      const SizedBox(height: 11),
+                                      fieldApellidos,
+                                      const SizedBox(height: 11),
+                                      fieldEmail,
+                                      const SizedBox(height: 11),
+                                      fieldDocumento,
+                                      const SizedBox(height: 11),
+                                      fieldPais,
+                                      const SizedBox(height: 11),
+                                      fieldTelefono,
+                                      const SizedBox(height: 11),
+                                      fieldPassword,
+                                      const SizedBox(height: 11),
+                                      fieldConfirmPassword,
+                                    ],
+                                    const SizedBox(height: 13),
+
+                                    // Aviso de verificación de unicidad de cédula y correo
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 9,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFEEF5FD),
+                                        borderRadius: BorderRadius.circular(11),
+                                        border: Border.all(
+                                          color: const Color(0xFFDCE8F8),
+                                        ),
+                                      ),
+                                      child: const Row(
+                                        children: [
+                                          Icon(
+                                            Icons.verified_user_outlined,
+                                            color: Color(0xFF1D4ED8),
+                                            size: 18,
+                                          ),
+                                          SizedBox(width: 9),
+                                          Expanded(
+                                            child: Text(
+                                              'Tu número de cédula y tu correo electrónico son de uso único por cuenta y quedarán vinculados de forma segura.',
+                                              style: TextStyle(
+                                                color: Color(0xFF334155),
+                                                fontSize: 12.2,
+                                                fontWeight: FontWeight.w600,
+                                                height: 1.32,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 11),
+
+                                    // Autorización obligatoria de tratamiento de datos (Ley 1581 de 2012)
+                                    _buildConsentimientoDatos(),
+                                    const SizedBox(height: 16),
+
+                                    // Botón principal proporcionado
+                                    SizedBox(
+                                      height: 50,
+                                      child: ElevatedButton(
+                                        onPressed: _isLoading ? null : _register,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: _aceptaPolitica
+                                              ? _goldAccent
+                                              : const Color(0xFFE2E8F0),
+                                          foregroundColor: _navyDark,
+                                          elevation: 0,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(26),
+                                          ),
+                                        ),
+                                        child: _isLoading
+                                            ? const SizedBox(
+                                                width: 22,
+                                                height: 22,
+                                                child: CircularProgressIndicator(
+                                                  strokeWidth: 2.5,
+                                                  color: _navyDark,
+                                                ),
+                                              )
+                                            : Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Flexible(
+                                                    child: Text(
+                                                      'Continuar al pago (${rol.precioFormateadoCop})',
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: TextStyle(
+                                                        color: _navyDark,
+                                                        fontSize:
+                                                            isMobile ? 14.8 : 15.8,
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 10),
+                                                  const Icon(
+                                                    Icons.arrow_forward_rounded,
+                                                    size: 19,
+                                                    color: _navyDark,
+                                                  ),
+                                                ],
+                                              ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 13),
+
+                                    // Enlace inferior a Iniciar sesión
+                                    Wrap(
+                                      alignment: WrapAlignment.center,
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
+                                      children: [
+                                        const Text(
+                                          '¿Ya tienes cuenta registrada? ',
+                                          style: TextStyle(
+                                            color: Color(0xFF475569),
+                                            fontSize: 13.6,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        InkWell(
+                                          onTap: _isLoading
+                                              ? null
+                                              : _navigateToLogin,
+                                          borderRadius: BorderRadius.circular(6),
+                                          child: const Padding(
+                                            padding: EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 4,
+                                            ),
+                                            child: Text(
+                                              'Inicia sesión aquí →',
+                                              style: TextStyle(
+                                                color: _navyDark,
+                                                fontSize: 13.8,
+                                                fontWeight: FontWeight.w800,
+                                                decoration:
+                                                    TextDecoration.underline,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 20),
-                      ],
+                          const SizedBox(height: 16),
+                        ],
+                      ),
                     ),
                   ),
                 ),

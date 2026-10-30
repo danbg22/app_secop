@@ -18,15 +18,17 @@ service cloud.firestore {
       return val is string && val.size() > 0 && val.size() <= maxLen;
     }
 
-    function isBaseRoleOnly(data) {
+    function isUnpaidOrBaseRoleOnly(data) {
       return !('rolesActivos' in data) ||
           (data.rolesActivos is list &&
-           data.rolesActivos.size() == 1 &&
-           data.rolesActivos[0] == 'persona');
+           (data.rolesActivos.size() == 0 ||
+            (data.rolesActivos.size() == 1 &&
+             data.rolesActivos[0] == 'persona' &&
+             (!('pagoWompiPendiente' in data) || data.pagoWompiPendiente == false))));
     }
 
-    // Verifica que cualquier escalamiento de rol (más allá de 'persona') esté
-    // respaldado por un recibo aprobado y registrado en el libro mayor `pagos_wompi`.
+    // Verifica que cualquier activación o acumulación de rol pagado esté
+    // respaldada por un recibo aprobado y registrado en el libro mayor `pagos_wompi`.
     function hasVerifiedWompiLedger(data) {
       return ('pagoWompiActivo' in data) &&
           data.pagoWompiActivo == true &&
@@ -52,7 +54,7 @@ service cloud.firestore {
 
       allow create: if isOwner(uid) &&
           request.resource.data.uid == uid &&
-          isBaseRoleOnly(request.resource.data);
+          isUnpaidOrBaseRoleOnly(request.resource.data);
 
       allow update: if isOwner(uid) &&
           (!('uid' in request.resource.data) || request.resource.data.uid == uid) &&
@@ -73,7 +75,7 @@ service cloud.firestore {
           (!('rolesActivos' in request.resource.data) ||
            ('rolesActivos' in resource.data &&
             request.resource.data.rolesActivos == resource.data.rolesActivos) ||
-           isBaseRoleOnly(request.resource.data) ||
+           isUnpaidOrBaseRoleOnly(request.resource.data) ||
            hasVerifiedWompiLedger(request.resource.data));
 
       allow delete: if false;
@@ -101,8 +103,6 @@ service cloud.firestore {
     // =========================================================================
     // 2. ÍNDICES OPACOS DE UNICIDAD (`indices_unicidad/{sha256Hash}`)
     // =========================================================================
-    // Permite verificar duplicidad de correo/documento mediante hash SHA-256
-    // con separación de dominio sin exponer PII ni permitir enumeración (`list`).
     match /indices_unicidad/{hash} {
       allow get: if hash.matches('^[a-f0-9]{64}$');
       allow list: if false;
@@ -118,7 +118,6 @@ service cloud.firestore {
     // =========================================================================
     // 3. LIBRO MAYOR INMUTABLE DE PAGOS WOMPI (`pagos_wompi/{transactionId}`)
     // =========================================================================
-    // Protección Anti-Replay: un `transactionId` jamás puede sobrescribirse ni borrarse.
     match /pagos_wompi/{transactionId} {
       allow get: if isSignedIn() && resource.data.uid == request.auth.uid;
       allow list: if false;
@@ -135,7 +134,42 @@ service cloud.firestore {
     }
 
     // =========================================================================
-    // 4. BUZÓN GLOBAL DE RADICADOS PQRS (`pqrs_solicitudes/{radicado}`)
+    // 4. EXPEDIENTES CONTRACTUALES EQUIPO JURÍDICO + PORTAL INVITADO (`expedientes_juridicos/{token}`)
+    // =========================================================================
+    // El `token` es un identificador criptográfico CSPRNG de 32-64 caracteres hexadecimales:
+    // - Prohibido listar globalmente; solo el abogado creador lista los suyos.
+    // - El contratista invitado accede únicamente por `get` directo conociendo el token exacto
+    //   y solo puede actualizar la carga/subsanación de sus apartados sin cambiar propietario.
+    match /expedientes_juridicos/{token} {
+      allow get: if token.matches('^[a-f0-9]{32,64}$');
+      allow list: if isSignedIn() && resource.data.creadoPorUid == request.auth.uid;
+      allow create: if isSignedIn() &&
+          token.matches('^[a-f0-9]{32,64}$') &&
+          request.resource.data.tokenInvitado == token &&
+          request.resource.data.creadoPorUid == request.auth.uid &&
+          isNonEmptyString(request.resource.data.numeroContrato, 80) &&
+          isNonEmptyString(request.resource.data.objetoContrato, 2000);
+      allow update: if token.matches('^[a-f0-9]{32,64}$') &&
+          request.resource.data.tokenInvitado == resource.data.tokenInvitado &&
+          request.resource.data.creadoPorUid == resource.data.creadoPorUid &&
+          request.resource.data.numeroContrato == resource.data.numeroContrato;
+      allow delete: if isSignedIn() && resource.data.creadoPorUid == request.auth.uid;
+    }
+
+    // =========================================================================
+    // 5. COLA DE NOTIFICACIONES POR CORREO DE SUBSANACIÓN (`notificaciones_correo/{notifId}`)
+    // =========================================================================
+    match /notificaciones_correo/{notifId} {
+      allow get, list: if isSignedIn() && resource.data.remitenteUid == request.auth.uid;
+      allow create: if isSignedIn() &&
+          request.resource.data.remitenteUid == request.auth.uid &&
+          isNonEmptyString(request.resource.data.destinatarioEmail, 160) &&
+          isNonEmptyString(request.resource.data.asunto, 220);
+      allow update, delete: if false;
+    }
+
+    // =========================================================================
+    // 6. BUZÓN GLOBAL DE RADICADOS PQRS (`pqrs_solicitudes/{radicado}`)
     // =========================================================================
     match /pqrs_solicitudes/{radicado} {
       allow get: if isSignedIn() && resource.data.uid == request.auth.uid;
@@ -157,11 +191,10 @@ service cloud.firestore {
     }
 
     // =========================================================================
-    // 5. DENEGACIÓN POR DEFECTO (ZERO-TRUST FALLBACK)
+    // 7. DENEGACIÓN POR DEFECTO (ZERO-TRUST FALLBACK)
     // =========================================================================
     match /{document=**} {
       allow read, write: if false;
     }
   }
 }
-

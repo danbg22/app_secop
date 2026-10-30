@@ -4,11 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../widgets/user_profile_header_action.dart';
 import 'detalle_screen.dart';
 import 'perfil_contratista_screen.dart';
 
 class FavoritosScreen extends StatefulWidget {
-  const FavoritosScreen({super.key});
+  const FavoritosScreen({super.key, this.onLogout});
+
+  final VoidCallback? onLogout;
 
   @override
   State<FavoritosScreen> createState() => _FavoritosScreenState();
@@ -389,39 +392,91 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.sizeOf(context).width < 768;
+
     return DefaultTabController(
       length: 2,
-      child: Scaffold(
-        backgroundColor: Colors.grey[100],
-        appBar: AppBar(
-          title: const Text(
-            'Mis Favoritos',
-            style: TextStyle(
-              color: Colors.black,
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
-          ),
-          backgroundColor: Colors.white,
-          elevation: 0,
-          automaticallyImplyLeading: false,
-          bottom: const TabBar(
-            labelColor: Color(0xFF17365D),
-            unselectedLabelColor: Colors.blueGrey,
-            tabs: [
-              Tab(text: 'Perfiles'),
-              Tab(text: 'Contratos'),
-            ],
-          ),
-        ),
-        body: isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : TabBarView(
+      child: ColoredBox(
+        color: const Color(0xFFFFF8EE),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                isMobile ? 16 : 32,
+                isMobile ? 16 : 26,
+                isMobile ? 16 : 32,
+                12,
+              ),
+              child: Row(
                 children: [
-                  _construirListaPerfiles(),
-                  _construirListaContratos(),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Mis favoritos',
+                          style: TextStyle(
+                            color: const Color(0xFF1A2B4C),
+                            fontWeight: FontWeight.w800,
+                            fontSize: isMobile ? 22 : 30,
+                            height: 1.05,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          width: 36,
+                          height: 3.5,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF5B82E),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (!isMobile && widget.onLogout != null)
+                    UserProfileHeaderAction(onLogout: widget.onLogout!),
                 ],
               ),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 32),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: const TabBar(
+                  labelColor: Color(0xFF1A2B4C),
+                  unselectedLabelColor: Color(0xFF64748B),
+                  indicatorColor: Color(0xFF1A2B4C),
+                  dividerColor: Colors.transparent,
+                  labelStyle: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13.5,
+                  ),
+                  tabs: [
+                    Tab(text: 'Perfiles guardados'),
+                    Tab(text: 'Contratos guardados'),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : TabBarView(
+                      children: [
+                        _construirListaPerfiles(),
+                        _construirListaContratos(),
+                      ],
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/roles_visual_assets_data.dart';
+import '../services/auth_service.dart';
 import '../services/payment_service.dart';
 import 'login_screen.dart';
 import 'pasarela_pago_wompi_screen.dart';
@@ -380,7 +381,7 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
 
   String? _hoveredRoleId;
 
-  void _seleccionarRol(RolPaqueteConfig rol) {
+  Future<void> _seleccionarRol(RolPaqueteConfig rol) async {
     if (!rol.habilitadoParaRegistro) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
@@ -402,7 +403,7 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Por ahora solo está habilitado el rol "Persona" (${rol.precioFormateadoCop} para "${rol.nombre}" estará disponible próximamente).',
+                    'Actualmente están habilitados "Persona" y "Equipo jurídico entidad" (\$100 COP). El paquete "${rol.nombre}" (${rol.precioFormateadoCop}) estará disponible próximamente.',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 13,
@@ -417,7 +418,58 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
       return;
     }
 
-    if (widget.modoAcumularRol) {
+    // Si el usuario tiene pago inicial obligatorio pendiente y vino a cambiar el rol a pagar:
+    if (AuthService.requiresMandatoryWompiPayment) {
+      await AuthService.updatePendingRegistrationRole(rol.id);
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => PasarelaPagoWompiScreen(
+            rolId: rol.id,
+            esFlujoRegistro: true,
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Si el usuario ya tiene cuenta activa y está comprando un módulo adicional (Roles acumulables):
+    if (widget.modoAcumularRol && AuthService.hasAuthorizedPlatformAccess) {
+      if (AuthService.hasActiveRole(rol.id)) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: const Color(0xFF15803D),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              content: Row(
+                children: [
+                  const Icon(
+                    Icons.verified_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Ya tienes activo el rol "${rol.nombre}". Selecciona otro rol habilitado para acumular sus permisos y herramientas.',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        return;
+      }
+
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
           builder: (_) => PasarelaPagoWompiScreen(
@@ -436,15 +488,32 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
     );
   }
 
-  void _irALogin() {
+  Future<void> _irALogin() async {
+    if (AuthService.requiresMandatoryWompiPayment) {
+      await AuthService.signOut();
+    }
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
     );
   }
 
-  void _regresar() {
+  Future<void> _regresar() async {
+    // Seguridad estricta: si la cuenta aún no ha pagado y sale a Portada, cierra sesión primero.
+    if (AuthService.requiresMandatoryWompiPayment) {
+      await AuthService.signOut();
+      if (!mounted) return;
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).pushNamedAndRemoveUntil('/portada', (route) => false);
+      return;
+    }
     if (Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
+    } else if (widget.modoAcumularRol &&
+        AuthService.hasAuthorizedPlatformAccess) {
+      Navigator.of(context).pushReplacementNamed('/home');
     } else {
       Navigator.of(context).pushReplacementNamed('/portada');
     }
@@ -487,7 +556,9 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                         ),
                         SizedBox(height: isMobile ? 16 : 22),
                         Text(
-                          'Elige el rol con el que\nquieres continuar',
+                          widget.modoAcumularRol
+                              ? 'Acumula un nuevo rol\nen tu cuenta actual'
+                              : 'Elige el rol con el que\nquieres continuar',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: _navy,
@@ -499,7 +570,9 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'Personaliza tu experiencia según tus necesidades.\nPuedes cambiar de rol en cualquier momento.',
+                          widget.modoAcumularRol
+                              ? 'Tus roles actuales (${AuthService.getActiveUserRoleDisplayLabel()}) se conservarán intactos.\nAl confirmar el pago en Wompi, el nuevo rol se sumará automáticamente sin cerrar tu sesión.'
+                              : 'Personaliza tu experiencia según tus necesidades.\nLos roles son acumulables: puedes sumar módulos adicionales en cualquier momento.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: _subtitleBlue,
@@ -658,14 +731,22 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
     required bool isMobile,
   }) {
     final bool isPersona = rol.id == 'persona';
+    final bool isAlreadyOwned =
+        widget.modoAcumularRol &&
+        AuthService.hasAuthorizedPlatformAccess &&
+        AuthService.hasActiveRole(rol.id);
     final bool isHovered = _hoveredRoleId == rol.id;
 
     final Color cardBg = _cardBackgroundColorForRole(rol.id);
-    final Color borderColor = isPersona
-        ? const Color(0xFFF5C032)
-        : (isHovered
-              ? rol.colorPrimario.withValues(alpha: 0.55)
-              : const Color(0xFFE6ECF5));
+    final Color borderColor = isAlreadyOwned
+        ? const Color(0xFF15803D)
+        : (isPersona
+              ? const Color(0xFFF5C032)
+              : (rol.habilitadoParaRegistro
+                    ? rol.colorPrimario.withValues(alpha: isHovered ? 0.85 : 0.45)
+                    : (isHovered
+                          ? rol.colorPrimario.withValues(alpha: 0.40)
+                          : const Color(0xFFE6ECF5))));
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hoveredRoleId = rol.id),
@@ -812,76 +893,144 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
               if (!isMobile) const Spacer() else const SizedBox(height: 18),
               const SizedBox(height: 16),
 
-              // Botón Seleccionar ->
+              // Botón Seleccionar / Acumular / Activo ->
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 6),
                 child: SizedBox(
                   width: double.infinity,
                   height: 48,
-                  child: isPersona
-                      ? ElevatedButton(
+                  child: isAlreadyOwned
+                      ? OutlinedButton.icon(
                           onPressed: () => _seleccionarRol(rol),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFF8C63A),
-                            foregroundColor: _navy,
-                            elevation: 0,
+                          icon: const Icon(
+                            Icons.verified_rounded,
+                            size: 18,
+                            color: Color(0xFF15803D),
+                          ),
+                          label: const Text(
+                            'Rol activo en tu cuenta',
+                            style: TextStyle(
+                              color: Color(0xFF15803D),
+                              fontSize: 13.8,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: const Color(0xFFF0FDF4),
+                            side: const BorderSide(
+                              color: Color(0xFF86EFAC),
+                              width: 1.4,
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(28),
                             ),
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Seleccionar',
-                                style: TextStyle(
-                                  color: _navy,
-                                  fontSize: 15.2,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              SizedBox(width: 8),
-                              Icon(
-                                Icons.arrow_forward_rounded,
-                                size: 19,
-                                color: _navy,
-                              ),
-                            ],
                           ),
                         )
-                      : OutlinedButton(
-                          onPressed: () => _seleccionarRol(rol),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: _navy,
-                            backgroundColor: Colors.white,
-                            side: BorderSide(
-                              color: rol.colorPrimario.withValues(alpha: 0.65),
-                              width: 1.3,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(28),
-                            ),
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Seleccionar',
-                                style: TextStyle(
-                                  color: _navy,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w800,
+                      : (isPersona
+                            ? ElevatedButton(
+                                onPressed: () => _seleccionarRol(rol),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFF8C63A),
+                                  foregroundColor: _navy,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(28),
+                                  ),
                                 ),
-                              ),
-                              SizedBox(width: 8),
-                              Icon(
-                                Icons.arrow_forward_rounded,
-                                size: 19,
-                                color: _navy,
-                              ),
-                            ],
-                          ),
-                        ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      widget.modoAcumularRol
+                                          ? 'Acumular rol'
+                                          : 'Seleccionar',
+                                      style: const TextStyle(
+                                        color: _navy,
+                                        fontSize: 15.2,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Icon(
+                                      Icons.arrow_forward_rounded,
+                                      size: 19,
+                                      color: _navy,
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : (rol.habilitadoParaRegistro
+                                  ? ElevatedButton(
+                                      onPressed: () => _seleccionarRol(rol),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: rol.colorPrimario,
+                                        foregroundColor: Colors.white,
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(28),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            widget.modoAcumularRol
+                                                ? 'Acumular rol'
+                                                : 'Seleccionar',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          const Icon(
+                                            Icons.arrow_forward_rounded,
+                                            size: 19,
+                                            color: Colors.white,
+                                          ),
+                                        ],
+                                      ),
+                                    )
+                                  : OutlinedButton(
+                                      onPressed: () => _seleccionarRol(rol),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: _navy,
+                                        backgroundColor: Colors.white,
+                                        side: BorderSide(
+                                          color: rol.colorPrimario.withValues(
+                                            alpha: 0.45,
+                                          ),
+                                          width: 1.2,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(28),
+                                        ),
+                                      ),
+                                      child: const Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            'Próximamente',
+                                            style: TextStyle(
+                                              color: Color(0xFF64748B),
+                                              fontSize: 14.5,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          SizedBox(width: 6),
+                                          Icon(
+                                            Icons.lock_clock_outlined,
+                                            size: 17,
+                                            color: Color(0xFF64748B),
+                                          ),
+                                        ],
+                                      ),
+                                    ))),
                 ),
               ),
             ],

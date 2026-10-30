@@ -128,8 +128,340 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
         builder: (_) => EscogerRolScreen(
-          modoAcumularRol: !widget.esFlujoRegistro,
+          modoAcumularRol:
+              !widget.esFlujoRegistro && AuthService.hasAuthorizedPlatformAccess,
           rolActualSeleccionadoId: _rolConfig.id,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _cerrarSesionPendienteYSalir() async {
+    await AuthService.signOut();
+    if (!mounted) return;
+    Navigator.of(
+      context,
+      rootNavigator: true,
+    ).pushNamedAndRemoveUntil('/portada', (route) => false);
+  }
+
+  Future<void> _manejarIntentoRegresar() async {
+    if (_procesandoPago) return;
+
+    if (_pasoActual == 3) {
+      _irAlInicioPlataforma();
+      return;
+    }
+
+    if (_pasoActual > 0) {
+      setState(() => _pasoActual--);
+      return;
+    }
+
+    // Si el usuario ya tiene cuenta activa pagada y está acumulando un rol nuevo,
+    // regresa fluidamente a la plataforma sin perder su sesión actual.
+    if (!widget.esFlujoRegistro && AuthService.hasAuthorizedPlatformAccess) {
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      } else {
+        _irAlInicioPlataforma();
+      }
+      return;
+    }
+
+    // CIBERSEGURIDAD ESTRICTA: Si el pago inicial está pendiente, jamás se permite
+    // entrar a /home retrocediendo. Mostramos opciones controladas y seguras.
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 440),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFEF3C7),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.shield_outlined,
+                    color: Color(0xFFB45309),
+                    size: 30,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Activación de pago requerida',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: _navy,
+                    fontSize: 18.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Por seguridad, tu cuenta aún no tiene acceso habilitado a la plataforma hasta que Wompi confirme el pago del rol ${_rolConfig.nombre} (${_rolConfig.precioFormateadoCop}).',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: _subtitleSlate,
+                    fontSize: 13.5,
+                    height: 1.42,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _navy,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                    ),
+                    child: const Text(
+                      'Continuar con el pago',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      _cambiarRol();
+                    },
+                    icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+                    label: const Text(
+                      'Cambiar rol a activar',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _navy,
+                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                TextButton.icon(
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    _cerrarSesionPendienteYSalir();
+                  },
+                  icon: Icon(
+                    Icons.logout_rounded,
+                    size: 17,
+                    color: Colors.red.shade700,
+                  ),
+                  label: Text(
+                    'Cancelar activación y cerrar sesión',
+                    style: TextStyle(
+                      color: Colors.red.shade700,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _autocompletarSandbox({required bool aprobado}) {
+    setState(() {
+      if (_metodoSeleccionado == WompiMetodoPago.tarjetaCreditoDebito) {
+        _cardNumberController.text = aprobado
+            ? '4242 4242 4242 4242'
+            : '4242 4242 4242 0002';
+        _cardExpiryController.text = '12/29';
+        _cardCvvController.text = '123';
+        if (_cardHolderController.text.trim().isEmpty) {
+          _cardHolderController.text = 'USUARIO PRUEBA WOMPI';
+        }
+      } else if (_metodoSeleccionado == WompiMetodoPago.nequiDaviplata) {
+        _celularBilleteraController.text =
+            aprobado ? '3991111111' : '3992222222';
+      } else {
+        _bancoPse = 'Bancolombia';
+        _documentoPseController.text = aprobado ? '1098765432' : '00000';
+      }
+    });
+    _mostrarMensaje(
+      aprobado
+          ? 'Datos de prueba Sandbox Wompi (APROBADO) cargados.'
+          : 'Datos de prueba Sandbox Wompi (RECHAZADO) cargados.',
+    );
+  }
+
+  void _mostrarDiagnosticoAmbienteWompi() {
+    final diag = PaymentService.diagnosticarCredencialesWompi();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: diag.isSandbox
+                            ? const Color(0xFFFEF3C7)
+                            : const Color(0xFFDCFCE7),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Text(
+                        diag.environmentLabel.toUpperCase(),
+                        style: TextStyle(
+                          color: diag.isSandbox
+                              ? const Color(0xFF92400E)
+                              : _tealCheck,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      diag.allValid
+                          ? Icons.verified_rounded
+                          : Icons.warning_amber_rounded,
+                      color: diag.allValid ? _tealCheck : Colors.orange,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Verificación de Ambiente y Llaves Wompi',
+                  style: TextStyle(
+                    color: _navy,
+                    fontSize: 17.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  diag.allValid
+                      ? 'Las 4 llaves configuradas (pública, privada, eventos e integridad SHA-256) coinciden estrictamente con los prefijos oficiales de ${diag.environmentLabel}.'
+                      : 'Revisa los prefijos de llaves en AdminConfiguracionRolesYPagos según la documentación oficial de Wompi.',
+                  style: const TextStyle(
+                    color: _subtitleSlate,
+                    fontSize: 12.8,
+                    height: 1.38,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Endpoint API: ${diag.apiBaseUrl}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: _navy,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Llave Pública: ${diag.maskedPublicKey}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF334155),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Comercio: ${AdminConfiguracionRolesYPagos.titularCuentaDestino} (${AdminConfiguracionRolesYPagos.nitComercioDestino})',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF334155),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Archivo de configuración rápida: lib/services/payment_service.dart -> AdminConfiguracionRolesYPagos',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: _tealCheck,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _navy,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                    ),
+                    child: const Text(
+                      'Cerrar verificación',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -299,6 +631,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
         metodoPago: _metodoSeleccionado,
         datosPago: datos,
         referenciaPrevia: _referenciaTransaccion,
+        emailCliente: AuthService.getActiveUserEmail(),
       );
 
       // Purga inmediata de credenciales financieras en memoria (PCI-DSS higiene)
@@ -350,54 +683,93 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bgCream,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final isMobile = constraints.maxWidth < 600;
+    final bool acumulandoEnSesionActiva =
+        !widget.esFlujoRegistro && AuthService.hasAuthorizedPlatformAccess;
 
-          return OnboardingUnifiedBackground(
-            child: SafeArea(
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isMobile ? 14 : 24,
-                    vertical: isMobile ? 16 : 24,
-                  ),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1180),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        OnboardingUnifiedTopBar(
-                          currentStep: 3,
-                          totalSteps: 3,
-                          showBrandLogo: false,
-                          backLabel: _pasoActual == 3
-                              ? 'Ir al inicio'
-                              : (_pasoActual > 0 ? 'Volver' : 'Cambiar rol'),
-                          onBack: _pasoActual == 3
-                              ? _irAlInicioPlataforma
-                              : (_pasoActual > 0
-                                    ? () => setState(() => _pasoActual--)
-                                    : _cambiarRol),
-                        ),
-                        SizedBox(height: isMobile ? 14 : 20),
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 680),
-                          child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 240),
-                            child: _buildActiveCard(isMobile: isMobile),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          _manejarIntentoRegresar();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: _bgCream,
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            final isMobile = constraints.maxWidth < 600;
+
+            return OnboardingUnifiedBackground(
+              child: SafeArea(
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isMobile ? 14 : 24,
+                      vertical: isMobile ? 16 : 24,
+                    ),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1180),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          OnboardingUnifiedTopBar(
+                            currentStep: 3,
+                            totalSteps: 3,
+                            showBrandLogo: false,
+                            backLabel: _pasoActual == 3
+                                ? 'Ir al inicio'
+                                : (_pasoActual > 0
+                                      ? 'Volver'
+                                      : (acumulandoEnSesionActiva
+                                            ? 'Volver a mi cuenta'
+                                            : 'Cambiar rol')),
+                            onBack: _pasoActual == 3
+                                ? _irAlInicioPlataforma
+                                : (_pasoActual > 0
+                                      ? () => setState(() => _pasoActual--)
+                                      : (acumulandoEnSesionActiva
+                                            ? _manejarIntentoRegresar
+                                            : _cambiarRol)),
                           ),
-                        ),
-                      ],
+                          SizedBox(height: isMobile ? 12 : 16),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 680),
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 240),
+                              child: _buildActiveCard(isMobile: isMobile),
+                            ),
+                          ),
+                          if (AuthService.requiresMandatoryWompiPayment &&
+                              _pasoActual < 3) ...[
+                            const SizedBox(height: 12),
+                            TextButton.icon(
+                              onPressed: _procesandoPago
+                                  ? null
+                                  : _cerrarSesionPendienteYSalir,
+                              icon: const Icon(
+                                Icons.logout_rounded,
+                                size: 16,
+                                color: Color(0xFF475569),
+                              ),
+                              label: const Text(
+                                'Cerrar sesión y volver a la portada',
+                                style: TextStyle(
+                                  color: Color(0xFF475569),
+                                  fontSize: 12.8,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -592,10 +964,103 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
 
   Widget _buildPaso0PlanSummary({required bool isMobile}) {
     final rol = _rolConfig;
+    final diag = PaymentService.diagnosticarCredencialesWompi();
+    final bool acumulandoEnSesion =
+        !widget.esFlujoRegistro && AuthService.hasAuthorizedPlatformAccess;
+    final String rolesPrevios = AuthService.getActiveUserRoleDisplayLabel();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Píldora de verificación de ambiente Wompi (Sandbox / Producción)
+        InkWell(
+          onTap: _mostrarDiagnosticoAmbienteWompi,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: diag.isSandbox
+                  ? const Color(0xFFFFFBEB)
+                  : const Color(0xFFF0FDF4),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: diag.isSandbox
+                    ? const Color(0xFFFDE68A)
+                    : const Color(0xFFBBF7D0),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  diag.allValid
+                      ? Icons.verified_rounded
+                      : Icons.info_outline_rounded,
+                  size: 16,
+                  color: diag.isSandbox
+                      ? const Color(0xFFB45309)
+                      : _tealCheck,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    diag.isSandbox
+                        ? 'Wompi Sandbox verificado (${diag.maskedPublicKey}) · Pago integrado sin salir de tu sesión'
+                        : 'Wompi Producción activo (${diag.maskedPublicKey})',
+                    style: TextStyle(
+                      color: diag.isSandbox
+                          ? const Color(0xFF92400E)
+                          : _tealCheck,
+                      fontSize: 11.4,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const Text(
+                  'Ver llaves ↗',
+                  style: TextStyle(
+                    color: _navy,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (acumulandoEnSesion) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEEF6FF),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFBFDBFE)),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.layers_rounded,
+                  size: 17,
+                  color: Color(0xFF1D4ED8),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Acumulación de rol activa: conservarás "$rolesPrevios" y se sumará "${rol.nombre}" a tu cuenta (${AuthService.getActiveUserEmail()}).',
+                    style: const TextStyle(
+                      color: Color(0xFF1E3A8A),
+                      fontSize: 11.8,
+                      fontWeight: FontWeight.w700,
+                      height: 1.32,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        const SizedBox(height: 16),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -604,19 +1069,23 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '¡Ya casi estás!',
+                    acumulandoEnSesion
+                        ? 'Suma un nuevo rol a tu cuenta'
+                        : '¡Ya casi estás!',
                     style: TextStyle(
                       color: _navy,
-                      fontSize: isMobile ? 25 : 28,
+                      fontSize: isMobile ? 24 : 27,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.5,
                       height: 1.15,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Para activar tu cuenta, elige un plan\ny completa el pago.',
-                    style: TextStyle(
+                  Text(
+                    acumulandoEnSesion
+                        ? 'Al confirmar el pago en Wompi, las nuevas herramientas se habilitarán al instante junto con las que ya tienes.'
+                        : 'Para activar tu cuenta, elige un plan\ny completa el pago.',
+                    style: const TextStyle(
                       color: _subtitleSlate,
                       fontSize: 13.8,
                       height: 1.4,
@@ -634,7 +1103,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 20),
 
         // Contenedor "Tu plan"
         Container(
@@ -1255,7 +1724,91 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 14),
+
+        if (AdminConfiguracionRolesYPagos.modoSandbox) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFBEB),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFFDE68A)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.science_outlined,
+                      size: 16,
+                      color: Color(0xFFB45309),
+                    ),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Asistente de pruebas Wompi Sandbox (1 clic)',
+                        style: TextStyle(
+                          color: Color(0xFF92400E),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    ActionChip(
+                      onPressed: _procesandoPago
+                          ? null
+                          : () => _autocompletarSandbox(aprobado: true),
+                      backgroundColor: const Color(0xFFDCFCE7),
+                      side: const BorderSide(color: Color(0xFF86EFAC)),
+                      avatar: const Icon(
+                        Icons.check_circle_outline_rounded,
+                        size: 16,
+                        color: _tealCheck,
+                      ),
+                      label: const Text(
+                        'Cargar pago APROBADO',
+                        style: TextStyle(
+                          color: _navy,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    ActionChip(
+                      onPressed: _procesandoPago
+                          ? null
+                          : () => _autocompletarSandbox(aprobado: false),
+                      backgroundColor: const Color(0xFFFEE2E2),
+                      side: const BorderSide(color: Color(0xFFFECACA)),
+                      avatar: Icon(
+                        Icons.cancel_outlined,
+                        size: 16,
+                        color: Colors.red.shade700,
+                      ),
+                      label: Text(
+                        'Probar pago RECHAZADO',
+                        style: TextStyle(
+                          color: Colors.red.shade800,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+        ],
 
         // Tarjeta blanca del formulario
         Container(
@@ -1830,11 +2383,20 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Rol asignado: ${rol.nombre} · Pago Wompi aprobado (${rol.precioFormateadoCop})'
+                      'Rol habilitado: ${rol.nombre} · Pago Wompi APPROVED (${rol.precioFormateadoCop})'
                       '${receipt != null ? " · Ref: ${receipt.reference.substring(0, 15)}" : ""}',
                       style: const TextStyle(
                         color: _tealCheck,
                         fontSize: 11.2,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Roles activos acumulados en tu cuenta: ${AuthService.getActiveUserRoleDisplayLabel()}',
+                      style: const TextStyle(
+                        color: _navy,
+                        fontSize: 11.4,
                         fontWeight: FontWeight.w800,
                       ),
                     ),

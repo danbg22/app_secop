@@ -9,12 +9,10 @@ import '../services/auth_service.dart';
 import '../services/security_service.dart';
 import '../services/sigep_service.dart';
 import '../widgets/collapsible_side_menu.dart';
-import '../widgets/dashboard_top_bar.dart';
 import '../widgets/route_security_guard.dart';
 import '../widgets/user_profile_header_action.dart';
 import 'detalle_screen.dart';
 import 'home_screen.dart';
-import 'resultados_busqueda_screen.dart';
 
 class PerfilContratistaScreen extends StatefulWidget {
   final String? nombreContratista;
@@ -45,7 +43,6 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
   static const Color _azulOscuro = Color(0xFF1A2B4C);
   static const Color _amarillo = Color(0xFFF5B82E);
 
-  final TextEditingController _topSearchController = TextEditingController();
   final NumberFormat formatoMoneda = NumberFormat.decimalPattern('es_CO');
 
   bool isLoading = true;
@@ -95,12 +92,6 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
     _cargarFavoritosContratosLocales();
     _cargarHistorialContratista();
     _consultarSigep();
-  }
-
-  @override
-  void dispose() {
-    _topSearchController.dispose();
-    super.dispose();
   }
 
   String _toTitleCase(String text) {
@@ -437,15 +428,6 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
     ).pushNamedAndRemoveUntil('/portada', (route) => false);
   }
 
-  void _handleTopSearch(String query) {
-    final q = query.trim();
-    if (q.isEmpty) return;
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => ResultadosBusquedaScreen(query: q)),
-    );
-  }
-
   Widget _buildHeaderRow(bool isMobile) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -534,6 +516,8 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
             ),
           ),
         ),
+        const SizedBox(width: 10),
+        UserProfileHeaderAction(onLogout: _cerrarSesion),
       ],
     );
   }
@@ -1383,53 +1367,6 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
         backgroundColor: const Color(0xFFFAF5EA),
         drawer: null,
         drawerEnableOpenDragGesture: false,
-        appBar: AppBar(
-          backgroundColor: const Color(0xFFFFFDF8),
-          elevation: 0,
-          scrolledUnderElevation: 1,
-          automaticallyImplyLeading: false,
-          leading: IconButton(
-            tooltip: 'Regresar',
-            icon: const Icon(Icons.arrow_back, color: _azulOscuro),
-            onPressed: () => Navigator.maybePop(context),
-          ),
-          titleSpacing: 0,
-          title: const Text(
-            'Perfil Unificado',
-            style: TextStyle(
-              color: _azulOscuro,
-              fontSize: 16.5,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          actions: [
-            Tooltip(
-              message: _perfilFavoritoGuardado
-                  ? 'Eliminar de favoritos'
-                  : 'Guardar en favoritos',
-              child: IconButton(
-                icon: Icon(
-                  _perfilFavoritoGuardado
-                      ? Icons.bookmark_rounded
-                      : Icons.bookmark_border_rounded,
-                  color: _perfilFavoritoGuardado
-                      ? Colors.amber.shade700
-                      : _azulOscuro,
-                ),
-                onPressed: _alternarFavorito,
-              ),
-            ),
-            UserProfileHeaderAction(onLogout: _cerrarSesion),
-            const SizedBox(width: 8),
-          ],
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(1),
-            child: Container(
-              height: 1,
-              color: const Color(0xFFEDE6D6),
-            ),
-          ),
-        ),
         body: SafeArea(child: bodyContent),
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: 3, // Contratistas tab
@@ -1502,18 +1439,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
             ),
             onLogout: _cerrarSesion,
           ),
-          Expanded(
-            child: Column(
-              children: [
-                DashboardTopBar(
-                  searchController: _topSearchController,
-                  onSearchSubmitted: _handleTopSearch,
-                  onLogout: _cerrarSesion,
-                ),
-                Expanded(child: bodyContent),
-              ],
-            ),
-          ),
+          Expanded(child: bodyContent),
         ],
       ),
     );

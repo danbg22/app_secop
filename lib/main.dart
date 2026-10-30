@@ -7,10 +7,12 @@ import 'screens/escoger_rol_screen.dart';
 import 'screens/pasarela_pago_wompi_screen.dart';
 import 'screens/perfil_usuario_screen.dart';
 import 'screens/planes_screen.dart';
+import 'screens/portal_contratista_invitado_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/portada_screen.dart';
 import 'screens/registro_screen.dart';
 import 'services/auth_service.dart';
+import 'services/juridico_contratacion_service.dart';
 import 'utils/app_scroll_behavior.dart';
 import 'widgets/route_security_guard.dart';
 
@@ -76,6 +78,7 @@ class MyApp extends StatelessWidget {
         '/escoger-rol': (context) => const EscogerRolScreen(),
         '/registro-datos': (context) => const RegistroScreen(),
         '/pasarela-wompi': (context) => const RouteSecurityGuard(
+              allowWhenPaymentPending: true,
               child: PasarelaPagoWompiScreen(),
             ),
         '/planes': (context) => const RouteSecurityGuard(
@@ -85,6 +88,23 @@ class MyApp extends StatelessWidget {
               child: PerfilUsuarioScreen(),
             ),
         '/home': (context) => const AuthGate(),
+      },
+      onGenerateRoute: (settings) {
+        final rawName = settings.name ?? '';
+        if (rawName.startsWith('/invitado-contrato')) {
+          final parsed = Uri.tryParse(rawName);
+          var token = (parsed?.queryParameters['token'] ?? '').trim();
+          if (token.isEmpty) {
+            token = JuridicoContratacionService.extraerTokenInvitadoDeUri(
+              Uri.base,
+            );
+          }
+          return MaterialPageRoute<void>(
+            settings: settings,
+            builder: (_) => PortalContratistaInvitadoScreen(token: token),
+          );
+        }
+        return null;
       },
       onUnknownRoute: (_) => MaterialPageRoute<void>(
         builder: (_) => const AuthGate(),

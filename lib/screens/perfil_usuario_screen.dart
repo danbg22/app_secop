@@ -492,34 +492,77 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 5.5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFDF0CE),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.verified_user_outlined,
-                          size: 15,
-                          color: _navyDark,
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 5.5,
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          AuthService.getActiveUserRoleDisplayLabel(),
-                          style: const TextStyle(
-                            color: _navyDark,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFDF0CE),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.verified_user_outlined,
+                              size: 15,
+                              color: _navyDark,
+                            ),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                'Roles activos: ${AuthService.getActiveUserRoleDisplayLabel()}',
+                                style: const TextStyle(
+                                  color: _navyDark,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () => Navigator.of(context).pushNamed('/planes'),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 11,
+                            vertical: 5.5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFBFDBFE)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.add_moderator_outlined,
+                                size: 14,
+                                color: _iconBlue,
+                              ),
+                              SizedBox(width: 5),
+                              Text(
+                                'Acumular rol (+)',
+                                style: TextStyle(
+                                  color: _iconBlue,
+                                  fontSize: 11.8,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ],
               ),
