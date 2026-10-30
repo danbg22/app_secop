@@ -80,14 +80,21 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
   }
 
   void _onServicioActualizado() {
-    _cargarExpedientes(silencioso: true);
+    // El servicio ya integró el cambio en memoria: no se relee el
+    // almacenamiento para no disparar otra notificación.
+    _cargarExpedientes(silencioso: true, releerAlmacenamiento: false);
   }
 
-  Future<void> _cargarExpedientes({bool silencioso = false}) async {
+  Future<void> _cargarExpedientes({
+    bool silencioso = false,
+    bool releerAlmacenamiento = true,
+  }) async {
     if (!silencioso && _expedientes.isEmpty) {
       setState(() => _cargando = true);
     }
-    final lista = await JuridicoContratacionService.listarExpedientes();
+    final lista = await JuridicoContratacionService.listarExpedientes(
+      releerAlmacenamiento: releerAlmacenamiento,
+    );
     if (!mounted) return;
     setState(() {
       _expedientes = lista;

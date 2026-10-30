@@ -80,9 +80,12 @@ class _PortalContratistaInvitadoScreenState
   }
 
   Future<void> _sincronizarCambios() async {
+    // Llamado por el aviso de cambios del servicio: no se relee el
+    // almacenamiento para no disparar otra notificación.
     final actualizado =
         await JuridicoContratacionService.obtenerExpedientePorTokenInvitado(
           _tokenEfectivo,
+          releerAlmacenamiento: false,
         );
     if (!mounted || actualizado == null) return;
     setState(() => _expediente = actualizado);

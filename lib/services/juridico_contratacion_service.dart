@@ -810,7 +810,7 @@ class JuridicoContratacionService {
     bool huboCambio = false;
     for (final entrante in candidatos) {
       final key = entrante.tokenInvitado.toLowerCase();
-      if (key.isEmpty) continue;
+      if (key.isEmpty || _tokensDemostracionRetirados.contains(key)) continue;
       final previo = mapa[key];
       if (previo == null) {
         mapa[key] = entrante;
@@ -847,8 +847,11 @@ class JuridicoContratacionService {
     if (entrante.totalAprobados != actual.totalAprobados) {
       return entrante.totalAprobados > actual.totalAprobados;
     }
+    // Debe ser asimétrica: si dos versiones se consideraran "más recientes"
+    // la una que la otra, cada relectura del almacenamiento las fusionaría de
+    // nuevo y notificaría un cambio sin fin (la pantalla dejaba de responder).
     if (entrante.totalPorSubsanar != actual.totalPorSubsanar) {
-      return true;
+      return entrante.totalPorSubsanar < actual.totalPorSubsanar;
     }
     return false;
   }
@@ -858,7 +861,7 @@ class JuridicoContratacionService {
     bool persistirLocal = true,
   }) {
     final key = entrante.tokenInvitado.toLowerCase();
-    if (key.isEmpty) return;
+    if (key.isEmpty || _tokensDemostracionRetirados.contains(key)) return;
 
     final lista = _cacheMemoria ?? <ExpedienteContratoPs>[];
     final idx = lista.indexWhere((e) => e.tokenInvitado.toLowerCase() == key);
@@ -1088,9 +1091,16 @@ class JuridicoContratacionService {
   }
 
   /// Carga instantáneamente los expedientes y activa la sincronización en tiempo real.
-  static Future<List<ExpedienteContratoPs>> listarExpedientes() async {
+  /// [releerAlmacenamiento] debe ser `false` cuando la lista se pide porque
+  /// el propio servicio notificó un cambio: releer el almacenamiento en ese
+  /// momento puede volver a notificar y formar un ciclo.
+  static Future<List<ExpedienteContratoPs>> listarExpedientes({
+    bool releerAlmacenamiento = true,
+  }) async {
     _inicializarPuenteEntrePestanas();
-    await _releerDesdeAlmacenamientoCompartido();
+    if (releerAlmacenamiento) {
+      await _releerDesdeAlmacenamientoCompartido();
+    }
     final locales = await _obtenerCacheLocalInmediata();
     for (final exp in locales) {
       _asegurarSuscripcionDocumentoFirestore(exp.tokenInvitado);
@@ -1116,15 +1126,18 @@ class JuridicoContratacionService {
 
   /// Obtiene un expediente por su token único de invitado y activa escucha en tiempo real.
   static Future<ExpedienteContratoPs?> obtenerExpedientePorTokenInvitado(
-    String rawToken,
-  ) async {
+    String rawToken, {
+    bool releerAlmacenamiento = true,
+  }) async {
     final token = rawToken.trim().toLowerCase();
     if (!_esTokenHexValido(token)) {
       return null;
     }
 
     _inicializarPuenteEntrePestanas();
-    await _releerDesdeAlmacenamientoCompartido();
+    if (releerAlmacenamiento) {
+      await _releerDesdeAlmacenamientoCompartido();
+    }
     _asegurarSuscripcionDocumentoFirestore(token);
 
     final locales = await _obtenerCacheLocalInmediata();
