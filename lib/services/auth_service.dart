@@ -8,6 +8,7 @@ import 'package:flutter/painting.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'admin_access.dart';
 import 'consent_service.dart';
 import 'payment_service.dart';
 import 'security_service.dart';
@@ -195,11 +196,20 @@ class AuthService {
   /// Indica si la cuenta autenticada tiene un pago inicial obligatorio pendiente
   /// en Wompi y por lo tanto TIENE BLOQUEADO el acceso al panel principal `/home`.
   static bool get requiresMandatoryWompiPayment =>
-      hasActiveSession && _cachedPaymentPending;
+      hasActiveSession && _cachedPaymentPending && !isActiveUserAdmin;
 
   /// Indica si existe sesión autenticada Y con pago validado/autorizado para usar la app.
   static bool get hasAuthorizedPlatformAccess =>
-      hasActiveSession && !_cachedPaymentPending;
+      hasActiveSession && (!_cachedPaymentPending || isActiveUserAdmin);
+
+  /// Cuenta administradora (ver [AdminAccess]): requiere sesión real de
+  /// Firebase con el correo verificado.
+  static bool get isActiveUserAdmin {
+    final user = _auth.currentUser;
+    return user != null &&
+        user.emailVerified &&
+        AdminAccess.esAdministrador(user.email);
+  }
 
   /// Rol elegido durante el registro que está pendiente de activación en Wompi.
   static String getPendingRegistrationRoleId() =>
@@ -208,6 +218,9 @@ class AuthService {
   /// Devuelve la lista de roles acumulados del usuario activo.
   /// Si el pago obligatorio está pendiente, devuelve lista vacía (cero permisos).
   static List<String> getActiveUserRoles() {
+    if (isActiveUserAdmin) {
+      return AdminAccess.todosLosRoles;
+    }
     if (requiresMandatoryWompiPayment) {
       return const <String>[];
     }
@@ -219,6 +232,7 @@ class AuthService {
 
   /// Devuelve la etiqueta visible de los roles activos (ej. `'Persona'` o `'Persona + Empresa licitante'`).
   static String getActiveUserRoleDisplayLabel() {
+    if (isActiveUserAdmin) return 'Administrador · Todos los roles';
     return PaymentService.formatearEtiquetaRolesAcumulados(
       getActiveUserRoles(),
     );
