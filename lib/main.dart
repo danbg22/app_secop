@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
 
 import 'auth_gate.dart';
 import 'firebase_options.dart';
@@ -19,8 +21,27 @@ import 'widgets/route_security_guard.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await _activarAppCheck();
   await AuthService.restoreSessionFromPrefs();
   runApp(const MyApp());
+}
+
+/// App Check certifica que las solicitudes a Firebase (incluido Gemini vía
+/// Firebase AI Logic) provienen de esta app. En web requiere la clave de
+/// sitio reCAPTCHA v3: `--dart-define=RECAPTCHA_SITE_KEY=...`.
+Future<void> _activarAppCheck() async {
+  const recaptchaSiteKey = String.fromEnvironment('RECAPTCHA_SITE_KEY');
+  if (kIsWeb && recaptchaSiteKey.isEmpty) {
+    debugPrint('App Check desactivado: falta RECAPTCHA_SITE_KEY.');
+    return;
+  }
+  try {
+    await FirebaseAppCheck.instance.activate(
+      providerWeb: kIsWeb ? ReCaptchaV3Provider(recaptchaSiteKey) : null,
+    );
+  } catch (e) {
+    debugPrint('No fue posible activar App Check: $e');
+  }
 }
 
 class MyApp extends StatelessWidget {

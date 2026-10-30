@@ -5,7 +5,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:firebase_ai/firebase_ai.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -839,13 +839,10 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
     _bajarScrollChat();
 
     try {
-      const String apiKey = String.fromEnvironment('GEMINI_API_KEY');
-      if (apiKey.isEmpty) {
-        throw Exception('GEMINI_API_KEY no configurada');
-      }
-      final model = GenerativeModel(
+      // Firebase AI Logic: la clave de Gemini queda en el servidor de
+      // Firebase y las solicitudes se validan con App Check.
+      final model = FirebaseAI.googleAI().generativeModel(
         model: 'gemini-2.5-flash',
-        apiKey: apiKey,
         systemInstruction: Content.system(
           'Eres el Copiloto IA de Contrata Legal, asesor experto en contratación pública colombiana (SECOP II). '
           'Responde únicamente preguntas relacionadas con el contrato proporcionado y el marco jurídico de contratación estatal en Colombia. '
