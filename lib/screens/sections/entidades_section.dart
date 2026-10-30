@@ -7,6 +7,8 @@ import 'package:http/http.dart' as http;
 
 import '../../data/colombia_entities_database.dart';
 import '../../services/auth_service.dart';
+import '../../services/security_service.dart';
+import '../../utils/anios_secop.dart';
 import '../../utils/app_scroll_behavior.dart';
 import '../../widgets/user_profile_header_action.dart';
 import '../perfil_entidad_screen.dart';
@@ -42,6 +44,25 @@ class EntitySummaryRecord {
     this.topShieldInRanking = false,
   });
 
+  EntitySummaryRecord conContratistas(int contratistas) => EntitySummaryRecord(
+        name: name,
+        nit: nit,
+        location: location,
+        municipio: municipio,
+        departamento: departamento,
+        category: category,
+        emblemType: emblemType,
+        contractsCount: contractsCount,
+        contractsFormatted: contractsFormatted,
+        amountMillions: amountMillions,
+        amountFormatted: amountFormatted,
+        dependenciesCount: dependenciesCount,
+        uniqueContractors: contratistas,
+        secopKeywords: secopKeywords,
+        isDependency: isDependency,
+        topShieldInRanking: topShieldInRanking,
+      );
+
   final String name;
   final String nit;
   final String location;
@@ -67,6 +88,7 @@ class _CachedEntitiesBundle {
     required this.totalContracts,
     required this.totalAmountMillions,
     required this.totalUniqueContractors,
+    required this.periodo,
     required this.timestamp,
   });
 
@@ -75,6 +97,7 @@ class _CachedEntitiesBundle {
   final int totalContracts;
   final double totalAmountMillions;
   final int totalUniqueContractors;
+  final String periodo;
   final DateTime timestamp;
 }
 
@@ -113,25 +136,24 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
   String _selectedTab = 'Todas';
   String _sortBy = 'Más relevantes';
 
-  bool _isLoadingLive = false;
-  List<EntitySummaryRecord> _activeEntities =
-      ColombiaEntitiesDatabase.allEntities.take(12).toList();
-  List<EntitySummaryRecord> _topContractingEntities =
-      ColombiaEntitiesDatabase.allEntities;
+  // Todas las cifras salen de consultas agregadas a SECOP II. El catálogo
+  // `ColombiaEntitiesDatabase` solo se usa como índice de nombres, siglas y
+  // NIT para la búsqueda: sus cifras no corresponden a SECOP y no se muestran.
+  bool _isLoadingLive = true;
+  List<EntitySummaryRecord> _activeEntities = const [];
+  List<EntitySummaryRecord> _topContractingEntities = const [];
 
-  int _kpiTotalEntities = 158;
-  int _kpiTotalContracts = 102772;
-  double _kpiTotalAmountMillions = 16419218;
-  int _kpiUniqueContractors = 41890;
+  int _kpiTotalEntities = 0;
+  int _kpiTotalContracts = 0;
+  double _kpiTotalAmountMillions = 0;
+  int _kpiUniqueContractors = 0;
 
-  /// Base de datos estructurada y verificada de entidades públicas de Colombia en SECOP II.
-  static List<EntitySummaryRecord> get _verifiedSecopDefaultEntities =>
-      ColombiaEntitiesDatabase.allEntities;
+  /// Periodo de las cifras mostradas (vigencia actual o histórico).
+  String _kpiPeriodo = 'Vigencia ${AniosSecop.actual}';
 
   @override
   void initState() {
     super.initState();
-    _recalculateKpisFromList(_activeEntities);
     _fetchLiveTopEntitiesAcrossColombia();
   }
 
@@ -144,17 +166,18 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
 
   bool get _isEmptySearch => _searchController.text.trim().isEmpty;
 
-  void _recalculateKpisFromList(List<EntitySummaryRecord> list) {
+  void _recalculateKpisFromList(
+    List<EntitySummaryRecord> list, {
+    int? contratistasUnicos,
+  }) {
     _kpiTotalEntities = list.length;
     _kpiTotalContracts = list.fold<int>(0, (s, e) => s + e.contractsCount);
     _kpiTotalAmountMillions = list.fold<double>(
       0,
       (s, e) => s + e.amountMillions,
     );
-    _kpiUniqueContractors = list.fold<int>(
-      0,
-      (s, e) => s + e.uniqueContractors,
-    );
+    _kpiUniqueContractors = contratistasUnicos ??
+        list.fold<int>(0, (s, e) => s + e.uniqueContractors);
   }
 
   static String _normalizar(String texto) {
@@ -437,55 +460,136 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
   }
 
   /// Actualiza en segundo plano las entidades más contratantes reales de Colombia desde SECOP II (Vigencia 2026)
-  Future<void> _fetchLiveTopEntitiesAcrossColombia() async {
+  // Excluye valores atípicos por errores de digitación en SECOP (contratos
+  // individuales de 500 mil millones o más).
+  static const String _filtroValorValido =
+      'valor_del_contrato > 0 AND valor_del_contrato < 500000000000';
+  static const String _selectAgregadoEntidad =
+      'nombre_entidad,nit_entidad,ciudad,departamento,orden,'
+      'count(*) as contratos,sum(valor_del_contrato) as total_valor';
+  static const String _groupAgregadoEntidad =
+      'nombre_entidad,nit_entidad,ciudad,departamento,orden';
+
+  static String _filtroPeriodo({required bool soloVigencia}) {
+    if (!soloVigencia) {
+      return "fecha_de_firma >= '${AniosSecop.primero}-01-01T00:00:00.000'";
+    }
+    final anio = AniosSecop.actual;
+    return "fecha_de_firma >= '$anio-01-01T00:00:00.000' AND "
+        "fecha_de_firma < '${anio + 1}-01-01T00:00:00.000'";
+  }
+
+  static Future<List<dynamic>> _consultarSecop(
+    Map<String, String> params,
+  ) async {
     try {
-      final url = Uri.parse(
-        'https://www.datos.gov.co/resource/jbjy-vk9h.json?'
-        '\$select=nombre_entidad,nit_entidad,ciudad,departamento,orden,count(*)%20as%20contratos,sum(valor_del_contrato)%20as%20total_valor,count(distinct%20documento_proveedor)%20as%20contratistas'
-        "&\$where=valor_del_contrato%20%3E%200%20AND%20valor_del_contrato%20%3C%20500000000000%20AND%20fecha_de_firma%20%3E=%20'2026-01-01T00:00:00.000'%20AND%20upper(nombre_entidad)%20NOT%20LIKE%20'%25SECRETAR%25'"
-        '&\$group=nombre_entidad,nit_entidad,ciudad,departamento,orden'
-        '&\$order=total_valor%20DESC'
-        '&\$limit=20',
-      );
-      final resp = await http.get(url).timeout(const Duration(seconds: 9));
-      if (resp.statusCode != 200 || !mounted) return;
-
-      final rawList = jsonDecode(resp.body) as List<dynamic>;
-      final parsed = _parseAndConsolidateSecopEntities(rawList, '');
-      if (parsed.isEmpty || !mounted) return;
-
-      // Combinamos las entidades semillas verificadas de SECOP II con el ranking en vivo
-      final mergedMap = <String, EntitySummaryRecord>{};
-      for (final item in _verifiedSecopDefaultEntities) {
-        mergedMap[_normalizar(item.name)] = item;
-      }
-      for (final live in parsed) {
-        mergedMap.putIfAbsent(_normalizar(live.name), () => live);
-      }
-
-      final combined = mergedMap.values.toList()
-        ..sort((a, b) => b.amountMillions.compareTo(a.amountMillions));
-
-      setState(() {
-        _topContractingEntities = combined;
-        if (_isEmptySearch) {
-          _activeEntities = combined.take(10).toList();
-          _recalculateKpisFromList(_activeEntities);
-        }
-      });
+      final resp = await http
+          .get(Uri.https('www.datos.gov.co', '/resource/jbjy-vk9h.json', params))
+          .timeout(const Duration(seconds: 15));
+      if (resp.statusCode != 200) return const [];
+      final decoded = jsonDecode(utf8.decode(resp.bodyBytes));
+      return decoded is List ? decoded : const [];
     } catch (_) {
-      // Mantiene las entidades verificadas de SECOP II por defecto
+      return const [];
     }
   }
 
-  /// Filtra únicamente entre entidades reales verificadas de SECOP II mientras responde la API
+  /// Totales reales por entidad (contratos, valor y contratistas distintos).
+  static Future<List<dynamic>> _consultarAgregadoEntidades(
+    String condicion, {
+    required bool soloVigencia,
+    int limite = 20,
+  }) {
+    return _consultarSecop({
+      r'$select': _selectAgregadoEntidad,
+      r'$where':
+          '$_filtroValorValido AND ${_filtroPeriodo(soloVigencia: soloVigencia)} AND ($condicion)',
+      r'$group': _groupAgregadoEntidad,
+      r'$order': 'total_valor DESC',
+      r'$limit': '$limite',
+    });
+  }
+
+  /// Contratistas distintos por NIT y en total (sin contar dos veces a quien
+  /// contrata con varias entidades). Se consulta aparte porque dentro del
+  /// agregado por entidad `count(distinct)` hace la consulta 10 veces más lenta.
+  static Future<(Map<String, int>, int?)> _contarContratistas(
+    List<EntitySummaryRecord> entidades, {
+    required bool soloVigencia,
+  }) async {
+    final nits = entidades
+        .map((e) => e.nit.replaceAll(RegExp(r'[^0-9]'), ''))
+        .where((n) => n.length >= 6)
+        .toSet()
+        .toList();
+    if (nits.isEmpty) return (const <String, int>{}, null);
+    final where =
+        '$_filtroValorValido AND ${_filtroPeriodo(soloVigencia: soloVigencia)} '
+        'AND nit_entidad in (${nits.join(',')})';
+    final resultados = await Future.wait([
+      _consultarSecop({
+        r'$select': 'nit_entidad,count(distinct documento_proveedor) as contratistas',
+        r'$where': where,
+        r'$group': 'nit_entidad',
+        r'$limit': '${nits.length}',
+      }),
+      _consultarSecop({
+        r'$select': 'count(distinct documento_proveedor) as contratistas',
+        r'$where': where,
+      }),
+    ]);
+    final porNit = <String, int>{
+      for (final r in resultados[0].whereType<Map>())
+        '${r['nit_entidad']}': int.tryParse('${r['contratistas']}') ?? 0,
+    };
+    final total = resultados[1].isNotEmpty && resultados[1].first is Map
+        ? int.tryParse('${(resultados[1].first as Map)['contratistas']}')
+        : null;
+    return (porNit, total);
+  }
+
+  static List<EntitySummaryRecord> _aplicarContratistas(
+    List<EntitySummaryRecord> entidades,
+    Map<String, int> porNit,
+  ) =>
+      [
+        for (final e in entidades)
+          e.conContratistas(
+            porNit[e.nit.replaceAll(RegExp(r'[^0-9]'), '')] ?? e.uniqueContractors,
+          ),
+      ];
+
+  Future<void> _fetchLiveTopEntitiesAcrossColombia() async {
+    final rawList = await _consultarAgregadoEntidades(
+      "upper(nombre_entidad) NOT LIKE '%SECRETAR%'",
+      soloVigencia: true,
+    );
+    final ranking = _parseAndConsolidateSecopEntities(rawList, '')
+      ..sort((a, b) => b.amountMillions.compareTo(a.amountMillions));
+    // Solo las entidades visibles muestran contratistas; el panel lateral
+    // del ranking usa contratos y valor.
+    final (porNit, unicos) = await _contarContratistas(
+      ranking.take(10).toList(),
+      soloVigencia: true,
+    );
+    final visibles = _aplicarContratistas(ranking.take(10).toList(), porNit);
+    if (!mounted) return;
+
+    setState(() {
+      _topContractingEntities = ranking;
+      if (_isEmptySearch) {
+        _activeEntities = visibles;
+        _recalculateKpisFromList(visibles, contratistasUnicos: unicos);
+        _kpiPeriodo = 'Vigencia ${AniosSecop.actual}';
+        _isLoadingLive = false;
+      }
+    });
+  }
+
+  /// Busca en el catálogo de nombres y siglas para obtener los NIT candidatos.
   List<EntitySummaryRecord> _filterVerifiedSeedEntities(String rawQuery) {
     final clean = _normalizar(rawQuery.trim());
-    if (clean.isEmpty) {
-      return _topContractingEntities.isNotEmpty
-          ? _topContractingEntities
-          : ColombiaEntitiesDatabase.allEntities;
-    }
+    if (clean.isEmpty) return const [];
 
     const connectors = {
       'DE',
@@ -531,29 +635,29 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     final trimmed = value.trim();
 
     if (trimmed.isEmpty) {
-      final defaultList = _topContractingEntities.isNotEmpty
-          ? _topContractingEntities.take(10).toList()
-          : _verifiedSecopDefaultEntities;
-      setState(() {
-        _activeEntities = defaultList;
-        _recalculateKpisFromList(defaultList);
-        _isLoadingLive = false;
-      });
+      _mostrarRankingNacional();
       return;
     }
 
-    // Mientras consulta SECOP II en vivo desde la primera letra, muestra coincidencias verificadas si existen
-    final seedMatches = _filterVerifiedSeedEntities(trimmed);
-    setState(() {
-      _activeEntities = seedMatches;
-      if (seedMatches.isNotEmpty) {
-        _recalculateKpisFromList(seedMatches);
-      }
-      _isLoadingLive = true;
-    });
+    setState(() => _isLoadingLive = true);
 
     _searchDebounce = Timer(const Duration(milliseconds: 260), () {
       _runFastEntitiesQuery();
+    });
+  }
+
+  void _mostrarRankingNacional() {
+    if (_topContractingEntities.isEmpty) {
+      setState(() => _isLoadingLive = true);
+      _fetchLiveTopEntitiesAcrossColombia();
+      return;
+    }
+    final visibles = _topContractingEntities.take(10).toList();
+    setState(() {
+      _activeEntities = visibles;
+      _recalculateKpisFromList(visibles);
+      _kpiPeriodo = 'Vigencia ${AniosSecop.actual}';
+      _isLoadingLive = false;
     });
   }
 
@@ -562,14 +666,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
 
     if (queryText.isEmpty) {
       if (!mounted) return;
-      final defaultList = _topContractingEntities.isNotEmpty
-          ? _topContractingEntities.take(10).toList()
-          : _verifiedSecopDefaultEntities;
-      setState(() {
-        _activeEntities = defaultList;
-        _recalculateKpisFromList(defaultList);
-        _isLoadingLive = false;
-      });
+      _mostrarRankingNacional();
       return;
     }
 
@@ -584,6 +681,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
         _kpiTotalContracts = cached.totalContracts;
         _kpiTotalAmountMillions = cached.totalAmountMillions;
         _kpiUniqueContractors = cached.totalUniqueContractors;
+        _kpiPeriodo = cached.periodo;
         _isLoadingLive = false;
       });
       return;
@@ -615,10 +713,15 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
           _kpiTotalContracts = bundle.totalContracts;
           _kpiTotalAmountMillions = bundle.totalAmountMillions;
           _kpiUniqueContractors = bundle.totalUniqueContractors;
+          _kpiPeriodo = bundle.periodo;
           _isLoadingLive = false;
         });
       } else {
-        setState(() => _isLoadingLive = false);
+        setState(() {
+          _activeEntities = const [];
+          _recalculateKpisFromList(const []);
+          _isLoadingLive = false;
+        });
       }
     } catch (_) {
       _inFlightQueries.remove(cacheKey);
@@ -662,21 +765,14 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     for (final item in rawList) {
       if (item is! Map) continue;
       final rawName = (item['nombre_entidad'] ?? '').toString().trim();
-      final provName = (item['proveedor_adjudicado'] ?? '').toString().trim();
-      final provDoc = (item['documento_proveedor'] ?? '').toString().trim();
       final nitRaw = (item['nit_entidad'] ?? '').toString().trim();
 
-      // Si es una entidad como la UIS cuyo contrato aparece asociado a su documento de proveedor
-      final bool isDocMatch =
-          (cleanQuery.contains('UIS') || cleanQuery.contains('UNIVERSIDAD')) &&
-          provDoc == '890201213';
-      final entityEffectiveName =
-          isDocMatch && provName.isNotEmpty ? provName : rawName;
-      final entityEffectiveNit = isDocMatch ? provDoc : nitRaw;
+      final entityEffectiveName = rawName;
+      final entityEffectiveNit = nitRaw;
 
       if (entityEffectiveName.isEmpty) continue;
 
-      if (!isDocMatch && _isSecretariaOrDependency(entityEffectiveName)) {
+      if (_isSecretariaOrDependency(entityEffectiveName)) {
         continue;
       }
 
@@ -700,7 +796,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
         contracts = int.tryParse(item['contratos'].toString()) ?? 1;
         rawVal = double.tryParse((item['total_valor'] ?? '0').toString()) ?? 0;
         contractors =
-            int.tryParse((item['contratistas'] ?? '1').toString()) ?? 1;
+            int.tryParse((item['contratistas'] ?? '0').toString()) ?? 0;
       } else {
         contracts = 1;
         rawVal =
@@ -711,8 +807,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
 
       if (contracts <= 0 || rawVal <= 0) continue;
 
-      final safeVal = rawVal > 50000000000000 ? rawVal / 1000 : rawVal;
-      final millions = safeVal / 1000000;
+      final millions = rawVal / 1000000;
 
       String prettyName = _beautifyEntityName(entityEffectiveName);
       final isMultiRegionalRoot =
@@ -744,9 +839,6 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
         final isConsolidationRoot =
             isMultiRegionalRoot && !queryAsksForRegional;
         final emblem = _classifyEmblem(entityEffectiveName);
-        final estDeps = isConsolidationRoot
-            ? 33
-            : math.max(4, math.min(20, (contracts / 110).ceil()));
 
         consolidated[normPretty] = EntitySummaryRecord(
           name: prettyName,
@@ -757,7 +849,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                     : entityEffectiveNit)
               : 'Verificado SECOP II',
           location: isConsolidationRoot
-              ? 'Colombia · Orden Nacional (33 Regionales)'
+              ? 'Colombia · Orden Nacional (Regionales)'
               : (city != 'Colombia' && dept != 'Colombia'
                     ? '$city, $dept · ${ordenRaw.isNotEmpty ? ordenRaw : "Territorial"}'
                     : '$dept · ${ordenRaw.isNotEmpty ? ordenRaw : "Nacional"}'),
@@ -771,7 +863,8 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
           contractsFormatted: _formatIntWithDots(contracts),
           amountMillions: millions,
           amountFormatted: _formatMillions(millions),
-          dependenciesCount: estDeps,
+          // SECOP II no publica dependencias de la entidad.
+          dependenciesCount: 0,
           uniqueContractors: contractors,
           secopKeywords: isMultiRegionalRoot
               ? [
@@ -813,162 +906,72 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     final clean = _normalizar(queryText.trim());
     if (clean.isEmpty) return null;
 
-    final seedMatches = _filterVerifiedSeedEntities(queryText);
-    final rawList = <dynamic>[];
+    const conectores = {
+      'DE', 'DEL', 'LA', 'LAS', 'EL', 'LOS', 'EN', 'Y', 'PARA', 'POR',
+    };
+    final tokens = SecurityService.sanitizeSoqlToken(clean, maxLength: 100)
+        .split(RegExp(r'\s+'))
+        .map((t) => t.replaceAll(RegExp(r'[^A-Z0-9Ñ]'), ''))
+        .where((t) => t.length >= 2 && !conectores.contains(t))
+        .take(5)
+        .toList();
 
-    try {
-      final futures = <Future<http.Response>>[];
+    // Siglas y nombres conocidos ("SENA", "UIS", "ICBF") se traducen al NIT
+    // con el catálogo; el texto se busca en el nombre registrado en SECOP.
+    final nitsCatalogo = _filterVerifiedSeedEntities(queryText)
+        .map((e) => e.nit.replaceAll(RegExp(r'[^0-9]'), ''))
+        .where((n) => n.length >= 8)
+        .toSet()
+        .take(5)
+        .toList();
 
-      // 1. Si hay coincidencias en el catálogo de entidades con NIT verificado, consultamos por su NIT B-Tree index (< 250ms)
-      if (seedMatches.isNotEmpty) {
-        final topNit = seedMatches.first.nit.replaceAll(RegExp(r'[^0-9]'), '');
-        if (topNit.length >= 8) {
-          final nitUrl = Uri.parse(
-            'https://www.datos.gov.co/resource/jbjy-vk9h.json?'
-            '\$where=${Uri.encodeComponent("nit_entidad = '$topNit'")}'
-            '&\$order=fecha_de_firma%20DESC'
-            '&\$limit=35',
-          );
-          futures.add(http.get(nitUrl).timeout(const Duration(seconds: 7)));
-        }
-      }
+    final condiciones = <String>[
+      if (tokens.isNotEmpty)
+        '(${tokens.map((t) => "upper(nombre_entidad) LIKE '%$t%'").join(' AND ')})',
+      if (nitsCatalogo.isNotEmpty) 'nit_entidad in (${nitsCatalogo.join(',')})',
+    ];
+    if (condiciones.isEmpty) return null;
+    final condicion = condiciones.join(' OR ');
 
-      // 2. Consulta rápida por texto indexado Socrata ($q) para cualquier término nuevo o municipio (< 350ms)
-      if (clean.length >= 2) {
-        final textUrl = Uri.parse(
-          'https://www.datos.gov.co/resource/jbjy-vk9h.json?'
-          '\$q=${Uri.encodeComponent(queryText.trim())}'
-          '&\$order=fecha_de_firma%20DESC'
-          '&\$limit=35',
-        );
-        futures.add(http.get(textUrl).timeout(const Duration(seconds: 7)));
-      }
-
-      if (futures.isNotEmpty) {
-        final responses = await Future.wait(futures);
-        for (final resp in responses) {
-          if (resp.statusCode == 200) {
-            final decoded = jsonDecode(resp.body);
-            if (decoded is List) {
-              rawList.addAll(decoded);
-            }
-          }
-        }
-      }
-    } catch (_) {
-      // Si falla o hay timeout en la red, seedMatches garantiza resultados instantáneos
-    }
-
-    var finalEntities = _parseAndConsolidateSecopEntities(rawList, clean);
-
-    // Integramos las entidades verificadas de la base de datos oficial
-    for (final seed in seedMatches) {
-      final normSeed = _normalizar(seed.name);
-      final idx =
-          finalEntities.indexWhere((e) => _normalizar(e.name) == normSeed);
-      if (idx == -1) {
-        finalEntities.insert(0, seed);
-      } else {
-        final live = finalEntities[idx];
-        if (live.contractsCount > 0 && live.amountMillions > 0) {
-          finalEntities[idx] = EntitySummaryRecord(
-            name: seed.name,
-            nit: seed.nit,
-            location: seed.location,
-            municipio: seed.municipio,
-            departamento: seed.departamento,
-            category: seed.category,
-            emblemType: seed.emblemType,
-            contractsCount:
-                math.max(seed.contractsCount, live.contractsCount),
-            contractsFormatted: _formatIntWithDots(
-              math.max(seed.contractsCount, live.contractsCount),
-            ),
-            amountMillions:
-                math.max(seed.amountMillions, live.amountMillions),
-            amountFormatted: _formatMillions(
-              math.max(seed.amountMillions, live.amountMillions),
-            ),
-            dependenciesCount: seed.dependenciesCount,
-            uniqueContractors:
-                math.max(seed.uniqueContractors, live.uniqueContractors),
-            secopKeywords: seed.secopKeywords,
-          );
-        }
-      }
-    }
-
-    if (finalEntities.isEmpty) {
-      if (seedMatches.isNotEmpty) {
-        finalEntities = seedMatches;
-      } else {
-        return null;
-      }
-    }
-
-    if (clean == 'SENA' || clean == 'SERVICIO NACIONAL DE APRENDIZAJE') {
-      final onlySena = finalEntities
-          .where((e) => _normalizar(e.name).contains('SENA'))
-          .toList();
-      if (onlySena.isNotEmpty) {
-        finalEntities = onlySena;
-      }
-    } else if (clean == 'UIS') {
-      final onlyUis = finalEntities
-          .where((e) =>
-              _normalizar(e.name).contains('UIS') ||
-              _normalizar(e.name).contains('UNIVERSIDAD INDUSTRIAL DE SANTANDER'))
-          .toList();
-      if (onlyUis.isNotEmpty) {
-        finalEntities = onlyUis;
-      }
-    } else if (clean.contains('ALCALD')) {
-      final cityTokens = clean
-          .split(RegExp(r'\s+'))
-          .where(
-            (t) =>
-                t.length >= 3 &&
-                !t.startsWith('ALCALD') &&
-                !{'DEL', 'LAS', 'LOS', 'MUNICIPAL', 'DISTRITAL'}.contains(t),
-          )
-          .toList();
-      if (cityTokens.isNotEmpty) {
-        final exactAlcaldias = finalEntities.where((e) {
-          final n = _normalizar(e.name);
-          return (n.contains('ALCALDIA') ||
-                  n.contains('MUNICIPIO') ||
-                  n.contains('DISTRITO')) &&
-              cityTokens.every(
-                (ct) => n.contains(ct) || _normalizar(e.municipio).contains(ct),
-              );
-        }).toList();
-        if (exactAlcaldias.isNotEmpty) {
-          finalEntities = exactAlcaldias;
-        }
-      }
-    }
-
-    if (finalEntities.isEmpty) return null;
-
-    final sumContracts = finalEntities.fold<int>(
-      0,
-      (acc, e) => acc + e.contractsCount,
+    // Límite amplio: entidades como el SENA tienen decenas de regionales y
+    // grupos que se consolidan en una sola tarjeta.
+    var soloVigencia = true;
+    var rawList = await _consultarAgregadoEntidades(
+      condicion,
+      soloVigencia: true,
+      limite: 500,
     );
-    final sumMillions = finalEntities.fold<double>(
-      0,
-      (acc, e) => acc + e.amountMillions,
+    if (rawList.isEmpty) {
+      // Sin contratos en la vigencia actual: se consulta el histórico.
+      soloVigencia = false;
+      rawList = await _consultarAgregadoEntidades(
+        condicion,
+        soloVigencia: false,
+        limite: 500,
+      );
+    }
+
+    final consolidado = _parseAndConsolidateSecopEntities(rawList, clean);
+    if (consolidado.isEmpty) return null;
+    final (porNit, unicos) = await _contarContratistas(
+      consolidado.take(60).toList(),
+      soloVigencia: soloVigencia,
     );
-    final sumContractors = finalEntities.fold<int>(
-      0,
-      (acc, e) => acc + e.uniqueContractors,
-    );
+    final finalEntities = _aplicarContratistas(consolidado, porNit)
+      ..sort((a, b) => b.amountMillions.compareTo(a.amountMillions));
 
     return _CachedEntitiesBundle(
       entities: finalEntities,
       totalEntities: finalEntities.length,
-      totalContracts: sumContracts,
-      totalAmountMillions: sumMillions,
-      totalUniqueContractors: sumContractors,
+      totalContracts:
+          finalEntities.fold<int>(0, (acc, e) => acc + e.contractsCount),
+      totalAmountMillions:
+          finalEntities.fold<double>(0, (acc, e) => acc + e.amountMillions),
+      totalUniqueContractors: unicos ??
+          finalEntities.fold<int>(0, (acc, e) => acc + e.uniqueContractors),
+      periodo: soloVigencia
+          ? 'Vigencia ${AniosSecop.actual}'
+          : 'Histórico desde ${AniosSecop.primero}',
       timestamp: DateTime.now(),
     );
   }
@@ -983,9 +986,6 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       case 'Más contratos':
         list.sort((a, b) => b.contractsCount.compareTo(a.contractsCount));
         break;
-      case 'Más dependencias':
-        list.sort((a, b) => b.dependenciesCount.compareTo(a.dependenciesCount));
-        break;
       case 'Nombre A-Z':
         list.sort((a, b) => a.name.compareTo(b.name));
         break;
@@ -999,10 +999,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
   /// Entidades más contratantes reales de cualquier orden en Colombia.
   /// Se mantiene fija con el ranking nacional incluso cuando el usuario realiza una búsqueda en la barra.
   List<EntitySummaryRecord> get _top5Entities {
-    final source = _topContractingEntities.isNotEmpty
-        ? _topContractingEntities
-        : _verifiedSecopDefaultEntities;
-    final sorted = List<EntitySummaryRecord>.from(source)
+    final sorted = List<EntitySummaryRecord>.from(_topContractingEntities)
       ..sort((a, b) => b.amountMillions.compareTo(a.amountMillions));
     return sorted.take(5).toList();
   }
@@ -1021,7 +1018,15 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
   void _showCompareEntitiesModal() {
     final pool = _topContractingEntities.isNotEmpty
         ? _topContractingEntities
-        : _verifiedSecopDefaultEntities;
+        : _activeEntities;
+    if (pool.isEmpty && _activeEntities.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Espera a que carguen las entidades para compararlas.'),
+        ),
+      );
+      return;
+    }
     final initialA = _activeEntities.isNotEmpty
         ? _activeEntities.first
         : pool.first;
@@ -1038,7 +1043,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
         return _CompareEntitiesUnfilteredDialog(
           initialEntityA: initialA,
           initialEntityB: initialB,
-          searchSeedEntities: _filterVerifiedSeedEntities,
+          searchSeedEntities: (_) => const <EntitySummaryRecord>[],
           fetchLiveSearchBundle: _executeUnfilteredSecopEntitySearch,
           ensureCatalogReady: () async {},
           getCatalog: () => _topContractingEntities,
@@ -1405,9 +1410,9 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
         ),
       ),
       title: 'Entidades',
-      subtitleUnderTitle: 'en Colombia (SECOP II)',
+      subtitleUnderTitle: 'mostradas · $_kpiPeriodo',
       mainValue: '$_kpiTotalEntities',
-      trendPercent: 'Verificadas',
+      trendPercent: 'SECOP II',
       trendComparison: 'Datos Abiertos',
     );
     final card2 = kpiCard(
@@ -1988,6 +1993,19 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                 ],
               ),
               const SizedBox(height: 12),
+              if (top5.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text(
+                    _isLoadingLive
+                        ? 'Consultando el ranking en SECOP II...'
+                        : 'No fue posible cargar el ranking de SECOP II.',
+                    style: const TextStyle(
+                      color: Color(0xFF64748B),
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ),
               for (var index = 0; index < top5.length; index++) ...[
                 if (index > 0)
                   const Divider(height: 14, color: Color(0xFFF1F5F9)),
