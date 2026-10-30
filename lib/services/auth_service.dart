@@ -220,6 +220,14 @@ class AuthService {
         AdminAccess.esAdministrador(user.email);
   }
 
+  /// La sesión activa corresponde a un correo administrador pero no está
+  /// conectada con Firebase (sesión restaurada solo desde el navegador), por
+  /// lo que no es posible confirmar la identidad ni conceder el acceso.
+  static bool get adminSinSesionFirebase =>
+      _auth.currentUser == null &&
+      hasActiveSession &&
+      AdminAccess.esAdministrador(getActiveUserEmail());
+
   /// Vuelve a leer el estado de verificación del correo desde Firebase (el
   /// navegador lo conserva en caché hasta recargar la sesión).
   static Future<void> refrescarVerificacionCorreo() async {
@@ -234,6 +242,10 @@ class AuthService {
   /// Al abrir la app, Firebase restaura la sesión con el estado de
   /// verificación guardado; se refresca una vez restaurada.
   static void refrescarVerificacionAlIniciar() {
+    // En web Firebase restaura el usuario de forma asíncrona, después de
+    // `restoreSessionFromPrefs`: cada cambio de sesión recalcula los permisos
+    // (incluido el acceso de administrador) en toda la app.
+    _auth.authStateChanges().listen((_) => authStateVersion.value++);
     unawaited(
       _auth.authStateChanges().first.then((_) => refrescarVerificacionCorreo()),
     );
