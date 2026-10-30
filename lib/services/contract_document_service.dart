@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../utils/secop_launcher.dart';
 import 'contract_audit_analysis.dart';
+import 'security_service.dart';
 
 class ExpectedDocumentItem {
   const ExpectedDocumentItem({
@@ -35,15 +36,20 @@ class ContractDocumentService {
         : <String, dynamic>{};
 
     final rawUrl = c['urlproceso'];
+    String candidate = '';
     if (rawUrl is Map && rawUrl['url'] != null) {
-      return rawUrl['url'].toString();
-    } else if (rawUrl is String && rawUrl.startsWith('http')) {
-      return rawUrl;
+      candidate = rawUrl['url'].toString();
+    } else if (rawUrl is String && rawUrl.trim().isNotEmpty) {
+      candidate = rawUrl;
+    }
+    final safeCandidate = SecurityService.validateOfficialGovUrl(candidate);
+    if (safeCandidate != null) {
+      return safeCandidate.toString();
     }
 
     final proceso = c['proceso_de_compra']?.toString().trim() ?? '';
     if (proceso.isNotEmpty) {
-      return 'https://community.secop.gov.co/Public/Tendering/OpportunityDetail/Index?noticeUID=$proceso';
+      return 'https://community.secop.gov.co/Public/Tendering/OpportunityDetail/Index?noticeUID=${Uri.encodeComponent(proceso)}';
     }
 
     return 'https://www.colombiacompra.gov.co/secop-ii';
@@ -56,8 +62,9 @@ class ContractDocumentService {
     BuildContext context,
     dynamic rawContract,
   ) async {
-    final url = obtenerUrlSecop(rawContract);
-    final uri = Uri.tryParse(url);
+    final uri = SecurityService.validateOfficialGovUrl(
+      obtenerUrlSecop(rawContract),
+    );
 
     if (uri != null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -136,7 +143,10 @@ class ContractDocumentService {
             c['proceso_de_compra'] ??
             'EXP',
       );
-      final fileName = 'Certificado_Auditoria_Avanzado_$ref.pdf';
+      final fileName = SecurityService.sanitizeFileName(
+        'Certificado_Auditoria_Avanzado_$ref.pdf',
+        fallback: 'Certificado_Auditoria_Avanzado_EXP.pdf',
+      );
 
       final analysis = await ContractAuditAnalyzer.analizar(c);
       final bytes = generarPdfResumenInteligente(c, analysis);
@@ -145,6 +155,7 @@ class ContractDocumentService {
       final url = html.Url.createObjectUrlFromBlob(blob);
       html.AnchorElement(href: url)
         ..setAttribute('download', fileName)
+        ..setAttribute('rel', 'noopener noreferrer')
         ..click();
       Future<void>.delayed(
         const Duration(seconds: 30),
@@ -157,7 +168,9 @@ class ContractDocumentService {
         ..hideCurrentSnackBar()
         ..showSnackBar(
           SnackBar(
-            content: Text('Error al generar el certificado: $e'),
+            content: Text(
+              'Error al generar el certificado: ${SecurityService.sanitizeErrorMessage(e)}',
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -172,7 +185,10 @@ class ContractDocumentService {
     final messenger = ScaffoldMessenger.of(context);
     // La pestaña se abre ANTES del await para que el navegador no la bloquee
     // como ventana emergente (debe ocurrir dentro del gesto del usuario).
-    final tab = html.window.open('', '_blank');
+    final dynamic tab = html.window.open('', '_blank');
+    try {
+      tab.opener = null;
+    } catch (_) {}
     _mostrarProgreso(messenger);
     try {
       final Map<String, dynamic> c = rawContract is Map
@@ -183,6 +199,10 @@ class ContractDocumentService {
       final blob = html.Blob([bytes], 'application/pdf');
       final url = html.Url.createObjectUrlFromBlob(blob);
       tab.location.href = url;
+      Future<void>.delayed(
+        const Duration(seconds: 60),
+        () => html.Url.revokeObjectUrl(url),
+      );
 
       _mostrarResultado(
         messenger,
@@ -197,7 +217,9 @@ class ContractDocumentService {
         ..hideCurrentSnackBar()
         ..showSnackBar(
           SnackBar(
-            content: Text('Error al abrir el certificado: $e'),
+            content: Text(
+              'Error al abrir el certificado: ${SecurityService.sanitizeErrorMessage(e)}',
+            ),
             backgroundColor: Colors.red,
           ),
         );

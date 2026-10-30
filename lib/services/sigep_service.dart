@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import 'security_service.dart';
+
 class SigepService {
   static const _datasets = [
     '8tz7-h3eu',
@@ -20,8 +22,11 @@ class SigepService {
   static Future<List<Map<String, dynamic>>> buscarListaServidores(
     String query,
   ) async {
-    final queryTrim = query.trim();
-    if (queryTrim.isEmpty) return [];
+    final sanitizedQuery = SecurityService.sanitizeSoqlToken(
+      query,
+      maxLength: 100,
+    );
+    if (sanitizedQuery.isEmpty) return [];
 
     final resultadosTotales = <Map<String, dynamic>>[];
     await Future.wait(
@@ -30,10 +35,12 @@ class SigepService {
           final url = Uri.https(
             'www.datos.gov.co',
             '/resource/$datasetId.json',
-            {r'$q': queryTrim, r'$limit': '1000'},
+            {r'$q': sanitizedQuery, r'$limit': '1000'},
           );
 
-          final response = await http.get(url);
+          final response = await http
+              .get(url)
+              .timeout(const Duration(seconds: 8));
           if (response.statusCode != 200) {
             debugPrint(
               'SIGEP rechazó el dataset $datasetId '
@@ -48,8 +55,8 @@ class SigepService {
               decoded.whereType<Map<String, dynamic>>(),
             );
           }
-        } catch (error) {
-          debugPrint('Fallo silencioso en dataset $datasetId: $error');
+        } catch (_) {
+          debugPrint('Aviso SIGEP: tiempo de espera o red en dataset $datasetId.');
         }
       }),
     );

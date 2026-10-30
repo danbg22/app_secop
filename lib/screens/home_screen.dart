@@ -77,7 +77,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _cerrarSesion() async {
     await AuthService.signOut();
     if (!mounted) return;
-    Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+    Navigator.of(
+      context,
+      rootNavigator: true,
+    ).pushNamedAndRemoveUntil('/portada', (route) => false);
   }
 
   Widget _buildCurrentView() {

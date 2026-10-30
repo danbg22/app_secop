@@ -46,3 +46,17 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Security: Secrets, Environment Definitions & Signing Keys
+.env
+.env.*
+dart_defines.json
+*.dart_defines.json
+*.jks
+*.keystore
+key.properties
+*service-account*.json
+*firebase-adminsdk*.json
+*.pem
+*.p12
+

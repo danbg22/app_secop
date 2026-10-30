@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 import '../data/auth_bg_asset_data.dart';
 import '../services/auth_service.dart';
+import '../services/security_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -63,6 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
     try {
       await AuthService.signInWithEmail(email, password);
+      _passwordController.clear();
       if (!mounted) return;
 
       final displayName = AuthService.getActiveUserDisplayName();
@@ -70,7 +71,9 @@ class _LoginScreenState extends State<LoginScreen> {
       Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
     } catch (error) {
       if (mounted) {
-        final msg = error.toString().replaceFirst('Exception: ', '');
+        final msg = SecurityService.sanitizeErrorMessage(
+          error.toString().replaceFirst('Exception: ', ''),
+        );
         _showMessage(msg, isError: true);
       }
     } finally {
@@ -92,7 +95,9 @@ class _LoginScreenState extends State<LoginScreen> {
       Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
     } catch (error) {
       if (mounted) {
-        final msg = error.toString().replaceFirst('Exception: ', '');
+        final msg = SecurityService.sanitizeErrorMessage(
+          error.toString().replaceFirst('Exception: ', ''),
+        );
         _showMessage('Error con $provider: $msg', isError: true);
       }
     } finally {
@@ -101,7 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _resetPassword() async {
-    final correoIngresado = _emailController.text.trim();
+    final correoIngresado = _emailController.text.trim().toLowerCase();
     if (correoIngresado.isEmpty || !_emailRegex.hasMatch(correoIngresado)) {
       _showMessage(
         'Ingresa tu correo electrónico arriba para recuperar tu contraseña.',
@@ -112,27 +117,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
     try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(
-        email: correoIngresado,
-      );
+      await AuthService.resetPassword(correoIngresado);
       if (mounted) {
         _showMessage(
-          'Se ha enviado un enlace para recuperar la contraseña a $correoIngresado.',
-        );
-      }
-    } on FirebaseAuthException catch (error) {
-      if (mounted) {
-        _showMessage(
-          error.message ?? 'No fue posible enviar el correo de recuperación.',
-          isError: true,
+          'Si el correo $correoIngresado está registrado, recibirás un enlace seguro para recuperar tu contraseña.',
         );
       }
     } catch (error) {
       if (mounted) {
-        _showMessage(
-          'No fue posible recuperar la contraseña: $error',
-          isError: true,
+        final msg = SecurityService.sanitizeErrorMessage(
+          error.toString().replaceFirst('Exception: ', ''),
+          fallback: 'No fue posible procesar la solicitud de recuperación.',
         );
+        _showMessage(msg, isError: true);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

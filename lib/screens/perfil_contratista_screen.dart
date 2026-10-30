@@ -1,14 +1,16 @@
 import 'dart:convert';
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/auth_service.dart';
+import '../services/security_service.dart';
 import '../services/sigep_service.dart';
 import '../widgets/collapsible_side_menu.dart';
 import '../widgets/dashboard_top_bar.dart';
+import '../widgets/route_security_guard.dart';
 import '../widgets/user_profile_header_action.dart';
 import 'detalle_screen.dart';
 import 'home_screen.dart';
@@ -350,16 +352,19 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
 
       // 3. Fallback tolerante si no encontró nada aún por nombre o documento
       if (allContracts.isEmpty && _nombreAuditar.isNotEmpty) {
-        final tokens = _nombreAuditar
-            .toUpperCase()
-            .replaceAll('Á', 'A')
-            .replaceAll('É', 'E')
-            .replaceAll('Í', 'I')
-            .replaceAll('Ó', 'O')
-            .replaceAll('Ú', 'U')
-            .replaceAll("'", '')
+        final tokens = SecurityService.sanitizeSoqlToken(
+              _nombreAuditar
+                  .toUpperCase()
+                  .replaceAll('Á', 'A')
+                  .replaceAll('É', 'E')
+                  .replaceAll('Í', 'I')
+                  .replaceAll('Ó', 'O')
+                  .replaceAll('Ú', 'U'),
+              maxLength: 100,
+            )
             .split(RegExp(r'\s+'))
             .where((w) => w.length >= 2)
+            .take(6)
             .toList();
         if (tokens.isNotEmpty) {
           final clauses = tokens
@@ -414,17 +419,22 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
 
   void _onSidebarItemSelected(int index) {
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => HomeScreen(initialIndex: index)),
+      MaterialPageRoute(
+        builder: (_) => RouteSecurityGuard(
+          child: HomeScreen(initialIndex: index),
+        ),
+      ),
       (route) => false,
     );
   }
 
   Future<void> _cerrarSesion() async {
-    await FirebaseAuth.instance.signOut();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isLoggedIn', false);
-    await prefs.remove('usuarioActivo');
-    await prefs.remove('userEmail');
+    await AuthService.signOut();
+    if (!mounted) return;
+    Navigator.of(
+      context,
+      rootNavigator: true,
+    ).pushNamedAndRemoveUntil('/portada', (route) => false);
   }
 
   void _handleTopSearch(String query) {

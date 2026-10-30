@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'consent_service.dart';
 import 'payment_service.dart';
+import 'security_service.dart';
 
 class AuthServiceException implements Exception {
   const AuthServiceException(this.message);
@@ -35,12 +36,16 @@ class AuthService {
   static bool _isLocalSessionActive = false;
 
   static const String _kUsersRegistryKey = 'registered_users_v1';
+  static const String _kRolesSealMigrationFlag = '_sec_roles_seal_migrated_v1';
+  static const String coleccionIndicesUnicidad = 'indices_unicidad';
 
-  /// Inicializa en memoria los datos de sesión guardados en SharedPreferences.
+  /// Inicializa y verifica criptográficamente en memoria los datos de sesión
+  /// guardados en SharedPreferences (bloqueando suplantación por `localStorage`).
   static Future<void> restoreSessionFromPrefs() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await _migrateLegacyRolesInRegistry(prefs);
+      await _migrateLegacyVaultAndRolesInRegistry(prefs);
+
       final isLogged = prefs.getBool('isLoggedIn') ?? false;
       final activeEmail =
           (prefs.getString('usuarioActivo') ??
@@ -57,7 +62,7 @@ class AuthService {
         final fbName = (fbUser.displayName ?? '').trim();
         final profileName = await _lookupStoredNameForEmail(prefs, fbEmail);
         _cachedPhotoData = await _lookupStoredPhotoForEmail(prefs, fbEmail);
-        _cachedRoles = await _lookupStoredRolesForEmail(prefs, fbEmail);
+        _cachedRoles = await _lookupVerifiedRolesForEmail(prefs, fbEmail);
         _cachedFullName = fbName.isNotEmpty
             ? fbName
             : (profileName.isNotEmpty
@@ -66,26 +71,69 @@ class AuthService {
                         ? savedName
                         : _humanizeEmailPrefix(fbEmail)));
         _isLocalSessionActive = true;
+        await SecurityService.sealActiveSession(
+          prefs: prefs,
+          email: fbEmail,
+          roles: _cachedRoles,
+        );
       } else if (isLogged && activeEmail.isNotEmpty) {
-        final profileName = await _lookupStoredNameForEmail(prefs, activeEmail);
-        _cachedPhotoData = await _lookupStoredPhotoForEmail(prefs, activeEmail);
-        _cachedRoles = await _lookupStoredRolesForEmail(prefs, activeEmail);
-        _cachedEmail = activeEmail;
-        _cachedFullName = profileName.isNotEmpty
-            ? profileName
-            : (savedName.isNotEmpty
-                  ? savedName
-                  : _humanizeEmailPrefix(activeEmail));
-        _isLocalSessionActive = true;
+        final verifiedRoles = await _lookupVerifiedRolesForEmail(
+          prefs,
+          activeEmail,
+        );
+        final isSealValid = await SecurityService.verifyAndTouchSessionSeal(
+          prefs: prefs,
+          expectedEmail: activeEmail,
+          expectedRoles: verifiedRoles,
+        );
+
+        if (isSealValid) {
+          final profileName = await _lookupStoredNameForEmail(
+            prefs,
+            activeEmail,
+          );
+          _cachedPhotoData = await _lookupStoredPhotoForEmail(
+            prefs,
+            activeEmail,
+          );
+          _cachedRoles = verifiedRoles;
+          _cachedEmail = activeEmail;
+          _cachedFullName = profileName.isNotEmpty
+              ? profileName
+              : (savedName.isNotEmpty
+                    ? savedName
+                    : _humanizeEmailPrefix(activeEmail));
+          _isLocalSessionActive = true;
+        } else {
+          // Sesión manipulada en almacenamiento local o expirada por TTL/inactividad:
+          // se revoca inmediatamente por seguridad.
+          await _purgeSessionFlags(prefs);
+          _resetInMemorySession();
+        }
       } else {
-        _cachedEmail = '';
-        _cachedFullName = '';
-        _cachedPhotoData = '';
-        _cachedRoles = <String>['persona'];
-        _isLocalSessionActive = false;
+        await SecurityService.clearSessionSeal(prefs);
+        _resetInMemorySession();
       }
       authStateVersion.value++;
-    } catch (_) {}
+    } catch (_) {
+      _resetInMemorySession();
+    }
+  }
+
+  static void _resetInMemorySession() {
+    _cachedEmail = '';
+    _cachedFullName = '';
+    _cachedPhotoData = '';
+    _cachedRoles = <String>['persona'];
+    _isLocalSessionActive = false;
+  }
+
+  static Future<void> _purgeSessionFlags(SharedPreferences prefs) async {
+    await prefs.setBool('isLoggedIn', false);
+    await prefs.remove('usuarioActivo');
+    await prefs.remove('userEmail');
+    await prefs.remove('usuarioNombreActivo');
+    await SecurityService.clearSessionSeal(prefs);
   }
 
   /// Devuelve la lista de roles acumulados del usuario activo (por defecto `['persona']`).
@@ -127,6 +175,15 @@ class AuthService {
     return _cachedEmail;
   }
 
+  /// Identificador opaco derivado del usuario activo para aislar datos locales
+  /// (PQRS, favoritos) en navegadores compartidos sin filtrar su correo.
+  static String getActiveUserStorageScope() {
+    final uid = _auth.currentUser?.uid ?? '';
+    final email = getActiveUserEmail();
+    final key = uid.isNotEmpty ? uid : email;
+    return SecurityService.deriveUserStorageScope(key);
+  }
+
   static String getActiveUserDisplayName() {
     final fbUser = _auth.currentUser;
     final fbEmail = fbUser?.email?.trim().toLowerCase() ?? '';
@@ -152,37 +209,38 @@ class AuthService {
     return full.split(RegExp(r'\s+')).first;
   }
 
-  /// Devuelve la fuente de foto del usuario activo (Data URL subida, URL web o Firebase Auth).
+  /// Devuelve la fuente de foto del usuario activo (Data URL raster validado o URL HTTPS).
   static String? getActiveUserPhotoSource() {
     if (_cachedPhotoData.trim().isNotEmpty) {
       return _cachedPhotoData.trim();
     }
     final fbPhoto = _auth.currentUser?.photoURL?.trim();
     if (fbPhoto != null && fbPhoto.isNotEmpty) {
-      return fbPhoto;
+      final safeUri = SecurityService.validateSafeExternalImageUrl(fbPhoto);
+      if (safeUri != null) {
+        return safeUri.toString();
+      }
     }
     return null;
   }
 
-  /// Construye un [ImageProvider] listo para usar en avatares (Data URL base64 o NetworkImage).
+  /// Construye un [ImageProvider] seguro validando Magic Bytes (PNG/JPEG/WEBP/GIF)
+  /// y URLs externas HTTPS públicas (bloqueando SVG XSS y Mixed Content).
   static ImageProvider<Object>? getActiveUserAvatarImageProvider() {
     final src = getActiveUserPhotoSource();
     if (src == null || src.isEmpty) return null;
 
-    if (src.startsWith('data:image/') && src.contains(',')) {
-      try {
-        final base64Part = src.substring(src.indexOf(',') + 1);
-        final bytes = base64Decode(base64Part);
-        if (bytes.isNotEmpty) {
-          return MemoryImage(bytes);
-        }
-      } catch (_) {
-        return null;
+    if (src.startsWith('data:image/')) {
+      final safeBytes = SecurityService.decodeSafeRasterDataUrl(src);
+      if (safeBytes != null && safeBytes.isNotEmpty) {
+        return MemoryImage(safeBytes);
       }
+      return null;
     }
 
-    if (src.startsWith('http://') || src.startsWith('https://')) {
-      return NetworkImage(src);
+    final safeUri = SecurityService.validateSafeExternalImageUrl(src);
+    if (safeUri != null) {
+      return NetworkImage(safeUri.toString());
     }
 
     return null;
@@ -199,45 +257,119 @@ class AuthService {
         .map((w) => w[0].toUpperCase() + w.substring(1).toLowerCase())
         .toList();
     if (parts.isEmpty) {
-      return prefix[0].toUpperCase() + prefix.substring(1).toLowerCase();
+      return prefix.isNotEmpty
+          ? prefix[0].toUpperCase() + prefix.substring(1).toLowerCase()
+          : 'Usuario';
     }
     return parts.join(' ');
   }
 
-  static Future<void> _migrateLegacyRolesInRegistry(
+  /// Migra automáticamente cualquier contraseña heredada en texto claro hacia
+  /// PBKDF2-HMAC-SHA256 con sal CSPRNG y sella criptográficamente los roles.
+  static Future<void> _migrateLegacyVaultAndRolesInRegistry(
     SharedPreferences prefs,
   ) async {
     try {
       final registry = await _loadRegistry(prefs);
-      if (registry.isEmpty) return;
+      final initialSealMigrationDone =
+          prefs.getBool(_kRolesSealMigrationFlag) ?? false;
+      if (registry.isEmpty) {
+        if (!initialSealMigrationDone) {
+          await prefs.setBool(_kRolesSealMigrationFlag, true);
+        }
+        return;
+      }
+
       bool changed = false;
       for (final entryKey in registry.keys.toList()) {
         final rawEntry = registry[entryKey];
         if (rawEntry is Map) {
           final map = Map<String, dynamic>.from(rawEntry);
-          final normalizedRoles = _extractNormalizedRolesFromMap(map);
-          final expectedLabel =
-              PaymentService.formatearEtiquetaRolesAcumulados(normalizedRoles);
+          final emailKey =
+              (map['email'] ?? entryKey).toString().trim().toLowerCase();
+
+          // 1. Purga definitiva de contraseñas en texto claro (CWE-256 / CWE-312)
+          if (map.containsKey('password')) {
+            final legacyCleartext = (map.remove('password') ?? '').toString();
+            if (legacyCleartext.isNotEmpty &&
+                (map['passwordVerifier'] ?? '').toString().isEmpty) {
+              map.addAll(
+                SecurityService.createPasswordVerifier(legacyCleartext),
+              );
+            }
+            changed = true;
+          }
+
+          // 2. Sanitización de avatares almacenados previamente
+          final rawPhoto = (map['photoData'] ?? '').toString().trim();
+          if (rawPhoto.isNotEmpty) {
+            final validDataUrl = rawPhoto.startsWith('data:image/') &&
+                SecurityService.decodeSafeRasterDataUrl(rawPhoto) != null;
+            final validHttpsUrl =
+                SecurityService.validateSafeExternalImageUrl(rawPhoto) != null;
+            if (!validDataUrl && !validHttpsUrl) {
+              map['photoData'] = '';
+              changed = true;
+            }
+          }
+
+          // 3. Verificación o sellado inicial de integridad de roles (CWE-269)
+          var normalizedRoles = _extractNormalizedRolesFromMap(map);
+          final existingSeal = map['rolesSeal']?.toString();
+
+          if (!initialSealMigrationDone && existingSeal == null) {
+            map['rolesSeal'] = await SecurityService.computeUserRolesSeal(
+              prefs: prefs,
+              email: emailKey,
+              roles: normalizedRoles,
+            );
+            changed = true;
+          } else {
+            final validSeal = await SecurityService.verifyUserRolesSeal(
+              prefs: prefs,
+              email: emailKey,
+              roles: normalizedRoles,
+              seal: existingSeal,
+            );
+            if (!validSeal) {
+              // Si alguien alteró `rolesActivos` desde DevTools, se degrada al rol base.
+              normalizedRoles = <String>['persona'];
+              map['rolesSeal'] = await SecurityService.computeUserRolesSeal(
+                prefs: prefs,
+                email: emailKey,
+                roles: normalizedRoles,
+              );
+              changed = true;
+            }
+          }
+
+          final expectedLabel = PaymentService.formatearEtiquetaRolesAcumulados(
+            normalizedRoles,
+          );
           final currentLabel = (map['rolEtiqueta'] ?? '').toString().trim();
           final currentRolesRaw = map['rolesActivos'];
-          final bool needsMigration =
+          final bool needsRoleSync =
               currentLabel != expectedLabel ||
               currentRolesRaw is! List ||
               !listEquals(
                 currentRolesRaw.map((e) => e.toString()).toList(),
                 normalizedRoles,
               );
-          if (needsMigration) {
+          if (needsRoleSync) {
             map['rolesActivos'] = normalizedRoles;
             map['rolPrincipal'] = normalizedRoles.first;
             map['rolEtiqueta'] = expectedLabel;
-            registry[entryKey] = map;
             changed = true;
           }
+          registry[entryKey] = map;
         }
       }
+
       if (changed) {
         await prefs.setString(_kUsersRegistryKey, jsonEncode(registry));
+      }
+      if (!initialSealMigrationDone) {
+        await prefs.setBool(_kRolesSealMigrationFlag, true);
       }
     } catch (_) {}
   }
@@ -283,12 +415,18 @@ class AuthService {
     final reg = await _loadRegistry(prefs);
     final entry = reg[clean];
     if (entry is Map) {
-      return (entry['photoData'] ?? '').toString().trim();
+      final raw = (entry['photoData'] ?? '').toString().trim();
+      if (raw.startsWith('data:image/') &&
+          SecurityService.decodeSafeRasterDataUrl(raw) != null) {
+        return raw;
+      }
+      final safeUri = SecurityService.validateSafeExternalImageUrl(raw);
+      if (safeUri != null) return safeUri.toString();
     }
     return '';
   }
 
-  static Future<List<String>> _lookupStoredRolesForEmail(
+  static Future<List<String>> _lookupVerifiedRolesForEmail(
     SharedPreferences prefs,
     String email,
   ) async {
@@ -297,7 +435,15 @@ class AuthService {
     final reg = await _loadRegistry(prefs);
     final entry = reg[clean];
     if (entry is Map) {
-      return _extractNormalizedRolesFromMap(Map<String, dynamic>.from(entry));
+      final map = Map<String, dynamic>.from(entry);
+      final roles = _extractNormalizedRolesFromMap(map);
+      final valid = await SecurityService.verifyUserRolesSeal(
+        prefs: prefs,
+        email: clean,
+        roles: roles,
+        seal: map['rolesSeal']?.toString(),
+      );
+      if (valid) return roles;
     }
     return <String>['persona'];
   }
@@ -315,7 +461,8 @@ class AuthService {
         }
       }
     }
-    final singleRol = data['rol'] ?? data['rolPrincipal'] ?? data['rolSeleccionado'];
+    final singleRol =
+        data['rol'] ?? data['rolPrincipal'] ?? data['rolSeleccionado'];
     if (singleRol != null && singleRol.toString().trim().isNotEmpty) {
       final norm = PaymentService.normalizarRolId(singleRol.toString());
       if (!roles.contains(norm)) {
@@ -332,6 +479,8 @@ class AuthService {
     required String email,
     required String displayName,
     Map<String, dynamic>? extraProfileData,
+    String? passwordForVaultUpdate,
+    bool allowNewRolesFromExtra = false,
   }) async {
     final cleanEmail = email.trim().toLowerCase();
     final resolvedName = displayName.trim().isNotEmpty
@@ -344,9 +493,21 @@ class AuthService {
         ? Map<String, dynamic>.from(registry[cleanEmail] as Map)
         : <String, dynamic>{};
 
+    // Verifica sello existente antes de conservar roles previos
+    final existingCandidateRoles = _extractNormalizedRolesFromMap(existing);
+    final existingRolesValid = await SecurityService.verifyUserRolesSeal(
+      prefs: prefs,
+      email: cleanEmail,
+      roles: existingCandidateRoles,
+      seal: existing['rolesSeal']?.toString(),
+    );
+    final trustedExistingRoles = existingRolesValid
+        ? existingCandidateRoles
+        : <String>['persona'];
+
     final combinedRoles = <String>[
-      ..._extractNormalizedRolesFromMap(existing),
-      if (extraProfileData != null)
+      ...trustedExistingRoles,
+      if (allowNewRolesFromExtra && extraProfileData != null)
         ..._extractNormalizedRolesFromMap(extraProfileData),
     ];
     final deduplicatedRoles = <String>[];
@@ -359,15 +520,35 @@ class AuthService {
       deduplicatedRoles.add('persona');
     }
 
+    final sanitizedExtra = <String, dynamic>{
+      if (extraProfileData != null) ...extraProfileData,
+    }..remove('password');
+
+    existing.remove('password');
+
+    final vaultFields =
+        (passwordForVaultUpdate != null && passwordForVaultUpdate.isNotEmpty)
+        ? SecurityService.createPasswordVerifier(passwordForVaultUpdate)
+        : <String, dynamic>{};
+
+    final rolesSeal = await SecurityService.computeUserRolesSeal(
+      prefs: prefs,
+      email: cleanEmail,
+      roles: deduplicatedRoles,
+    );
+
     final merged = <String, dynamic>{
       ...existing,
-      ...?extraProfileData,
+      ...sanitizedExtra,
+      ...vaultFields,
       'email': cleanEmail,
       'displayName': resolvedName,
       'rolesActivos': deduplicatedRoles,
       'rolPrincipal': deduplicatedRoles.first,
-      'rolEtiqueta':
-          PaymentService.formatearEtiquetaRolesAcumulados(deduplicatedRoles),
+      'rolEtiqueta': PaymentService.formatearEtiquetaRolesAcumulados(
+        deduplicatedRoles,
+      ),
+      'rolesSeal': rolesSeal,
       'updatedAt': DateTime.now().toIso8601String(),
     };
     registry[cleanEmail] = merged;
@@ -377,10 +558,15 @@ class AuthService {
     await prefs.setString('usuarioActivo', cleanEmail);
     await prefs.setString('userEmail', cleanEmail);
     await prefs.setString('usuarioNombreActivo', resolvedName);
+    await SecurityService.sealActiveSession(
+      prefs: prefs,
+      email: cleanEmail,
+      roles: deduplicatedRoles,
+    );
 
     _cachedEmail = cleanEmail;
     _cachedFullName = resolvedName;
-    _cachedPhotoData = (merged['photoData'] ?? '').toString().trim();
+    _cachedPhotoData = await _lookupStoredPhotoForEmail(prefs, cleanEmail);
     _cachedRoles = deduplicatedRoles;
     _isLocalSessionActive = true;
     authStateVersion.value++;
@@ -391,8 +577,31 @@ class AuthService {
     if (cleanEmail.isEmpty) {
       throw const AuthServiceException('Ingresa tu correo electrónico.');
     }
+    if (password.isEmpty || password.length > 128) {
+      throw const AuthServiceException(
+        'El correo electrónico o la contraseña son incorrectos.',
+      );
+    }
+
+    // 1. Control de tasa global y bloqueo progresivo anti-fuerza bruta por cuenta
+    final globalLimit = SecurityService.checkRateLimit(
+      actionKey: 'auth_login_global',
+      maxAttempts: 12,
+      window: const Duration(minutes: 2),
+      customErrorMessage:
+          'Demasiados intentos de acceso en poco tiempo. Espera para volver a intentar.',
+    );
+    if (!globalLimit.allowed) {
+      throw AuthServiceException(globalLimit.message);
+    }
+
+    final lockout = await SecurityService.checkAuthLockout('login:$cleanEmail');
+    if (!lockout.allowed) {
+      throw AuthServiceException(lockout.message);
+    }
 
     final prefs = await SharedPreferences.getInstance();
+    await _migrateLegacyVaultAndRolesInRegistry(prefs);
     final registry = await _loadRegistry(prefs);
     final localEntry = registry[cleanEmail] is Map
         ? Map<String, dynamic>.from(registry[cleanEmail] as Map)
@@ -412,6 +621,8 @@ class AuthService {
         email: cleanEmail,
         password: password,
       );
+      await SecurityService.resetAuthFailures('login:$cleanEmail');
+
       final user = credential.user;
       String resolvedName = user?.displayName?.trim() ?? '';
 
@@ -428,22 +639,62 @@ class AuthService {
         resolvedName = _humanizeEmailPrefix(cleanEmail);
       }
 
-      await _persistActiveSession(email: cleanEmail, displayName: resolvedName);
-    } on FirebaseAuthException catch (error) {
-      // Si el usuario se registró en este navegador/dispositivo y las credenciales coinciden
-      // con el registro local (por ejemplo, cuando Firebase tiene restricciones de red/config),
-      // validamos contra su registro guardado.
-      if (localEntry != null &&
-          (localEntry['password']?.toString() == password)) {
-        final localName = (localEntry['displayName'] ?? '').toString().trim();
-        await _persistActiveSession(
-          email: cleanEmail,
-          displayName: localName.isNotEmpty
-              ? localName
-              : _humanizeEmailPrefix(cleanEmail),
-        );
-        return;
+      // Sincroniza roles autoritativos desde Firestore si existen
+      List<String>? remoteRoles;
+      if (user != null) {
+        try {
+          final snap = await FirebaseFirestore.instance
+              .collection(ConsentService.coleccionUsuarios)
+              .doc(user.uid)
+              .get()
+              .timeout(const Duration(seconds: 4));
+          final data = snap.data();
+          if (data != null && data['rolesActivos'] is List) {
+            remoteRoles = _extractNormalizedRolesFromMap(data);
+          }
+        } catch (_) {}
       }
+
+      await _persistActiveSession(
+        email: cleanEmail,
+        displayName: resolvedName,
+        passwordForVaultUpdate: password,
+        extraProfileData: remoteRoles != null
+            ? <String, dynamic>{'rolesActivos': remoteRoles}
+            : null,
+        allowNewRolesFromExtra: remoteRoles != null,
+      );
+    } on FirebaseAuthException catch (error) {
+      // Respaldo estrictamente offline: solo se permite si falló la red y el
+      // verificador criptográfico PBKDF2-HMAC-SHA256 coincide en tiempo constante.
+      final bool isOfflineFallbackAllowed =
+          error.code == 'network-request-failed' ||
+          error.code == 'operation-not-allowed';
+
+      if (isOfflineFallbackAllowed && localEntry != null) {
+        final iterations = localEntry['passwordKdfIterations'] is int
+            ? localEntry['passwordKdfIterations'] as int
+            : 15000;
+        final verified = SecurityService.verifyPasswordVerifier(
+          password: password,
+          saltBase64: localEntry['passwordSalt']?.toString(),
+          verifierBase64: localEntry['passwordVerifier']?.toString(),
+          iterations: iterations,
+        );
+        if (verified) {
+          await SecurityService.resetAuthFailures('login:$cleanEmail');
+          final localName = (localEntry['displayName'] ?? '').toString().trim();
+          await _persistActiveSession(
+            email: cleanEmail,
+            displayName: localName.isNotEmpty
+                ? localName
+                : _humanizeEmailPrefix(cleanEmail),
+          );
+          return;
+        }
+      }
+
+      await SecurityService.recordAuthFailure('login:$cleanEmail');
       throw AuthServiceException(_messageFor(error));
     }
   }
@@ -451,26 +702,28 @@ class AuthService {
   static Future<void> signOut() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('isLoggedIn', false);
-      await prefs.remove('usuarioActivo');
-      await prefs.remove('userEmail');
-      await prefs.remove('usuarioNombreActivo');
-
-      _cachedEmail = '';
-      _cachedFullName = '';
-      _cachedPhotoData = '';
-      _cachedRoles = <String>['persona'];
-      _isLocalSessionActive = false;
+      await _purgeSessionFlags(prefs);
+      _resetInMemorySession();
 
       await FirebaseAuth.instance.signOut();
       authStateVersion.value++;
     } on FirebaseAuthException catch (error) {
+      _resetInMemorySession();
       authStateVersion.value++;
       throw AuthServiceException(_messageFor(error));
     }
   }
 
   static Future<void> signInWithGoogle() async {
+    final limit = SecurityService.checkRateLimit(
+      actionKey: 'oauth_google',
+      maxAttempts: 6,
+      window: const Duration(minutes: 2),
+    );
+    if (!limit.allowed) {
+      throw AuthServiceException(limit.message);
+    }
+
     try {
       if (kIsWeb) {
         await _auth.signInWithPopup(GoogleAuthProvider());
@@ -503,6 +756,15 @@ class AuthService {
   }
 
   static Future<void> signInWithApple() async {
+    final limit = SecurityService.checkRateLimit(
+      actionKey: 'oauth_apple',
+      maxAttempts: 6,
+      window: const Duration(minutes: 2),
+    );
+    if (!limit.allowed) {
+      throw AuthServiceException(limit.message);
+    }
+
     try {
       final provider = AppleAuthProvider();
       if (kIsWeb) {
@@ -531,13 +793,23 @@ class AuthService {
     return raw.replaceAll(RegExp(r'[^0-9A-Za-z]'), '').toLowerCase();
   }
 
-  /// Verifica si el correo electrónico o el número de cédula/documento ya están
-  /// vinculados a una cuenta existente (en registro local o en Firestore).
+  /// Verifica disponibilidad de correo y cédula usando índices criptográficos
+  /// unidireccionales SHA-256 (`indices_unicidad/{hash}`), protegiendo los datos
+  /// personales conforme a la Ley 1581 de 2012 sin permitir listado de `usuarios`.
   static Future<({bool emailEnUso, bool documentoEnUso})>
       checkDuplicateCredentials({
     required String email,
     required String documento,
   }) async {
+    final rate = SecurityService.checkRateLimit(
+      actionKey: 'uniqueness_lookup',
+      maxAttempts: 10,
+      window: const Duration(minutes: 2),
+    );
+    if (!rate.allowed) {
+      throw AuthServiceException(rate.message);
+    }
+
     final cleanEmail = email.trim().toLowerCase();
     final normDoc = normalizeDocumentoDigits(documento);
 
@@ -563,46 +835,45 @@ class AuthService {
           if (cleanEmail.isNotEmpty && entryEmail == cleanEmail) {
             emailEnUso = true;
           }
-          if (normDoc.length >= 5 && entryDoc.isNotEmpty && entryDoc == normDoc) {
+          if (normDoc.length >= 5 &&
+              entryDoc.isNotEmpty &&
+              entryDoc == normDoc) {
             documentoEnUso = true;
           }
         }
       }
     } catch (_) {}
 
-    // Consulta adicional en Firestore para cuentas creadas desde otros dispositivos
+    // Consulta puntual por hash SHA-256 (`get` directo, sin `list` ni exposición de PII)
     if (!emailEnUso || !documentoEnUso) {
       try {
-        final col = FirebaseFirestore.instance.collection(
-          ConsentService.coleccionUsuarios,
+        final idxCol = FirebaseFirestore.instance.collection(
+          coleccionIndicesUnicidad,
         );
         if (!emailEnUso && cleanEmail.isNotEmpty) {
-          final emailSnap = await col
-              .where('email', isEqualTo: cleanEmail)
-              .limit(1)
+          final emailHash = SecurityService.hashCredentialUniquenessIndex(
+            type: 'email',
+            normalizedValue: cleanEmail,
+          );
+          final emailDoc = await idxCol
+              .doc(emailHash)
               .get()
               .timeout(const Duration(seconds: 3));
-          if (emailSnap.docs.isNotEmpty) {
+          if (emailDoc.exists) {
             emailEnUso = true;
           }
         }
         if (!documentoEnUso && normDoc.length >= 5) {
-          final docSnap = await col
-              .where('documentoNormalizado', isEqualTo: normDoc)
-              .limit(1)
+          final docHash = SecurityService.hashCredentialUniquenessIndex(
+            type: 'doc',
+            normalizedValue: normDoc,
+          );
+          final cedulaDoc = await idxCol
+              .doc(docHash)
               .get()
               .timeout(const Duration(seconds: 3));
-          if (docSnap.docs.isNotEmpty) {
+          if (cedulaDoc.exists) {
             documentoEnUso = true;
-          } else {
-            final rawDocSnap = await col
-                .where('documento', isEqualTo: documento.trim())
-                .limit(1)
-                .get()
-                .timeout(const Duration(seconds: 3));
-            if (rawDocSnap.docs.isNotEmpty) {
-              documentoEnUso = true;
-            }
           }
         }
       } catch (_) {}
@@ -616,6 +887,17 @@ class AuthService {
     String password, {
     required bool aceptaTratamientoDatos,
   }) async {
+    final signupLimit = SecurityService.checkRateLimit(
+      actionKey: 'auth_signup',
+      maxAttempts: 5,
+      window: const Duration(minutes: 10),
+      customErrorMessage:
+          'Se alcanzó el límite temporal de intentos de registro. Espera unos minutos.',
+    );
+    if (!signupLimit.allowed) {
+      throw AuthServiceException(signupLimit.message);
+    }
+
     // Defensa en profundidad: aunque la UI ya lo valida, el servicio nunca crea
     // una cuenta sin autorización expresa de tratamiento de datos (Ley 1581/2012).
     if (!aceptaTratamientoDatos) {
@@ -624,10 +906,20 @@ class AuthService {
       );
     }
 
+    final passwordPolicyError = SecurityService.validateStrongPassword(
+      password,
+    );
+    if (passwordPolicyError != null) {
+      throw AuthServiceException(passwordPolicyError);
+    }
+
     final cleanEmail = (userData['email'] as String?)?.trim().toLowerCase();
-    if (cleanEmail == null || cleanEmail.isEmpty) {
+    if (cleanEmail == null ||
+        cleanEmail.isEmpty ||
+        cleanEmail.length > 160 ||
+        !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(cleanEmail)) {
       throw const AuthServiceException(
-        'El correo electrónico es obligatorio para crear la cuenta.',
+        'Ingresa un correo electrónico válido para crear la cuenta.',
       );
     }
 
@@ -636,13 +928,13 @@ class AuthService {
         .replaceAll(RegExp(r'\s+'), '')
         .trim();
     final normDoc = normalizeDocumentoDigits(cleanDocumento);
-    if (cleanDocumento.isEmpty || normDoc.length < 5) {
+    if (cleanDocumento.isEmpty || normDoc.length < 5 || normDoc.length > 20) {
       throw const AuthServiceException(
-        'El número de cédula o documento es obligatorio para crear la cuenta.',
+        'El número de cédula o documento válido es obligatorio para crear la cuenta.',
       );
     }
 
-    // Validación estricta de unicidad: no permite avanzar si la cédula o el correo ya están en uso
+    // Validación estricta de unicidad
     final duplicados = await checkDuplicateCredentials(
       email: cleanEmail,
       documento: cleanDocumento,
@@ -671,12 +963,13 @@ class AuthService {
     final selectedRolId = PaymentService.normalizarRolId(
       (userData['rol'] ?? userData['rolPrincipal'] ?? 'persona').toString(),
     );
-    final initialRoles = <String>[selectedRolId];
+    // Por seguridad, en registro inicial solo se preasigna el rol base hasta
+    // que `assignPaidRoleToActiveUser` valide un recibo criptográfico de Wompi.
+    final initialRoles = <String>['persona'];
     final rolEtiqueta = PaymentService.formatearEtiquetaRolesAcumulados(
       initialRoles,
     );
 
-    // Cerramos cualquier sesión previa para que la nueva cuenta no herede datos de otro usuario
     if (_auth.currentUser != null) {
       try {
         await _auth.signOut();
@@ -690,34 +983,60 @@ class AuthService {
       );
       final user = userCredential.user;
       if (user != null) {
-        // Evidencia de la autorización en Firestore (auditoría SIC) + datos de perfil + rol
         try {
           await ConsentService.registrarAceptacionTratamientoDatos(
             uid: user.uid,
             email: cleanEmail,
             canal: 'registro_email',
           );
-          await FirebaseFirestore.instance
-              .collection(ConsentService.coleccionUsuarios)
-              .doc(user.uid)
-              .set({
-                'email': cleanEmail,
-                'nombres': nombres,
-                'apellidos': apellidos,
-                'displayName': displayName,
-                'pais': (userData['pais'] ?? 'Colombia').toString().trim(),
-                'telefono': (userData['telefono'] ?? '').toString().trim(),
-                'documento': cleanDocumento,
-                'documentoNormalizado': normDoc,
-                'rolesActivos': initialRoles,
-                'rolPrincipal': selectedRolId,
-                'rolEtiqueta': rolEtiqueta,
-                'pagoWompiPendiente': true,
-                'actualizado_en': FieldValue.serverTimestamp(),
-              }, SetOptions(merge: true))
-              .timeout(const Duration(seconds: 5));
-        } catch (e) {
-          debugPrint('Aviso: No se pudo registrar en Firestore ($e). Se conserva evidencia en almacenamiento local.');
+
+          final db = FirebaseFirestore.instance;
+          final emailIdxHash = SecurityService.hashCredentialUniquenessIndex(
+            type: 'email',
+            normalizedValue: cleanEmail,
+          );
+          final docIdxHash = SecurityService.hashCredentialUniquenessIndex(
+            type: 'doc',
+            normalizedValue: normDoc,
+          );
+
+          final batch = db.batch();
+          batch.set(
+            db.collection(ConsentService.coleccionUsuarios).doc(user.uid),
+            {
+              'uid': user.uid,
+              'email': cleanEmail,
+              'nombres': nombres,
+              'apellidos': apellidos,
+              'displayName': displayName,
+              'pais': (userData['pais'] ?? 'Colombia').toString().trim(),
+              'telefono': (userData['telefono'] ?? '').toString().trim(),
+              'documento': cleanDocumento,
+              'documentoNormalizado': normDoc,
+              'rolesActivos': initialRoles,
+              'rolPrincipal': initialRoles.first,
+              'rolSolicitadoRegistro': selectedRolId,
+              'rolEtiqueta': rolEtiqueta,
+              'pagoWompiPendiente': true,
+              'actualizado_en': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true),
+          );
+          batch.set(db.collection(coleccionIndicesUnicidad).doc(emailIdxHash), {
+            'tipo': 'email',
+            'uid': user.uid,
+            'creado_en': FieldValue.serverTimestamp(),
+          });
+          batch.set(db.collection(coleccionIndicesUnicidad).doc(docIdxHash), {
+            'tipo': 'doc',
+            'uid': user.uid,
+            'creado_en': FieldValue.serverTimestamp(),
+          });
+          await batch.commit().timeout(const Duration(seconds: 6));
+        } catch (_) {
+          debugPrint(
+            'Aviso de auditoría: respaldo remoto diferido; evidencia preservada en bóveda local.',
+          );
         }
 
         await user.updateDisplayName(displayName);
@@ -728,20 +1047,22 @@ class AuthService {
       await _persistActiveSession(
         email: cleanEmail,
         displayName: displayName,
+        passwordForVaultUpdate: password,
+        allowNewRolesFromExtra: true,
         extraProfileData: {
           ...userData,
           'email': cleanEmail,
           'documento': cleanDocumento,
           'documentoNormalizado': normDoc,
           'displayName': displayName,
-          'password': password,
           'rolesActivos': initialRoles,
-          'rolPrincipal': selectedRolId,
+          'rolPrincipal': initialRoles.first,
+          'rolSolicitadoRegistro': selectedRolId,
           'rolEtiqueta': rolEtiqueta,
           'aceptacion_datos': true,
           'version_politica': ConsentService.versionPolitica,
           'fecha_aceptacion_datos': DateTime.now().toIso8601String(),
-        },
+        }..remove('password'),
       );
     } on FirebaseAuthException catch (error) {
       if (error.code == 'email-already-in-use') {
@@ -753,10 +1074,44 @@ class AuthService {
     }
   }
 
+  /// Envía restablecimiento de contraseña con control de tasa anti-spam y
+  /// protección contra enumeración de cuentas (OWASP WSTG-IDNT-04).
   static Future<void> resetPassword(String email) async {
+    final cleanEmail = email.trim().toLowerCase();
+    if (cleanEmail.isEmpty ||
+        !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(cleanEmail)) {
+      throw const AuthServiceException(
+        'Ingresa un correo electrónico válido para recuperar tu contraseña.',
+      );
+    }
+
+    final perEmailLimit = SecurityService.checkRateLimit(
+      actionKey: 'pwd_reset:$cleanEmail',
+      maxAttempts: 2,
+      window: const Duration(minutes: 10),
+      customErrorMessage:
+          'Ya se envió una solicitud reciente para este correo. Espera unos minutos antes de reintentar.',
+    );
+    if (!perEmailLimit.allowed) {
+      throw AuthServiceException(perEmailLimit.message);
+    }
+
+    final globalResetLimit = SecurityService.checkRateLimit(
+      actionKey: 'pwd_reset_global',
+      maxAttempts: 5,
+      window: const Duration(minutes: 10),
+    );
+    if (!globalResetLimit.allowed) {
+      throw AuthServiceException(globalResetLimit.message);
+    }
+
     try {
-      await _auth.sendPasswordResetEmail(email: email.trim());
+      await _auth.sendPasswordResetEmail(email: cleanEmail);
     } on FirebaseAuthException catch (error) {
+      // No revela si el correo existe o no en la base de datos.
+      if (error.code == 'user-not-found') {
+        return;
+      }
       throw AuthServiceException(_messageFor(error));
     }
   }
@@ -774,7 +1129,6 @@ class AuthService {
       localData = Map<String, dynamic>.from(registry[activeEmail] as Map);
     }
 
-    // Si faltan campos del registro (ej. inició sesión en otro navegador), intentamos recuperar de Firestore
     if (fbUser != null &&
         ((localData['documento'] ?? '').toString().trim().isEmpty ||
             (localData['nombres'] ?? '').toString().trim().isEmpty)) {
@@ -824,12 +1178,12 @@ class AuthService {
         : (fbUser.providerData.isEmpty ||
               fbUser.providerData.any((p) => p.providerId == 'password'));
 
-    final storedPhoto = (localData['photoData'] ?? '').toString().trim();
-    if (storedPhoto.isNotEmpty && _cachedPhotoData.isEmpty) {
-      _cachedPhotoData = storedPhoto;
+    final verifiedPhoto = await _lookupStoredPhotoForEmail(prefs, activeEmail);
+    if (verifiedPhoto.isNotEmpty && _cachedPhotoData.isEmpty) {
+      _cachedPhotoData = verifiedPhoto;
     }
 
-    final activeRoles = _extractNormalizedRolesFromMap(localData);
+    final activeRoles = await _lookupVerifiedRolesForEmail(prefs, activeEmail);
     _cachedRoles = activeRoles;
 
     return <String, dynamic>{
@@ -856,8 +1210,8 @@ class AuthService {
     };
   }
 
-  /// Valida criptográficamente el recibo de Wompi y asigna (o acumula) el rol pagado
-  /// en la cuenta activa tanto en almacenamiento local como en Firestore.
+  /// Valida criptográficamente el recibo de Wompi (incluyendo protección anti-replay)
+  /// y asigna/acumula el rol pagado sellando su integridad en cliente y Firestore.
   static Future<void> assignPaidRoleToActiveUser(
     WompiTransactionReceipt receipt,
   ) async {
@@ -880,26 +1234,46 @@ class AuthService {
         ? Map<String, dynamic>.from(registry[activeEmail] as Map)
         : <String, dynamic>{};
 
-    final currentRoles = _extractNormalizedRolesFromMap(existing);
-    final paidRolId = PaymentService.normalizarRolId(receipt.rolId);
-    if (!currentRoles.contains(paidRolId)) {
-      currentRoles.add(paidRolId);
-    }
-    final rolEtiqueta = PaymentService.formatearEtiquetaRolesAcumulados(
-      currentRoles,
-    );
-
     final historyRaw = existing['historialPagosWompi'];
     final history = <Map<String, dynamic>>[
       if (historyRaw is List)
         for (final item in historyRaw)
           if (item is Map) Map<String, dynamic>.from(item),
-      receipt.toMap(),
     ];
 
-    existing['rolesActivos'] = currentRoles;
-    existing['rolPrincipal'] = currentRoles.first;
+    // Protección Anti-Replay: rechaza recibos cuyo transactionId o reference ya fue aplicado
+    final alreadyRedeemed = history.any(
+      (tx) =>
+          tx['transactionId']?.toString() == receipt.transactionId ||
+          tx['reference']?.toString() == receipt.reference,
+    );
+    if (alreadyRedeemed) {
+      throw const AuthServiceException(
+        'Esta transacción de pago ya fue procesada y aplicada anteriormente.',
+      );
+    }
+    history.add(receipt.toMap());
+
+    final currentRoles = await _lookupVerifiedRolesForEmail(prefs, activeEmail);
+    final paidRolId = PaymentService.normalizarRolId(receipt.rolId);
+    final updatedRoles = <String>[
+      ...currentRoles,
+      if (!currentRoles.contains(paidRolId)) paidRolId,
+    ];
+    final rolEtiqueta = PaymentService.formatearEtiquetaRolesAcumulados(
+      updatedRoles,
+    );
+    final rolesSeal = await SecurityService.computeUserRolesSeal(
+      prefs: prefs,
+      email: activeEmail,
+      roles: updatedRoles,
+    );
+
+    existing.remove('password');
+    existing['rolesActivos'] = updatedRoles;
+    existing['rolPrincipal'] = updatedRoles.first;
     existing['rolEtiqueta'] = rolEtiqueta;
+    existing['rolesSeal'] = rolesSeal;
     existing['pagoWompiActivo'] = true;
     existing['pagoWompiPendiente'] = false;
     existing['ultimoPagoWompi'] = receipt.toMap();
@@ -907,27 +1281,18 @@ class AuthService {
     existing['updatedAt'] = DateTime.now().toIso8601String();
     registry[activeEmail] = existing;
     await prefs.setString(_kUsersRegistryKey, jsonEncode(registry));
+    await SecurityService.sealActiveSession(
+      prefs: prefs,
+      email: activeEmail,
+      roles: updatedRoles,
+    );
 
-    _cachedRoles = currentRoles;
+    _cachedRoles = updatedRoles;
     authStateVersion.value++;
 
     final fbUser = _auth.currentUser;
     if (fbUser != null) {
       try {
-        await FirebaseFirestore.instance
-            .collection(ConsentService.coleccionUsuarios)
-            .doc(fbUser.uid)
-            .set({
-              'rolesActivos': currentRoles,
-              'rolPrincipal': currentRoles.first,
-              'rolEtiqueta': rolEtiqueta,
-              'pagoWompiActivo': true,
-              'pagoWompiPendiente': false,
-              'ultimoPagoWompi': receipt.toMap(),
-              'actualizado_en': FieldValue.serverTimestamp(),
-            }, SetOptions(merge: true))
-            .timeout(const Duration(seconds: 5));
-
         await FirebaseFirestore.instance
             .collection('pagos_wompi')
             .doc(receipt.transactionId)
@@ -938,15 +1303,30 @@ class AuthService {
               'registrado_en': FieldValue.serverTimestamp(),
             })
             .timeout(const Duration(seconds: 5));
-      } catch (e) {
+
+        await FirebaseFirestore.instance
+            .collection(ConsentService.coleccionUsuarios)
+            .doc(fbUser.uid)
+            .set({
+              'rolesActivos': updatedRoles,
+              'rolPrincipal': updatedRoles.first,
+              'rolEtiqueta': rolEtiqueta,
+              'pagoWompiActivo': true,
+              'pagoWompiPendiente': false,
+              'ultimoPagoWompi': receipt.toMap(),
+              'actualizado_en': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true))
+            .timeout(const Duration(seconds: 5));
+      } catch (_) {
         debugPrint(
-          'Aviso: El pago Wompi quedó validado y asignado localmente ($e).',
+          'Aviso de auditoría: recibo Wompi verificado y sellado localmente.',
         );
       }
     }
   }
 
-  /// Actualiza o restaura la foto de perfil del usuario activo (Data URL o URL).
+  /// Actualiza o restaura la foto de perfil validando formato raster (Magic Bytes),
+  /// límite de tamaño (1.5 MB) y esquema HTTPS seguro.
   static Future<void> updateActiveUserPhoto(String? photoSource) async {
     final activeEmail = getActiveUserEmail().trim().toLowerCase();
     if (activeEmail.isEmpty) {
@@ -956,13 +1336,37 @@ class AuthService {
     }
 
     final cleanPhoto = (photoSource ?? '').trim();
+    String validatedPhoto = '';
+
+    if (cleanPhoto.isNotEmpty) {
+      if (cleanPhoto.startsWith('data:image/')) {
+        final decoded = SecurityService.decodeSafeRasterDataUrl(cleanPhoto);
+        if (decoded == null) {
+          throw const AuthServiceException(
+            'El archivo seleccionado no es una imagen válida (PNG, JPG o WEBP) o supera el límite seguro de 1.5 MB.',
+          );
+        }
+        validatedPhoto = cleanPhoto;
+      } else {
+        final safeUri = SecurityService.validateSafeExternalImageUrl(
+          cleanPhoto,
+        );
+        if (safeUri == null) {
+          throw const AuthServiceException(
+            'Por seguridad, el enlace de la imagen debe usar HTTPS público y apuntar a un formato válido (JPG, PNG o WEBP).',
+          );
+        }
+        validatedPhoto = safeUri.toString();
+      }
+    }
+
     final fbUser = _auth.currentUser;
     if (fbUser != null &&
-        (cleanPhoto.isEmpty ||
-            cleanPhoto.startsWith('http://') ||
-            cleanPhoto.startsWith('https://'))) {
+        (validatedPhoto.isEmpty || validatedPhoto.startsWith('https://'))) {
       try {
-        await fbUser.updatePhotoURL(cleanPhoto.isEmpty ? null : cleanPhoto);
+        await fbUser.updatePhotoURL(
+          validatedPhoto.isEmpty ? null : validatedPhoto,
+        );
         await fbUser.reload();
       } catch (_) {}
     }
@@ -972,12 +1376,12 @@ class AuthService {
     final existing = registry[activeEmail] is Map
         ? Map<String, dynamic>.from(registry[activeEmail] as Map)
         : <String, dynamic>{};
-    existing['photoData'] = cleanPhoto;
+    existing['photoData'] = validatedPhoto;
     existing['updatedAt'] = DateTime.now().toIso8601String();
     registry[activeEmail] = existing;
     await prefs.setString(_kUsersRegistryKey, jsonEncode(registry));
 
-    _cachedPhotoData = cleanPhoto;
+    _cachedPhotoData = validatedPhoto;
     authStateVersion.value++;
   }
 
@@ -996,10 +1400,26 @@ class AuthService {
       );
     }
 
-    final cleanNombres = nombres.trim();
-    final cleanApellidos = apellidos.trim();
-    final cleanTelefono = telefono.trim();
-    final cleanPais = pais.trim().isNotEmpty ? pais.trim() : 'Colombia';
+    final rate = SecurityService.checkRateLimit(
+      actionKey: 'profile_update:$activeEmail',
+      maxAttempts: 8,
+      window: const Duration(minutes: 2),
+    );
+    if (!rate.allowed) {
+      throw AuthServiceException(rate.message);
+    }
+
+    String cleanField(String v, int maxLen) {
+      final s = v.replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '').trim();
+      return s.length > maxLen ? s.substring(0, maxLen) : s;
+    }
+
+    final cleanNombres = cleanField(nombres, 80);
+    final cleanApellidos = cleanField(apellidos, 80);
+    final cleanTelefono = cleanField(telefono, 25);
+    final cleanPais = cleanField(pais, 60).isNotEmpty
+        ? cleanField(pais, 60)
+        : 'Colombia';
     final displayName = '$cleanNombres $cleanApellidos'.trim().isNotEmpty
         ? '$cleanNombres $cleanApellidos'.trim()
         : getActiveUserDisplayName();
@@ -1039,7 +1459,8 @@ class AuthService {
     );
   }
 
-  /// Cambia la contraseña del usuario activo validando primero su contraseña actual.
+  /// Cambia la contraseña del usuario activo validando primero su contraseña actual,
+  /// aplicando bloqueo anti-fuerza bruta y almacenando solo verificadores PBKDF2.
   static Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
@@ -1047,11 +1468,14 @@ class AuthService {
     if (currentPassword.isEmpty) {
       throw const AuthServiceException('Ingresa tu contraseña actual.');
     }
-    if (newPassword.length < 6) {
-      throw const AuthServiceException(
-        'La nueva contraseña debe tener al menos 6 caracteres.',
-      );
+
+    final passwordPolicyError = SecurityService.validateStrongPassword(
+      newPassword,
+    );
+    if (passwordPolicyError != null) {
+      throw AuthServiceException(passwordPolicyError);
     }
+
     if (currentPassword == newPassword) {
       throw const AuthServiceException(
         'La nueva contraseña debe ser diferente a la contraseña actual.',
@@ -1065,16 +1489,24 @@ class AuthService {
       );
     }
 
+    final lockout = await SecurityService.checkAuthLockout(
+      'pwd_change:$activeEmail',
+    );
+    if (!lockout.allowed) {
+      throw AuthServiceException(lockout.message);
+    }
+
     final prefs = await SharedPreferences.getInstance();
+    await _migrateLegacyVaultAndRolesInRegistry(prefs);
     final registry = await _loadRegistry(prefs);
     final localEntry = registry[activeEmail] is Map
         ? Map<String, dynamic>.from(registry[activeEmail] as Map)
         : <String, dynamic>{};
 
     final fbUser = _auth.currentUser;
-    if (fbUser != null &&
-        fbUser.email?.trim().toLowerCase() == activeEmail) {
-      final usesPassword = fbUser.providerData.isEmpty ||
+    if (fbUser != null && fbUser.email?.trim().toLowerCase() == activeEmail) {
+      final usesPassword =
+          fbUser.providerData.isEmpty ||
           fbUser.providerData.any((p) => p.providerId == 'password');
       if (!usesPassword) {
         throw const AuthServiceException(
@@ -1089,7 +1521,9 @@ class AuthService {
         );
         await fbUser.reauthenticateWithCredential(credential);
         await fbUser.updatePassword(newPassword);
+        await SecurityService.resetAuthFailures('pwd_change:$activeEmail');
       } on FirebaseAuthException catch (error) {
+        await SecurityService.recordAuthFailure('pwd_change:$activeEmail');
         if (error.code == 'wrong-password' ||
             error.code == 'invalid-credential') {
           throw const AuthServiceException(
@@ -1099,16 +1533,27 @@ class AuthService {
         throw AuthServiceException(_messageFor(error));
       }
     } else {
-      final savedPass = (localEntry['password'] ?? '').toString();
-      if (savedPass.isEmpty || savedPass != currentPassword) {
+      final iterations = localEntry['passwordKdfIterations'] is int
+          ? localEntry['passwordKdfIterations'] as int
+          : 15000;
+      final validCurrent = SecurityService.verifyPasswordVerifier(
+        password: currentPassword,
+        saltBase64: localEntry['passwordSalt']?.toString(),
+        verifierBase64: localEntry['passwordVerifier']?.toString(),
+        iterations: iterations,
+      );
+      if (!validCurrent) {
+        await SecurityService.recordAuthFailure('pwd_change:$activeEmail');
         throw const AuthServiceException(
           'La contraseña actual ingresada no es correcta.',
         );
       }
+      await SecurityService.resetAuthFailures('pwd_change:$activeEmail');
     }
 
-    // Sincronizamos el registro local para mantener consistencia
-    localEntry['password'] = newPassword;
+    // Guarda únicamente el verificador criptográfico PBKDF2-HMAC-SHA256 (sin texto plano)
+    localEntry.remove('password');
+    localEntry.addAll(SecurityService.createPasswordVerifier(newPassword));
     localEntry['updatedAt'] = DateTime.now().toIso8601String();
     registry[activeEmail] = localEntry;
     await prefs.setString(_kUsersRegistryKey, jsonEncode(registry));
@@ -1117,29 +1562,28 @@ class AuthService {
   static String _messageFor(FirebaseAuthException error) {
     switch (error.code) {
       case 'user-not-found':
-        return 'No existe una cuenta con ese correo electrónico.';
       case 'wrong-password':
-        return 'La contraseña ingresada es incorrecta.';
       case 'invalid-credential':
-        return 'El correo o la contraseña son incorrectos.';
+        // Mensaje unificado para impedir enumeración de cuentas (OWASP WSTG-IDNT-04)
+        return 'El correo electrónico o la contraseña son incorrectos.';
       case 'email-already-in-use':
         return 'Ya existe una cuenta registrada con ese correo. Inicia sesión con tu contraseña.';
       case 'weak-password':
-        return 'La contraseña debe tener al menos 6 caracteres.';
+        return 'La contraseña no cumple el nivel mínimo de seguridad (usa al menos 8 caracteres, mayúsculas, minúsculas y números).';
       case 'requires-recent-login':
-        return 'Por seguridad, vuelve a iniciar sesión antes de cambiar tu contraseña.';
+        return 'Por seguridad, vuelve a iniciar sesión antes de realizar esta acción sensible.';
       case 'invalid-email':
         return 'El formato del correo electrónico no es válido.';
       case 'user-disabled':
-        return 'Esta cuenta ha sido deshabilitada.';
+        return 'Esta cuenta ha sido deshabilitada por seguridad.';
       case 'too-many-requests':
-        return 'Hubo demasiados intentos. Espera un momento e inténtalo de nuevo.';
+        return 'Hubo demasiados intentos seguidos. Espera unos minutos e inténtalo de nuevo.';
       case 'network-request-failed':
-        return 'No se pudo conectar. Revisa tu conexión a internet.';
+        return 'No se pudo establecer conexión segura. Revisa tu conexión a internet.';
       case 'operation-not-allowed':
-        return 'Este método de acceso no está habilitado en Firebase.';
+        return 'Este método de acceso no está habilitado actualmente.';
       default:
-        return error.message ?? 'Ocurrió un error de autenticación.';
+        return 'No fue posible completar la autenticación de forma segura. Intenta nuevamente.';
     }
   }
 
@@ -1149,7 +1593,6 @@ class AuthService {
     return true;
   }
 
-  // Si un punto de entrada antiguo no envía la aceptación, signUp rechaza el registro.
   Future<bool> registrarCuenta(
     String correo,
     String contrasena, {
@@ -1160,16 +1603,6 @@ class AuthService {
       contrasena,
       aceptaTratamientoDatos: aceptaTratamientoDatos,
     );
-    return true;
-  }
-
-  Future<void> asignarRol(String uid, String rolElegido) async {
-    debugPrint('Rol actualizado a: $rolElegido');
-  }
-
-  Future<bool> procesarPagoPlan(String plan, double precio) async {
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    debugPrint('Pago aprobado para el plan $plan por \$${precio.toString()}');
     return true;
   }
 }

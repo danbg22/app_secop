@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+import '../services/security_service.dart';
 import '../services/sigep_service.dart';
 import '../utils/app_scroll_behavior.dart';
 import '../utils/csv_exporter.dart';
@@ -566,7 +567,11 @@ class _ContratistasScreenState extends State<ContratistasScreen>
     try {
       final termClauses = <String>[];
       for (final term in termsToFetch) {
-        final cleanTerm = term.replaceAll("'", '').trim();
+        final cleanTerm = SecurityService.sanitizeSoqlToken(
+          term,
+          maxLength: 80,
+        );
+        if (cleanTerm.isEmpty) continue;
         final isNumericTerm = RegExp(r'^[0-9.\-\s]+$').hasMatch(cleanTerm);
         final digitsOnly = cleanTerm.replaceAll(RegExp(r'[^0-9]'), '');
         final normName =

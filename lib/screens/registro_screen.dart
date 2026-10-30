@@ -5,6 +5,7 @@ import '../data/roles_visual_assets_data.dart';
 import '../services/auth_service.dart';
 import '../services/consent_service.dart';
 import '../services/payment_service.dart';
+import '../services/security_service.dart';
 import 'escoger_rol_screen.dart';
 import 'pasarela_pago_wompi_screen.dart';
 
@@ -293,6 +294,8 @@ class _RegistroScreenState extends State<RegistroScreen> {
         _passwordController.text,
         aceptaTratamientoDatos: _aceptaPolitica,
       );
+      _passwordController.clear();
+      _confirmPasswordController.clear();
 
       if (!mounted) return;
       _showMessage(
@@ -474,16 +477,10 @@ class _RegistroScreenState extends State<RegistroScreen> {
 
             final fieldPassword = _textField(
               controller: _passwordController,
-              hint: 'Contraseña *',
+              hint: 'Contraseña (mín. 8, mayús. y número) *',
               icon: Icons.lock_outline_rounded,
               obscureText: !_passwordVisible,
-              validator: (value) {
-                final password = value ?? '';
-                if (password.length < 6) {
-                  return 'Mínimo 6 caracteres.';
-                }
-                return null;
-              },
+              validator: (value) => SecurityService.validateStrongPassword(value),
               suffixIcon: IconButton(
                 tooltip: _passwordVisible
                     ? 'Ocultar contraseña'

@@ -3,6 +3,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'security_service.dart';
+
 // =============================================================================
 // 1. ESPACIO DE CONFIGURACIÓN RÁPIDA DE ROLES, PAQUETES Y PRECIOS (ADMIN)
 // =============================================================================
@@ -32,12 +34,29 @@ class AdminConfiguracionRolesYPagos {
   static const String nitComercioDestino = '901.648.291-4';
 
   /// Llave pública del comercio en Wompi y secreto de integridad SHA-256.
-  /// (En producción, reemplaza por tu llave `pub_prod_...` y `prod_integrity_...`
-  /// desde el panel de comercios de Wompi Bancolombia).
-  static const String wompiMerchantPublicKey =
-      'pub_test_ContrataLegalWompiCol2026';
-  static const String _wompiIntegritySecret =
-      'test_integrity_ContrataLegalSecop2026_SHA256_Lock';
+  /// En compilación de producción inyecta las llaves con:
+  /// `--dart-define=WOMPI_PUBLIC_KEY=pub_prod_...` y
+  /// `--dart-define=WOMPI_INTEGRITY_SECRET=...` (o firma desde backend seguro).
+  static const String wompiMerchantPublicKey = String.fromEnvironment(
+    'WOMPI_PUBLIC_KEY',
+    defaultValue: 'pub_test_ContrataLegalWompiCol2026',
+  );
+  static const String _envIntegritySecret = String.fromEnvironment(
+    'WOMPI_INTEGRITY_SECRET',
+  );
+
+  static String get _effectiveIntegritySecret {
+    if (_envIntegritySecret.isNotEmpty) {
+      return _envIntegritySecret;
+    }
+    if (wompiMerchantPublicKey.startsWith('pub_prod_')) {
+      throw const PaymentSecurityException(
+        'Configuración segura incompleta: falta WOMPI_INTEGRITY_SECRET para llave de producción.',
+      );
+    }
+    // Solo disponible en modo sandbox (`pub_test_`) para desarrollo local.
+    return 'test_sandbox_dev_only_wompi_integrity_v1';
+  }
 
   /// Rol por defecto que recibe todo usuario y que agrupa las funciones actuales.
   static const String rolPorDefectoId = 'persona';
@@ -328,6 +347,7 @@ class PaymentService {
       AdminConfiguracionRolesYPagos.titularCuentaDestino;
   static const String _lockedNitDestino =
       AdminConfiguracionRolesYPagos.nitComercioDestino;
+  static final Set<String> _consumedReferences = <String>{};
 
   /// Retorna la lista completa de los 4 roles configurados.
   static List<RolPaqueteConfig> obtenerCatalogoRoles() {
@@ -424,8 +444,8 @@ class PaymentService {
     String moneda = AdminConfiguracionRolesYPagos.moneda,
   }) {
     final cadenaConcatenada =
-        '$referencia$montoEnCentavos$moneda${AdminConfiguracionRolesYPagos._wompiIntegritySecret}';
-    return _sha256Hex(cadenaConcatenada);
+        '$referencia$montoEnCentavos$moneda${AdminConfiguracionRolesYPagos._effectiveIntegritySecret}';
+    return SecurityService.sha256Hex(cadenaConcatenada);
   }
 
   /// Construye la URL segura de Wompi Web Checkout con firma SHA-256 e integridad bloqueada.
@@ -469,6 +489,18 @@ class PaymentService {
     required Map<String, String> datosPago,
     String? referenciaPrevia,
   }) async {
+    // 0. Control de tasa anti-carding / fuerza bruta financiera
+    final rate = SecurityService.checkRateLimit(
+      actionKey: 'wompi_payment_attempt',
+      maxAttempts: 5,
+      window: const Duration(minutes: 5),
+      customErrorMessage:
+          'Demasiados intentos de pago consecutivos. Por seguridad financiera, espera antes de reintentar.',
+    );
+    if (!rate.allowed) {
+      throw PaymentSecurityException(rate.message);
+    }
+
     final cleanRolId = normalizarRolId(rolId);
     final rolConfig = obtenerConfiguracionRol(cleanRolId);
 
@@ -521,14 +553,14 @@ class PaymentService {
         final cvv = (datosPago['cvv'] ?? '').replaceAll(RegExp(r'\D'), '');
         final titular = (datosPago['titular'] ?? '').trim();
 
-        if (rawCard.length < 13 || rawCard.length > 19) {
+        if (!SecurityService.isValidLuhnCardNumber(rawCard)) {
           throw const PaymentSecurityException(
-            'Ingresa un número de tarjeta válido (13 a 19 dígitos).',
+            'El número de tarjeta ingresado no supera la validación financiera (ISO Luhn). Verifica los dígitos.',
           );
         }
-        if (!RegExp(r'^(0[1-9]|1[0-2])\/(\d{2})$').hasMatch(exp)) {
+        if (!SecurityService.isValidFutureCardExpiry(exp)) {
           throw const PaymentSecurityException(
-            'Ingresa una fecha de expiración válida en formato MM/AA.',
+            'Ingresa una fecha de expiración vigente en formato MM/AA.',
           );
         }
         if (cvv.length < 3 || cvv.length > 4) {
@@ -536,9 +568,9 @@ class PaymentService {
             'Ingresa un código de seguridad CVV válido (3 o 4 dígitos).',
           );
         }
-        if (titular.length < 3) {
+        if (titular.length < 3 || titular.length > 90) {
           throw const PaymentSecurityException(
-            'Ingresa el nombre del titular tal como aparece en la tarjeta.',
+            'Ingresa el nombre válido del titular tal como aparece en la tarjeta.',
           );
         }
         final ultimos4 = rawCard.substring(rawCard.length - 4);
@@ -577,11 +609,18 @@ class PaymentService {
         break;
     }
 
-    // 5. Generación y doble verificación de la firma SHA-256 de integridad de Wompi
+    // 5. Generación, control anti-replay y doble verificación SHA-256 de Wompi
     final referencia =
         (referenciaPrevia != null && referenciaPrevia.trim().isNotEmpty)
         ? referenciaPrevia.trim()
         : generarReferenciaUnicaWompi(cleanRolId);
+
+    if (!RegExp(r'^CL-WOMPI-[A-Z0-9_\-]{10,80}$').hasMatch(referencia) ||
+        _consumedReferences.contains(referencia)) {
+      throw const PaymentSecurityException(
+        'La referencia de transacción ya fue utilizada o no es válida. Genera un nuevo intento.',
+      );
+    }
 
     final firmaGenerada = generarFirmaIntegridadWompi(
       referencia: referencia,
@@ -608,6 +647,7 @@ class PaymentService {
     final random = math.Random.secure();
     final txId =
         'wompi_tx_${DateTime.now().millisecondsSinceEpoch}_${1000 + random.nextInt(8999)}';
+    _consumedReferences.add(referencia);
 
     return WompiTransactionReceipt(
       transactionId: txId,
@@ -644,7 +684,10 @@ class PaymentService {
       montoEnCentavos: receipt.amountInCents,
       moneda: receipt.currency,
     );
-    return receipt.integritySignature == expectedSignature;
+    return SecurityService.constantTimeEquals(
+      utf8.encode(receipt.integritySignature),
+      utf8.encode(expectedSignature),
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -665,117 +708,5 @@ class PaymentService {
           },
         )
         .toList();
-  }
-
-  // ---------------------------------------------------------------------------
-  // IMPLEMENTACIÓN PURA DART DE SHA-256 (RFC 6234) PARA FIRMA WOMPI
-  // ---------------------------------------------------------------------------
-
-  static const List<int> _sha256K = <int>[
-    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
-    0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
-    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
-    0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
-    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc,
-    0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
-    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
-    0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
-    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
-    0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
-    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3,
-    0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
-    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5,
-    0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
-    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
-    0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
-  ];
-
-  static int _rotr32(int n, int x) => ((x & 0xFFFFFFFF) >>> n) | ((x << (32 - n)) & 0xFFFFFFFF);
-
-  static String _sha256Hex(String input) {
-    final bytes = utf8.encode(input);
-    final bitLength = bytes.length * 8;
-
-    final padded = <int>[...bytes, 0x80];
-    while ((padded.length % 64) != 56) {
-      padded.add(0x00);
-    }
-
-    for (var i = 7; i >= 0; i--) {
-      padded.add((bitLength >> (i * 8)) & 0xFF);
-    }
-
-    var h0 = 0x6a09e667;
-    var h1 = 0xbb67ae85;
-    var h2 = 0x3c6ef372;
-    var h3 = 0xa54ff53a;
-    var h4 = 0x510e527f;
-    var h5 = 0x9b05688c;
-    var h6 = 0x1f83d9ab;
-    var h7 = 0x5be0cd19;
-
-    final w = List<int>.filled(64, 0);
-
-    for (var chunkStart = 0; chunkStart < padded.length; chunkStart += 64) {
-      for (var i = 0; i < 16; i++) {
-        final j = chunkStart + (i * 4);
-        w[i] =
-            ((padded[j] & 0xFF) << 24) |
-            ((padded[j + 1] & 0xFF) << 16) |
-            ((padded[j + 2] & 0xFF) << 8) |
-            (padded[j + 3] & 0xFF);
-      }
-
-      for (var i = 16; i < 64; i++) {
-        final s0 =
-            _rotr32(7, w[i - 15]) ^
-            _rotr32(18, w[i - 15]) ^
-            ((w[i - 15] & 0xFFFFFFFF) >>> 3);
-        final s1 =
-            _rotr32(17, w[i - 2]) ^
-            _rotr32(19, w[i - 2]) ^
-            ((w[i - 2] & 0xFFFFFFFF) >>> 10);
-        w[i] = (w[i - 16] + s0 + w[i - 7] + s1) & 0xFFFFFFFF;
-      }
-
-      var a = h0;
-      var b = h1;
-      var c = h2;
-      var d = h3;
-      var e = h4;
-      var f = h5;
-      var g = h6;
-      var h = h7;
-
-      for (var i = 0; i < 64; i++) {
-        final s1 = _rotr32(6, e) ^ _rotr32(11, e) ^ _rotr32(25, e);
-        final ch = (e & f) ^ ((~e & 0xFFFFFFFF) & g);
-        final temp1 = (h + s1 + ch + _sha256K[i] + w[i]) & 0xFFFFFFFF;
-        final s0 = _rotr32(2, a) ^ _rotr32(13, a) ^ _rotr32(22, a);
-        final maj = (a & b) ^ (a & c) ^ (b & c);
-        final temp2 = (s0 + maj) & 0xFFFFFFFF;
-
-        h = g;
-        g = f;
-        f = e;
-        e = (d + temp1) & 0xFFFFFFFF;
-        d = c;
-        c = b;
-        b = a;
-        a = (temp1 + temp2) & 0xFFFFFFFF;
-      }
-
-      h0 = (h0 + a) & 0xFFFFFFFF;
-      h1 = (h1 + b) & 0xFFFFFFFF;
-      h2 = (h2 + c) & 0xFFFFFFFF;
-      h3 = (h3 + d) & 0xFFFFFFFF;
-      h4 = (h4 + e) & 0xFFFFFFFF;
-      h5 = (h5 + f) & 0xFFFFFFFF;
-      h6 = (h6 + g) & 0xFFFFFFFF;
-      h7 = (h7 + h) & 0xFFFFFFFF;
-    }
-
-    final digest = <int>[h0, h1, h2, h3, h4, h5, h6, h7];
-    return digest.map((word) => word.toRadixString(16).padLeft(8, '0')).join();
   }
 }

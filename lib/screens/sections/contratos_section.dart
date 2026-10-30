@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/colombia_secop_catalog.dart';
+import '../../services/security_service.dart';
 import '../../utils/app_scroll_behavior.dart';
 import '../../utils/csv_exporter.dart';
 import '../../widgets/user_profile_header_action.dart';
@@ -1146,7 +1147,7 @@ class _ContratosSectionState extends State<ContratosSection> {
   }
 
   String? _buildEntitySoqlClause(String entidad) {
-    final clean = entidad.replaceAll("'", '').trim();
+    final clean = SecurityService.sanitizeSoqlToken(entidad, maxLength: 100);
     if (clean.isEmpty) return null;
 
     final norm = _normalizar(clean);
@@ -1155,12 +1156,14 @@ class _ContratosSectionState extends State<ContratosSection> {
         .replaceAll(')', ' ')
         .replaceAll('-', ' ')
         .split(RegExp(r'\s+'))
+        .map((w) => SecurityService.sanitizeSoqlToken(w, maxLength: 40))
         .where(
           (w) =>
               w.length > 2 &&
               !{'DEL', 'LAS', 'LOS', 'PARA', 'POR', 'CON', 'E.S.E.'}
                   .contains(w),
         )
+        .take(10)
         .toList();
 
     if (words.isEmpty) {
@@ -1178,23 +1181,27 @@ class _ContratosSectionState extends State<ContratosSection> {
   List<String> _extractCommaGroups(String rawQuery) {
     return rawQuery
         .split(',')
-        .map((g) => g.replaceAll("'", '').trim())
+        .map((g) => SecurityService.sanitizeSoqlToken(g, maxLength: 80))
         .where((g) => g.isNotEmpty)
         .take(5)
         .toList();
   }
 
   List<String> _extractSearchTokens(String rawQuery) {
-    final cleaned = rawQuery.replaceAll("'", '').replaceAll(',', ' ').trim();
+    final cleaned = SecurityService.sanitizeSoqlToken(
+      rawQuery.replaceAll(',', ' '),
+      maxLength: 120,
+    );
     if (cleaned.isEmpty) return const [];
     return cleaned
         .split(RegExp(r'\s+'))
-        .map((t) => t.trim())
+        .map((t) => SecurityService.sanitizeSoqlToken(t, maxLength: 40))
         .where(
           (t) =>
               t.isNotEmpty &&
               !{'C.C.', 'CC', 'C.C', 'NIT', 'NIT.'}.contains(t.toUpperCase()),
         )
+        .take(8)
         .toList();
   }
 
@@ -1480,34 +1487,42 @@ class _ContratosSectionState extends State<ContratosSection> {
 
         // Filtro por Departamento
         if (_selectedDepartamento.isNotEmpty) {
-          final dNorm = _normalizar(_selectedDepartamento);
-          final dOrig = _selectedDepartamento.toUpperCase();
+          final safeDep = SecurityService.sanitizeSoqlToken(
+            _selectedDepartamento,
+            maxLength: 60,
+          );
+          final dNorm = _normalizar(safeDep);
+          final dOrig = safeDep.toUpperCase();
           if (dNorm == 'BOGOTA D.C.') {
             whereClauses.add(
               "(upper(departamento) LIKE '%BOGOT%' OR upper(ciudad) LIKE '%BOGOT%')",
             );
           } else if (dNorm.contains('SAN ANDRES')) {
             whereClauses.add("upper(departamento) LIKE '%SAN ANDR%'");
-          } else if (dNorm != dOrig) {
+          } else if (dNorm.isNotEmpty && dNorm != dOrig) {
             whereClauses.add(
               "(upper(departamento) LIKE '%$dNorm%' OR upper(departamento) LIKE '%$dOrig%')",
             );
-          } else {
+          } else if (dNorm.isNotEmpty) {
             whereClauses.add("upper(departamento) LIKE '%$dNorm%'");
           }
         }
 
         // Filtro por Municipio
         if (_selectedMunicipio.isNotEmpty) {
-          final mNorm = _normalizar(_selectedMunicipio);
-          final mOrig = _selectedMunicipio.toUpperCase();
+          final safeMun = SecurityService.sanitizeSoqlToken(
+            _selectedMunicipio,
+            maxLength: 60,
+          );
+          final mNorm = _normalizar(safeMun);
+          final mOrig = safeMun.toUpperCase();
           if (mNorm == 'BOGOTA D.C.') {
             whereClauses.add("upper(ciudad) LIKE '%BOGOT%'");
-          } else if (mNorm != mOrig) {
+          } else if (mNorm.isNotEmpty && mNorm != mOrig) {
             whereClauses.add(
               "(upper(ciudad) LIKE '%$mNorm%' OR upper(ciudad) LIKE '%$mOrig%' OR upper(nombre_entidad) LIKE '%$mNorm%')",
             );
-          } else {
+          } else if (mNorm.isNotEmpty) {
             whereClauses.add(
               "(upper(ciudad) LIKE '%$mNorm%' OR upper(nombre_entidad) LIKE '%$mNorm%')",
             );
@@ -1527,7 +1542,7 @@ class _ContratosSectionState extends State<ContratosSection> {
         }
 
         // Filtro por Año
-        if (applyYearFilter && _selectedAnio.isNotEmpty) {
+        if (applyYearFilter && RegExp(r'^\d{4}$').hasMatch(_selectedAnio)) {
           whereClauses.add(
             "(fecha_de_firma >= '$_selectedAnio-01-01T00:00:00.000' AND fecha_de_firma <= '$_selectedAnio-12-31T23:59:59.999')",
           );

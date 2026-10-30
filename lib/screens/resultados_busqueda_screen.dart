@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import 'perfil_contratista_screen.dart';
+import '../services/security_service.dart';
 import '../services/sigep_service.dart';
 
 class ResultadosBusquedaScreen extends StatefulWidget {
@@ -38,15 +39,20 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
   }
 
   Future<List<_ResultadoPersona>> _buscarCoincidencias() async {
-    final query = widget.query.trim();
+    final query = SecurityService.sanitizePromptInput(
+      widget.query,
+      maxLength: 120,
+    );
     if (query.isEmpty) return [];
 
     final digitsOnly = query.replaceAll(RegExp(r'[^0-9]'), '');
     final isNumeric =
         digitsOnly.length >= 5 && RegExp(r'^[0-9.\-\s]+$').hasMatch(query);
-    final queryWords = _quitarTildesYNies(query.replaceAll("'", ''))
+    final queryWords = _quitarTildesYNies(query)
         .split(RegExp(r'\s+'))
+        .map((p) => SecurityService.sanitizeSoqlToken(p, maxLength: 40))
         .where((p) => p.isNotEmpty)
+        .take(8)
         .toList();
 
     final secopParams = <String, String>{
@@ -172,7 +178,8 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
   }
 
   Future<List<Map<String, dynamic>>> _buscarSecop(Uri uri) async {
-    final response = await http.get(uri);
+    final response =
+        await http.get(uri).timeout(const Duration(seconds: 10));
     if (response.statusCode != 200) return [];
     final decoded = json.decode(response.body);
     if (decoded is List) {

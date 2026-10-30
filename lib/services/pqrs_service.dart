@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/file_downloader.dart';
 import 'auth_service.dart';
 import 'consent_service.dart';
+import 'security_service.dart';
 
 class PqrsRecord {
   const PqrsRecord({
@@ -75,36 +76,60 @@ class PqrsRecord {
   }
 }
 
-/// Servicio centralizado de recepción y almacenamiento de PQRS sin usar `mailto:`.
+/// Servicio centralizado de recepción y almacenamiento seguro de PQRS sin usar `mailto:`.
 ///
-/// 1. Guarda cada formulario directamente en **Cloud Firestore** (`pqrs_solicitudes/{radicado}`
-///    y `usuarios/{uid}/pqrs_solicitudes/{radicado}`).
-/// 2. Si se configura [defaultGoogleSheetsWebhookUrl] (Google Apps Script sobre un
-///    archivo de **Google Sheets en Google Drive**), inserta automáticamente cada
-///    solicitud como una nueva fila en la hoja de cálculo de Google Drive.
-/// 3. Conserva respaldo local e incluye exportación a `.csv` compatible con
-///    Google Sheets / Google Drive y Microsoft Excel.
+/// Endurecido con:
+/// - Generador CSPRNG (`Random.secure()`) para radicados no predecibles.
+/// - Control de tasa anti-spam y validación estricta de longitudes.
+/// - Neutralización de Spreadsheet Formula Injection (CWE-1236) para Google Sheets y CSV.
+/// - Aislamiento criptográfico de historial local por usuario (`SharedPreferences`).
 class PqrsService {
   PqrsService._();
 
   static const String coleccionGlobalPqrs = 'pqrs_solicitudes';
   static const String subcoleccionUsuarioPqrs = 'pqrs_solicitudes';
-  static const String _kLocalPqrsHistoryKey = 'pqrs_historial_local_v1';
+  static const String _kLocalPqrsHistoryPrefix = 'pqrs_historial_local_v2';
+
+  static const Set<String> _tiposPermitidos = <String>{
+    'Soporte técnico',
+    'Petición',
+    'Queja o reclamo',
+    'Sugerencia',
+  };
 
   /// URL opcional de Web App de Google Apps Script para guardar cada fila
   /// directamente en una Hoja de Cálculo de Google Drive (Google Sheets).
-  /// Puedes definirla aquí o pasarla con `--dart-define=PQRS_SHEETS_WEBHOOK_URL=...`.
   static const String defaultGoogleSheetsWebhookUrl = String.fromEnvironment(
     'PQRS_SHEETS_WEBHOOK_URL',
     defaultValue: '',
   );
 
+  static String _scopedHistoryKey() {
+    return '${_kLocalPqrsHistoryPrefix}_${AuthService.getActiveUserStorageScope()}';
+  }
+
   static String _generarRadicado(DateTime ahora) {
     final y = ahora.year.toString().padLeft(4, '0');
     final m = ahora.month.toString().padLeft(2, '0');
     final d = ahora.day.toString().padLeft(2, '0');
-    final aleatorio = (1000 + Random().nextInt(9000)).toString();
+    final rng = Random.secure();
+    final aleatorio = (100000 + rng.nextInt(900000)).toString();
     return 'PQRS-$y$m$d-$aleatorio';
+  }
+
+  static String _sanitizeTextField(String raw, int maxLen) {
+    final clean = raw
+        .replaceAll(RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]'), ' ')
+        .trim();
+    return clean.length > maxLen ? clean.substring(0, maxLen) : clean;
+  }
+
+  static bool _isTrustedGoogleAppsScriptWebhook(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null || uri.scheme.toLowerCase() != 'https') return false;
+    final host = uri.host.toLowerCase();
+    return host == 'script.google.com' ||
+        host == 'script.googleusercontent.com';
   }
 
   /// Envía y almacena la solicitud PQRS directamente desde la plataforma.
@@ -115,6 +140,28 @@ class PqrsService {
     required String correoContacto,
     String? nombreContacto,
   }) async {
+    final rate = SecurityService.checkRateLimit(
+      actionKey: 'pqrs_submit:${AuthService.getActiveUserStorageScope()}',
+      maxAttempts: 4,
+      window: const Duration(minutes: 10),
+      customErrorMessage:
+          'Has radicado varias solicitudes recientemente. Espera unos minutos antes de enviar otra.',
+    );
+    if (!rate.allowed) {
+      throw Exception(rate.message);
+    }
+
+    final cleanTipo = _tiposPermitidos.contains(tipoSolicitud.trim())
+        ? tipoSolicitud.trim()
+        : 'Soporte técnico';
+    final cleanAsunto = _sanitizeTextField(asunto, 160);
+    final cleanMensaje = _sanitizeTextField(mensaje, 3000);
+    if (cleanAsunto.length < 3 || cleanMensaje.length < 8) {
+      throw Exception(
+        'Completa un asunto válido y describe tu solicitud con mayor detalle.',
+      );
+    }
+
     final ahora = DateTime.now();
     final radicado = _generarRadicado(ahora);
     final fechaIso = ahora.toIso8601String();
@@ -126,24 +173,35 @@ class PqrsService {
 
     final fbUser = FirebaseAuth.instance.currentUser;
     final uid = fbUser?.uid ?? '';
-    final nombreFinal = (nombreContacto != null && nombreContacto.trim().isNotEmpty)
+    final rawNombre =
+        (nombreContacto != null && nombreContacto.trim().isNotEmpty)
         ? nombreContacto.trim()
         : (profileData['displayName'] ?? AuthService.getActiveUserDisplayName())
               .toString()
               .trim();
-    final correoCuenta = AuthService.getActiveUserEmail().trim();
+    final nombreFinal = _sanitizeTextField(rawNombre, 120);
+    final correoCuenta = _sanitizeTextField(
+      AuthService.getActiveUserEmail(),
+      160,
+    );
     final correoFinal = correoContacto.trim().isNotEmpty
-        ? correoContacto.trim()
+        ? _sanitizeTextField(correoContacto, 160)
         : correoCuenta;
-    final documento = (profileData['documento'] ?? '').toString().trim();
-    final telefono = (profileData['telefono'] ?? '').toString().trim();
+    final documento = _sanitizeTextField(
+      (profileData['documento'] ?? '').toString(),
+      24,
+    );
+    final telefono = _sanitizeTextField(
+      (profileData['telefono'] ?? '').toString(),
+      24,
+    );
     final plataforma = kIsWeb ? 'web' : defaultTargetPlatform.name;
 
     final firestorePayload = <String, dynamic>{
       'radicado': radicado,
-      'tipo_solicitud': tipoSolicitud.trim(),
-      'asunto': asunto.trim(),
-      'mensaje': mensaje.trim(),
+      'tipo_solicitud': cleanTipo,
+      'asunto': cleanAsunto,
+      'mensaje': cleanMensaje,
       'usuario_nombre': nombreFinal.isNotEmpty ? nombreFinal : 'Ciudadano',
       'correo_contacto': correoFinal,
       'usuario_correo_cuenta': correoCuenta,
@@ -167,8 +225,8 @@ class PqrsService {
           .set(firestorePayload)
           .timeout(const Duration(seconds: 6));
       guardadoFirestore = true;
-    } catch (e) {
-      debugPrint('Aviso PQRS colección global: $e');
+    } catch (_) {
+      debugPrint('Aviso PQRS: respaldo global diferido.');
     }
 
     // 1B. Espejo en `usuarios/{uid}/pqrs_solicitudes/{radicado}` si hay sesión Firebase
@@ -182,30 +240,40 @@ class PqrsService {
             .set(firestorePayload)
             .timeout(const Duration(seconds: 6));
         guardadoFirestore = true;
-      } catch (e) {
-        debugPrint('Aviso PQRS subcolección usuario: $e');
+      } catch (_) {
+        debugPrint('Aviso PQRS: respaldo en subcolección diferido.');
       }
     }
 
-    // 2. Envío directo a Google Sheets en Google Drive (si el Webhook está configurado)
+    // 2. Envío seguro a Google Sheets (solo dominios oficiales de Google Apps Script
+    //    y celdas neutralizadas contra inyección de fórmulas `=IMPORTXML`, `=HYPERLINK`, etc.)
     bool enviadoGoogleDrive = false;
     final webhookUrl = defaultGoogleSheetsWebhookUrl.trim();
-    if (webhookUrl.startsWith('https://')) {
+    if (_isTrustedGoogleAppsScriptWebhook(webhookUrl)) {
       try {
         final drivePayload = <String, dynamic>{
           'radicado': radicado,
           'fecha': fechaIso,
-          'tipo_solicitud': tipoSolicitud.trim(),
-          'usuario_nombre': nombreFinal.isNotEmpty ? nombreFinal : 'Ciudadano',
-          'correo_contacto': correoFinal,
-          'usuario_documento': documento,
-          'usuario_telefono': telefono,
-          'asunto': asunto.trim(),
-          'mensaje': mensaje.trim(),
+          'tipo_solicitud': SecurityService.neutralizeSpreadsheetFormula(
+            cleanTipo,
+          ),
+          'usuario_nombre': SecurityService.neutralizeSpreadsheetFormula(
+            nombreFinal.isNotEmpty ? nombreFinal : 'Ciudadano',
+          ),
+          'correo_contacto': SecurityService.neutralizeSpreadsheetFormula(
+            correoFinal,
+          ),
+          'usuario_documento': SecurityService.neutralizeSpreadsheetFormula(
+            documento,
+          ),
+          'usuario_telefono': SecurityService.neutralizeSpreadsheetFormula(
+            telefono,
+          ),
+          'asunto': SecurityService.neutralizeSpreadsheetFormula(cleanAsunto),
+          'mensaje': SecurityService.neutralizeSpreadsheetFormula(cleanMensaje),
           'estado': 'Radicado',
           'plataforma': plataforma,
         };
-        // `text/plain;charset=utf-8` evita bloqueos CORS preflight en Google Apps Script desde Flutter Web.
         final response = await http
             .post(
               Uri.parse(webhookUrl),
@@ -218,16 +286,16 @@ class PqrsService {
         if (response.statusCode >= 200 && response.statusCode < 400) {
           enviadoGoogleDrive = true;
         }
-      } catch (e) {
-        debugPrint('Aviso envío Google Sheets Webhook: $e');
+      } catch (_) {
+        debugPrint('Aviso PQRS: sincronización externa diferida.');
       }
     }
 
     final record = PqrsRecord(
       radicado: radicado,
-      tipoSolicitud: tipoSolicitud.trim(),
-      asunto: asunto.trim(),
-      mensaje: mensaje.trim(),
+      tipoSolicitud: cleanTipo,
+      asunto: cleanAsunto,
+      mensaje: cleanMensaje,
       nombreUsuario: nombreFinal.isNotEmpty ? nombreFinal : 'Ciudadano',
       correoContacto: correoFinal,
       documentoUsuario: documento,
@@ -238,7 +306,7 @@ class PqrsService {
       sincronizadoGoogleDrive: enviadoGoogleDrive,
     );
 
-    // 3. Respaldo inmediato en almacenamiento local para historial y exportación CSV
+    // 3. Respaldo aislado por usuario activo
     await _guardarEnHistorialLocal(record);
 
     return record;
@@ -253,14 +321,14 @@ class PqrsService {
           .take(100)
           .map((item) => item.toLocalJson())
           .toList();
-      await prefs.setString(_kLocalPqrsHistoryKey, jsonEncode(serializado));
+      await prefs.setString(_scopedHistoryKey(), jsonEncode(serializado));
     } catch (_) {}
   }
 
   static Future<List<PqrsRecord>> obtenerHistorialLocal() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_kLocalPqrsHistoryKey);
+      final raw = prefs.getString(_scopedHistoryKey());
       if (raw == null || raw.isEmpty) return const <PqrsRecord>[];
       final decoded = jsonDecode(raw);
       if (decoded is List) {
@@ -273,16 +341,8 @@ class PqrsService {
     return const <PqrsRecord>[];
   }
 
-  static String _escaparCeldaCsv(String valor) {
-    final limpio = valor.replaceAll('\r\n', ' ').replaceAll('\n', ' ').trim();
-    if (limpio.contains(';') || limpio.contains('"')) {
-      return '"${limpio.replaceAll('"', '""')}"';
-    }
-    return limpio;
-  }
-
   /// Descarga las solicitudes registradas en formato `.csv` (UTF-8 con BOM)
-  /// listo para abrir en Google Sheets / Google Drive o Microsoft Excel.
+  /// protegido contra inyección de fórmulas en hojas de cálculo (CWE-1236).
   static bool exportarHistorialCsv(List<PqrsRecord> registros) {
     if (registros.isEmpty) return false;
 
@@ -299,20 +359,23 @@ class PqrsService {
       'Mensaje',
     ];
 
+    String cell(String v) =>
+        SecurityService.formatSafeCsvCell(v.replaceAll('\r\n', ' ').replaceAll('\n', ' ').trim());
+
     final lineas = <String>[
       encabezados.join(';'),
       for (final r in registros)
         <String>[
-          _escaparCeldaCsv(r.radicado),
-          _escaparCeldaCsv(r.fechaIso),
-          _escaparCeldaCsv(r.tipoSolicitud),
-          _escaparCeldaCsv(r.estado),
-          _escaparCeldaCsv(r.nombreUsuario),
-          _escaparCeldaCsv(r.correoContacto),
-          _escaparCeldaCsv(r.documentoUsuario),
-          _escaparCeldaCsv(r.telefonoUsuario),
-          _escaparCeldaCsv(r.asunto),
-          _escaparCeldaCsv(r.mensaje),
+          cell(r.radicado),
+          cell(r.fechaIso),
+          cell(r.tipoSolicitud),
+          cell(r.estado),
+          cell(r.nombreUsuario),
+          cell(r.correoContacto),
+          cell(r.documentoUsuario),
+          cell(r.telefonoUsuario),
+          cell(r.asunto),
+          cell(r.mensaje),
         ].join(';'),
     ];
 
@@ -324,4 +387,3 @@ class PqrsService {
     );
   }
 }
-

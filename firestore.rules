@@ -1,0 +1,167 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================================
+    // FUNCIONES AUXILIARES DE SEGURIDAD (OWASP + LEY 1581 DE 2012 COLOMBIA)
+    // =========================================================================
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isNonEmptyString(val, maxLen) {
+      return val is string && val.size() > 0 && val.size() <= maxLen;
+    }
+
+    function isBaseRoleOnly(data) {
+      return !('rolesActivos' in data) ||
+          (data.rolesActivos is list &&
+           data.rolesActivos.size() == 1 &&
+           data.rolesActivos[0] == 'persona');
+    }
+
+    // Verifica que cualquier escalamiento de rol (más allá de 'persona') esté
+    // respaldado por un recibo aprobado y registrado en el libro mayor `pagos_wompi`.
+    function hasVerifiedWompiLedger(data) {
+      return ('pagoWompiActivo' in data) &&
+          data.pagoWompiActivo == true &&
+          ('ultimoPagoWompi' in data) &&
+          (data.ultimoPagoWompi is map) &&
+          data.ultimoPagoWompi.status == 'APPROVED' &&
+          (data.ultimoPagoWompi.transactionId is string) &&
+          data.ultimoPagoWompi.transactionId.size() >= 6 &&
+          (data.ultimoPagoWompi.integritySignature is string) &&
+          data.ultimoPagoWompi.integritySignature.size() == 64 &&
+          exists(/databases/$(database)/documents/pagos_wompi/$(data.ultimoPagoWompi.transactionId)) &&
+          get(/databases/$(database)/documents/pagos_wompi/$(data.ultimoPagoWompi.transactionId)).data.uid == request.auth.uid;
+    }
+
+    // =========================================================================
+    // 1. PERFILES DE USUARIO (`usuarios/{uid}`) - PROTECCIÓN ESTRICTA DE PII
+    // =========================================================================
+    match /usuarios/{uid} {
+      // Prohibido listar (`list`) usuarios para impedir raspado masivo de PII
+      // (cédulas, teléfonos, correos). Solo el titular autenticado lee su perfil.
+      allow get: if isOwner(uid);
+      allow list: if false;
+
+      allow create: if isOwner(uid) &&
+          request.resource.data.uid == uid &&
+          isBaseRoleOnly(request.resource.data);
+
+      allow update: if isOwner(uid) &&
+          (!('uid' in request.resource.data) || request.resource.data.uid == uid) &&
+          // Inmutabilidad de correo, cédula y consentimiento una vez establecidos
+          (!('email' in resource.data) ||
+           resource.data.email == '' ||
+           request.resource.data.email == resource.data.email) &&
+          (!('documento' in resource.data) ||
+           resource.data.documento == '' ||
+           request.resource.data.documento == resource.data.documento) &&
+          (!('documentoNormalizado' in resource.data) ||
+           resource.data.documentoNormalizado == '' ||
+           request.resource.data.documentoNormalizado == resource.data.documentoNormalizado) &&
+          (!('aceptacion_datos' in resource.data) ||
+           resource.data.aceptacion_datos != true ||
+           request.resource.data.aceptacion_datos == true) &&
+          // Bloqueo de auto-asignación de roles pagos sin recibo verificado
+          (!('rolesActivos' in request.resource.data) ||
+           ('rolesActivos' in resource.data &&
+            request.resource.data.rolesActivos == resource.data.rolesActivos) ||
+           isBaseRoleOnly(request.resource.data) ||
+           hasVerifiedWompiLedger(request.resource.data));
+
+      allow delete: if false;
+
+      // Evidencia probatoria inmutable ante la SIC (Ley 1581/2012 - Art. 8 y 12)
+      match /auditoria_consentimiento/{logId} {
+        allow get, list: if isOwner(uid);
+        allow create: if isOwner(uid) &&
+            request.resource.data.uid == uid &&
+            request.resource.data.aceptacion_datos == true &&
+            request.resource.data.aceptacion_politica_privacidad == true;
+        allow update, delete: if false;
+      }
+
+      // Espejo de radicados PQRS del titular (solo adición, inmutable)
+      match /pqrs_solicitudes/{radicado} {
+        allow get, list: if isOwner(uid);
+        allow create: if isOwner(uid) &&
+            isNonEmptyString(request.resource.data.asunto, 160) &&
+            isNonEmptyString(request.resource.data.mensaje, 3000);
+        allow update, delete: if false;
+      }
+    }
+
+    // =========================================================================
+    // 2. ÍNDICES OPACOS DE UNICIDAD (`indices_unicidad/{sha256Hash}`)
+    // =========================================================================
+    // Permite verificar duplicidad de correo/documento mediante hash SHA-256
+    // con separación de dominio sin exponer PII ni permitir enumeración (`list`).
+    match /indices_unicidad/{hash} {
+      allow get: if hash.matches('^[a-f0-9]{64}$');
+      allow list: if false;
+      allow create: if isSignedIn() &&
+          hash.matches('^[a-f0-9]{64}$') &&
+          !exists(/databases/$(database)/documents/indices_unicidad/$(hash)) &&
+          request.resource.data.keys().hasOnly(['tipo', 'uid', 'creado_en']) &&
+          request.resource.data.uid == request.auth.uid &&
+          request.resource.data.tipo in ['email', 'doc'];
+      allow update, delete: if false;
+    }
+
+    // =========================================================================
+    // 3. LIBRO MAYOR INMUTABLE DE PAGOS WOMPI (`pagos_wompi/{transactionId}`)
+    // =========================================================================
+    // Protección Anti-Replay: un `transactionId` jamás puede sobrescribirse ni borrarse.
+    match /pagos_wompi/{transactionId} {
+      allow get: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow list: if false;
+      allow create: if isSignedIn() &&
+          !exists(/databases/$(database)/documents/pagos_wompi/$(transactionId)) &&
+          request.resource.data.uid == request.auth.uid &&
+          request.resource.data.transactionId == transactionId &&
+          request.resource.data.status == 'APPROVED' &&
+          (request.resource.data.integritySignature is string) &&
+          request.resource.data.integritySignature.size() == 64 &&
+          (request.resource.data.amountInCents is int) &&
+          request.resource.data.amountInCents > 0;
+      allow update, delete: if false;
+    }
+
+    // =========================================================================
+    // 4. BUZÓN GLOBAL DE RADICADOS PQRS (`pqrs_solicitudes/{radicado}`)
+    // =========================================================================
+    match /pqrs_solicitudes/{radicado} {
+      allow get: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow list: if false;
+      allow create: if isNonEmptyString(request.resource.data.radicado, 48) &&
+          request.resource.data.radicado == radicado &&
+          request.resource.data.tipo_solicitud in [
+            'Soporte técnico',
+            'Petición',
+            'Queja o reclamo',
+            'Sugerencia'
+          ] &&
+          isNonEmptyString(request.resource.data.asunto, 160) &&
+          isNonEmptyString(request.resource.data.mensaje, 3000) &&
+          (isSignedIn()
+              ? request.resource.data.uid == request.auth.uid
+              : request.resource.data.uid == '');
+      allow update, delete: if false;
+    }
+
+    // =========================================================================
+    // 5. DENEGACIÓN POR DEFECTO (ZERO-TRUST FALLBACK)
+    // =========================================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

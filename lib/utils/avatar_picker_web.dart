@@ -2,11 +2,17 @@
 import 'dart:async';
 import 'dart:html' as html;
 
+import '../services/security_service.dart';
+
 bool get supportsDeviceImagePicker => true;
 
+/// Selector seguro de imagen en Web: restringe exclusivamente a formatos raster
+/// (PNG, JPEG, WEBP) y bloquea SVG/HTML ejecutables y archivos > 1.5 MB antes de
+/// cargarlos en memoria.
 Future<String?> pickImageAsDataUrl() async {
   final completer = Completer<String?>();
-  final uploadInput = html.FileUploadInputElement()..accept = 'image/*';
+  final uploadInput = html.FileUploadInputElement()
+    ..accept = '.png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp';
   uploadInput.click();
 
   uploadInput.onChange.first.then((_) {
@@ -16,12 +22,29 @@ Future<String?> pickImageAsDataUrl() async {
       return;
     }
     final file = files.first;
+    final mime = file.type.trim().toLowerCase();
+    const allowedMimes = <String>{'image/png', 'image/jpeg', 'image/webp'};
+
+    if (file.size <= 0 ||
+        file.size > SecurityService.maxAvatarBytes ||
+        (mime.isNotEmpty && !allowedMimes.contains(mime))) {
+      if (!completer.isCompleted) {
+        completer.complete('__INVALID_IMAGE_SECURITY__');
+      }
+      return;
+    }
+
     final reader = html.FileReader();
     reader.readAsDataUrl(file);
     reader.onLoadEnd.first.then((_) {
       final result = reader.result;
       if (!completer.isCompleted) {
-        completer.complete(result is String ? result : null);
+        if (result is String &&
+            SecurityService.decodeSafeRasterDataUrl(result) != null) {
+          completer.complete(result);
+        } else {
+          completer.complete('__INVALID_IMAGE_SECURITY__');
+        }
       }
     });
     reader.onError.first.then((_) {
@@ -31,4 +54,3 @@ Future<String?> pickImageAsDataUrl() async {
 
   return completer.future;
 }
-

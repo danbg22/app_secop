@@ -301,6 +301,14 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
         referenciaPrevia: _referenciaTransaccion,
       );
 
+      // Purga inmediata de credenciales financieras en memoria (PCI-DSS higiene)
+      _cardNumberController.clear();
+      _cardExpiryController.clear();
+      _cardCvvController.clear();
+      _celularBilleteraController.clear();
+      _documentoPseController.clear();
+      datos.clear();
+
       await AuthService.assignPaidRoleToActiveUser(receipt);
 
       if (!mounted) return;

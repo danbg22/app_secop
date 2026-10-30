@@ -12,6 +12,7 @@ import 'screens/portada_screen.dart';
 import 'screens/registro_screen.dart';
 import 'services/auth_service.dart';
 import 'utils/app_scroll_behavior.dart';
+import 'widgets/route_security_guard.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -74,11 +75,20 @@ class MyApp extends StatelessWidget {
         '/registro': (context) => const EscogerRolScreen(),
         '/escoger-rol': (context) => const EscogerRolScreen(),
         '/registro-datos': (context) => const RegistroScreen(),
-        '/pasarela-wompi': (context) => const PasarelaPagoWompiScreen(),
-        '/planes': (context) => const PlanesScreen(),
-        '/perfil': (context) => const PerfilUsuarioScreen(),
+        '/pasarela-wompi': (context) => const RouteSecurityGuard(
+              child: PasarelaPagoWompiScreen(),
+            ),
+        '/planes': (context) => const RouteSecurityGuard(
+              child: PlanesScreen(),
+            ),
+        '/perfil': (context) => const RouteSecurityGuard(
+              child: PerfilUsuarioScreen(),
+            ),
         '/home': (context) => const AuthGate(),
       },
+      onUnknownRoute: (_) => MaterialPageRoute<void>(
+        builder: (_) => const AuthGate(),
+      ),
     );
   }
 }

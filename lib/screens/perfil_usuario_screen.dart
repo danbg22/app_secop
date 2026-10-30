@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../data/auth_bg_asset_data.dart';
 import '../services/auth_service.dart';
+import '../services/security_service.dart';
 import '../utils/avatar_picker.dart';
 import '../widgets/collapsible_side_menu.dart';
+import '../widgets/route_security_guard.dart';
 import 'home_screen.dart';
 
 class PerfilUsuarioScreen extends StatefulWidget {
@@ -119,7 +121,9 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
   void _navegarASeccion(int sectionIndex) {
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute<void>(
-        builder: (_) => HomeScreen(initialIndex: sectionIndex),
+        builder: (_) => RouteSecurityGuard(
+          child: HomeScreen(initialIndex: sectionIndex),
+        ),
       ),
       (route) => false,
     );
@@ -909,7 +913,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
               obscureText: !_showNewPassword,
               style: const TextStyle(color: _navyDark, fontSize: 14),
               decoration: _editableDecoration(
-                hint: 'Mínimo 6 caracteres',
+                hint: 'Mín. 8 caracteres, mayúscula y número',
                 icon: Icons.lock_outline_rounded,
                 suffixIcon: IconButton(
                   tooltip: _showNewPassword ? 'Ocultar' : 'Mostrar',
@@ -926,9 +930,8 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                 ),
               ),
               validator: (val) {
-                if (val == null || val.length < 6) {
-                  return 'La nueva contraseña debe tener mínimo 6 caracteres.';
-                }
+                final policyError = SecurityService.validateStrongPassword(val);
+                if (policyError != null) return policyError;
                 if (val == _currentPasswordController.text) {
                   return 'Elige una clave distinta a la actual.';
                 }
@@ -1312,14 +1315,26 @@ class _EditAvatarDialogState extends State<_EditAvatarDialog> {
         if (mounted) setState(() => _isSaving = false);
         return;
       }
+      if (pickedDataUrl == '__INVALID_IMAGE_SECURITY__') {
+        if (!mounted) return;
+        setState(() {
+          _isSaving = false;
+          _errorText =
+              'Solo se permiten imágenes PNG, JPG o WEBP menores a 1.5 MB.';
+        });
+        return;
+      }
       await AuthService.updateActiveUserPhoto(pickedDataUrl);
       if (!mounted) return;
       Navigator.of(context).pop('Foto de perfil actualizada.');
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       setState(() {
         _isSaving = false;
-        _errorText = 'No se pudo cargar la imagen seleccionada.';
+        _errorText = SecurityService.sanitizeErrorMessage(
+          error.toString().replaceFirst('Exception: ', ''),
+          fallback: 'No se pudo validar la imagen seleccionada.',
+        );
       });
     }
   }
@@ -1327,10 +1342,10 @@ class _EditAvatarDialogState extends State<_EditAvatarDialog> {
   Future<void> _guardarUrl() async {
     final rawUrl = _urlController.text.trim();
     if (rawUrl.isNotEmpty &&
-        !rawUrl.startsWith('http://') &&
-        !rawUrl.startsWith('https://')) {
+        SecurityService.validateSafeExternalImageUrl(rawUrl) == null) {
       setState(() {
-        _errorText = 'Ingresa un enlace válido que inicie con https://';
+        _errorText =
+            'Ingresa un enlace público seguro con https:// (PNG, JPG o WEBP).';
       });
       return;
     }
@@ -1339,9 +1354,19 @@ class _EditAvatarDialogState extends State<_EditAvatarDialog> {
       _errorText = null;
       _isSaving = true;
     });
-    await AuthService.updateActiveUserPhoto(rawUrl.isEmpty ? null : rawUrl);
-    if (!mounted) return;
-    Navigator.of(context).pop('Foto de perfil actualizada.');
+    try {
+      await AuthService.updateActiveUserPhoto(rawUrl.isEmpty ? null : rawUrl);
+      if (!mounted) return;
+      Navigator.of(context).pop('Foto de perfil actualizada.');
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isSaving = false;
+        _errorText = SecurityService.sanitizeErrorMessage(
+          error.toString().replaceFirst('Exception: ', ''),
+        );
+      });
+    }
   }
 
   Future<void> _quitarFoto() async {

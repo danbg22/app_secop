@@ -1,1 +1,73 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"secop-ia","appId":"1:285099748488:android:39c7ffdbb5213e0415033d","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"secop-ia","configurations":{"android":"1:285099748488:android:39c7ffdbb5213e0415033d","ios":"1:285099748488:ios:90e87ed36d6b1fe215033d","macos":"1:285099748488:ios:90e87ed36d6b1fe215033d","web":"1:285099748488:web:37ef58ee9a4183ba15033d","windows":"1:285099748488:web:6263683a330169ea15033d"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "secop-ia",
+          "appId": "1:285099748488:android:39c7ffdbb5213e0415033d",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "secop-ia",
+          "configurations": {
+            "android": "1:285099748488:android:39c7ffdbb5213e0415033d",
+            "ios": "1:285099748488:ios:90e87ed36d6b1fe215033d",
+            "macos": "1:285099748488:ios:90e87ed36d6b1fe215033d",
+            "web": "1:285099748488:web:37ef58ee9a4183ba15033d",
+            "windows": "1:285099748488:web:6263683a330169ea15033d"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "Strict-Transport-Security",
+            "value": "max-age=63072000; includeSubDomains; preload"
+          },
+          {
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
+          },
+          {
+            "key": "X-Frame-Options",
+            "value": "DENY"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "strict-origin-when-cross-origin"
+          },
+          {
+            "key": "Cross-Origin-Opener-Policy",
+            "value": "same-origin-allow-popups"
+          },
+          {
+            "key": "Permissions-Policy",
+            "value": "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(self), usb=()"
+          }
+        ]
+      }
+    ]
+  }
+}

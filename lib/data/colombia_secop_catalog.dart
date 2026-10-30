@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
+import '../services/security_service.dart';
+
 /// Base de datos estructurada de Colombia y conector dinámico de entidades SECOP II
 /// para consultas de Orden Nacional, Departamental, Municipal y Corporaciones Autónomas.
 class ColombiaSecopCatalog {
@@ -770,33 +772,41 @@ class ColombiaSecopCatalog {
       }
 
       if (departamento != null && departamento.trim().isNotEmpty) {
-        final dNorm = _normalizar(departamento.trim());
-        final dOrig = departamento.trim().toUpperCase();
+        final safeDep = SecurityService.sanitizeSoqlToken(
+          departamento,
+          maxLength: 60,
+        );
+        final dNorm = _normalizar(safeDep);
+        final dOrig = safeDep.toUpperCase();
         if (dNorm == 'BOGOTA D.C.') {
           whereClauses.add(
             "(upper(departamento) LIKE '%BOGOT%' OR upper(ciudad) LIKE '%BOGOT%')",
           );
         } else if (dNorm.contains('SAN ANDRES')) {
           whereClauses.add("upper(departamento) LIKE '%SAN ANDR%'");
-        } else if (dNorm != dOrig) {
+        } else if (dNorm.isNotEmpty && dNorm != dOrig) {
           whereClauses.add(
             "(upper(departamento) LIKE '%$dNorm%' OR upper(departamento) LIKE '%$dOrig%')",
           );
-        } else {
+        } else if (dNorm.isNotEmpty) {
           whereClauses.add("upper(departamento) LIKE '%$dNorm%'");
         }
       }
 
       if (municipio != null && municipio.trim().isNotEmpty) {
-        final mNorm = _normalizar(municipio.trim());
-        final mOrig = municipio.trim().toUpperCase();
+        final safeMun = SecurityService.sanitizeSoqlToken(
+          municipio,
+          maxLength: 60,
+        );
+        final mNorm = _normalizar(safeMun);
+        final mOrig = safeMun.toUpperCase();
         if (mNorm == 'BOGOTA D.C.') {
           whereClauses.add("upper(ciudad) LIKE '%BOGOT%'");
-        } else if (mNorm != mOrig) {
+        } else if (mNorm.isNotEmpty && mNorm != mOrig) {
           whereClauses.add(
             "(upper(ciudad) LIKE '%$mNorm%' OR upper(ciudad) LIKE '%$mOrig%' OR upper(nombre_entidad) LIKE '%$mNorm%')",
           );
-        } else {
+        } else if (mNorm.isNotEmpty) {
           whereClauses.add(
             "(upper(ciudad) LIKE '%$mNorm%' OR upper(nombre_entidad) LIKE '%$mNorm%')",
           );
@@ -804,11 +814,14 @@ class ColombiaSecopCatalog {
       }
 
       if (textoBusqueda != null && textoBusqueda.trim().isNotEmpty) {
-        final tokens = textoBusqueda
-            .replaceAll("'", '')
-            .trim()
+        final tokens = SecurityService.sanitizeSoqlToken(
+              textoBusqueda,
+              maxLength: 100,
+            )
             .split(RegExp(r'\s+'))
+            .map((w) => SecurityService.sanitizeSoqlToken(w, maxLength: 40))
             .where((w) => w.length >= 2)
+            .take(8)
             .toList();
         for (final t in tokens) {
           final tNorm = _normalizar(t);
