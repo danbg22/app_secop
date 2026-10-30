@@ -23,6 +23,7 @@ Future<void> main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await _activarAppCheck();
   await AuthService.restoreSessionFromPrefs();
+  AuthService.refrescarVerificacionAlIniciar();
   runApp(const MyApp());
 }
 

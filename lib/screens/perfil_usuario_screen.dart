@@ -4,6 +4,7 @@ import '../data/auth_bg_asset_data.dart';
 import '../services/auth_service.dart';
 import '../services/security_service.dart';
 import '../utils/avatar_picker.dart';
+import '../widgets/admin_verification_banner.dart';
 import '../widgets/collapsible_side_menu.dart';
 import '../widgets/route_security_guard.dart';
 import 'home_screen.dart';
@@ -1097,6 +1098,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        const AdminVerificationBanner(),
                         _buildUserSummaryCard(isMobile),
                         const SizedBox(height: 22),
                         if (twoColumns)

@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../data/auth_bg_asset_data.dart';
 import '../data/roles_visual_assets_data.dart';
+import '../widgets/admin_verification_banner.dart';
 import '../services/auth_service.dart';
 import '../services/payment_service.dart';
 import 'escoger_rol_screen.dart';
@@ -713,6 +714,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          const AdminVerificationBanner(),
                           OnboardingUnifiedTopBar(
                             currentStep: 3,
                             totalSteps: 3,

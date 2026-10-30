@@ -211,6 +211,48 @@ class AuthService {
         AdminAccess.esAdministrador(user.email);
   }
 
+  /// Correo administrador que aún no está verificado en Firebase: el acceso
+  /// de administrador se concede en cuanto se verifique.
+  static bool get adminPendienteDeVerificacion {
+    final user = _auth.currentUser;
+    return user != null &&
+        !user.emailVerified &&
+        AdminAccess.esAdministrador(user.email);
+  }
+
+  /// Vuelve a leer el estado de verificación del correo desde Firebase (el
+  /// navegador lo conserva en caché hasta recargar la sesión).
+  static Future<void> refrescarVerificacionCorreo() async {
+    final user = _auth.currentUser;
+    if (user == null || user.emailVerified) return;
+    try {
+      await user.reload().timeout(const Duration(seconds: 6));
+    } catch (_) {}
+    authStateVersion.value++;
+  }
+
+  /// Al abrir la app, Firebase restaura la sesión con el estado de
+  /// verificación guardado; se refresca una vez restaurada.
+  static void refrescarVerificacionAlIniciar() {
+    unawaited(
+      _auth.authStateChanges().first.then((_) => refrescarVerificacionCorreo()),
+    );
+  }
+
+  static Future<void> reenviarVerificacionCorreo() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw const AuthServiceException(
+        'Inicia sesión nuevamente para reenviar la verificación.',
+      );
+    }
+    try {
+      await user.sendEmailVerification();
+    } on FirebaseAuthException catch (error) {
+      throw AuthServiceException(_messageFor(error));
+    }
+  }
+
   /// Rol elegido durante el registro que está pendiente de activación en Wompi.
   static String getPendingRegistrationRoleId() =>
       PaymentService.normalizarRolId(_cachedPendingRoleId);
