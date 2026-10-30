@@ -160,6 +160,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
     try {
       final resultado = await SigepService.verificarServidorPublico(
         _nombreAuditar,
+        documento: widget.documentoProveedor ?? widget.nit,
       );
       if (!mounted) return;
       setState(() {

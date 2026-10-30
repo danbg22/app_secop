@@ -136,12 +136,7 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
     }
 
     for (final record in sigepRecords) {
-      final nombreCrudo =
-          record['nombre_completo'] ??
-          record['nombres_y_apellidos'] ??
-          record['nombre_funcionario'] ??
-          record['nombre_pep'] ??
-          "${record['nombres'] ?? ''} ${record['apellidos'] ?? ''}".trim();
+      final nombreCrudo = SigepService.nombreCompleto(record);
 
       final name = _cleanName(nombreCrudo);
       if (name == null || !cumpleFiltro(record, name)) continue;

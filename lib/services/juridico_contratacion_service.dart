@@ -636,6 +636,13 @@ class JuridicoContratacionService {
   JuridicoContratacionService._();
 
   static const String _prefsKey = 'expedientes_juridicos_ops_v2';
+
+  /// Tokens de los expedientes de demostración que versiones anteriores
+  /// creaban automáticamente; se descartan si siguen en almacenamiento local.
+  static const Set<String> _tokensDemostracionRetirados = {
+    'a8f49c217e5b4d3091bc6e2f84a105d9',
+    'c31e7b904f2a48d5b6190e84d2c7f3a2',
+  };
   static const String _sharedWebKey = 'contrata_legal_ops_shared_v2';
   static const String _broadcastChannelName = 'contrata_legal_ops_realtime_v2';
   static const String _legacyPrefsKey = 'expedientes_juridicos_ps_v1';
@@ -727,7 +734,6 @@ class JuridicoContratacionService {
     final lista = await _obtenerCacheLocalInmediata();
     for (final exp in lista) {
       _asegurarSuscripcionDocumentoFirestore(exp.tokenInvitado);
-      unawaited(_publicarSemillaEnFirestoreSiNoExiste(exp));
     }
     _asegurarSuscripcionColeccionCreador();
   }
@@ -949,24 +955,6 @@ class JuridicoContratacionService {
     } catch (_) {}
   }
 
-  static Future<void> _publicarSemillaEnFirestoreSiNoExiste(
-    ExpedienteContratoPs exp,
-  ) async {
-    try {
-      final ref = FirebaseFirestore.instance
-          .collection('expedientes_juridicos')
-          .doc(exp.tokenInvitado.toLowerCase());
-      final snap = await ref
-          .get()
-          .timeout(const Duration(milliseconds: 1800));
-      if (!snap.exists) {
-        await ref
-            .set(exp.toMap(omitLargeBinary: true))
-            .timeout(const Duration(milliseconds: 1800));
-      }
-    } catch (_) {}
-  }
-
   static Future<void> _hidratarBinariosFaltantesDesdeFirestore(
     ExpedienteContratoPs expediente,
   ) async {
@@ -1108,9 +1096,22 @@ class JuridicoContratacionService {
       _asegurarSuscripcionDocumentoFirestore(exp.tokenInvitado);
     }
     _asegurarSuscripcionColeccionCreador();
-    final copia = List<ExpedienteContratoPs>.from(locales)
+    // El almacenamiento local es compartido con el portal del invitado en el
+    // mismo navegador: el panel solo muestra los expedientes del usuario activo.
+    final copia = locales.where(_perteneceAlUsuarioActivo).toList()
       ..sort((a, b) => b.fechaCreacionIso.compareTo(a.fechaCreacionIso));
     return copia;
+  }
+
+  static bool _perteneceAlUsuarioActivo(ExpedienteContratoPs exp) {
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final scope = AuthService.getActiveUserStorageScope();
+    final email = AuthService.getActiveUserEmail();
+    if (exp.creadoPorUid.isNotEmpty) {
+      return exp.creadoPorUid == uid || exp.creadoPorUid == scope;
+    }
+    return email.isNotEmpty &&
+        exp.creadoPorEmail.trim().toLowerCase() == email;
   }
 
   /// Obtiene un expediente por su token único de invitado y activa escucha en tiempo real.
@@ -2113,7 +2114,7 @@ class JuridicoContratacionService {
     void absorberLista(List<ExpedienteContratoPs> origen) {
       for (final item in origen) {
         final key = item.tokenInvitado.toLowerCase();
-        if (key.isEmpty) continue;
+        if (key.isEmpty || _tokensDemostracionRetirados.contains(key)) continue;
         final previo = mapaUnificado[key];
         if (previo == null) {
           mapaUnificado[key] = item;
@@ -2164,9 +2165,7 @@ class JuridicoContratacionService {
       return _cacheMemoria!;
     }
 
-    final semillas = _crearExpedientesDemostracionInicial();
-    _cacheMemoria = semillas;
-    unawaited(_persistirEnAlmacenamientoLocal(semillas));
+    _cacheMemoria = <ExpedienteContratoPs>[];
     return _cacheMemoria!;
   }
 
@@ -2295,253 +2294,6 @@ class JuridicoContratacionService {
     }).toList();
 
     return base.copyWith(apartados: apartadosFusionados);
-  }
-
-  static List<ExpedienteContratoPs> _crearExpedientesDemostracionInicial() {
-    const tokenDemo1 = 'a8f49c217e5b4d3091bc6e2f84a105d9';
-    const tokenDemo2 = 'c31e7b904f2a48d5b6190e84d2c7f3a2';
-    final ahora = DateTime.now().toUtc();
-    final hace2Dias = ahora.subtract(const Duration(days: 2));
-    final hace1Dia = ahora.subtract(const Duration(days: 1));
-    final hace2Horas = ahora.subtract(const Duration(hours: 2));
-
-    List<int> crearPdfDemo(String titulo, String titular, String detalle) {
-      return _construirPdf14Simple(<String>[
-        'CONTRATA LEGAL - SOPORTE DOCUMENTAL DE CONTRATACION OPS',
-        '------------------------------------------------------------------',
-        titulo,
-        'Aspirante : $titular',
-        detalle,
-      ]);
-    }
-
-    final pdfHv = crearPdfDemo(
-      'HOJA DE VIDA FUNCION PUBLICA (SIGEP)',
-      'Carolina Mendez Rojas - CC 1020784512',
-      'Contrato OPS-2026-0418 - Formato firmado y actualizado.',
-    );
-    final pdfCedula = crearPdfDemo(
-      'CEDULA DE CIUDADANIA',
-      'Carolina Mendez Rojas - CC 1020784512',
-      'Copia legible por ambas caras.',
-    );
-    final pdfRut = crearPdfDemo(
-      'REGISTRO UNICO TRIBUTARIO (RUT)',
-      'Carolina Mendez Rojas - NIT 1020784512-4',
-      'Actividad economica 6910 - Actividades juridicas.',
-    );
-    final pdfArl = crearPdfDemo(
-      'CERTIFICACION DE AFILIACION ARL',
-      'Carolina Mendez Rojas - CC 1020784512',
-      'Riesgo I - Estado de afiliacion activa.',
-    );
-    final pdfBanco = crearPdfDemo(
-      'CERTIFICACION BANCARIA',
-      'Carolina Mendez Rojas - Cuenta de ahorros',
-      'Certificacion bancaria adjunta para validacion.',
-    );
-
-    String hashDe(List<int> b) =>
-        SecurityService.bytesToHex(SecurityService.sha256Bytes(b));
-
-    final exp1 = ExpedienteContratoPs(
-      id: 'EXP-OPS-2026-0418',
-      tokenInvitado: tokenDemo1,
-      entidadNombre: 'Alcaldía Municipal · Secretaría Jurídica',
-      entidadNit: '899.999.061-9',
-      dependencia: 'Oficina de Contratación',
-      numeroContrato: 'OPS-2026-0418',
-      objetoContrato:
-          'Prestación de servicios profesionales especializados para apoyar la revisión jurídica y el seguimiento precontractual de órdenes de prestación de servicios.',
-      valorContratoCop: 36000000,
-      plazoEjecucion: '6 meses',
-      contratistaNombreEsperado: 'Carolina Méndez Rojas',
-      contratistaCedulaEsperada: '1020784512',
-      contratistaCorreo: 'carolina.mendez@ejemplo.co',
-      contratistaTelefono: '3157428910',
-      creadoPorEmail: 'juridica@entidad.gov.co',
-      creadoPorNombre: 'Oficina Asesora Jurídica',
-      fechaCreacionIso: hace2Dias.toIso8601String(),
-      actualizadoEnMs: hace2Horas.millisecondsSinceEpoch,
-      ultimoContratistaValidadoNombre: 'Carolina Méndez Rojas',
-      ultimoContratistaValidadoCedula: '1020784512',
-      checksVerificacion: const <bool>[true, true, true, false, false],
-      apartados: <ApartadoDocumentoContrato>[
-        ApartadoDocumentoContrato(
-          id: 'APT-01',
-          nombre: 'Hoja de vida Función Pública (SIGEP)',
-          descripcion:
-              'Formato único de hoja de vida actualizado y firmado por el aspirante.',
-          estado: EstadoDocumentoJuridico.enRevision,
-          archivoNombre: 'Hoja_de_vida_SIGEP_Carolina_Mendez.pdf',
-          archivoMime: 'application/pdf',
-          archivoTamanoBytes: pdfHv.length,
-          archivoSha256: hashDe(pdfHv),
-          archivoBase64: base64Encode(pdfHv),
-          versionCarga: 1,
-          fechaCargaIso: hace2Horas.toIso8601String(),
-          cargadoPorNombre: 'Carolina Méndez Rojas',
-          cargadoPorCedula: '1020784512',
-        ),
-        ApartadoDocumentoContrato(
-          id: 'APT-02',
-          nombre: 'Cédula de ciudadanía',
-          descripcion:
-              'Copia legible del documento de identidad por ambas caras en PDF.',
-          estado: EstadoDocumentoJuridico.enRevision,
-          archivoNombre: 'Cedula_Carolina_Mendez.pdf',
-          archivoMime: 'application/pdf',
-          archivoTamanoBytes: pdfCedula.length,
-          archivoSha256: hashDe(pdfCedula),
-          archivoBase64: base64Encode(pdfCedula),
-          versionCarga: 1,
-          fechaCargaIso: hace2Horas.toIso8601String(),
-          cargadoPorNombre: 'Carolina Méndez Rojas',
-          cargadoPorCedula: '1020784512',
-        ),
-        ApartadoDocumentoContrato(
-          id: 'APT-03',
-          nombre: 'RUT actualizado',
-          descripcion:
-              'Registro Único Tributario vigente con actividad económica acorde al objeto.',
-          estado: EstadoDocumentoJuridico.enRevision,
-          archivoNombre: 'RUT_actualizado_Carolina_Mendez.pdf',
-          archivoMime: 'application/pdf',
-          archivoTamanoBytes: pdfRut.length,
-          archivoSha256: hashDe(pdfRut),
-          archivoBase64: base64Encode(pdfRut),
-          versionCarga: 1,
-          fechaCargaIso: hace2Horas.toIso8601String(),
-          cargadoPorNombre: 'Carolina Méndez Rojas',
-          cargadoPorCedula: '1020784512',
-        ),
-        ApartadoDocumentoContrato(
-          id: 'APT-04',
-          nombre: 'Certificación ARL',
-          descripcion: 'Certificado de afiliación a riesgos laborales vigente.',
-          estado: EstadoDocumentoJuridico.enRevision,
-          archivoNombre: 'Certificacion_afiliacion_ARL.pdf',
-          archivoMime: 'application/pdf',
-          archivoTamanoBytes: pdfArl.length,
-          archivoSha256: hashDe(pdfArl),
-          archivoBase64: base64Encode(pdfArl),
-          versionCarga: 1,
-          fechaCargaIso: hace2Horas.toIso8601String(),
-          cargadoPorNombre: 'Carolina Méndez Rojas',
-          cargadoPorCedula: '1020784512',
-        ),
-        ApartadoDocumentoContrato(
-          id: 'APT-05',
-          nombre: 'Certificación bancaria',
-          descripcion:
-              'Certificación de cuenta activa expedida con antigüedad no mayor a 30 días.',
-          estado: EstadoDocumentoJuridico.enRevision,
-          archivoNombre: 'Certificacion_bancaria_Carolina_Mendez.pdf',
-          archivoMime: 'application/pdf',
-          archivoTamanoBytes: pdfBanco.length,
-          archivoSha256: hashDe(pdfBanco),
-          archivoBase64: base64Encode(pdfBanco),
-          versionCarga: 1,
-          fechaCargaIso: hace2Horas.toIso8601String(),
-          cargadoPorNombre: 'Carolina Méndez Rojas',
-          cargadoPorCedula: '1020784512',
-        ),
-        const ApartadoDocumentoContrato(
-          id: 'APT-06',
-          nombre: 'Seguridad social (planilla)',
-          descripcion:
-              'Soporte de afiliación o planilla vigente de aportes a salud y pensión.',
-        ),
-        const ApartadoDocumentoContrato(
-          id: 'APT-07',
-          nombre: 'Antecedentes fiscales, disciplinarios y judiciales',
-          descripcion:
-              'Certificados vigentes de Contraloría, Procuraduría, Policía Nacional y RNMC.',
-        ),
-      ],
-      trazabilidad: <EventoTrazabilidadContrato>[
-        EventoTrazabilidadContrato(
-          id: 'EVT-D3',
-          fechaIso: hace2Horas.toIso8601String(),
-          tipo: 'CARGA_DOCUMENTO',
-          actorNombre: 'Carolina Méndez Rojas',
-          actorRol: 'Contratista (CC 1020784512)',
-          titulo: 'Cargó 5 documentos para revisión jurídica',
-          detalle:
-              'Adjuntó Hoja de vida SIGEP, Cédula de ciudadanía, RUT actualizado, Certificación ARL y Certificación bancaria.',
-        ),
-        EventoTrazabilidadContrato(
-          id: 'EVT-D2',
-          fechaIso: hace1Dia.toIso8601String(),
-          tipo: 'INGRESO_INVITADO',
-          actorNombre: 'Carolina Méndez Rojas',
-          actorRol: 'Contratista (CC 1020784512)',
-          titulo: 'Ingresó al enlace del contrato',
-          detalle:
-              'Acceso validado con nombre completo y cédula en el contrato OPS-2026-0418.',
-        ),
-        EventoTrazabilidadContrato(
-          id: 'EVT-D1',
-          fechaIso: hace2Dias.toIso8601String(),
-          tipo: 'CREACION',
-          actorNombre: 'Oficina Asesora Jurídica',
-          actorRol: 'Equipo jurídico',
-          titulo: 'Creó el expediente del contrato OPS-2026-0418',
-          detalle:
-              'Se definieron 7 documentos requeridos y se generó enlace único para Carolina Méndez Rojas.',
-        ),
-      ],
-    );
-
-    final exp2 = ExpedienteContratoPs(
-      id: 'EXP-OPS-2026-0502',
-      tokenInvitado: tokenDemo2,
-      entidadNombre:
-          'Gobernación Departamental · Secretaría de Infraestructura',
-      entidadNit: '800.103.920-1',
-      dependencia: 'Dirección Técnica Contractual',
-      numeroContrato: 'OPS-2026-0502',
-      objetoContrato:
-          'Prestación de servicios profesionales de ingeniería civil para el apoyo técnico a la supervisión de infraestructura educativa rural.',
-      valorContratoCop: 48000000,
-      plazoEjecucion: '8 meses',
-      contratistaNombreEsperado: 'Andrés Felipe Pardo Gómez',
-      contratistaCedulaEsperada: '79845632',
-      contratistaCorreo: 'andres.pardo@ejemplo.co',
-      contratistaTelefono: '3104892211',
-      creadoPorEmail: 'juridica@gobernacion.gov.co',
-      creadoPorNombre: 'Oficina Asesora Jurídica',
-      fechaCreacionIso: hace1Dia.toIso8601String(),
-      actualizadoEnMs: hace1Dia.millisecondsSinceEpoch,
-      apartados: plantillasEstandarColombia
-          .take(7)
-          .toList()
-          .asMap()
-          .entries
-          .map(
-            (entry) => ApartadoDocumentoContrato(
-              id: 'APT-20${entry.key + 1}',
-              nombre: entry.value.nombre,
-              descripcion: entry.value.descripcion,
-              obligatorio: entry.value.obligatorioPorDefecto,
-            ),
-          )
-          .toList(),
-      trazabilidad: <EventoTrazabilidadContrato>[
-        EventoTrazabilidadContrato(
-          id: 'EVT-201',
-          fechaIso: hace1Dia.toIso8601String(),
-          tipo: 'CREACION',
-          actorNombre: 'Oficina Asesora Jurídica',
-          actorRol: 'Equipo jurídico',
-          titulo: 'Creó el expediente del contrato OPS-2026-0502',
-          detalle:
-              'Enlace personalizado habilitado para Andrés Felipe Pardo Gómez (CC 79845632).',
-        ),
-      ],
-    );
-
-    return <ExpedienteContratoPs>[exp1, exp2];
   }
 
   static List<int> _generarPdfSoporteRespaldo(

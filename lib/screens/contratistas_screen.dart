@@ -899,6 +899,7 @@ class _ContratistasScreenState extends State<ContratistasScreen>
       try {
         final match = await SigepService.verificarServidorPublico(
           target.rawSearchName,
+          documento: target.rawDocumentDigits,
         );
         if (!mounted || requestId != _latestRequestId) return;
 
@@ -907,7 +908,7 @@ class _ContratistasScreenState extends State<ContratistasScreen>
             : SigepRoleStatus.contratista;
         final cargoInfo = match != null
             ? (match['nombre_entidad'] ??
-                    match['cargo'] ??
+                    match['denominacion_cargo'] ??
                     'Vinculado en SIGEP II')
                 .toString()
             : null;

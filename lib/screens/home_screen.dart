@@ -9,8 +9,6 @@ import 'sections/contratistas_section.dart';
 import 'sections/contratos_section.dart';
 import 'sections/entidades_section.dart';
 import 'sections/equipo_juridico_section.dart';
-import 'sections/estadisticas_section.dart';
-import 'sections/explorar_section.dart';
 import 'sections/inicio_section.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -114,12 +112,6 @@ class _HomeScreenState extends State<HomeScreen> {
           onNavigateToSection: _onItemTapped,
           onLogout: _cerrarSesion,
         );
-      case 1:
-        return ExplorarSection(
-          searchController: _searchController,
-          onSearchSubmitted: _handleUniversalSearch,
-          onNavigateToSection: _onItemTapped,
-        );
       case 2:
         return ContratosSection(
           topSearchController: _searchController,
@@ -130,8 +122,6 @@ class _HomeScreenState extends State<HomeScreen> {
         return const EntidadesSection();
       case 4:
         return ContratistasSection(onLogout: _cerrarSesion);
-      case 5:
-        return const EstadisticasSection();
       case 7:
         return Expanded(child: FavoritosScreen(onLogout: _cerrarSesion));
       case 8:
