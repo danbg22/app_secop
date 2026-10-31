@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 
 import '../firebase_options.dart';
 import 'auth_service.dart';
+import 'consent_service.dart';
 import 'security_service.dart';
 
 /// Permisos que el Master Jurídico asigna a cada abogado de su equipo.
@@ -155,6 +156,11 @@ class EquipoJuridicoService {
   /// El acceso al equipo exige el correo verificado (lo mismo comprueban las
   /// reglas de Firestore); la membresía se lee igual para poder avisarlo.
   static bool _correoVerificado = false;
+
+  /// La cuenta del abogado la crea el Master, así que el abogado nunca pasó
+  /// por la autorización de tratamiento de datos del registro (Ley 1581 de
+  /// 2012): se le pide antes de activar su acceso.
+  static bool _consentimientoAceptado = false;
   static StreamSubscription<User?>? _escuchaSesion;
 
   static FirebaseFirestore get _db => FirebaseFirestore.instance;
@@ -196,7 +202,16 @@ class EquipoJuridicoService {
         }
       } catch (_) {}
     }
+    final consentimientoAntes = _consentimientoAceptado;
+    _consentimientoAceptado = false;
+    if (user != null && encontrada != null && encontrada.vigente) {
+      try {
+        _consentimientoAceptado =
+            await ConsentService.tieneAceptacionVigente(user.uid);
+      } catch (_) {}
+    }
     if (verificadoAntes != _correoVerificado ||
+        consentimientoAntes != _consentimientoAceptado ||
         membresia.value?.email != encontrada?.email ||
         membresia.value?.vigente != encontrada?.vigente ||
         membresia.value?.permisos.length != encontrada?.permisos.length) {
@@ -208,7 +223,30 @@ class EquipoJuridicoService {
   /// El usuario activo es abogado temporal de un equipo, vigente, activo y
   /// con el correo verificado.
   static bool get esMiembroVigente =>
-      _correoVerificado && (membresia.value?.vigente ?? false);
+      _correoVerificado &&
+      _consentimientoAceptado &&
+      (membresia.value?.vigente ?? false);
+
+  /// Abogado con correo verificado al que solo le falta aceptar la política
+  /// de tratamiento de datos para activar el acceso.
+  static bool get consentimientoPendiente =>
+      _correoVerificado &&
+      !_consentimientoAceptado &&
+      (membresia.value?.vigente ?? false);
+
+  /// Guarda la evidencia de la autorización y activa el acceso al equipo.
+  static Future<void> aceptarPoliticaDatos() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw const EquipoJuridicoException('Inicia sesión nuevamente.');
+    }
+    await ConsentService.registrarAceptacionTratamientoDatos(
+      uid: user.uid,
+      email: _normalizarCorreo(user.email ?? ''),
+      canal: 'equipo_juridico',
+    );
+    await recargarMembresia();
+  }
 
   /// Pertenece a un equipo pero falta verificar el correo para activarlo.
   static bool get miembroPendienteDeVerificacion =>

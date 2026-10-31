@@ -171,4 +171,35 @@ void main() {
       expect(EquipoJuridicoService.cupoMaximo, 10);
     });
   });
+
+  group('Revisión jurídica del catálogo', () {
+    test('mínima cuantía y contratación directa: garantía a criterio de la entidad', () {
+      for (final id in ['minima_cuantia', 'contratacion_directa']) {
+        final garantia = modalidadPorId(id)!.documentosContrato
+            .firstWhere((d) => d.id == 'garantia_cumplimiento');
+        expect(garantia.obligatorio, isFalse, reason: id);
+      }
+      final licitacion = modalidadPorId('licitacion_publica')!
+          .documentosContrato
+          .firstWhere((d) => d.id == 'garantia_cumplimiento');
+      expect(licitacion.obligatorio, isTrue);
+    });
+
+    test('la Cámara de Comercio solo se exige a personas jurídicas', () {
+      for (final m in modalidadesContratacion) {
+        for (final d in [...m.documentosOferente, ...m.documentosContrato]) {
+          if (d.id == 'camara_comercio') {
+            expect(d.obligatorio, isFalse, reason: m.id);
+          }
+        }
+      }
+    });
+
+    test('la adjudicación cita el art. 9 de la Ley 1150 de 2007', () {
+      final adjudicacion = modalidadPorId('licitacion_publica')!
+          .documentosEntidad
+          .firstWhere((d) => d.id == 'resolucion_adjudicacion');
+      expect(adjudicacion.fundamento, 'Ley 1150 de 2007, art. 9');
+    });
+  });
 }

@@ -1189,14 +1189,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
           constraints: const BoxConstraints(maxWidth: 560, maxHeight: 420),
           child: const SingleChildScrollView(
             child: Text(
-              'Versión ${ConsentService.versionPolitica}\n\n'
-              '1. Responsable: Contrata Legal, plataforma tecnológica de información contractual pública para el rol Persona y roles especializados.\n\n'
-              '2. Datos tratados: nombres, apellidos, correo electrónico, número de documento/cédula, país y teléfono.\n\n'
-              '3. Finalidades: crear y administrar tu cuenta, asignar tus roles activos, autenticarte, guardar tus favoritos y preferencias, procesar la activación de tu plan y cumplir obligaciones legales.\n\n'
-              '4. Derechos del titular (Art. 8, Ley 1581 de 2012): conocer, actualizar y rectificar tus datos; solicitar prueba de esta autorización; ser informado del uso dado a tus datos; presentar quejas ante la Superintendencia de Industria y Comercio; revocar la autorización y solicitar la supresión de tus datos.\n\n'
-              '5. Datos sensibles: no son obligatorios; puedes abstenerte de suministrarlos.\n\n'
-              '6. Seguridad y conservación: los datos se almacenan en servicios de Google Firebase con medidas de seguridad razonables y se conservan mientras la cuenta esté activa o lo exija la ley.\n\n'
-              '7. Evidencia: al aceptar, se registra la fecha y hora de tu autorización y la versión de esta política, como prueba exigida por el Decreto 1377 de 2013.',
+              ConsentService.textoPolitica,
               style: TextStyle(
                 color: Color(0xFF334155),
                 fontSize: 13.5,

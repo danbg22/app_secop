@@ -211,7 +211,7 @@ const _resolucionAdjudicacion = DocumentoRequerido(
   id: 'resolucion_adjudicacion',
   nombre: 'Acto de adjudicación o declaratoria de desierto',
   descripcion: 'Acto administrativo motivado que adjudica el contrato o declara desierto el proceso.',
-  fundamento: 'Ley 80 de 1993, art. 30 num. 11',
+  fundamento: 'Ley 1150 de 2007, art. 9',
 );
 const _registroPresupuestal = DocumentoRequerido(
   id: 'registro_presupuestal',
@@ -235,7 +235,8 @@ const _cartaPresentacion = DocumentoRequerido(
 const _camaraComercio = DocumentoRequerido(
   id: 'camara_comercio',
   nombre: 'Certificado de existencia y representación legal',
-  descripcion: 'Cámara de Comercio, con antigüedad no mayor a 30 días (personas jurídicas).',
+  descripcion: 'Solo personas jurídicas: Cámara de Comercio, con antigüedad no mayor a 30 días.',
+  obligatorio: false,
 );
 const _rup = DocumentoRequerido(
   id: 'rup',
@@ -282,6 +283,12 @@ const _experiencia = DocumentoRequerido(
   descripcion:
       'Certificaciones o contratos que acrediten la experiencia exigida.',
 );
+const _experienciaSiSeExige = DocumentoRequerido(
+  id: 'experiencia',
+  nombre: 'Soportes de experiencia',
+  descripcion: 'Solo si la invitación exige experiencia mínima.',
+  obligatorio: false,
+);
 const _documentoConsorcio = DocumentoRequerido(
   id: 'documento_consorcio',
   nombre: 'Documento de conformación de consorcio o unión temporal',
@@ -301,6 +308,17 @@ const _garantiaCumplimiento = DocumentoRequerido(
   nombre: 'Garantía única de cumplimiento',
   descripcion: 'Póliza con los amparos, valores y vigencias exigidos, para aprobación de la entidad.',
   fundamento: 'Decreto 1082 de 2015, art. 2.2.1.2.3.1.7',
+);
+
+/// En mínima cuantía y contratación directa la entidad decide si la exige
+/// (Decreto 1082 de 2015, arts. 2.2.1.2.1.5.4 y 2.2.1.2.1.4.5).
+const _garantiaCumplimientoOpcional = DocumentoRequerido(
+  id: 'garantia_cumplimiento',
+  nombre: 'Garantía única de cumplimiento',
+  descripcion:
+      'Solo si la entidad la exige en los estudios previos o la invitación.',
+  obligatorio: false,
+  fundamento: 'Decreto 1082 de 2015, arts. 2.2.1.2.1.5.4 y 2.2.1.2.1.4.5',
 );
 const _contratoFirmado = DocumentoRequerido(
   id: 'contrato_firmado',
@@ -398,7 +416,7 @@ const List<ModalidadContratacion> modalidadesContratacion = [
           DocumentoRequerido(
             id: 'acto_justificacion',
             nombre: 'Acto administrativo de justificación',
-            descripcion: 'Señala la causal, el objeto, el presupuesto y los estudios que lo soportan (no aplica para prestación de servicios, empréstitos ni urgencia manifiesta).',
+            descripcion: 'Señala la causal, el objeto, el presupuesto y los estudios que lo soportan. En urgencia manifiesta lo reemplaza el acto que la declara.',
             obligatorio: false,
             fundamento: 'Decreto 1082 de 2015, art. 2.2.1.2.1.4.1',
           ),
@@ -412,7 +430,10 @@ const List<ModalidadContratacion> modalidadesContratacion = [
       _camaraComercio,
       _parafiscales,
       _antecedentes,
-      ..._legalizacionContrato,
+      _contratoFirmado,
+      _garantiaCumplimientoOpcional,
+      _certificacionBancaria,
+      _arl,
     ],
   ),
   ModalidadContratacion(
@@ -473,7 +494,7 @@ const List<ModalidadContratacion> modalidadesContratacion = [
             nombre: 'Comunicación de aceptación de la oferta',
             descripcion:
                 'Con ella y la oferta queda perfeccionado el contrato.',
-            fundamento: 'Decreto 1082 de 2015, art. 2.2.1.2.1.5.2 num. 7',
+            fundamento: 'Decreto 1082 de 2015, art. 2.2.1.2.1.5.2',
           ),
           _registroPresupuestal,
           _designacionSupervisor,
@@ -488,14 +509,18 @@ const List<ModalidadContratacion> modalidadesContratacion = [
       _camaraComercio,
       _parafiscales,
       _antecedentes,
-      _experiencia,
+      _experienciaSiSeExige,
     ],
-    documentosContrato: [_garantiaCumplimiento, _certificacionBancaria, _arl],
+    documentosContrato: [
+      _garantiaCumplimientoOpcional,
+      _certificacionBancaria,
+      _arl,
+    ],
   ),
   ModalidadContratacion(
     id: 'seleccion_abreviada_menor_cuantia',
     nombre: 'Selección abreviada de menor cuantía',
-    resumen: 'Contratos hasta la menor cuantía de la entidad. Manifestación de interés y sorteo si hay más de diez interesados.',
+    resumen: 'Contratos hasta la menor cuantía de la entidad. Manifestación de interés; con más de diez interesados la entidad puede sortear.',
     fundamento: 'Ley 1150 de 2007, art. 2 num. 2 lit. b · Decreto 1082 de 2015, art. 2.2.1.2.1.2.20',
     icono: Icons.filter_alt_outlined,
     color: Color(0xFF5D469C),
@@ -518,7 +543,7 @@ const List<ModalidadContratacion> modalidadesContratacion = [
       EtapaProceso(
         id: 'apertura',
         nombre: 'Apertura y manifestaciones de interés',
-        descripcion: 'Acto de apertura, pliego definitivo y lista de interesados (sorteo si son más de 10).',
+        descripcion: 'Acto de apertura, pliego definitivo y lista de interesados (la entidad puede sortear si son más de 10).',
         plazo: 'Manifestación de interés dentro de los 3 días hábiles siguientes a la apertura.',
         documentosEntidad: [
           _resolucionApertura,
@@ -526,7 +551,7 @@ const List<ModalidadContratacion> modalidadesContratacion = [
           DocumentoRequerido(
             id: 'acta_sorteo',
             nombre: 'Acta de sorteo de interesados',
-            descripcion: 'Solo si hubo más de diez manifestaciones de interés.',
+            descripcion: 'Solo si hubo más de diez manifestaciones de interés y la entidad decidió sortear.',
             obligatorio: false,
             fundamento: 'Decreto 1082 de 2015, art. 2.2.1.2.1.2.20 num. 2',
           ),

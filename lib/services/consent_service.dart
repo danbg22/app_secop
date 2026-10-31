@@ -15,6 +15,19 @@ class ConsentService {
   /// legal modifique la política, para saber qué versión aceptó cada usuario.
   static const String versionPolitica = '1.0-2026-10';
 
+  /// Texto de la política que acepta el titular. Lo usan el registro y la
+  /// aceptación de los abogados de equipo, para que ambos canales acepten
+  /// exactamente la misma versión.
+  static const String textoPolitica =
+      'Versión $versionPolitica\n\n'
+      '1. Responsable: Contrata Legal, plataforma tecnológica de información contractual pública para el rol Persona y roles especializados.\n\n'
+      '2. Datos tratados: nombres, apellidos, correo electrónico, número de documento/cédula, país y teléfono.\n\n'
+      '3. Finalidades: crear y administrar tu cuenta, asignar tus roles activos, autenticarte, guardar tus favoritos y preferencias, procesar la activación de tu plan y cumplir obligaciones legales.\n\n'
+      '4. Derechos del titular (Art. 8, Ley 1581 de 2012): conocer, actualizar y rectificar tus datos; solicitar prueba de esta autorización; ser informado del uso dado a tus datos; presentar quejas ante la Superintendencia de Industria y Comercio; revocar la autorización y solicitar la supresión de tus datos.\n\n'
+      '5. Datos sensibles: no son obligatorios; puedes abstenerte de suministrarlos.\n\n'
+      '6. Seguridad y conservación: los datos se almacenan en servicios de Google Firebase con medidas de seguridad razonables y se conservan mientras la cuenta esté activa o lo exija la ley.\n\n'
+      '7. Evidencia: al aceptar, se registra la fecha y hora de tu autorización y la versión de esta política, como prueba exigida por el Decreto 1377 de 2013.';
+
   static const String coleccionUsuarios = 'usuarios';
   static const String subcoleccionAuditoria = 'auditoria_consentimiento';
 
@@ -63,5 +76,18 @@ class ConsentService {
     batch.set(logRef, evidencia);
     await batch.commit().timeout(const Duration(seconds: 8));
   }
-}
 
+  /// El titular ya aceptó la versión vigente de la política. Si cambia la
+  /// versión, se le vuelve a pedir.
+  static Future<bool> tieneAceptacionVigente(String uid) async {
+    final doc = await _db
+        .collection(coleccionUsuarios)
+        .doc(uid)
+        .get()
+        .timeout(const Duration(seconds: 8));
+    final data = doc.data();
+    return data != null &&
+        data['aceptacion_datos'] == true &&
+        data['version_politica'] == versionPolitica;
+  }
+}

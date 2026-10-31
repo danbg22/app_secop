@@ -2,11 +2,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'screens/consentimiento_equipo_screen.dart';
 import 'screens/main_dashboard.dart';
 import 'screens/pasarela_pago_wompi_screen.dart';
 import 'screens/portada_screen.dart';
 import 'screens/portal_contratista_invitado_screen.dart';
 import 'services/auth_service.dart';
+import 'services/equipo_juridico_service.dart';
 import 'services/juridico_contratacion_service.dart';
 
 class AuthGate extends StatelessWidget {
@@ -45,6 +47,11 @@ class AuthGate extends StatelessWidget {
                   rolId: AuthService.getPendingRegistrationRoleId(),
                   esFlujoRegistro: true,
                 );
+              }
+              // Abogado de un equipo que aún no autoriza el tratamiento de
+              // sus datos: debe aceptarlo antes de entrar (Ley 1581 de 2012).
+              if (EquipoJuridicoService.consentimientoPendiente) {
+                return const ConsentimientoEquipoScreen();
               }
               return const MainDashboard();
             }
