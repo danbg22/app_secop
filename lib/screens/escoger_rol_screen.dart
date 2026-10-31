@@ -10,13 +10,17 @@ import 'registro_screen.dart';
 /// Fondo escénico unificado (Catedral colonial, montañas andinas, bandera de
 /// Colombia y hojas botánicas) compartido por los 3 pasos del flujo:
 /// Paso 1 (Escoger Rol) -> Paso 2 (Registro) -> Paso 3 (Pago Wompi).
+/// Con `showScenicPhoto: false` conserva solo el fondo crema y los adornos
+/// vectoriales, como en Portada e Inicio de sesión.
 class OnboardingUnifiedBackground extends StatelessWidget {
   const OnboardingUnifiedBackground({
     super.key,
     required this.child,
+    this.showScenicPhoto = true,
   });
 
   final Widget child;
+  final bool showScenicPhoto;
 
   static const Color bgCream = Color(0xFFFEF9EB);
 
@@ -27,56 +31,58 @@ class OnboardingUnifiedBackground extends StatelessWidget {
       children: [
         const ColoredBox(color: bgCream),
 
-        // Ilustración en alta definición de la catedral colonial y montañas a la derecha
-        Align(
-          alignment: Alignment.centerRight,
-          child: FractionallySizedBox(
-            widthFactor: 0.58,
-            heightFactor: 1.0,
-            child: Image.asset(
-              'assets/images/fondo_valledupar.jpg',
-              fit: BoxFit.cover,
-              alignment: const Alignment(0.55, -0.15),
-              filterQuality: FilterQuality.high,
-              errorBuilder: (_, _, _) => const SizedBox.expand(),
+        if (showScenicPhoto) ...[
+          // Ilustración en alta definición de la catedral colonial y montañas a la derecha
+          Align(
+            alignment: Alignment.centerRight,
+            child: FractionallySizedBox(
+              widthFactor: 0.58,
+              heightFactor: 1.0,
+              child: Image.asset(
+                'assets/images/fondo_valledupar.jpg',
+                fit: BoxFit.cover,
+                alignment: const Alignment(0.55, -0.15),
+                filterQuality: FilterQuality.high,
+                errorBuilder: (_, _, _) => const SizedBox.expand(),
+              ),
             ),
           ),
-        ),
 
-        // Difuminado cálido de izquierda a derecha idéntico a la imagen de referencia
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [
-                Color(0xFFFEF9EB),
-                Color(0xFFFEF9EB),
-                Color(0xF5FEF9EB),
-                Color(0xB8FEF9EB),
-                Color(0x28FEF9EB),
-                Color(0x00FEF9EB),
-              ],
-              stops: [0.0, 0.42, 0.56, 0.72, 0.88, 1.0],
+          // Difuminado cálido de izquierda a derecha idéntico a la imagen de referencia
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  Color(0xFFFEF9EB),
+                  Color(0xFFFEF9EB),
+                  Color(0xF5FEF9EB),
+                  Color(0xB8FEF9EB),
+                  Color(0x28FEF9EB),
+                  Color(0x00FEF9EB),
+                ],
+                stops: [0.0, 0.42, 0.56, 0.72, 0.88, 1.0],
+              ),
             ),
           ),
-        ),
 
-        // Suavizado superior e inferior
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0xAAFEF9EB),
-                Color(0x00FEF9EB),
-                Color(0x99FEF9EB),
-              ],
-              stops: [0.0, 0.45, 1.0],
+          // Suavizado superior e inferior
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xAAFEF9EB),
+                  Color(0x00FEF9EB),
+                  Color(0x99FEF9EB),
+                ],
+                stops: [0.0, 0.45, 1.0],
+              ),
             ),
           ),
-        ),
+        ],
 
         // Hojas botánicas suaves en la esquina inferior izquierda
         const Positioned(
@@ -183,13 +189,18 @@ class OnboardingUnifiedTopBar extends StatelessWidget {
     required this.onBack,
     this.backLabel = 'Volver',
     this.showBrandLogo = false,
+    this.trailing,
   });
 
+  /// `totalSteps == 0` oculta el indicador de pasos (pantallas fuera del flujo).
   final int currentStep;
   final int totalSteps;
   final VoidCallback onBack;
   final String backLabel;
   final bool showBrandLogo;
+
+  /// Contenido alineado a la derecha en lugar del indicador de pasos.
+  final Widget? trailing;
 
   static const Color _navy = Color(0xFF0E2646);
   static const Color _gold = Color(0xFFF5B82E);
@@ -197,6 +208,7 @@ class OnboardingUnifiedTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.sizeOf(context).width < 680;
+    final showSteps = totalSteps > 0;
 
     final stepIndicator = Container(
       padding: EdgeInsets.symmetric(
@@ -324,11 +336,14 @@ class OnboardingUnifiedTopBar extends StatelessWidget {
               backBtn,
               if (showBrandLogo)
                 const ContrataLegalHdLogo(height: 38, withWhitePill: true)
-              else
+              else if (showSteps)
                 Flexible(child: stepIndicator),
             ],
           ),
-          if (showBrandLogo) ...[
+          if (trailing != null) ...[
+            const SizedBox(height: 10),
+            trailing!,
+          ] else if (showBrandLogo && showSteps) ...[
             const SizedBox(height: 10),
             stepIndicator,
           ],
@@ -352,7 +367,10 @@ class OnboardingUnifiedTopBar extends StatelessWidget {
             ],
           ),
         ),
-        stepIndicator,
+        if (trailing != null)
+          Align(alignment: Alignment.centerRight, child: trailing)
+        else if (showSteps)
+          stepIndicator,
       ],
     );
   }

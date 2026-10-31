@@ -48,6 +48,12 @@ Future<void> _activarAppCheck() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+  static const TextStyle _heading = TextStyle(
+    color: Color(0xFF1A2B4C),
+    fontWeight: FontWeight.w800,
+    letterSpacing: -0.5,
+  );
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -55,6 +61,9 @@ class MyApp extends StatelessWidget {
       title: 'Contrata Legal',
       scrollBehavior: const AppScrollBehavior(),
       theme: ThemeData(
+        // Tipografía corporativa empaquetada en assets/fonts/inter: se aplica a
+        // todos los textos que no fijan su propia familia.
+        fontFamily: 'Inter',
         scaffoldBackgroundColor: const Color(0xFFFFFDF8),
         primaryColor: const Color(0xFF1A2B4C),
         colorScheme: const ColorScheme.light(
@@ -62,33 +71,16 @@ class MyApp extends StatelessWidget {
           secondary: Color(0xFFFFD54F),
         ),
         textTheme: const TextTheme(
-          displayLarge: TextStyle(
-            color: Color(0xFF1A2B4C),
-            fontWeight: FontWeight.bold,
-          ),
-          displayMedium: TextStyle(
-            color: Color(0xFF1A2B4C),
-            fontWeight: FontWeight.bold,
-          ),
-          displaySmall: TextStyle(
-            color: Color(0xFF1A2B4C),
-            fontWeight: FontWeight.bold,
-          ),
-          headlineLarge: TextStyle(
-            color: Color(0xFF1A2B4C),
-            fontWeight: FontWeight.bold,
-          ),
-          headlineMedium: TextStyle(
-            color: Color(0xFF1A2B4C),
-            fontWeight: FontWeight.bold,
-          ),
-          headlineSmall: TextStyle(
-            color: Color(0xFF1A2B4C),
-            fontWeight: FontWeight.bold,
-          ),
+          displayLarge: _heading,
+          displayMedium: _heading,
+          displaySmall: _heading,
+          headlineLarge: _heading,
+          headlineMedium: _heading,
+          headlineSmall: _heading,
           titleLarge: TextStyle(
             color: Color(0xFF1A2B4C),
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.2,
           ),
         ),
       ),

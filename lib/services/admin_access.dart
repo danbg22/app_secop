@@ -11,6 +11,7 @@ class AdminAccess {
   static const Set<String> correosAdministradores = <String>{
     'danielbg2231@gmail.com',
     'ivanbolano19@gmail.com',
+    'ibolano@sena.edu.co',
   };
 
   static bool esAdministrador(String? email) =>

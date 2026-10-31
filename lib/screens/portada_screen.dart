@@ -1,515 +1,439 @@
 import 'package:flutter/material.dart';
 
-import '../data/portada_asset_data.dart';
+import 'escoger_rol_screen.dart';
 
+/// Portada pública: mismo lenguaje visual que el flujo de registro
+/// (fondo crema sin fotografías, tarjetas limpias y botones tipo píldora).
 class PortadaScreen extends StatelessWidget {
   const PortadaScreen({super.key});
 
-  static const double _designWidth = 1024.0;
-  static const double _designHeight = 544.0;
+  static const Color _navy = Color(0xFF0E2646);
+  static const Color _subtitleBlue = Color(0xFF364F6B);
+  static const Color _gold = Color(0xFFF5C032);
+  static const Color _goldText = Color(0xFFC98A00);
+
+  static const List<_PortadaFeature> _features = [
+    _PortadaFeature(
+      icon: Icons.manage_search_rounded,
+      title: 'Consulta contratos',
+      description:
+          'Busca procesos de SECOP I y SECOP II por entidad, contratista u objeto, con cifras claras y enlaces a la fuente oficial.',
+      color: Color(0xFFF5B82E),
+      tint: Color(0xFFFFF3CC),
+      cardBg: Color(0xFFFEFBF0),
+    ),
+    _PortadaFeature(
+      icon: Icons.account_balance_rounded,
+      title: 'Entidades y contratistas',
+      description:
+          'Revisa el historial contractual de entidades públicas y contratistas para entender quién contrata, con quién y por cuánto.',
+      color: Color(0xFF28559A),
+      tint: Color(0xFFE8F1FC),
+      cardBg: Color(0xFFF8FAFC),
+    ),
+    _PortadaFeature(
+      icon: Icons.verified_user_rounded,
+      title: 'Gestión con trazabilidad',
+      description:
+          'Equipos jurídicos estructuran contratos en línea, invitan contratistas y validan documentos dejando registro de cada paso.',
+      color: Color(0xFF1F6E7A),
+      tint: Color(0xFFE3F3F2),
+      cardBg: Color(0xFFF9FCFA),
+    ),
+  ];
+
+  void _irALogin(BuildContext context) =>
+      Navigator.pushNamed(context, '/auth');
+
+  void _irARegistro(BuildContext context) =>
+      Navigator.pushNamed(context, '/registro');
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFEFAF1),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final screenW = constraints.maxWidth;
-          final screenH = constraints.maxHeight;
+    return SelectionArea(
+      child: Scaffold(
+        backgroundColor: OnboardingUnifiedBackground.bgCream,
+        body: OnboardingUnifiedBackground(
+          showScenicPhoto: false,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              final isDesktop = width >= 1040;
+              final isTablet = width >= 640 && width < 1040;
+              final isMobile = width < 640;
 
-          // Versión adaptada para celular / pantallas verticales estrechas
-          if (screenW < 700) {
-            return _buildMobilePortada(context, screenW, screenH);
-          }
-
-          final scaleX = screenW / _designWidth;
-          final scaleY = screenH / _designHeight;
-          final fontScale = (scaleX < scaleY ? scaleX : scaleY).clamp(0.75, 2.5);
-
-          final btnTop = (18.0 * scaleY).clamp(12.0, 56.0);
-          final btnHeight = (32.0 * scaleY).clamp(30.0, 56.0);
-          final loginLeft = 758.0 * scaleX;
-          final loginWidth = (106.0 * scaleX).clamp(96.0, 220.0);
-          final registerLeft = 878.0 * scaleX;
-          final registerWidth = (98.0 * scaleX).clamp(90.0, 205.0);
-          final radius = (9.0 * fontScale).clamp(7.0, 15.0);
-          final btnFontSize = (12.5 * fontScale).clamp(11.5, 19.0);
-
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              // 1. Ilustración de fondo en alta definición (sin deformación de proporción)
-              Image.memory(
-                PortadaAssetData.bytes,
-                width: screenW,
-                height: screenH,
-                fit: BoxFit.cover,
-                alignment: Alignment.center,
-                gaplessPlayback: true,
-                filterQuality: FilterQuality.high,
-              ),
-
-              // 2. Logo "Contrata Legal" proporcional y nítido (sin constraints que lo ensanchen)
-              Positioned(
-                left: 28.3 * scaleX,
-                top: (4.0 * scaleY).clamp(2.0, 18.0),
-                child: IgnorePointer(
-                  child: Image.asset(
-                    'assets/images/logo.png',
-                    height: (84.0 * fontScale).clamp(60.0, 118.0),
-                    fit: BoxFit.contain,
-                    alignment: Alignment.centerLeft,
-                    filterQuality: FilterQuality.high,
+              return SafeArea(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobile ? 16 : (isTablet ? 28 : 44),
+                    vertical: isMobile ? 14 : 22,
                   ),
-                ),
-              ),
-
-              // 3. Línea decorativa amarilla superior (100% vectorial)
-              Positioned(
-                left: 57.0 * scaleX,
-                top: 141.0 * scaleY,
-                width: 43.0 * scaleX,
-                height: (3.5 * scaleY).clamp(2.5, 6.0),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF5C638),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-
-              // 4. Título principal y subtítulo 100% vectoriales en HD/4K
-              Positioned(
-                left: 57.0 * scaleX,
-                top: 161.0 * scaleY,
-                width: 472.0 * scaleX,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: RichText(
-                        text: TextSpan(
-                          style: TextStyle(
-                            fontFamily: 'Segoe UI',
-                            fontSize: 51.0 * scaleY,
-                            fontWeight: FontWeight.w800,
-                            height: 1.06,
-                            letterSpacing: -1.0 * scaleX,
-                            color: const Color(0xFF081A45),
-                          ),
-                          children: const [
-                            TextSpan(text: 'Contratación pública\n'),
-                            TextSpan(text: 'más clara '),
-                            TextSpan(
-                              text: 'para todos',
-                              style: TextStyle(
-                                color: Color(0xFFFCBA1D),
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 15.0 * scaleY),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Información confiable, accesible y comprensible\nsobre la contratación pública en Colombia.',
-                        style: TextStyle(
-                          fontFamily: 'Segoe UI',
-                          fontSize: 19.5 * scaleY,
-                          fontWeight: FontWeight.w400,
-                          height: 1.32,
-                          letterSpacing: -0.15 * scaleX,
-                          color: const Color(0xFF566B84),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // 5. Botón "Iniciar sesión" en la posición exacta de la referencia
-              Positioned(
-                top: btnTop,
-                left: loginLeft,
-                width: loginWidth,
-                height: btnHeight,
-                child: _PortadaOutlinedButton(
-                  label: 'Iniciar sesión',
-                  fontSize: btnFontSize,
-                  borderRadius: radius,
-                  onTap: () => Navigator.pushNamed(context, '/auth'),
-                ),
-              ),
-
-              // 6. Botón "Registrarse" en la posición exacta de la referencia
-              Positioned(
-                top: btnTop,
-                left: registerLeft,
-                width: registerWidth,
-                height: btnHeight,
-                child: _PortadaFilledButton(
-                  label: 'Registrarse',
-                  fontSize: btnFontSize,
-                  borderRadius: radius,
-                  onTap: () => Navigator.pushNamed(context, '/registro'),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildMobilePortada(
-    BuildContext context,
-    double screenW,
-    double screenH,
-  ) {
-    return SafeArea(
-      child: SingleChildScrollView(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: screenH - 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Cabecera móvil con logo y botones bien ubicados
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: Row(
-                  children: [
-                    Image.asset(
-                      'assets/images/logo.png',
-                      height: 54,
-                      fit: BoxFit.contain,
-                      alignment: Alignment.centerLeft,
-                      filterQuality: FilterQuality.high,
-                    ),
-                    const Spacer(),
-                    SizedBox(
-                      height: 36,
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pushNamed(context, '/auth'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF031E4E),
-                          side: const BorderSide(color: Color(0xFF6E809B)),
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(9),
-                          ),
-                        ),
-                        child: const Text(
-                          'Iniciar sesión',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      height: 36,
-                      child: ElevatedButton(
-                        onPressed: () =>
-                            Navigator.pushNamed(context, '/registro'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF031E4E),
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(9),
-                          ),
-                        ),
-                        child: const Text(
-                          'Registrarse',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Bloque principal de título, subtítulo y botones de acción móvil
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 22,
-                  vertical: 18,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 42,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5C638),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    RichText(
-                      text: const TextSpan(
-                        style: TextStyle(
-                          fontFamily: 'Segoe UI',
-                          fontSize: 34,
-                          fontWeight: FontWeight.w800,
-                          height: 1.1,
-                          letterSpacing: -0.6,
-                          color: Color(0xFF081A45),
-                        ),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1180),
+                      child: Column(
                         children: [
-                          TextSpan(text: 'Contratación pública\n'),
-                          TextSpan(text: 'más clara '),
-                          TextSpan(
-                            text: 'para todos',
+                          _buildHeader(context, isMobile),
+                          SizedBox(height: isMobile ? 36 : 64),
+                          _buildHero(context, isMobile, isTablet),
+                          SizedBox(height: isMobile ? 36 : 56),
+                          if (isDesktop)
+                            IntrinsicHeight(
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  for (int i = 0; i < _features.length; i++) ...[
+                                    if (i > 0) const SizedBox(width: 18),
+                                    Expanded(
+                                      child: _PortadaFeatureCard(
+                                        feature: _features[i],
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            )
+                          else
+                            Column(
+                              children: [
+                                for (int i = 0; i < _features.length; i++) ...[
+                                  if (i > 0) const SizedBox(height: 16),
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 560,
+                                    ),
+                                    child: _PortadaFeatureCard(
+                                      feature: _features[i],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          const SizedBox(height: 28),
+                          Text(
+                            'Datos abiertos de Colombia Compra Eficiente (SECOP I y SECOP II).',
+                            textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: Color(0xFFFCBA1D),
-                              fontWeight: FontWeight.w800,
+                              color: _subtitleBlue.withValues(alpha: 0.85),
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
+                          // Espacio para que los adornos inferiores no tapen el contenido.
+                          SizedBox(height: isMobile ? 90 : 120),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 14),
-                    const Text(
-                      'Información confiable, accesible y comprensible sobre la contratación pública en Colombia.',
-                      style: TextStyle(
-                        fontFamily: 'Segoe UI',
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w400,
-                        height: 1.38,
-                        color: Color(0xFF566B84),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, bool isMobile) {
+    return Row(
+      children: [
+        ContrataLegalHdLogo(height: isMobile ? 38 : 48, withWhitePill: true),
+        const Spacer(),
+        _PortadaPillButton(
+          label: 'Iniciar sesión',
+          icon: Icons.login_rounded,
+          compact: isMobile,
+          onTap: () => _irALogin(context),
+        ),
+        if (!isMobile) ...[
+          const SizedBox(width: 10),
+          _PortadaPillButton(
+            label: 'Registrarse',
+            filled: true,
+            onTap: () => _irARegistro(context),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildHero(BuildContext context, bool isMobile, bool isTablet) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 760),
+      child: Column(
+        children: [
+          Container(
+            width: 42,
+            height: 4,
+            decoration: BoxDecoration(
+              color: _gold,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Text.rich(
+            const TextSpan(
+              children: [
+                TextSpan(text: 'Contratación pública\nmás clara '),
+                TextSpan(
+                  text: 'para todos',
+                  style: TextStyle(color: _goldText),
+                ),
+              ],
+            ),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: _navy,
+              fontSize: isMobile ? 30 : (isTablet ? 40 : 50),
+              fontWeight: FontWeight.w800,
+              height: 1.1,
+              letterSpacing: isMobile ? -0.6 : -1.2,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Información confiable, accesible y comprensible\nsobre la contratación pública en Colombia.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: _subtitleBlue,
+              fontSize: isMobile ? 14.5 : 17,
+              fontWeight: FontWeight.w500,
+              height: 1.45,
+            ),
+          ),
+          SizedBox(height: isMobile ? 24 : 32),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              SizedBox(
+                width: isMobile ? double.infinity : 220,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () => _irARegistro(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFF8C63A),
+                    foregroundColor: _navy,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Crear cuenta',
+                        style: TextStyle(
+                          color: _navy,
+                          fontSize: 15.2,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 22),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: SizedBox(
-                            height: 46,
-                            child: ElevatedButton.icon(
-                              onPressed: () =>
-                                  Navigator.pushNamed(context, '/auth'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF031E4E),
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              icon: const Icon(Icons.login_rounded, size: 18),
-                              label: const Text(
-                                'Iniciar sesión',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: SizedBox(
-                            height: 46,
-                            child: OutlinedButton.icon(
-                              onPressed: () =>
-                                  Navigator.pushNamed(context, '/registro'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFF031E4E),
-                                backgroundColor: Colors.white,
-                                side: const BorderSide(
-                                  color: Color(0xFF031E4E),
-                                  width: 1.3,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              icon: const Icon(
-                                Icons.person_add_alt_1_rounded,
-                                size: 18,
-                              ),
-                              label: const Text(
-                                'Crear cuenta',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                      SizedBox(width: 8),
+                      Icon(Icons.arrow_forward_rounded, size: 19, color: _navy),
+                    ],
+                  ),
                 ),
               ),
-
-              // Ilustración panorámica inferior ajustada proporcionalmente para celular
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(24),
-                ),
-                child: AspectRatio(
-                  aspectRatio: 16 / 10,
-                  child: Image.memory(
-                    PortadaAssetData.bytes,
-                    fit: BoxFit.cover,
-                    alignment: const Alignment(0.35, 0.2),
-                    gaplessPlayback: true,
-                    filterQuality: FilterQuality.high,
+              SizedBox(
+                width: isMobile ? double.infinity : 220,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () => _irALogin(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _navy,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                  ),
+                  child: const Text(
+                    'Ya tengo cuenta',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
               ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
 }
 
-class _PortadaOutlinedButton extends StatefulWidget {
-  final String label;
-  final double fontSize;
-  final double borderRadius;
-  final VoidCallback onTap;
-
-  const _PortadaOutlinedButton({
-    required this.label,
-    required this.fontSize,
-    required this.borderRadius,
-    required this.onTap,
+class _PortadaFeature {
+  const _PortadaFeature({
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.color,
+    required this.tint,
+    required this.cardBg,
   });
 
-  @override
-  State<_PortadaOutlinedButton> createState() => _PortadaOutlinedButtonState();
+  final IconData icon;
+  final String title;
+  final String description;
+  final Color color;
+  final Color tint;
+  final Color cardBg;
 }
 
-class _PortadaOutlinedButtonState extends State<_PortadaOutlinedButton> {
-  bool _hovered = false;
+/// Tarjeta con la misma estructura que las tarjetas de rol del registro:
+/// cabecera teñida con ícono circular, título y descripción.
+class _PortadaFeatureCard extends StatelessWidget {
+  const _PortadaFeatureCard({required this.feature});
+
+  final _PortadaFeature feature;
+
+  static const Color _navy = Color(0xFF0E2646);
+  static const Color _subtitleBlue = Color(0xFF364F6B);
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 140),
-          alignment: Alignment.center,
+    return Container(
+      decoration: BoxDecoration(
+        color: feature.cardBg,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: feature.color.withValues(alpha: 0.35),
+          width: 1.3,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _navy.withValues(alpha: 0.05),
+            blurRadius: 22,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 84,
+            width: double.infinity,
+            alignment: Alignment.bottomLeft,
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+            decoration: BoxDecoration(
+              color: feature.tint,
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: feature.color,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 3),
+              ),
+              child: Icon(feature.icon, color: Colors.white, size: 24),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              feature.title,
+              style: const TextStyle(
+                color: _navy,
+                fontSize: 20.5,
+                fontWeight: FontWeight.w800,
+                height: 1.15,
+                letterSpacing: -0.4,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              feature.description,
+              style: const TextStyle(
+                color: _subtitleBlue,
+                fontSize: 13.5,
+                height: 1.42,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Botón píldora de la barra superior, con el estilo del botón "Portada"
+/// del registro (blanco con borde cálido) o relleno azul marino.
+class _PortadaPillButton extends StatelessWidget {
+  const _PortadaPillButton({
+    required this.label,
+    required this.onTap,
+    this.icon,
+    this.filled = false,
+    this.compact = false,
+  });
+
+  final String label;
+  final IconData? icon;
+  final VoidCallback onTap;
+  final bool filled;
+  final bool compact;
+
+  static const Color _navy = Color(0xFF0E2646);
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = filled ? Colors.white : _navy;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Ink(
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 14 : 18,
+            vertical: compact ? 9 : 11,
+          ),
           decoration: BoxDecoration(
-            color: _hovered
-                ? Colors.white
-                : const Color(0xFFF0F5F9).withValues(alpha: 0.92),
-            borderRadius: BorderRadius.circular(widget.borderRadius),
+            color: filled ? _navy : Colors.white.withValues(alpha: 0.95),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: _hovered
-                  ? const Color(0xFF031E4E)
-                  : const Color(0xFF6E809B),
-              width: 1.15,
+              color: filled ? _navy : const Color(0xFFE2DAC8),
+              width: 1.2,
             ),
-            boxShadow: _hovered
-                ? [
-                    BoxShadow(
-                      color: const Color(0xFF031E4E).withValues(alpha: 0.08),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
+            boxShadow: [
+              BoxShadow(
+                color: _navy.withValues(alpha: 0.05),
+                blurRadius: 12,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
-          child: Text(
-            widget.label,
-            maxLines: 1,
-            overflow: TextOverflow.visible,
-            style: TextStyle(
-              color: const Color(0xFF031E4E),
-              fontSize: widget.fontSize,
-              fontWeight: FontWeight.w600,
-              letterSpacing: -0.1,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PortadaFilledButton extends StatefulWidget {
-  final String label;
-  final double fontSize;
-  final double borderRadius;
-  final VoidCallback onTap;
-
-  const _PortadaFilledButton({
-    required this.label,
-    required this.fontSize,
-    required this.borderRadius,
-    required this.onTap,
-  });
-
-  @override
-  State<_PortadaFilledButton> createState() => _PortadaFilledButtonState();
-}
-
-class _PortadaFilledButtonState extends State<_PortadaFilledButton> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 140),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: _hovered
-                ? const Color(0xFF0A2E6E)
-                : const Color(0xFF031E4E),
-            borderRadius: BorderRadius.circular(widget.borderRadius),
-            boxShadow: _hovered
-                ? [
-                    BoxShadow(
-                      color: const Color(0xFF031E4E).withValues(alpha: 0.22),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Text(
-            widget.label,
-            maxLines: 1,
-            overflow: TextOverflow.visible,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: widget.fontSize,
-              fontWeight: FontWeight.w600,
-              letterSpacing: -0.1,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: compact ? 18 : 20, color: foreground),
+                const SizedBox(width: 8),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  color: foreground,
+                  fontSize: compact ? 13.5 : 14.5,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
           ),
         ),
       ),
