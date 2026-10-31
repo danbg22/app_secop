@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/colombia_secop_catalog.dart';
+import '../../services/consulta_natural_contratos.dart';
 import '../../services/favorites_service.dart';
 import '../../services/security_service.dart';
 import '../../utils/anios_secop.dart';
@@ -102,6 +103,10 @@ class _ContratosSectionState extends State<ContratosSection> {
       TextEditingController();
   Timer? _searchDebounce;
   int _latestRequestId = 0;
+
+  /// Filtros deducidos de la última búsqueda en lenguaje natural ("contratos
+  /// de alimentación en el Cesar"); `null` si fue una búsqueda clásica.
+  InterpretacionConsulta? _interpretacion;
 
   // Todos los filtros inician en blanco para que el usuario elija libremente qué consultar
   String _selectedSector = '';
@@ -1426,8 +1431,25 @@ class _ContratosSectionState extends State<ContratosSection> {
     }
 
     final int requestId = ++_latestRequestId;
+    final interpretada = queryText.isEmpty
+        ? null
+        : ConsultaNaturalContratos.interpretar(
+            queryText,
+            anioActual: AniosSecop.actual,
+          );
+    final interpretacion =
+        interpretada != null && interpretada.esConsultaNatural
+        ? interpretada
+        : null;
+    // Un año escrito en la pregunta manda sobre el filtro de vigencia.
+    final aniosDeLaPregunta =
+        interpretacion != null &&
+        interpretacion.tieneAnios &&
+        !interpretacion.aniosPorDefecto;
     setState(() {
       _isLoadingSecop = true;
+      _interpretacion = interpretacion;
+      if (aniosDeLaPregunta) _selectedAnio = '';
     });
 
     try {
@@ -1648,7 +1670,32 @@ class _ContratosSectionState extends State<ContratosSection> {
           requireFechaFirma: false,
         );
 
-        // 2. Ruta ultra-rápida por índice B-tree si busca Cédula, NIT o siglas conocidas (< 250ms)
+        // 2. Pregunta en lenguaje natural: filtros deducidos (lugar, entidad,
+        //    tema, montos, años…) en vez de buscar cada palabra en todos los
+        //    campos. Su resultado es definitivo aunque esté vacío.
+        if (interpretacion != null) {
+          final uri = Uri.https(
+            'www.datos.gov.co',
+            '/resource/jbjy-vk9h.json',
+            <String, String>{
+              r'$select': _secopSelectFields,
+              r'$limit': '$queryLimit',
+              r'$order': 'fecha_de_firma DESC',
+              r'$where': [
+                ...baseClauses,
+                ...interpretacion.clausulasSecopII(
+                  incluirAniosPorDefecto: _selectedAnio.isEmpty,
+                ),
+              ].join(' AND '),
+            },
+          );
+          final response =
+              await http.get(uri).timeout(const Duration(seconds: 15));
+          if (response.statusCode != 200) return [];
+          return parseJsonResponse(response.body);
+        }
+
+        // 3. Ruta ultra-rápida por índice B-tree si busca Cédula, NIT o siglas conocidas (< 250ms)
         final fastBtreeClause = _buildFastEntityOrDocIndexClause(queryText);
         if (fastBtreeClause != null) {
           try {
@@ -1674,7 +1721,7 @@ class _ContratosSectionState extends State<ContratosSection> {
           } catch (_) {}
         }
 
-        // 3. Ruta rápida por índice Full-Text ($q) de Socrata (~250ms)
+        // 4. Ruta rápida por índice Full-Text ($q) de Socrata (~250ms)
         // Si hay varias combinaciones separadas por coma, las consultamos en paralelo con $q
         final commaGroups = _extractCommaGroups(queryText);
         Future<List<ContractRecord>> fetchSingleGroupQ(String groupText) async {
@@ -1716,7 +1763,7 @@ class _ContratosSectionState extends State<ContratosSection> {
           return fastCombined;
         }
 
-        // 4. Fallback ligero SoQL ($limit=80) solo si $q no arrojó coincidencias (ej. fragmentos de palabra)
+        // 5. Fallback ligero SoQL ($limit=80) solo si $q no arrojó coincidencias (ej. fragmentos de palabra)
         final searchClause = _buildSearchSoqlClause(queryText);
         if (searchClause != null) {
           try {
@@ -1822,9 +1869,9 @@ class _ContratosSectionState extends State<ContratosSection> {
 
       final anioNum = int.tryParse(_selectedAnio);
       final esAnioHistoricoSecop1 = anioNum != null && anioNum <= 2019;
-      final necesitaSecop1 = esAnioHistoricoSecop1 ||
+      final necesitaSecop1 = interpretacion == null && (esAnioHistoricoSecop1 ||
           (_selectedAnio.isNotEmpty && results.length < 20) ||
-          (_selectedAnio.isEmpty && results.length < 60 && queryText.isNotEmpty);
+          (_selectedAnio.isEmpty && results.length < 60 && queryText.isNotEmpty));
 
       if (necesitaSecop1) {
         final secop1Results = await fetchSecopIContracts();
@@ -3678,7 +3725,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                     style: const TextStyle(fontSize: 12, color: _azulOscuro),
                     decoration: InputDecoration(
                       hintText:
-                          'Buscar proceso, contratista, NIT/Cédula o entidad (o separa por coma)...',
+                          'Pregunta como hablas: "alimentación en el Cesar", "obras de más de 500 millones en 2025"…',
                       hintStyle: TextStyle(
                         color: Colors.blueGrey.shade400,
                         fontSize: 12,
@@ -3982,9 +4029,57 @@ class _ContratosSectionState extends State<ContratosSection> {
                   ),
               ],
             ),
+            if (_interpretacion != null) ...[
+              const SizedBox(height: 6),
+              _buildInterpretacionConsulta(_interpretacion!),
+            ],
           ],
         ],
       ),
+    );
+  }
+
+  /// Muestra qué filtros dedujo la búsqueda en lenguaje natural, para que el
+  /// usuario confirme que se entendió su pregunta.
+  Widget _buildInterpretacionConsulta(InterpretacionConsulta interpretacion) {
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 6,
+      runSpacing: 5,
+      children: [
+        const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.auto_awesome, size: 13, color: Color(0xFF1D4ED8)),
+            SizedBox(width: 4),
+            Text(
+              'Interpretamos tu búsqueda como:',
+              style: TextStyle(
+                color: _azulOscuro,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+        for (final etiqueta in interpretacion.etiquetas())
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFBFDBFE)),
+            ),
+            child: Text(
+              etiqueta,
+              style: const TextStyle(
+                color: Color(0xFF1E3A8A),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+      ],
     );
   }
 
