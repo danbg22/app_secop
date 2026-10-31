@@ -36,25 +36,210 @@ class _ModalityStat {
   final IconData icon;
 }
 
-class _DependencyStat {
-  const _DependencyStat({
-    required this.name,
+/// Unidad de contratación real de la entidad en SECOP II: cada cuenta
+/// compradora (`nombre_entidad`) registrada con el mismo NIT, p. ej. las
+/// regionales, centros y grupos de apoyo del SENA.
+class _UnidadContratante {
+  const _UnidadContratante({
+    required this.nombre,
+    required this.departamento,
     required this.contractsCount,
     required this.totalCop,
-    required this.icon,
-    required this.iconColor,
-    required this.iconBg,
-    required this.contracts,
   });
 
-  final String name;
+  final String nombre;
+  final String departamento;
   final int contractsCount;
   final double totalCop;
-  final IconData icon;
-  final Color iconColor;
-  final Color iconBg;
-  final List<Map<String, dynamic>> contracts;
 }
+
+/// Dependencia interna inferida del objeto del contrato. SECOP II no publica
+/// la dependencia que contrata, así que cada contrato se asigna a la primera
+/// cuyas palabras clave aparecen en su objeto (orden de [_dependenciasInternas]);
+/// la última recoge el resto. Así cada contrato cuenta una sola vez y los
+/// totales cuadran con los de la entidad. En las palabras, `_` es comodín de
+/// una letra para coincidir con o sin tilde.
+class _DependenciaInterna {
+  const _DependenciaInterna({
+    required this.id,
+    required this.nombreNacional,
+    required this.nombreTerritorial,
+    required this.macroproceso,
+    required this.icon,
+    required this.color,
+    required this.bg,
+    required this.palabras,
+  });
+
+  final String id;
+  final String nombreNacional;
+  final String nombreTerritorial;
+  final String macroproceso;
+  final IconData icon;
+  final Color color;
+  final Color bg;
+  final List<String> palabras;
+}
+
+const List<String> _macroprocesos = [
+  'Estratégicos y de dirección',
+  'Misionales',
+  'De apoyo',
+  'Evaluación y control',
+];
+
+const List<_DependenciaInterna> _dependenciasInternas = [
+  _DependenciaInterna(
+    id: 'planeacion',
+    nombreNacional: 'Oficina de Planeación y Direccionamiento',
+    nombreTerritorial: 'Oficina de Planeación y Direccionamiento',
+    macroproceso: 'Estratégicos y de dirección',
+    icon: Icons.account_tree_rounded,
+    color: Color(0xFF0369A1),
+    bg: Color(0xFFE0F2FE),
+    palabras: [
+      'PLANEAC',
+      'ESTAD_STIC',
+      'DIRECCIONAMIENTO',
+      'CALIDAD',
+      'PROYECTO DE INVERSI_N',
+    ],
+  ),
+  _DependenciaInterna(
+    id: 'despacho',
+    nombreNacional: 'Despacho de Dirección General / Regional',
+    nombreTerritorial: 'Despacho del Alcalde / Gobernador',
+    macroproceso: 'Estratégicos y de dirección',
+    icon: Icons.account_balance_rounded,
+    color: Color(0xFF1E3A8A),
+    bg: Color(0xFFDBEAFE),
+    palabras: [
+      'DESPACHO',
+      'DIRECCI_N REGIONAL',
+      'DIRECCI_N GENERAL',
+      'COMUNICACI_N',
+      'RELACIONES CORPORATIVAS',
+    ],
+  ),
+  _DependenciaInterna(
+    id: 'control',
+    nombreNacional: 'Control Interno y Supervisión',
+    nombreTerritorial: 'Control Interno y Supervisión',
+    macroproceso: 'Evaluación y control',
+    icon: Icons.verified_user_outlined,
+    color: Color(0xFFB45309),
+    bg: Color(0xFFFEF3C7),
+    palabras: ['INTERVENTOR', 'SUPERVIS', 'AUDITOR', 'CONTROL INTERNO'],
+  ),
+  _DependenciaInterna(
+    id: 'infraestructura',
+    nombreNacional: 'Infraestructura Física y Obras',
+    nombreTerritorial: 'Secretaría de Infraestructura y Obras',
+    macroproceso: 'Misionales',
+    icon: Icons.engineering_rounded,
+    color: Color(0xFFD97706),
+    bg: Color(0xFFFEF3C7),
+    palabras: [
+      'OBRA',
+      'VIAL',
+      'INFRAESTRUCTURA',
+      'MANTENIMIENTO',
+      'ADECUACI_N',
+      'CONSTRUCCI_N',
+    ],
+  ),
+  _DependenciaInterna(
+    id: 'social',
+    nombreNacional: 'Desarrollo Social, Salud y Bienestar',
+    nombreTerritorial: 'Desarrollo Social, Salud y Bienestar',
+    macroproceso: 'Misionales',
+    icon: Icons.health_and_safety_rounded,
+    color: Color(0xFF0284C7),
+    bg: Color(0xFFE0F2FE),
+    palabras: [
+      'SALUD',
+      'HOSPITAL',
+      'M_DIC',
+      'BIENESTAR',
+      'PSICOLOG',
+      'SOCIAL',
+      'DEPORT',
+    ],
+  ),
+  _DependenciaInterna(
+    id: 'financiera',
+    nombreNacional: 'Dirección Financiera y Presupuesto',
+    nombreTerritorial: 'Secretaría de Hacienda',
+    macroproceso: 'De apoyo',
+    icon: Icons.receipt_long_outlined,
+    color: Color(0xFF047857),
+    bg: Color(0xFFD1FAE5),
+    palabras: [
+      'HACIENDA',
+      'FINANC',
+      'CONTABL',
+      'TRIBUT',
+      'TESORER',
+      'PRESUPUEST',
+    ],
+  ),
+  _DependenciaInterna(
+    id: 'tic',
+    nombreNacional: 'Tecnologías de la Información (TIC)',
+    nombreTerritorial: 'Tecnologías de la Información (TIC)',
+    macroproceso: 'De apoyo',
+    icon: Icons.computer_rounded,
+    color: Color(0xFF0F766E),
+    bg: Color(0xFFCCFBF1),
+    palabras: [
+      'SISTEMA',
+      'SOFTWARE',
+      'TECNOLOG',
+      'INFORM_TIC',
+      'COMPUT',
+      'CONECTIVIDAD',
+    ],
+  ),
+  _DependenciaInterna(
+    id: 'juridica',
+    nombreNacional: 'Oficina Jurídica y Contratación',
+    nombreTerritorial: 'Oficina Jurídica y Contratación',
+    macroproceso: 'De apoyo',
+    icon: Icons.gavel_rounded,
+    color: Color(0xFF6D28D9),
+    bg: Color(0xFFEDE9FE),
+    palabras: ['JUR_DIC', 'ABOGAD', 'JUDICIAL', 'DEFENSA'],
+  ),
+  _DependenciaInterna(
+    id: 'misional',
+    nombreNacional: 'Formación y Ejecución Misional',
+    nombreTerritorial: 'Secretaría de Educación y Cultura',
+    macroproceso: 'Misionales',
+    icon: Icons.school_rounded,
+    color: Color(0xFF15803D),
+    bg: Color(0xFFDCFCE7),
+    palabras: [
+      'EDUCACI',
+      'ESCOLAR',
+      'COLEGIO',
+      'FORMACI',
+      'INSTRUCTOR',
+      'APRENDIZ',
+      'PEDAG_G',
+      'MISIONAL',
+    ],
+  ),
+  _DependenciaInterna(
+    id: 'apoyo',
+    nombreNacional: 'Secretaría General y Apoyo Administrativo',
+    nombreTerritorial: 'Secretaría General y Gestión Administrativa',
+    macroproceso: 'De apoyo',
+    icon: Icons.business_center_outlined,
+    color: Color(0xFF475569),
+    bg: Color(0xFFF1F5F9),
+    palabras: [],
+  ),
+];
 
 class _ContractorSummary {
   const _ContractorSummary({
@@ -89,24 +274,6 @@ class _RegionalBreakdownItem {
   final double totalCop;
 }
 
-class _ProcessMapCategorySpec {
-  _ProcessMapCategorySpec({
-    required this.macroTitle,
-    required this.macroSubtitle,
-    required this.bannerColor,
-    required this.bannerBg,
-    required this.icon,
-    required this.dependencyNames,
-  });
-
-  final String macroTitle;
-  final String macroSubtitle;
-  final Color bannerColor;
-  final Color bannerBg;
-  final IconData icon;
-  final List<String> dependencyNames;
-}
-
 class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   static const Color _azulOscuro = Color(0xFF1A2B4C);
   static const Color _azulPrimario = Color(0xFF1D4ED8);
@@ -117,7 +284,6 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   bool _isFollowing = false;
   bool _isLoadingLive = true;
   bool _isLoadingContractsPage = false;
-  bool _isLoadingDependencyLive = false;
 
   // Vigencia anualizada (2026 por defecto; soporta 2015 a 2026 o historial completo)
   bool _onlyCurrentYear2026 = true;
@@ -128,7 +294,6 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   // Selector de Regional / Seccional Territorial (null = Consolidado Nacional / Total Entidad)
   String? _selectedRegionalDept;
   List<_RegionalBreakdownItem> _regionalStats = [];
-  String _regionalSearchFilter = '';
 
   // Métricas dinámicas anualizadas (Vigencia 2026) actualizadas en cada consulta
   double _presupuestoTotalCop = 0;
@@ -149,7 +314,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   double _totalMatchingCopForTable = 0;
 
   List<_ModalityStat> _modalityStats = [];
-  List<_DependencyStat> _dependencyStats = [];
+  List<_UnidadContratante> _unidades = [];
   List<_ContractorSummary> _contractorsList = [];
 
   // Estado de navegación interna en las pestañas
@@ -157,11 +322,21 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   int _contractsPage = 1;
   static const int _contractsPageSize = 8;
 
-  String? _selectedDependencyName;
-  int _dependencyContractsPage = 1;
-  List<Map<String, dynamic>> _liveDependencyContracts = [];
-  int _liveDependencyTotalCount = 0;
-  double _liveDependencyTotalCop = 0;
+  // Explorador de contratos. La búsqueda recorre toda la entidad (todas las
+  // vigencias) e ignora regional, unidad y modalidad; elegir cualquiera de
+  // esos filtros cancela la búsqueda.
+  String? _selectedUnidad;
+  String? _selectedDependencia;
+  // Conteo real por dependencia interna: id -> (contratos, valor).
+  Map<String, (int, double)> _conteoDependencias = {};
+  bool _verUnidadesSecop = false;
+  bool _cargandoDependencias = false;
+  int _dependenciasRequestId = 0;
+  String _busqueda = '';
+  final TextEditingController _busquedaController = TextEditingController();
+  bool _filtrosExpandidos = false;
+  String _filtroUnidades = '';
+  int _contratosRequestId = 0;
 
   int _contractorsPage = 1;
   static const int _contractorsPageSize = 8;
@@ -172,6 +347,12 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     _initBaselineMetrics();
     _detectInitialRegionalFromEntityCard();
     _fetchLiveEntityProfileData();
+  }
+
+  @override
+  void dispose() {
+    _busquedaController.dispose();
+    super.dispose();
   }
 
   void _initBaselineMetrics() {
@@ -334,7 +515,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     required bool onlyYear2026,
     required bool includeRegionalFilter,
     String? customModalityName,
-    String? customDependencyName,
+    String? unidad,
+    String? dependencia,
+    String? busqueda,
     int? forceYear,
   }) {
     final clauses = <String>[
@@ -425,11 +608,18 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       }
     }
 
-    if (customDependencyName != null && customDependencyName.isNotEmpty) {
-      final depClause = _buildSoqlDependencyFilter(customDependencyName);
-      if (depClause.isNotEmpty) {
-        clauses.add(depClause);
-      }
+    if (dependencia != null) {
+      final filtro = _buildSoqlDependenciaFilter(dependencia);
+      if (filtro.isNotEmpty) clauses.add(filtro);
+    }
+
+    if (unidad != null && unidad.isNotEmpty) {
+      clauses.add("nombre_entidad = '${unidad.replaceAll("'", "''")}'");
+    }
+
+    if (busqueda != null && busqueda.trim().isNotEmpty) {
+      final filtro = _buildSoqlSearchFilter(busqueda);
+      if (filtro.isNotEmpty) clauses.add(filtro);
     }
 
     return clauses.join(' AND ');
@@ -454,44 +644,97 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     }
   }
 
-  static String _buildSoqlDependencyFilter(String depName) {
-    final norm = _normalizar(depName);
-    if (norm.contains('DESPACHO') || norm.contains('DIRECCION')) {
-      return "(upper(objeto_del_contrato) LIKE '%DIRECCION%' OR upper(objeto_del_contrato) LIKE '%DESPACHO%' OR upper(objeto_del_contrato) LIKE '%DIRECTIVO%' OR upper(objeto_del_contrato) LIKE '%ASESOR%' OR upper(objeto_del_contrato) LIKE '%GESTION INSTITUCIONAL%')";
+  /// Cada palabra debe aparecer en el número del contrato o del proceso, el
+  /// objeto o el contratista. SECOP II guarda textos con y sin tilde y SoQL
+  /// no las ignora, así que en los campos de texto cada palabra se busca
+  /// también con una tilde en cada vocal ("GESTION" → "GESTIÓN"). Solo se
+  /// conservan letras, dígitos y `-./`, así que no admite inyección.
+  static String _buildSoqlSearchFilter(String query) {
+    const camposCodigo = [
+      'referencia_del_contrato',
+      'id_contrato',
+      'proceso_de_compra',
+      'documento_proveedor',
+    ];
+    const camposTexto = ['objeto_del_contrato', 'proveedor_adjudicado'];
+    final palabras = _normalizar(query)
+        .replaceAll(RegExp(r'[^A-Z0-9Ñ\-./]'), ' ')
+        .split(RegExp(r'\s+'))
+        .where((p) => p.length >= 2)
+        .toSet()
+        .take(5);
+    return [
+      for (final palabra in palabras)
+        '(${[
+          for (final c in camposCodigo) "upper($c) LIKE '%$palabra%'",
+          for (final c in camposTexto)
+            for (final v in _variantesConTilde(palabra))
+              "upper($c) LIKE '%$v%'",
+        ].join(' OR ')})',
+    ].join(' AND ');
+  }
+
+  static String _soqlCoincideDependencia(_DependenciaInterna d) => d.palabras
+      .map((w) => "upper(objeto_del_contrato) LIKE '%$w%'")
+      .join(' OR ');
+
+  /// Contratos de una dependencia: coinciden con sus palabras y con ninguna de
+  /// las dependencias anteriores (la misma regla de [_soqlClasificacionDependencias]).
+  static String _buildSoqlDependenciaFilter(String id) {
+    final idx = _dependenciasInternas.indexWhere((d) => d.id == id);
+    if (idx < 0) return '';
+    final propia = _dependenciasInternas[idx];
+    return [
+      if (propia.palabras.isNotEmpty) '(${_soqlCoincideDependencia(propia)})',
+      for (final previa in _dependenciasInternas.take(idx))
+        if (previa.palabras.isNotEmpty)
+          'NOT (${_soqlCoincideDependencia(previa)})',
+    ].join(' AND ');
+  }
+
+  /// `case()` de SoQL: asigna cada contrato a la primera dependencia que
+  /// coincide, o a la última si no coincide ninguna.
+  static String _soqlClasificacionDependencias() {
+    final ramas = [
+      for (final d in _dependenciasInternas)
+        if (d.palabras.isNotEmpty) "${_soqlCoincideDependencia(d)}, '${d.id}'",
+    ];
+    return "case(${ramas.join(', ')}, true, '${_dependenciasInternas.last.id}')";
+  }
+
+  String _nombreDependencia(_DependenciaInterna d) {
+    final nacional =
+        _ordenEntidad.toUpperCase().contains('NACIONAL') ||
+        _isNationalMultiRegionalEntity();
+    if (!nacional) return d.nombreTerritorial;
+    if (d.id == 'despacho' && _selectedRegionalDept != null) {
+      return 'Despacho de la Dirección Regional';
     }
-    if (norm.contains('PLANEACION')) {
-      return "(upper(objeto_del_contrato) LIKE '%PLANEAC%' OR upper(objeto_del_contrato) LIKE '%ESTADISTIC%' OR upper(objeto_del_contrato) LIKE '%PROYECTO%' OR upper(objeto_del_contrato) LIKE '%SEGUIMIENTO%' OR upper(objeto_del_contrato) LIKE '%CALIDAD%')";
+    return d.nombreNacional;
+  }
+
+  _DependenciaInterna? get _dependenciaSeleccionada {
+    for (final d in _dependenciasInternas) {
+      if (d.id == _selectedDependencia) return d;
     }
-    if (norm.contains('OBRA') || norm.contains('INFRAESTRUCTURA')) {
-      return "(upper(objeto_del_contrato) LIKE '%OBRA%' OR upper(objeto_del_contrato) LIKE '%INFRAESTRUCTURA%' OR upper(objeto_del_contrato) LIKE '%MANTENIMIENTO%' OR upper(objeto_del_contrato) LIKE '%ADECUACION%' OR upper(objeto_del_contrato) LIKE '%CONSTRUCCION%' OR upper(objeto_del_contrato) LIKE '%VIAL%')";
+    return null;
+  }
+
+  static List<String> _variantesConTilde(String palabra) {
+    const tildes = {'A': 'Á', 'E': 'É', 'I': 'Í', 'O': 'Ó', 'U': 'Ú'};
+    final variantes = <String>[palabra];
+    if (palabra.length < 4 || RegExp(r'^[0-9\-./]+$').hasMatch(palabra)) {
+      return variantes;
     }
-    if (norm.contains('EDUCAC') ||
-        norm.contains('FORMACION') ||
-        norm.contains('MISIONAL')) {
-      return "(upper(objeto_del_contrato) LIKE '%FORMACION%' OR upper(objeto_del_contrato) LIKE '%INSTRUCTOR%' OR upper(objeto_del_contrato) LIKE '%APRENDIZ%' OR upper(objeto_del_contrato) LIKE '%EDUCAC%' OR upper(objeto_del_contrato) LIKE '%PEDAGOG%' OR upper(objeto_del_contrato) LIKE '%ATENCION%' OR upper(objeto_del_contrato) LIKE '%TECNIC%')";
+    for (var i = 0; i < palabra.length; i++) {
+      final tilde = tildes[palabra[i]];
+      if (tilde != null) {
+        variantes.add(
+          palabra.substring(0, i) + tilde + palabra.substring(i + 1),
+        );
+      }
     }
-    if (norm.contains('SALUD') ||
-        norm.contains('BIENESTAR') ||
-        norm.contains('SOCIAL')) {
-      return "(upper(objeto_del_contrato) LIKE '%SALUD%' OR upper(objeto_del_contrato) LIKE '%BIENESTAR%' OR upper(objeto_del_contrato) LIKE '%SOCIAL%' OR upper(objeto_del_contrato) LIKE '%PSICOLOG%' OR upper(objeto_del_contrato) LIKE '%FAMILIA%' OR upper(objeto_del_contrato) LIKE '%DEPORT%' OR upper(objeto_del_contrato) LIKE '%CULTUR%')";
-    }
-    if (norm.contains('HACIENDA') ||
-        norm.contains('FINANC') ||
-        norm.contains('PRESUPUEST')) {
-      return "(upper(objeto_del_contrato) LIKE '%FINANC%' OR upper(objeto_del_contrato) LIKE '%CONTABL%' OR upper(objeto_del_contrato) LIKE '%PRESUPUEST%' OR upper(objeto_del_contrato) LIKE '%TESORER%' OR upper(objeto_del_contrato) LIKE '%TRIBUT%' OR upper(objeto_del_contrato) LIKE '%PAGADUR%')";
-    }
-    if (norm.contains('JURIDIC')) {
-      return "(upper(objeto_del_contrato) LIKE '%JURIDIC%' OR upper(objeto_del_contrato) LIKE '%ABOGAD%' OR upper(objeto_del_contrato) LIKE '%DEFENSA%' OR upper(objeto_del_contrato) LIKE '%JUDICIAL%' OR upper(objeto_del_contrato) LIKE '%CONTRATACION%')";
-    }
-    if (norm.contains('TIC') || norm.contains('TECNOLOG')) {
-      return "(upper(objeto_del_contrato) LIKE '%SISTEMA%' OR upper(objeto_del_contrato) LIKE '%SOFTWARE%' OR upper(objeto_del_contrato) LIKE '%TECNOLOG%' OR upper(objeto_del_contrato) LIKE '%INFORMATIC%' OR upper(objeto_del_contrato) LIKE '%REDES%' OR upper(objeto_del_contrato) LIKE '%COMPUT%')";
-    }
-    if (norm.contains('CONTROL') ||
-        norm.contains('SUPERVISION') ||
-        norm.contains('INTERVENTOR')) {
-      return "(upper(objeto_del_contrato) LIKE '%INTERVENTOR%' OR upper(objeto_del_contrato) LIKE '%SUPERVIS%' OR upper(objeto_del_contrato) LIKE '%AUDITOR%' OR upper(objeto_del_contrato) LIKE '%CONTROL%' OR upper(objeto_del_contrato) LIKE '%EVALUAC%')";
-    }
-    return "(upper(objeto_del_contrato) LIKE '%ADMINISTRATIV%' OR upper(objeto_del_contrato) LIKE '%APOYO%' OR upper(objeto_del_contrato) LIKE '%GESTION%' OR upper(objeto_del_contrato) LIKE '%LOGISTIC%' OR upper(objeto_del_contrato) LIKE '%ARCHIVO%')";
+    return variantes;
   }
 
   static String _formatRegionalDisplayName(String deptRaw) {
@@ -505,12 +748,29 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     return 'Regional $clean';
   }
 
+  /// GET a Datos Abiertos con un reintento: datos.gov.co a veces corta la
+  /// conexión o responde 429/5xx de forma transitoria, y sin reintento una
+  /// sola consulta fallida deja la página sin datos.
+  static Future<http.Response> _getSecop(
+    Uri uri, {
+    Duration timeout = const Duration(seconds: 12),
+  }) async {
+    try {
+      final resp = await http.get(uri).timeout(timeout);
+      if (resp.statusCode != 429 && resp.statusCode < 500) return resp;
+    } catch (_) {
+      // Se reintenta abajo; si vuelve a fallar, el error sube al llamador.
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 900));
+    return http.get(uri).timeout(timeout);
+  }
+
   Future<void> _fetchLiveEntityProfileData() async {
     if (!mounted) return;
     setState(() => _isLoadingLive = true);
 
     try {
-      int yearToUse = AniosSecop.actual;
+      int yearToUse = _selectedContratosYear ?? AniosSecop.actual;
       String whereEntityYear = _buildEntityWhereClause(
         onlyYear2026: _onlyCurrentYear2026,
         includeRegionalFilter: true,
@@ -567,6 +827,16 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           '&\$limit=200',
         );
 
+        // Unidades de contratación reales: cuentas compradoras con el NIT.
+        final unidadesUrl = Uri.parse(
+          'https://www.datos.gov.co/resource/jbjy-vk9h.json?'
+          '\$select=nombre_entidad,departamento,count(*)%20as%20contratos,sum(valor_del_contrato)%20as%20total_valor'
+          '&\$where=$wRegEnc'
+          '&\$group=nombre_entidad,departamento'
+          '&\$order=contratos%20DESC'
+          '&\$limit=400',
+        );
+
         final uniqueContractorsUrl = Uri.parse(
           'https://www.datos.gov.co/resource/jbjy-vk9h.json?'
           '\$select=count(distinct%20documento_proveedor)%20as%20contratistas'
@@ -574,11 +844,12 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         );
 
         return Future.wait([
-          http.get(stateAggUrl).timeout(const Duration(seconds: 12)),
-          http.get(modalityAggUrl).timeout(const Duration(seconds: 12)),
-          http.get(regionalAggUrl).timeout(const Duration(seconds: 12)),
-          http.get(sampleContractsUrl).timeout(const Duration(seconds: 12)),
-          http.get(uniqueContractorsUrl).timeout(const Duration(seconds: 12)),
+          _getSecop(stateAggUrl),
+          _getSecop(modalityAggUrl),
+          _getSecop(regionalAggUrl),
+          _getSecop(sampleContractsUrl),
+          _getSecop(uniqueContractorsUrl),
+          _getSecop(unidadesUrl),
         ]);
       }
 
@@ -594,7 +865,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           }
         }
       }
-      if (checkCount == 0 && _onlyCurrentYear2026) {
+      if (checkCount == 0 &&
+          _onlyCurrentYear2026 &&
+          _selectedContratosYear == AniosSecop.actual) {
         yearToUse = AniosSecop.actual - 1;
         whereEntityYear = _buildEntityWhereClause(
           onlyYear2026: true,
@@ -638,6 +911,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       final regResp = responses[2];
       final sampleResp = responses[3];
       final uniqueResp = responses[4];
+      final unidadesResp = responses[5];
       int? uniqueContractors;
       if (uniqueResp.statusCode == 200) {
         final uniqueList = jsonDecode(uniqueResp.body);
@@ -773,12 +1047,28 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       });
       builtModalities.sort((a, b) => b.totalCop.compareTo(a.totalCop));
 
-      // 5. Construimos el Mapa de Procesos y Dependencias Internas + Contratistas
-      final builtDeps = _buildProcessMapDependencies(
-        sampleContracts: fetchedContracts,
-        totalEntityContracts: aggTotalContracts,
-        totalEntityCop: aggTotalCop,
-      );
+      // 5. Unidades de contratación reales ($group=nombre_entidad)
+      final builtUnidades = <_UnidadContratante>[];
+      if (unidadesResp.statusCode == 200) {
+        final unidadesData = jsonDecode(unidadesResp.body) as List<dynamic>;
+        for (final row in unidadesData) {
+          if (row is! Map) continue;
+          final nombre = (row['nombre_entidad'] ?? '').toString().trim();
+          final cCount =
+              int.tryParse((row['contratos'] ?? '0').toString()) ?? 0;
+          if (nombre.isEmpty || cCount <= 0) continue;
+          builtUnidades.add(
+            _UnidadContratante(
+              nombre: nombre,
+              departamento: (row['departamento'] ?? '').toString().trim(),
+              contractsCount: cCount,
+              totalCop:
+                  double.tryParse((row['total_valor'] ?? '0').toString()) ??
+                  0,
+            ),
+          );
+        }
+      }
 
       final Map<String, _ContractorSummary> contractorMap = {};
       for (final c in fetchedContracts) {
@@ -827,15 +1117,12 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
             .take(_contractsPageSize)
             .toList();
         _modalityStats = builtModalities;
-        _dependencyStats = builtDeps;
-        if (builtDeps.isNotEmpty &&
-            (_selectedDependencyName == null ||
-                !builtDeps.any((d) => d.name == _selectedDependencyName))) {
-          _selectedDependencyName = builtDeps.first.name;
-          _liveDependencyContracts = builtDeps.first.contracts;
-          _liveDependencyTotalCount = builtDeps.first.contractsCount;
-          _liveDependencyTotalCop = builtDeps.first.totalCop;
+        _unidades = builtUnidades;
+        if (_selectedUnidad != null &&
+            !builtUnidades.any((u) => u.nombre == _selectedUnidad)) {
+          _selectedUnidad = null;
         }
+        _selectedContratosYear = _onlyCurrentYear2026 ? yearToUse : null;
         _contractorsList = builtContractors;
 
         if (aggTotalCop > 0 && aggTotalContracts > 0) {
@@ -859,6 +1146,16 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         _contractsPage = 1;
         _isLoadingLive = false;
       });
+      // La clasificación por dependencias es la consulta más pesada: va
+      // aparte para no retrasar ni tumbar la carga principal.
+      _fetchConteoDependencias(whereEntityYear);
+      // La muestra inicial solo sirve sin filtros; con unidad o búsqueda
+      // activas se consulta la página exacta.
+      if (_selectedUnidad != null ||
+          _selectedDependencia != null ||
+          _busqueda.isNotEmpty) {
+        _fetchContractsPageFromSecop(page: 1);
+      }
     } catch (_) {
       if (mounted) {
         setState(() => _isLoadingLive = false);
@@ -866,343 +1163,241 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     }
   }
 
-  /// Paginación real del lado del servidor contra SECOP II (`$limit` + `$offset`)
-  /// para permitir navegar entre miles y miles de contratos y páginas de cualquier modalidad.
+  Future<void> _fetchConteoDependencias(String whereClause) async {
+    final requestId = ++_dependenciasRequestId;
+    setState(() {
+      _conteoDependencias = {};
+      _cargandoDependencias = true;
+    });
+    final conteo = <String, (int, double)>{};
+    try {
+      final resp = await _getSecop(
+            Uri.parse(
+              'https://www.datos.gov.co/resource/jbjy-vk9h.json?'
+              '\$select=${Uri.encodeComponent(_soqlClasificacionDependencias())}%20as%20dependencia,count(*)%20as%20contratos,sum(valor_del_contrato)%20as%20total_valor'
+              '&\$where=${Uri.encodeComponent(whereClause)}'
+              '&\$group=dependencia',
+            ),
+            timeout: const Duration(seconds: 25),
+          );
+      if (resp.statusCode == 200) {
+        for (final row in jsonDecode(resp.body) as List<dynamic>) {
+          if (row is! Map) continue;
+          conteo[(row['dependencia'] ?? '').toString()] = (
+            int.tryParse('${row['contratos'] ?? 0}') ?? 0,
+            double.tryParse('${row['total_valor'] ?? 0}') ?? 0,
+          );
+        }
+      }
+    } catch (_) {
+      // Sin conteo: la sección muestra el aviso y el resto de la página sigue.
+    }
+    if (!mounted || requestId != _dependenciasRequestId) return;
+    setState(() {
+      _conteoDependencias = conteo;
+      _cargandoDependencias = false;
+    });
+  }
+
+  bool get _hayFiltrosContratos =>
+      _busqueda.isNotEmpty ||
+      _selectedUnidad != null ||
+      _selectedDependencia != null ||
+      _selectedModality != 'Todas';
+
+  bool get _hayFiltrosActivos =>
+      _selectedRegionalDept != null ||
+      _selectedUnidad != null ||
+      _selectedDependencia != null ||
+      _selectedModality != 'Todas';
+
+  bool get _tieneRegionales => _regionalStats.length > 1;
+
+  /// Página de contratos con los filtros activos, paginada en el servidor
+  /// (`$limit` + `$offset`). El total sale de un conteo con el mismo filtro,
+  /// así que siempre coincide con lo listado. Las respuestas de consultas
+  /// anteriores se descartan.
   Future<void> _fetchContractsPageFromSecop({
     required int page,
     String? modalityOverride,
   }) async {
     if (!mounted) return;
-    final targetModality = modalityOverride ?? _selectedModality;
-
-    // Determinamos el total de contratos y valor de esa modalidad según las tarjetas agregadas de SECOP II
-    int expectedCount = _totalContratos;
-    double expectedCop = _valorTotalContratadoCop;
-    if (targetModality != 'Todas') {
-      for (final m in _modalityStats) {
-        if (m.name == targetModality) {
-          expectedCount = m.contractsCount;
-          expectedCop = m.totalCop;
-          break;
-        }
-      }
-    }
-
+    final requestId = ++_contratosRequestId;
     setState(() {
-      _selectedModality = targetModality;
+      if (modalityOverride != null) _selectedModality = modalityOverride;
       _contractsPage = page;
-      _totalMatchingContractsForTable = expectedCount;
-      _totalMatchingCopForTable = expectedCop;
       _isLoadingContractsPage = true;
     });
 
-    try {
-      final offset = math.max(0, (page - 1) * _contractsPageSize);
-      final whereClause = _buildEntityWhereClause(
-        onlyYear2026: _onlyCurrentYear2026,
-        includeRegionalFilter: true,
-        customModalityName: targetModality,
-        forceYear: _activeBudgetYear,
-      );
-      final whereEnc = Uri.encodeComponent(whereClause);
-
-      final pageUrl = Uri.parse(
-        'https://www.datos.gov.co/resource/jbjy-vk9h.json?'
-        '\$where=$whereEnc'
-        '&\$order=fecha_de_firma%20DESC'
-        '&\$limit=$_contractsPageSize'
-        '&\$offset=$offset',
-      );
-
-      final resp = await http.get(pageUrl).timeout(const Duration(seconds: 10));
-      if (resp.statusCode == 200 && mounted) {
-        final rawList = jsonDecode(resp.body) as List<dynamic>;
-        final rows = <Map<String, dynamic>>[];
-        for (final item in rawList) {
-          if (item is Map) {
-            rows.add(Map<String, dynamic>.from(item));
-          }
-        }
-        setState(() {
-          _pagedContractsList = rows;
-          _isLoadingContractsPage = false;
-        });
-        return;
-      }
-    } catch (_) {
-      // Fallback local si la red tarda
-    }
-
-    if (mounted) {
-      setState(() => _isLoadingContractsPage = false);
-    }
-  }
-
-  /// Consulta en vivo a SECOP II cuando el usuario selecciona un proceso o dependencia interna
-  /// en el Mapa de Procesos (ej. SENA -> Regional Cesar -> Despacho o Planeación).
-  Future<void> _selectDependencyAndFetchSecop(
-    _DependencyStat dep, {
-    int page = 1,
-  }) async {
-    if (!mounted) return;
-    setState(() {
-      _selectedDependencyName = dep.name;
-      _dependencyContractsPage = page;
-      _isLoadingDependencyLive = true;
-    });
+    final whereClause = _busqueda.isNotEmpty
+        ? _buildEntityWhereClause(
+            onlyYear2026: false,
+            includeRegionalFilter: false,
+            busqueda: _busqueda,
+          )
+        : _buildEntityWhereClause(
+            onlyYear2026: _onlyCurrentYear2026,
+            includeRegionalFilter: true,
+            customModalityName: _selectedModality,
+            unidad: _selectedUnidad,
+            dependencia: _selectedDependencia,
+            forceYear: _activeBudgetYear,
+          );
+    final whereEnc = Uri.encodeComponent(whereClause);
+    final offset = math.max(0, (page - 1) * _contractsPageSize);
 
     try {
-      final offset = math.max(0, (page - 1) * _contractsPageSize);
-      final whereClause = _buildEntityWhereClause(
-        onlyYear2026: _onlyCurrentYear2026,
-        includeRegionalFilter: true,
-        customDependencyName: dep.name,
-        forceYear: _activeBudgetYear,
-      );
-      final whereEnc = Uri.encodeComponent(whereClause);
-
-      final countUrl = Uri.parse(
-        'https://www.datos.gov.co/resource/jbjy-vk9h.json?'
-        '\$select=count(*)%20as%20contratos,sum(valor_del_contrato)%20as%20total_valor'
-        '&\$where=$whereEnc',
-      );
-
-      final rowsUrl = Uri.parse(
-        'https://www.datos.gov.co/resource/jbjy-vk9h.json?'
-        '\$where=$whereEnc'
-        '&\$order=fecha_de_firma%20DESC'
-        '&\$limit=$_contractsPageSize'
-        '&\$offset=$offset',
-      );
-
       final responses = await Future.wait([
-        http.get(countUrl).timeout(const Duration(seconds: 10)),
-        http.get(rowsUrl).timeout(const Duration(seconds: 10)),
+        _getSecop(
+          Uri.parse(
+            'https://www.datos.gov.co/resource/jbjy-vk9h.json?'
+            '\$select=count(*)%20as%20contratos,sum(valor_del_contrato)%20as%20total_valor'
+            '&\$where=$whereEnc',
+          ),
+          timeout: const Duration(seconds: 15),
+        ),
+        _getSecop(
+          Uri.parse(
+            'https://www.datos.gov.co/resource/jbjy-vk9h.json?'
+            '\$where=$whereEnc'
+            '&\$order=fecha_de_firma%20DESC'
+            '&\$limit=$_contractsPageSize'
+            '&\$offset=$offset',
+          ),
+          timeout: const Duration(seconds: 15),
+        ),
       ]);
+      if (!mounted || requestId != _contratosRequestId) return;
+      if (responses[1].statusCode != 200) {
+        throw StateError('SECOP II respondió ${responses[1].statusCode}');
+      }
 
-      int liveCount = dep.contractsCount;
-      double liveCop = dep.totalCop;
+      var total = 0;
+      var totalCop = 0.0;
       if (responses[0].statusCode == 200) {
-        final agg = jsonDecode(responses[0].body) as List<dynamic>;
-        if (agg.isNotEmpty && agg.first is Map) {
-          final c =
-              int.tryParse((agg.first['contratos'] ?? '0').toString()) ?? 0;
-          final v =
-              double.tryParse((agg.first['total_valor'] ?? '0').toString()) ??
-              0;
-          if (c > 0) {
-            liveCount = c;
-            liveCop = v;
-          }
+        final agg = jsonDecode(responses[0].body);
+        if (agg is List && agg.isNotEmpty && agg.first is Map) {
+          total = int.tryParse('${agg.first['contratos'] ?? 0}') ?? 0;
+          totalCop = double.tryParse('${agg.first['total_valor'] ?? 0}') ?? 0;
         }
       }
+      final rows = <Map<String, dynamic>>[
+        for (final item in jsonDecode(responses[1].body) as List<dynamic>)
+          if (item is Map) Map<String, dynamic>.from(item),
+      ];
 
-      final fetchedRows = <Map<String, dynamic>>[];
-      if (responses[1].statusCode == 200) {
-        final rawList = jsonDecode(responses[1].body) as List<dynamic>;
-        for (final item in rawList) {
-          if (item is Map) {
-            fetchedRows.add(Map<String, dynamic>.from(item));
-          }
-        }
-      }
-
-      if (!mounted) return;
       setState(() {
-        _liveDependencyContracts = fetchedRows.isNotEmpty
-            ? fetchedRows
-            : dep.contracts;
-        _liveDependencyTotalCount = liveCount;
-        _liveDependencyTotalCop = liveCop;
-        _isLoadingDependencyLive = false;
+        _pagedContractsList = rows;
+        _totalMatchingContractsForTable = total;
+        _totalMatchingCopForTable = totalCop;
+        _isLoadingContractsPage = false;
       });
     } catch (_) {
-      if (mounted) {
-        setState(() {
-          _liveDependencyContracts = dep.contracts;
-          _liveDependencyTotalCount = dep.contractsCount;
-          _liveDependencyTotalCop = dep.totalCop;
-          _isLoadingDependencyLive = false;
-        });
+      if (mounted && requestId == _contratosRequestId) {
+        setState(() => _isLoadingContractsPage = false);
       }
     }
   }
 
-  /// Construye la estructura completa del Mapa de Procesos y Dependencias Internas
-  /// (tanto para entidades de Orden Nacional con Regionales como para Alcaldías y Gobernaciones).
-  List<_DependencyStat> _buildProcessMapDependencies({
-    required List<Map<String, dynamic>> sampleContracts,
-    required int totalEntityContracts,
-    required double totalEntityCop,
-  }) {
-    final isNational =
-        _ordenEntidad.toUpperCase().contains('NACIONAL') ||
-        _isNationalMultiRegionalEntity();
-
-    final canonicalNames = <String>[
-      isNational
-          ? 'Despacho de Dirección General / Dirección Regional'
-          : 'Despacho del Alcalde / Gobernador y Dirección Superior',
-      'Oficina Asesora de Planeación y Direccionamiento',
-      isNational
-          ? 'Subdirecciones y Centros de Ejecución Misional'
-          : 'Secretaría de Educación, Cultura y Formación',
-      'Secretaría / Área de Infraestructura Física y Obras',
-      'Dirección de Desarrollo Social, Salud y Bienestar',
-      isNational
-          ? 'Secretaría General y Grupo de Apoyo Administrativo'
-          : 'Secretaría General y Gestión Administrativa',
-      'Dirección Financiera, Presupuesto y Hacienda',
-      'Oficina Asesora Jurídica y Contratación',
-      'Oficina de Tecnologías de la Información (TIC)',
-      'Oficina de Control Interno y Supervisión Contractual',
-    ];
-
-    final Map<String, List<Map<String, dynamic>>> grouped = {
-      for (final name in canonicalNames) name: <Map<String, dynamic>>[],
-    };
-
-    for (final c in sampleContracts) {
-      final inferred = _inferCanonicalDependency(c, isNational: isNational);
-      grouped.putIfAbsent(inferred, () => []).add(c);
-    }
-
-    // Pesos de distribución institucional para estimar el universo total cuando la entidad tiene miles de contratos
-    const defaultWeights = <double>[
-      0.06, // Despacho
-      0.07, // Planeación
-      0.34, // Misional / Centros
-      0.11, // Infraestructura
-      0.09, // Salud y Bienestar
-      0.13, // Apoyo Administrativo
-      0.06, // Financiera / Hacienda
-      0.05, // Jurídica
-      0.05, // TIC
-      0.04, // Control Interno y Supervisión
-    ];
-
-    final sampleTotal = math.max(1, sampleContracts.length);
-    final scaleFactor = totalEntityContracts > sampleTotal
-        ? totalEntityContracts / sampleTotal
-        : 1.0;
-
-    final result = <_DependencyStat>[];
-    for (var i = 0; i < canonicalNames.length; i++) {
-      final depName = canonicalNames[i];
-      final list = grouped[depName] ?? [];
-      final sampleSum = list.fold<double>(
-        0,
-        (acc, item) => acc + _parseSafeContractCop(item),
-      );
-
-      final weight = i < defaultWeights.length ? defaultWeights[i] : 0.05;
-      final estimatedCount = list.isNotEmpty
-          ? math.max(list.length, (list.length * scaleFactor).round())
-          : math.max(1, (totalEntityContracts * weight).round());
-      final estimatedCop = sampleSum > 0
-          ? math.max(sampleSum, sampleSum * scaleFactor)
-          : (totalEntityCop * weight);
-
-      final style = _dependencyVisualStyle(depName);
-      result.add(
-        _DependencyStat(
-          name: depName,
-          contractsCount: estimatedCount,
-          totalCop: estimatedCop,
-          icon: style.$1,
-          iconColor: style.$2,
-          iconBg: style.$3,
-          contracts: list.isNotEmpty ? list : sampleContracts.take(6).toList(),
-        ),
-      );
-    }
-
-    return result;
+  void _cancelarBusqueda() {
+    _busquedaController.clear();
+    _busqueda = '';
   }
 
-  static String _inferCanonicalDependency(
-    Map<String, dynamic> c, {
-    required bool isNational,
-  }) {
-    final text = _normalizar(
-      '${c['objeto_del_contrato'] ?? ''} ${c['descripcion_del_proceso'] ?? ''} ${c['sector'] ?? ''}',
+  void _aplicarBusqueda(String texto) {
+    final consulta = texto.trim();
+    if (consulta.isEmpty) {
+      if (_busqueda.isNotEmpty) _limpiarBusqueda();
+      return;
+    }
+    // La búsqueda anula la navegación: unidad, dependencia y modalidad dejan
+    // de aplicar.
+    setState(() {
+      _busqueda = consulta;
+      _selectedUnidad = null;
+      _selectedDependencia = null;
+      _selectedTabIndex = 1;
+    });
+    _fetchContractsPageFromSecop(page: 1, modalityOverride: 'Todas');
+  }
+
+  void _limpiarBusqueda() {
+    setState(_cancelarBusqueda);
+    _fetchContractsPageFromSecop(page: 1);
+  }
+
+  void _seleccionarUnidad(String? unidad, {bool irAContratos = false}) {
+    setState(() {
+      _cancelarBusqueda();
+      _selectedUnidad = unidad;
+      if (irAContratos) _selectedTabIndex = 1;
+    });
+    _fetchContractsPageFromSecop(page: 1);
+  }
+
+  void _seleccionarDependencia(String? id, {bool irAContratos = false}) {
+    setState(() {
+      _cancelarBusqueda();
+      _selectedDependencia = id;
+      if (irAContratos) _selectedTabIndex = 1;
+    });
+    _fetchContractsPageFromSecop(page: 1);
+  }
+
+  void _seleccionarModalidad(String modalidad) {
+    setState(() {
+      _cancelarBusqueda();
+      _selectedTabIndex = 1;
+    });
+    _fetchContractsPageFromSecop(page: 1, modalityOverride: modalidad);
+  }
+
+  void _seleccionarRegional(String? departamento) {
+    if (departamento == _selectedRegionalDept) return;
+    setState(() {
+      _cancelarBusqueda();
+      _selectedRegionalDept = departamento;
+      _selectedUnidad = null;
+    });
+    _fetchLiveEntityProfileData();
+  }
+
+  void _seleccionarVigencia(int? anio) {
+    setState(() {
+      _cancelarBusqueda();
+      _selectedContratosYear = anio;
+      _onlyCurrentYear2026 = anio != null;
+    });
+    _fetchLiveEntityProfileData();
+  }
+
+  void _limpiarFiltros() {
+    final recargarTodo = _selectedRegionalDept != null;
+    setState(() {
+      _cancelarBusqueda();
+      _selectedRegionalDept = null;
+      _selectedUnidad = null;
+      _selectedDependencia = null;
+    });
+    if (recargarTodo) {
+      _fetchLiveEntityProfileData();
+    } else {
+      _fetchContractsPageFromSecop(page: 1, modalityOverride: 'Todas');
+    }
+  }
+
+  void _alternarSeguir() {
+    setState(() => _isFollowing = !_isFollowing);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _isFollowing
+              ? 'Ahora sigues a ${widget.entity.name}.'
+              : 'Dejaste de seguir a ${widget.entity.name}.',
+        ),
+        duration: const Duration(seconds: 2),
+      ),
     );
-    if (text.contains('PLANEAC') ||
-        text.contains('ESTADISTIC') ||
-        text.contains('DIRECCIONAMIENTO') ||
-        text.contains('CALIDAD') ||
-        text.contains('PROYECTO DE INVERSION')) {
-      return 'Oficina Asesora de Planeación y Direccionamiento';
-    }
-    if (text.contains('DESPACHO') ||
-        text.contains('DIRECCION REGIONAL') ||
-        text.contains('DIRECCION GENERAL') ||
-        text.contains('COMUNICACION') ||
-        text.contains('RELACIONES CORPORATIVAS')) {
-      return isNational
-          ? 'Despacho de Dirección General / Dirección Regional'
-          : 'Despacho del Alcalde / Gobernador y Dirección Superior';
-    }
-    if (text.contains('INTERVENTOR') ||
-        text.contains('SUPERVIS') ||
-        text.contains('AUDITOR') ||
-        text.contains('CONTROL INTERNO')) {
-      return 'Oficina de Control Interno y Supervisión Contractual';
-    }
-    if (text.contains('OBRA') ||
-        text.contains('VIAL') ||
-        text.contains('INFRAESTRUCTURA') ||
-        text.contains('MANTENIMIENTO') ||
-        text.contains('ADECUACION') ||
-        text.contains('CONSTRUCCION')) {
-      return 'Secretaría / Área de Infraestructura Física y Obras';
-    }
-    if (text.contains('SALUD') ||
-        text.contains('HOSPITAL') ||
-        text.contains('MEDIC') ||
-        text.contains('BIENESTAR') ||
-        text.contains('PSICOLOG') ||
-        text.contains('SOCIAL') ||
-        text.contains('DEPORT')) {
-      return 'Dirección de Desarrollo Social, Salud y Bienestar';
-    }
-    if (text.contains('HACIENDA') ||
-        text.contains('FINANC') ||
-        text.contains('CONTABL') ||
-        text.contains('TRIBUT') ||
-        text.contains('TESORER') ||
-        text.contains('PRESUPUEST')) {
-      return 'Dirección Financiera, Presupuesto y Hacienda';
-    }
-    if (text.contains('SISTEMA') ||
-        text.contains('SOFTWARE') ||
-        text.contains('TECNOLOG') ||
-        text.contains('INFORMATIC') ||
-        text.contains('COMPUT') ||
-        text.contains('CONECTIVIDAD')) {
-      return 'Oficina de Tecnologías de la Información (TIC)';
-    }
-    if (text.contains('JURIDIC') ||
-        text.contains('ABOGAD') ||
-        text.contains('JUDICIAL') ||
-        text.contains('DEFENSA')) {
-      return 'Oficina Asesora Jurídica y Contratación';
-    }
-    if (text.contains('EDUCAC') ||
-        text.contains('ESCOLAR') ||
-        text.contains('COLEGIO') ||
-        text.contains('FORMACION') ||
-        text.contains('INSTRUCTOR') ||
-        text.contains('APRENDIZ') ||
-        text.contains('PEDAGOG') ||
-        text.contains('MISIONAL')) {
-      return isNational
-          ? 'Subdirecciones y Centros de Ejecución Misional'
-          : 'Secretaría de Educación, Cultura y Formación';
-    }
-    return isNational
-        ? 'Secretaría General y Grupo de Apoyo Administrativo'
-        : 'Secretaría General y Gestión Administrativa';
   }
 
   static String _normalizeModalityLabel(String raw) {
@@ -1262,769 +1457,683 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     }
   }
 
-  static (IconData, Color, Color) _dependencyVisualStyle(String depName) {
-    final norm = _normalizar(depName);
-    if (norm.contains('DESPACHO') || norm.contains('DIRECCION SUPERIOR')) {
-      return (
-        Icons.account_balance_rounded,
-        const Color(0xFF1E3A8A),
-        const Color(0xFFDBEAFE),
-      );
-    }
-    if (norm.contains('PLANEAC')) {
-      return (
-        Icons.account_tree_rounded,
-        const Color(0xFF0369A1),
-        const Color(0xFFE0F2FE),
-      );
-    }
-    if (norm.contains('OBRA') || norm.contains('INFRAESTRUCTURA')) {
-      return (
-        Icons.engineering_rounded,
-        const Color(0xFFD97706),
-        const Color(0xFFFEF3C7),
-      );
-    }
-    if (norm.contains('EDUCAC') ||
-        norm.contains('FORMACION') ||
-        norm.contains('MISIONAL')) {
-      return (
-        Icons.school_rounded,
-        const Color(0xFF15803D),
-        const Color(0xFFDCFCE7),
-      );
-    }
-    if (norm.contains('SALUD') || norm.contains('BIENESTAR')) {
-      return (
-        Icons.health_and_safety_rounded,
-        const Color(0xFF0284C7),
-        const Color(0xFFE0F2FE),
-      );
-    }
-    if (norm.contains('HACIENDA') ||
-        norm.contains('FINANC') ||
-        norm.contains('PRESUPUEST')) {
-      return (
-        Icons.receipt_long_outlined,
-        const Color(0xFF047857),
-        const Color(0xFFD1FAE5),
-      );
-    }
-    if (norm.contains('JURIDIC')) {
-      return (
-        Icons.gavel_rounded,
-        const Color(0xFF6D28D9),
-        const Color(0xFFEDE9FE),
-      );
-    }
-    if (norm.contains('TIC') || norm.contains('TECNOLOG')) {
-      return (
-        Icons.computer_rounded,
-        const Color(0xFF0F766E),
-        const Color(0xFFCCFBF1),
-      );
-    }
-    if (norm.contains('CONTROL') || norm.contains('SUPERVIS')) {
-      return (
-        Icons.verified_user_outlined,
-        const Color(0xFFB45309),
-        const Color(0xFFFEF3C7),
-      );
-    }
-    return (
-      Icons.assured_workload_rounded,
-      const Color(0xFF1A2B4C),
-      const Color(0xFFF1F5F9),
-    );
-  }
-
   // ===========================================================================
-  // ENCABEZADO DEL PERFIL DE ENTIDAD (FONDO GENÉRICO DE LA PALETA + LOGO HD)
+  // ENCABEZADO COMPACTO: IDENTIDAD + METADATOS EN UNA LÍNEA
   // ===========================================================================
 
-  Widget _buildGenericPaletteHeader() {
-    final activeScopeLabel = _selectedRegionalDept == null
-        ? (_regionalStats.length > 1
-              ? 'Consolidado Nacional (${_regionalStats.length} Regionales / Seccionales)'
-              : widget.entity.location)
-        : '${_formatRegionalDisplayName(_selectedRegionalDept!)} · Colombia';
+  Widget _buildCompactHeader() {
+    final mobile = _isMobile;
+    final metadatos = <(IconData, String)>[
+      (Icons.badge_outlined, 'NIT $_nitEntidad'),
+      (Icons.account_balance_outlined, 'Orden $_ordenEntidad'),
+      (
+        Icons.event_outlined,
+        _onlyCurrentYear2026
+            ? 'Vigencia $_activeBudgetYear'
+            : 'Historial 2015–${AniosSecop.actual}',
+      ),
+      (
+        Icons.description_outlined,
+        '${_formatIntWithDots(_totalContratos)} contratos · ${_formatCompactCardMillions(_valorTotalContratadoCop)}',
+      ),
+      if (_selectedRegionalDept != null)
+        (
+          Icons.place_outlined,
+          _formatRegionalDisplayName(_selectedRegionalDept!),
+        ),
+    ];
 
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: _azulOscuro.withValues(alpha: 0.04),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
-          ),
-        ],
+      padding: EdgeInsets.fromLTRB(
+        mobile ? 4 : 20,
+        mobile ? 8 : 12,
+        mobile ? 8 : 32,
+        mobile ? 10 : 12,
       ),
-      child: Column(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Color(0xFFEDE8DF))),
+      ),
+      child: Row(
         children: [
-          // Banner superior con fondo genérico de la misma paleta (crema/dorado suave/azul oscuro)
+          IconButton(
+            onPressed: () => Navigator.maybePop(context),
+            tooltip: 'Volver a Entidades',
+            icon: const Icon(Icons.arrow_back_rounded, color: _azulOscuro),
+          ),
+          const SizedBox(width: 4),
           Container(
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFFFFF8E7),
-                  Color(0xFFF9E4B7),
-                  Color(0xFFEAE2D0),
-                ],
-                stops: [0.0, 0.58, 1.0],
+            width: mobile ? 40 : 48,
+            height: mobile ? 40 : 48,
+            padding: const EdgeInsets.all(5),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _azulOscuro.withValues(alpha: 0.10)),
+            ),
+            child: EntityBrandScope(
+              entityName: widget.entity.name,
+              nit: _nitEntidad,
+              child: EntityEmblemWidget(
+                type: widget.entity.emblemType,
+                size: mobile ? 30 : 38,
               ),
             ),
-            child: Stack(
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Positioned(
-                  right: -60,
-                  top: -50,
-                  child: Container(
-                    width: 260,
-                    height: 260,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFD54F).withValues(alpha: 0.20),
-                      shape: BoxShape.circle,
-                    ),
+                Text(
+                  widget.entity.name,
+                  maxLines: mobile ? 2 : 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: _azulOscuro,
+                    fontSize: mobile ? 15.5 : 20,
+                    fontWeight: FontWeight.w800,
+                    height: 1.15,
+                    letterSpacing: -0.2,
                   ),
                 ),
-                Positioned(
-                  right: 120,
-                  bottom: -70,
-                  child: Container(
-                    width: 200,
-                    height: 200,
-                    decoration: BoxDecoration(
-                      color: _azulOscuro.withValues(alpha: 0.05),
-                      shape: BoxShape.circle,
+                const SizedBox(height: 4),
+                if (mobile)
+                  Text(
+                    metadatos.map((m) => m.$2).join(' · '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF475569),
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
                     ),
-                  ),
-                ),
-                Padding(
-                  padding: _isMobile
-                      ? const EdgeInsets.fromLTRB(14, 14, 14, 18)
-                      : const EdgeInsets.fromLTRB(32, 20, 32, 26),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  )
+                else
+                  Wrap(
+                    spacing: 14,
+                    runSpacing: 3,
                     children: [
-                      // Barra superior: Botón volver + Botón seguir entidad
-                      Row(
-                        children: [
-                          InkWell(
-                            onTap: () => Navigator.pop(context),
-                            borderRadius: BorderRadius.circular(10),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 7,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.85),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: _azulOscuro.withValues(alpha: 0.12),
-                                ),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.arrow_back_rounded,
-                                    size: 16,
-                                    color: _azulOscuro,
-                                  ),
-                                  SizedBox(width: 6),
-                                  Text(
-                                    'Volver a Entidades',
-                                    style: TextStyle(
-                                      color: _azulOscuro,
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const Spacer(),
-                          if (!_isMobile)
-                            Container(
-                              margin: const EdgeInsets.only(right: 10),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 7,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.9),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: const Color(0xFF15803D)
-                                      .withValues(alpha: 0.25),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.calendar_today_rounded,
-                                    size: 14,
-                                    color: Color(0xFF15803D),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    _onlyCurrentYear2026
-                                        ? 'Vigencia $_activeBudgetYear'
-                                        : 'Consolidado Histórico SECOP II',
-                                    style: const TextStyle(
-                                      color: Color(0xFF15803D),
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ElevatedButton.icon(
-                            onPressed: () {
-                              setState(() => _isFollowing = !_isFollowing);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    _isFollowing
-                                        ? 'Ahora sigues a ${widget.entity.name}.'
-                                        : 'Dejaste de seguir a ${widget.entity.name}.',
-                                  ),
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
-                            },
-                            icon: Icon(
-                              _isFollowing
-                                  ? Icons.bookmark_added_rounded
-                                  : Icons.bookmark_border_rounded,
-                              size: 16,
-                            ),
-                            label: Text(
-                              _isFollowing
-                                  ? 'Siguiendo entidad'
-                                  : 'Seguir entidad',
+                      for (final (icono, texto) in metadatos)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(icono, size: 14, color: const Color(0xFF64748B)),
+                            const SizedBox(width: 4),
+                            Text(
+                              texto,
                               style: const TextStyle(
+                                color: Color(0xFF475569),
                                 fontSize: 12,
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _azulOscuro,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 10,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 18),
-                      // Bloque principal del encabezado: Logo HD Institucional + Nombre + Regional Activa
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: _isMobile ? 64 : 96,
-                            height: _isMobile ? 64 : 96,
-                            padding: EdgeInsets.all(_isMobile ? 7 : 10),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: _azulOscuro.withValues(alpha: 0.08),
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: _azulOscuro.withValues(alpha: 0.10),
-                                  blurRadius: 18,
-                                  offset: const Offset(0, 6),
-                                ),
-                              ],
-                            ),
-                            child: EntityBrandScope(
-                              entityName: widget.entity.name,
-                              nit: _nitEntidad,
-                              child: EntityEmblemWidget(
-                                type: widget.entity.emblemType,
-                                size: _isMobile ? 48 : 72,
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: _isMobile ? 12 : 22),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 6,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.9,
-                                        ),
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                      child: Text(
-                                        'ENTIDAD PÚBLICA · ORDEN ${_ordenEntidad.toUpperCase()}',
-                                        style: const TextStyle(
-                                          color: _azulOscuro,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: 0.4,
-                                        ),
-                                      ),
-                                    ),
-                                    if (_selectedRegionalDept != null)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF1D4ED8),
-                                          borderRadius: BorderRadius.circular(
-                                            14,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          'FILTRADO POR: ${_formatRegionalDisplayName(_selectedRegionalDept!).toUpperCase()}',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w800,
-                                            letterSpacing: 0.3,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  widget.entity.name,
-                                  style: TextStyle(
-                                    color: _azulOscuro,
-                                    fontSize: _isMobile ? 19 : 28,
-                                    fontWeight: FontWeight.w900,
-                                    height: 1.1,
-                                  ),
-                                ),
-                                const SizedBox(height: 5),
-                                Text(
-                                  activeScopeLabel,
-                                  style: const TextStyle(
-                                    color: Color(0xFF1E3A8A),
-                                    fontSize: 14.5,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                const SizedBox(height: 5),
-                                Text(
-                                  'Contratación de la vigencia $_activeBudgetYear consultada en Datos Abiertos SECOP II.',
-                                  style: const TextStyle(
-                                    color: Color(0xFF475569),
-                                    fontSize: 12.5,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
                     ],
                   ),
-                ),
               ],
             ),
           ),
-          // Franja blanca de datos verificables de SECOP II debajo del banner
-          Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: _isMobile ? 14 : 32,
-              vertical: 13,
-            ),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              border: Border(
-                top: BorderSide(color: Color(0xFFEDE8DF)),
-                bottom: BorderSide(color: Color(0xFFEDE8DF)),
+          const SizedBox(width: 8),
+          if (mobile)
+            IconButton(
+              onPressed: _alternarSeguir,
+              tooltip: _isFollowing ? 'Dejar de seguir' : 'Seguir entidad',
+              icon: Icon(
+                _isFollowing
+                    ? Icons.bookmark_added_rounded
+                    : Icons.bookmark_border_rounded,
+                color: _azulOscuro,
               ),
-            ),
-            child: Wrap(
-              spacing: 28,
-              runSpacing: 10,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                _contactInfoChip(
-                  Icons.location_on_outlined,
-                  'Alcance activo: $activeScopeLabel',
+            )
+          else
+            OutlinedButton.icon(
+              onPressed: _alternarSeguir,
+              icon: Icon(
+                _isFollowing
+                    ? Icons.bookmark_added_rounded
+                    : Icons.bookmark_border_rounded,
+                size: 16,
+              ),
+              label: Text(
+                _isFollowing ? 'Siguiendo' : 'Seguir entidad',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
                 ),
-                _contactInfoChip(
-                  Icons.badge_outlined,
-                  'NIT SECOP: $_nitEntidad',
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _azulOscuro,
+                side: const BorderSide(color: Color(0xFFCBD5E1)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
                 ),
-                _contactInfoChip(
-                  Icons.account_balance_outlined,
-                  'Orden: $_ordenEntidad',
-                ),
-                _contactInfoChip(
-                  Icons.event_available_outlined,
-                  'Vigencia anualizada: $_activeBudgetYear',
-                ),
-                _contactInfoChip(
-                  Icons.verified_outlined,
-                  'Fuente oficial: Datos Abiertos SECOP II',
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _contactInfoChip(IconData icon, String text) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 17, color: _azulOscuro),
-        const SizedBox(width: 7),
-        Flexible(
-          child: Text(
-            text,
-            style: const TextStyle(
-              color: Color(0xFF334155),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ===========================================================================
-  // SELECTOR DE REGIONALES / SECCIONALES TERRITORIALES (EJ. SENA, ICBF, INVIAS)
-  // ===========================================================================
-
-  Widget _buildRegionalesBreakdownBar() {
-    if (_regionalStats.length <= 1 && !_isNationalMultiRegionalEntity()) {
-      return const SizedBox.shrink();
-    }
-
-    final totalNationalContracts = _regionalStats.fold<int>(
-      0,
-      (acc, r) => acc + r.contractsCount,
-    );
-    final totalNationalCop = _regionalStats.fold<double>(
-      0,
-      (acc, r) => acc + r.totalCop,
-    );
-
-    final queryNorm = _normalizar(_regionalSearchFilter.trim());
-    final visibleRegionals = queryNorm.isEmpty
-        ? _regionalStats
-        : _regionalStats
-              .where(
-                (r) =>
-                    _normalizar(r.label).contains(queryNorm) ||
-                    _normalizar(r.departmentRaw).contains(queryNorm),
-              )
-              .toList();
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      padding: EdgeInsets.all(_isMobile ? 14 : 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFDBEAFE), width: 1.4),
-        boxShadow: [
-          BoxShadow(
-            color: _azulOscuro.withValues(alpha: 0.04),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFDBEAFE),
+                shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(
-                  Icons.hub_rounded,
-                  color: _azulPrimario,
-                  size: 20,
-                ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        const Text(
-                          'Distribución por Regionales y Seccionales Territoriales',
-                          style: TextStyle(
-                            color: _azulOscuro,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFDCFCE7),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            '${_regionalStats.length} Regionales en SECOP II',
-                            style: const TextStyle(
-                              color: Color(0xFF15803D),
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 3),
-                    const Text(
-                      'Selecciona cualquier Regional (ej. Regional Atlántico, Regional Cesar, Regional La Guajira) para discriminar su contratación, modalidades y dependencias internas.',
-                      style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
-                    ),
-                  ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // BARRA FIJA DE EXPLORACIÓN: BÚSQUEDA DIRECTA + SELECTORES + FILTROS
+  // ===========================================================================
+
+  Widget _buildBarraExploracion() {
+    final mobile = _isMobile;
+    final secundarios =
+        (_selectedUnidad != null ? 1 : 0) +
+        (_selectedDependencia != null ? 1 : 0) +
+        (_selectedModality != 'Todas' ? 1 : 0) +
+        (mobile && _selectedRegionalDept != null ? 1 : 0);
+
+    final buscador = TextField(
+      controller: _busquedaController,
+      onSubmitted: _aplicarBusqueda,
+      textInputAction: TextInputAction.search,
+      style: const TextStyle(fontSize: 14, color: _azulOscuro),
+      decoration: InputDecoration(
+        hintText: mobile
+            ? 'Número, objeto o contratista'
+            : 'Buscar contrato en toda la entidad: número, palabra del objeto o contratista…',
+        hintStyle: const TextStyle(fontSize: 13.5, color: Color(0xFF94A3B8)),
+        prefixIcon: const Icon(Icons.search_rounded, color: _azulOscuro),
+        suffixIcon: ValueListenableBuilder<TextEditingValue>(
+          valueListenable: _busquedaController,
+          builder: (context, valor, _) =>
+              valor.text.isEmpty && _busqueda.isEmpty
+              ? const SizedBox.shrink()
+              : IconButton(
+                  tooltip: 'Limpiar búsqueda',
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  onPressed: _limpiarBusqueda,
                 ),
-              ),
-              if (!_isMobile) const SizedBox(width: 12),
-              SizedBox(
-                width: _isMobile ? 0 : 220,
-                height: 36,
-                child: _isMobile
-                    ? null
-                    : TextField(
-                        onChanged: (v) =>
-                            setState(() => _regionalSearchFilter = v),
-                        style: const TextStyle(fontSize: 12),
-                        decoration: InputDecoration(
-                          hintText:
-                              'Filtrar regional (ej. Cesar, Atlántico)...',
-                          hintStyle: const TextStyle(
-                            fontSize: 11.5,
-                            color: Color(0xFF94A3B8),
-                          ),
-                          prefixIcon: const Icon(
-                            Icons.search_rounded,
-                            size: 16,
-                          ),
-                          filled: true,
-                          fillColor: const Color(0xFFF8FAFC),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(
-                              color: Color(0xFFE2E8F0),
-                            ),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(
-                              color: Color(0xFFE2E8F0),
-                            ),
-                          ),
-                        ),
+        ),
+        filled: true,
+        fillColor: const Color(0xFFF8FAFC),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _azulPrimario, width: 1.6),
+        ),
+      ),
+    );
+
+    final etiquetaFiltros = secundarios > 0 ? 'Filtros ($secundarios)' : 'Filtros';
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        mobile ? 12 : 32,
+        12,
+        mobile ? 12 : 32,
+        12,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (mobile)
+            Row(
+              children: [
+                Expanded(child: buscador),
+                const SizedBox(width: 8),
+                Badge(
+                  isLabelVisible: secundarios > 0,
+                  label: Text('$secundarios'),
+                  child: IconButton.outlined(
+                    onPressed: _abrirFiltrosMovil,
+                    tooltip: etiquetaFiltros,
+                    icon: const Icon(Icons.tune_rounded, color: _azulOscuro),
+                    style: IconButton.styleFrom(
+                      fixedSize: const Size(48, 48),
+                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-              ),
-              if (_selectedRegionalDept != null && !_isMobile) ...[
-                const SizedBox(width: 10),
-                TextButton.icon(
-                  onPressed: () {
-                    setState(() => _selectedRegionalDept = null);
-                    _fetchLiveEntityProfileData();
-                  },
-                  icon: const Icon(Icons.public_rounded, size: 16),
-                  label: const Text(
-                    'Ver Consolidado Nacional',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                    ),
                   ),
                 ),
               ],
-            ],
-          ),
-          if (_isMobile) ...[
+            )
+          else
+            Row(
+              children: [
+                Expanded(child: buscador),
+                const SizedBox(width: 10),
+                FilledButton(
+                  onPressed: () => _aplicarBusqueda(_busquedaController.text),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _azulOscuro,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 17,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Buscar',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                if (_tieneRegionales) ...[
+                  SizedBox(width: 270, child: _selectorRegional()),
+                  const SizedBox(width: 10),
+                ],
+                SizedBox(width: 200, child: _selectorVigencia()),
+                const SizedBox(width: 10),
+                OutlinedButton.icon(
+                  onPressed: () =>
+                      setState(() => _filtrosExpandidos = !_filtrosExpandidos),
+                  icon: Icon(
+                    _filtrosExpandidos
+                        ? Icons.expand_less_rounded
+                        : Icons.tune_rounded,
+                    size: 18,
+                  ),
+                  label: Text(
+                    etiquetaFiltros,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _azulOscuro,
+                    backgroundColor: _filtrosExpandidos || secundarios > 0
+                        ? const Color(0xFFEFF6FF)
+                        : null,
+                    side: BorderSide(
+                      color: secundarios > 0
+                          ? _azulPrimario
+                          : const Color(0xFFCBD5E1),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 17,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          if (_filtrosExpandidos && !mobile) ...[
             const SizedBox(height: 12),
-            SizedBox(
-              height: 38,
-              child: TextField(
-                onChanged: (v) => setState(() => _regionalSearchFilter = v),
-                style: const TextStyle(fontSize: 12),
-                decoration: InputDecoration(
-                  hintText: 'Filtrar regional (ej. Cesar, Atlántico)...',
-                  hintStyle: const TextStyle(
-                    fontSize: 11.5,
-                    color: Color(0xFF94A3B8),
-                  ),
-                  prefixIcon: const Icon(Icons.search_rounded, size: 16),
-                  filled: true,
-                  fillColor: const Color(0xFFF8FAFC),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
+            _buildPanelFiltros(),
+          ],
+          if (_busqueda.isNotEmpty ||
+              (_hayFiltrosActivos && (mobile || !_filtrosExpandidos))) ...[
+            const SizedBox(height: 10),
+            _buildFiltrosActivos(),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Contenedor común de los selectores desplegables de la barra.
+  Widget _selectorCompacto<T>({
+    required IconData icono,
+    required String ayuda,
+    required T valor,
+    required List<DropdownMenuItem<T>> opciones,
+    required ValueChanged<T?> alCambiar,
+  }) {
+    final estilo = Theme.of(context).textTheme.bodyMedium!.copyWith(
+      color: _azulOscuro,
+      fontSize: 13,
+      fontWeight: FontWeight.w700,
+    );
+    return Tooltip(
+      message: ayuda,
+      child: Container(
+        height: 48,
+        padding: const EdgeInsets.only(left: 12, right: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFCBD5E1)),
+        ),
+        child: Row(
+          children: [
+            Icon(icono, size: 16, color: _azulOscuro),
+            const SizedBox(width: 8),
+            Expanded(
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<T>(
+                  value: valor,
+                  items: opciones,
+                  onChanged: alCambiar,
+                  isExpanded: true,
+                  isDense: true,
+                  menuMaxHeight: 420,
+                  borderRadius: BorderRadius.circular(12),
+                  style: estilo,
                 ),
               ),
             ),
           ],
-          const SizedBox(height: 14),
-          SizedBox(
-            height: 68,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                // Tarjeta Consolidado Nacional
-                _buildRegionalChipCard(
-                  title: 'Consolidado Nacional',
-                  subtitle: totalNationalContracts > 0
-                      ? '${_formatIntWithDots(totalNationalContracts)} cont. · ${_formatCompactCardMillions(totalNationalCop)}'
-                      : 'Todas las regionales del país',
-                  isSelected: _selectedRegionalDept == null,
-                  isNationalCard: true,
-                  onTap: () {
-                    if (_selectedRegionalDept != null) {
-                      setState(() => _selectedRegionalDept = null);
-                      _fetchLiveEntityProfileData();
-                    }
-                  },
-                ),
-                for (final reg in visibleRegionals)
-                  _buildRegionalChipCard(
-                    title: reg.label,
-                    subtitle:
-                        '${_formatIntWithDots(reg.contractsCount)} cont. · ${_formatCompactCardMillions(reg.totalCop)}',
-                    isSelected: _selectedRegionalDept == reg.departmentRaw,
-                    isNationalCard: false,
-                    onTap: () {
-                      setState(() {
-                        _selectedRegionalDept = reg.departmentRaw;
-                      });
-                      _fetchLiveEntityProfileData();
-                    },
-                  ),
-              ],
+        ),
+      ),
+    );
+  }
+
+  Widget _selectorRegional({VoidCallback? alElegir}) {
+    final totalNacional = _regionalStats.fold<int>(
+      0,
+      (acc, r) => acc + r.contractsCount,
+    );
+    final valido =
+        _selectedRegionalDept == null ||
+        _regionalStats.any((r) => r.departmentRaw == _selectedRegionalDept);
+    return _selectorCompacto<String?>(
+      icono: Icons.public_rounded,
+      ayuda: 'Cambiar entre el consolidado y una regional',
+      valor: valido ? _selectedRegionalDept : null,
+      opciones: [
+        DropdownMenuItem<String?>(
+          value: null,
+          child: Text(
+            'Consolidado nacional · ${_formatIntWithDots(totalNacional)}',
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        for (final r in _regionalStats)
+          DropdownMenuItem<String?>(
+            value: r.departmentRaw,
+            child: Text(
+              '${r.label} · ${_formatIntWithDots(r.contractsCount)}',
+              overflow: TextOverflow.ellipsis,
             ),
+          ),
+      ],
+      alCambiar: (v) {
+        alElegir?.call();
+        _seleccionarRegional(v);
+      },
+    );
+  }
+
+  Widget _selectorVigencia({VoidCallback? alElegir}) {
+    return _selectorCompacto<int?>(
+      icono: Icons.event_outlined,
+      ayuda: 'Vigencia de los contratos',
+      valor: _selectedContratosYear,
+      opciones: [
+        DropdownMenuItem<int?>(
+          value: null,
+          child: Text('Todas (2015–${AniosSecop.actual})'),
+        ),
+        for (final anio in _aniosDisponibles)
+          DropdownMenuItem<int?>(value: anio, child: Text('Vigencia $anio')),
+      ],
+      alCambiar: (v) {
+        alElegir?.call();
+        _seleccionarVigencia(v);
+      },
+    );
+  }
+
+  Widget _selectorDependencia({VoidCallback? alElegir}) {
+    return _selectorCompacto<String?>(
+      icono: Icons.account_tree_rounded,
+      ayuda: 'Dependencia interna (clasificada por el objeto del contrato)',
+      valor: _selectedDependencia,
+      opciones: [
+        const DropdownMenuItem<String?>(
+          value: null,
+          child: Text('Todas las dependencias'),
+        ),
+        for (final d in _dependenciasInternas)
+          DropdownMenuItem<String?>(
+            value: d.id,
+            child: Text(
+              _conteoDependencias[d.id] == null
+                  ? _nombreDependencia(d)
+                  : '${_nombreDependencia(d)} · ${_formatIntWithDots(_conteoDependencias[d.id]!.$1)}',
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+      ],
+      alCambiar: (v) {
+        alElegir?.call();
+        _seleccionarDependencia(v, irAContratos: true);
+      },
+    );
+  }
+
+  Widget _selectorUnidad({VoidCallback? alElegir}) {
+    return _selectorCompacto<String?>(
+      icono: Icons.apartment_rounded,
+      ayuda: 'Unidad de contratación (cuenta en SECOP II)',
+      valor: _selectedUnidad,
+      opciones: [
+        DropdownMenuItem<String?>(
+          value: null,
+          child: Text('Todas las unidades (${_unidades.length})'),
+        ),
+        for (final u in _unidades)
+          DropdownMenuItem<String?>(
+            value: u.nombre,
+            child: Text(
+              '${u.nombre} · ${_formatIntWithDots(u.contractsCount)}',
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+      ],
+      alCambiar: (v) {
+        alElegir?.call();
+        _seleccionarUnidad(v, irAContratos: true);
+      },
+    );
+  }
+
+  /// Filtros secundarios. En escritorio se despliega bajo la barra; en
+  /// celular se abre como hoja inferior e incluye regional y vigencia.
+  Widget _buildPanelFiltros({VoidCallback? alElegir}) {
+    Widget etiqueta(String texto) => Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text(
+        texto.toUpperCase(),
+        style: const TextStyle(
+          color: Color(0xFF64748B),
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+
+    final modalidades = <(String, int)>[
+      ('Todas', _totalContratos),
+      for (final m in _modalityStats) (m.name, m.contractsCount),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_isMobile) ...[
+            if (_tieneRegionales) ...[
+              etiqueta('Regional'),
+              _selectorRegional(alElegir: alElegir),
+              const SizedBox(height: 12),
+            ],
+            etiqueta('Vigencia'),
+            _selectorVigencia(alElegir: alElegir),
+            const SizedBox(height: 12),
+          ],
+          etiqueta('Dependencia interna'),
+          if (_isMobile)
+            _selectorDependencia(alElegir: alElegir)
+          else
+            Align(
+              alignment: Alignment.centerLeft,
+              child: SizedBox(
+                width: 520,
+                child: _selectorDependencia(alElegir: alElegir),
+              ),
+            ),
+          const SizedBox(height: 12),
+          if (_unidades.length > 1) ...[
+            etiqueta('Unidad de contratación'),
+            if (_isMobile)
+              _selectorUnidad(alElegir: alElegir)
+            else
+              Align(
+                alignment: Alignment.centerLeft,
+                child: SizedBox(
+                  width: 520,
+                  child: _selectorUnidad(alElegir: alElegir),
+                ),
+              ),
+            const SizedBox(height: 12),
+          ],
+          etiqueta('Modalidad'),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final (nombre, cantidad) in modalidades)
+                ChoiceChip(
+                  label: Text('$nombre · ${_formatIntWithDots(cantidad)}'),
+                  selected: _selectedModality == nombre,
+                  onSelected: (_) {
+                    alElegir?.call();
+                    _seleccionarModalidad(nombre);
+                  },
+                  labelStyle: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: _selectedModality == nombre
+                        ? Colors.white
+                        : _azulOscuro,
+                  ),
+                  selectedColor: _azulOscuro,
+                  backgroundColor: Colors.white,
+                  checkmarkColor: Colors.white,
+                  side: const BorderSide(color: Color(0xFFCBD5E1)),
+                  visualDensity: VisualDensity.compact,
+                ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildRegionalChipCard({
-    required String title,
-    required String subtitle,
-    required bool isSelected,
-    required bool isNationalCard,
-    required VoidCallback onTap,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? (isNationalCard ? _azulOscuro : _azulPrimario)
-                : const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isSelected
-                  ? (isNationalCard ? _azulOscuro : _azulPrimario)
-                  : const Color(0xFFE2E8F0),
-              width: isSelected ? 1.8 : 1,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                isNationalCard
-                    ? Icons.public_rounded
-                    : Icons.location_city_rounded,
-                size: 18,
-                color: isSelected ? Colors.white : _azulPrimario,
-              ),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : _azulOscuro,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: isSelected
-                          ? Colors.white.withValues(alpha: 0.9)
-                          : const Color(0xFF64748B),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+  void _abrirFiltrosMovil() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      builder: (sheetContext) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+          child: _buildPanelFiltros(
+            alElegir: () => Navigator.of(sheetContext).pop(),
           ),
         ),
       ),
+    );
+  }
+
+  /// Resumen de lo que está filtrando la vista, con opción de quitar cada
+  /// filtro de un clic.
+  Widget _buildFiltrosActivos() {
+    Widget chip(String texto, VoidCallback alQuitar, {bool busqueda = false}) =>
+        InputChip(
+          label: Text(texto),
+          onDeleted: alQuitar,
+          deleteIcon: const Icon(Icons.close_rounded, size: 15),
+          labelStyle: const TextStyle(
+            color: _azulOscuro,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+          backgroundColor: busqueda
+              ? const Color(0xFFFFF7E0)
+              : const Color(0xFFEFF6FF),
+          side: BorderSide(
+            color: busqueda ? const Color(0xFFF5C032) : const Color(0xFFBFDBFE),
+          ),
+          visualDensity: VisualDensity.compact,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        );
+
+    final chips = <Widget>[
+      if (_busqueda.isNotEmpty)
+        chip(
+          'Búsqueda: "$_busqueda" · toda la entidad, todas las vigencias',
+          _limpiarBusqueda,
+          busqueda: true,
+        )
+      else ...[
+        if (_selectedRegionalDept != null)
+          chip(
+            _formatRegionalDisplayName(_selectedRegionalDept!),
+            () => _seleccionarRegional(null),
+          ),
+        if (_dependenciaSeleccionada != null)
+          chip(
+            'Dependencia: ${_nombreDependencia(_dependenciaSeleccionada!)}',
+            () => _seleccionarDependencia(null),
+          ),
+        if (_selectedUnidad != null)
+          chip('Unidad: $_selectedUnidad', () => _seleccionarUnidad(null)),
+        if (_selectedModality != 'Todas')
+          chip(
+            'Modalidad: $_selectedModality',
+            () => _seleccionarModalidad('Todas'),
+          ),
+      ],
+    ];
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        ...chips,
+        if (chips.length > 1)
+          TextButton(
+            onPressed: _limpiarFiltros,
+            child: const Text(
+              'Limpiar todo',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+          ),
+      ],
     );
   }
 
@@ -2539,7 +2648,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                 ),
               ),
               const SizedBox(height: 18),
-              // Dependencias y Mapa de Procesos (resumen lateral navegable)
+              // Dependencias internas con conteo real en SECOP II
               Container(
                 padding: const EdgeInsets.all(22),
                 decoration: BoxDecoration(
@@ -2557,7 +2666,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Mapa de procesos y dependencias',
+                      'Dependencias internas',
                       style: TextStyle(
                         color: _azulOscuro,
                         fontSize: 16.5,
@@ -2565,18 +2674,22 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    for (
-                      var i = 0;
-                      i < math.min(6, _dependencyStats.length);
-                      i++
-                    ) ...[
+                    if (_conteoDependencias.isEmpty)
+                      Text(
+                        _cargandoDependencias || _isLoadingLive
+                            ? 'Clasificando contratos por dependencia…'
+                            : 'No fue posible clasificar los contratos de este alcance.',
+                        style: const TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 12.2,
+                        ),
+                      ),
+                    for (final (i, d) in _dependenciasOrdenadas().take(6).indexed) ...[
                       if (i > 0)
                         const Divider(height: 16, color: Color(0xFFF1F5F9)),
                       InkWell(
-                        onTap: () {
-                          setState(() => _selectedTabIndex = 2);
-                          _selectDependencyAndFetchSecop(_dependencyStats[i]);
-                        },
+                        onTap: () =>
+                            _seleccionarDependencia(d.id, irAContratos: true),
                         borderRadius: BorderRadius.circular(8),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 4),
@@ -2586,19 +2699,15 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                                 width: 30,
                                 height: 30,
                                 decoration: BoxDecoration(
-                                  color: _dependencyStats[i].iconBg,
+                                  color: d.bg,
                                   shape: BoxShape.circle,
                                 ),
-                                child: Icon(
-                                  _dependencyStats[i].icon,
-                                  color: _dependencyStats[i].iconColor,
-                                  size: 16,
-                                ),
+                                child: Icon(d.icon, color: d.color, size: 16),
                               ),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
-                                  _dependencyStats[i].name,
+                                  _nombreDependencia(d),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
@@ -2611,7 +2720,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                               const SizedBox(width: 8),
                               Text(
                                 _formatIntWithDots(
-                                  _dependencyStats[i].contractsCount,
+                                  _conteoDependencias[d.id]?.$1 ?? 0,
                                 ),
                                 style: const TextStyle(
                                   color: _azulOscuro,
@@ -2626,9 +2735,12 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                     ],
                     const SizedBox(height: 14),
                     InkWell(
-                      onTap: () => setState(() => _selectedTabIndex = 2),
+                      onTap: () => setState(() {
+                        _verUnidadesSecop = false;
+                        _selectedTabIndex = 2;
+                      }),
                       child: const Text(
-                        'Abrir mapa de procesos y dependencias →',
+                        'Ver todas las dependencias →',
                         style: TextStyle(
                           color: _azulPrimario,
                           fontSize: 12,
@@ -2754,334 +2866,148 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   // ===========================================================================
 
   Widget _buildContratosTab() {
-    final totalContractsForActiveFilter = _totalMatchingContractsForTable > 0
+    final filtrado = _hayFiltrosContratos;
+    final total = filtrado || _totalMatchingContractsForTable > 0
         ? _totalMatchingContractsForTable
         : _totalContratos;
-    final totalCopForActiveFilter = _totalMatchingCopForTable > 0
+    final totalCop = filtrado || _totalMatchingCopForTable > 0
         ? _totalMatchingCopForTable
         : _valorTotalContratadoCop;
 
-    final totalPages = totalContractsForActiveFilter <= 0
-        ? 1
-        : (totalContractsForActiveFilter / _contractsPageSize).ceil();
+    final totalPages = total <= 0 ? 1 : (total / _contractsPageSize).ceil();
     final safePage = _contractsPage.clamp(1, totalPages);
-    final pageItems = _pagedContractsList.isNotEmpty
+    final pageItems = filtrado || _pagedContractsList.isNotEmpty
         ? _pagedContractsList
         : _entityContracts.take(_contractsPageSize).toList();
 
-    final scopeLabel = _selectedRegionalDept == null
-        ? 'Consolidado Nacional'
-        : _formatRegionalDisplayName(_selectedRegionalDept!);
+    final buscando = _busqueda.isNotEmpty;
+    final titulo = buscando
+        ? 'Resultados para "$_busqueda"'
+        : (_selectedUnidad ??
+              (_dependenciaSeleccionada != null
+                  ? _nombreDependencia(_dependenciaSeleccionada!)
+                  : (_selectedModality != 'Todas'
+                        ? _selectedModality
+                        : 'Contratos de la entidad')));
+    final alcance = buscando
+        ? 'Toda la entidad · todas las vigencias'
+        : [
+            _selectedRegionalDept == null
+                ? 'Consolidado nacional'
+                : _formatRegionalDisplayName(_selectedRegionalDept!),
+            _onlyCurrentYear2026
+                ? 'Vigencia $_activeBudgetYear'
+                : 'Historial 2015–${AniosSecop.actual}',
+            if (_selectedUnidad != null && _dependenciaSeleccionada != null)
+              _nombreDependencia(_dependenciaSeleccionada!),
+            if ((_selectedUnidad != null || _selectedDependencia != null) &&
+                _selectedModality != 'Todas')
+              _selectedModality,
+          ].join(' · ');
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Panel visual de discriminación por Modalidad de Contratación
-        Container(
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: _azulOscuro.withValues(alpha: 0.05),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: _azulOscuro.withValues(alpha: 0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Flex(
-                direction: _isMobile ? Axis.vertical : Axis.horizontal,
-                crossAxisAlignment: _isMobile
-                    ? CrossAxisAlignment.start
-                    : CrossAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _flexOrFull(
-                    1,
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Discriminación por modalidad de contratación · $scopeLabel',
-                          style: const TextStyle(
-                            color: _azulOscuro,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Cifras oficiales verificadas en SECOP II. Selecciona cualquier modalidad para navegar todas sus páginas y contratos.',
-                          style: const TextStyle(
-                            color: Color(0xFF64748B),
-                            fontSize: 12.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (_isMobile) const SizedBox(height: 10),
-                  // Selector de Vigencia / Año (2015 a 2026 e Historial consolidado)
-                  Container(
-                    height: 38,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFCBD5E1)),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<int?>(
-                        value: _selectedContratosYear,
-                        icon: const Icon(
-                          Icons.calendar_today_outlined,
-                          size: 14,
-                          color: _azulOscuro,
-                        ),
-                        isDense: true,
-                        style: const TextStyle(
-                          color: _azulOscuro,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                        ),
-                        items: [
-                          const DropdownMenuItem<int?>(
-                            value: null,
-                            child: Text('Historial completo (2015–2026)'),
-                          ),
-                          for (final anio in _aniosDisponibles)
-                            DropdownMenuItem<int?>(
-                              value: anio,
-                              child: Text('Vigencia $anio'),
-                            ),
-                        ],
-                        onChanged: (val) {
-                          setState(() {
-                            _selectedContratosYear = val;
-                            _onlyCurrentYear2026 = val != null;
-                          });
-                          _fetchLiveEntityProfileData();
-                        },
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  _modalityCardItem(
-                    title: 'Todas',
-                    count: _totalContratos,
-                    amountCop: _valorTotalContratadoCop,
-                    color: _azulOscuro,
-                    bgColor: const Color(0xFFF1F5F9),
-                    icon: Icons.layers_outlined,
-                    selected: _selectedModality == 'Todas',
-                    onTap: () => _fetchContractsPageFromSecop(
-                      page: 1,
-                      modalityOverride: 'Todas',
-                    ),
-                  ),
-                  for (final mod in _modalityStats)
-                    _modalityCardItem(
-                      title: mod.name,
-                      count: mod.contractsCount,
-                      amountCop: mod.totalCop,
-                      color: mod.color,
-                      bgColor: mod.bgColor,
-                      icon: mod.icon,
-                      selected: _selectedModality == mod.name,
-                      onTap: () => _fetchContractsPageFromSecop(
-                        page: 1,
-                        modalityOverride: mod.name,
-                      ),
-                    ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 18),
-        // Tabla navegable de contratos de la entidad (con paginación servidor sobre miles de páginas)
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: _azulOscuro.withValues(alpha: 0.05),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(22, 18, 22, 14),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _selectedModality == 'Todas'
-                            ? 'Historial de contratos ($scopeLabel · ${_formatIntWithDots(totalContractsForActiveFilter)} contratos · ${_formatShortMillions(totalCopForActiveFilter)})'
-                            : 'Modalidad: $_selectedModality ($scopeLabel · ${_formatIntWithDots(totalContractsForActiveFilter)} contratos · ${_formatShortMillions(totalCopForActiveFilter)})',
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        titulo,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: _azulOscuro,
                           fontSize: 16,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                    ),
-                    if (_isLoadingContractsPage)
-                      const Padding(
-                        padding: EdgeInsets.only(right: 14),
-                        child: SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: _azulPrimario,
-                          ),
-                        ),
-                      ),
-                    Text(
-                      'Página ${_formatIntWithDots(safePage)} de ${_formatIntWithDots(totalPages)}',
-                      style: const TextStyle(
-                        color: Color(0xFF64748B),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _responsiveTable([
-                _buildContractsTableHeaderRow(),
-                if (pageItems.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(36),
-                    child: Center(
-                      child: Text(
-                        'No hay contratos registrados en esta página o modalidad.',
-                        style: TextStyle(
+                      const SizedBox(height: 3),
+                      Text(
+                        '$alcance · ${_formatIntWithDots(total)} contrato${total == 1 ? '' : 's'} · ${_formatShortMillions(totalCop)}',
+                        style: const TextStyle(
                           color: Color(0xFF64748B),
-                          fontWeight: FontWeight.w600,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                    ),
-                  )
-                else
-                  for (var i = 0; i < pageItems.length; i++) ...[
-                    _buildContractRowWidget(pageItems[i]),
-                    if (i < pageItems.length - 1)
-                      const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                  ],
-              ]),
-              _buildFullHistoryPaginationFooter(
-                currentPage: safePage,
-                totalPages: totalPages,
-                totalRecords: totalContractsForActiveFilter,
-                onPageChanged: (p) => _fetchContractsPageFromSecop(page: p),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _modalityCardItem({
-    required String title,
-    required int count,
-    required double amountCop,
-    required Color color,
-    required Color bgColor,
-    required IconData icon,
-    required bool selected,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        width: _isMobile ? double.infinity : 222,
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: selected ? bgColor.withValues(alpha: 0.75) : Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? color : const Color(0xFFE2E8F0),
-            width: selected ? 2 : 1,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: bgColor,
-                    borderRadius: BorderRadius.circular(9),
+                    ],
                   ),
-                  child: Icon(icon, color: color, size: 17),
                 ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: bgColor,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    '${_formatIntWithDots(count)} cont.',
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w800,
+                if (_isLoadingContractsPage)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 14),
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: _azulPrimario,
+                      ),
                     ),
+                  ),
+                Text(
+                  'Página ${_formatIntWithDots(safePage)} de ${_formatIntWithDots(totalPages)}',
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-            Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: _azulOscuro,
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              _formatCompactCardMillions(amountCop),
-              style: TextStyle(
-                color: color,
-                fontSize: 12.5,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
+          ),
+          _responsiveTable([
+            _buildContractsTableHeaderRow(),
+            if (pageItems.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(36),
+                child: Center(
+                  child: Text(
+                    _isLoadingContractsPage
+                        ? 'Consultando SECOP II…'
+                        : buscando
+                        ? 'Ningún contrato de la entidad coincide con "$_busqueda". Prueba con el número exacto, otra palabra del objeto o el nombre del contratista.'
+                        : 'No hay contratos con estos filtros.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Color(0xFF64748B),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              )
+            else
+              for (var i = 0; i < pageItems.length; i++) ...[
+                _buildContractRowWidget(pageItems[i]),
+                if (i < pageItems.length - 1)
+                  const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              ],
+          ]),
+          _buildFullHistoryPaginationFooter(
+            currentPage: safePage,
+            totalPages: totalPages,
+            totalRecords: total,
+            onPageChanged: (p) => _fetchContractsPageFromSecop(page: p),
+          ),
+        ],
       ),
     );
   }
@@ -3117,7 +3043,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           Expanded(
             flex: 3,
             child: Text(
-              'Regional / Dependencia',
+              'Unidad / Departamento',
               style: TextStyle(
                 color: _azulOscuro,
                 fontSize: 11.5,
@@ -3176,15 +3102,12 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                 c['descripcion_del_proceso'] ??
                 'Contrato público adjudicado')
             .toString();
-    final isNat =
-        _ordenEntidad.toUpperCase().contains('NACIONAL') ||
-        _isNationalMultiRegionalEntity();
-    final dep = _inferCanonicalDependency(c, isNational: isNat);
+    final unidad = (c['nombre_entidad'] ?? '').toString().trim();
     final dept = (c['departamento'] ?? '').toString().trim();
-    final depWithRegional =
-        (isNat && dept.isNotEmpty && dept.toUpperCase() != 'NO DEFINIDO')
-        ? 'Reg. $dept · $dep'
-        : dep;
+    final depWithRegional = [
+      if (unidad.isNotEmpty) unidad,
+      if (dept.isNotEmpty && dept.toUpperCase() != 'NO DEFINIDO') dept,
+    ].join(' · ');
 
     final mod = _normalizeModalityLabel(
       (c['modalidad_de_contratacion'] ?? '').toString(),
@@ -3322,388 +3245,501 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   // PESTAÑA 3: DEPENDENCIAS Y MAPA DE PROCESOS (REGIONAL -> DESPACHO/PLANEACIÓN)
   // ===========================================================================
 
+  /// Dependencias con contratos en el alcance actual, de mayor a menor.
+  List<_DependenciaInterna> _dependenciasOrdenadas() =>
+      _dependenciasInternas
+          .where((d) => (_conteoDependencias[d.id]?.$1 ?? 0) > 0)
+          .toList()
+        ..sort(
+          (a, b) => _conteoDependencias[b.id]!.$1.compareTo(
+            _conteoDependencias[a.id]!.$1,
+          ),
+        );
+
   Widget _buildDependenciasTab() {
-    if (_dependencyStats.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(36),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
+    final selector = SegmentedButton<bool>(
+      segments: [
+        const ButtonSegment(
+          value: false,
+          icon: Icon(Icons.account_tree_rounded, size: 18),
+          label: Text('Dependencias internas'),
         ),
-        child: const Center(
-          child: Text(
-            'Consultando mapa de procesos y dependencias en SECOP II...',
+        ButtonSegment(
+          value: true,
+          icon: const Icon(Icons.apartment_rounded, size: 18),
+          label: Text('Unidades en SECOP II (${_unidades.length})'),
+        ),
+      ],
+      selected: {_verUnidadesSecop},
+      showSelectedIcon: false,
+      onSelectionChanged: (v) => setState(() => _verUnidadesSecop = v.first),
+      style: SegmentedButton.styleFrom(
+        selectedBackgroundColor: _azulOscuro,
+        selectedForegroundColor: Colors.white,
+        foregroundColor: _azulOscuro,
+        side: const BorderSide(color: Color(0xFFCBD5E1)),
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: _isMobile
+              ? SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: selector,
+                )
+              : selector,
+        ),
+        const SizedBox(height: 14),
+        if (_verUnidadesSecop)
+          _buildUnidadesSecop()
+        else
+          _buildDependenciasInternas(),
+      ],
+    );
+  }
+
+  /// Mapa de procesos: dependencias internas agrupadas por macroproceso, con
+  /// contratos y valor reales del alcance activo (regional y vigencia).
+  Widget _buildDependenciasInternas() {
+    final alcance = [
+      _selectedRegionalDept == null
+          ? 'consolidado nacional'
+          : _formatRegionalDisplayName(_selectedRegionalDept!),
+      _onlyCurrentYear2026
+          ? 'vigencia $_activeBudgetYear'
+          : 'historial 2015–${AniosSecop.actual}',
+    ].join(', ');
+    final totalClasificado = _conteoDependencias.values.fold<int>(
+      0,
+      (acc, c) => acc + c.$1,
+    );
+
+    Widget fila(_DependenciaInterna d) {
+      final (contratos, valor) = _conteoDependencias[d.id] ?? (0, 0.0);
+      final participacion = totalClasificado == 0
+          ? 0.0
+          : contratos / totalClasificado;
+      final seleccionada = d.id == _selectedDependencia;
+      return InkWell(
+        onTap: contratos == 0
+            ? null
+            : () => _seleccionarDependencia(d.id, irAContratos: true),
+        child: Container(
+          color: seleccionada ? const Color(0xFFEFF6FF) : null,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(color: d.bg, shape: BoxShape.circle),
+                child: Icon(d.icon, color: d.color, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 5,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _nombreDependencia(d),
+                      style: TextStyle(
+                        color: contratos == 0
+                            ? const Color(0xFF94A3B8)
+                            : _azulOscuro,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(3),
+                      child: LinearProgressIndicator(
+                        value: participacion,
+                        minHeight: 5,
+                        color: d.color,
+                        backgroundColor: const Color(0xFFF1F5F9),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              SizedBox(
+                width: _isMobile ? 64 : 110,
+                child: Text(
+                  '${_formatIntWithDots(contratos)}\n${(participacion * 100).toStringAsFixed(participacion < 0.1 ? 1 : 0)} %',
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    color: _azulOscuro,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+              if (!_isMobile)
+                SizedBox(
+                  width: 130,
+                  child: Text(
+                    _formatCompactCardMillions(valor),
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                      color: Color(0xFF334155),
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              const SizedBox(
+                width: 32,
+                child: Icon(
+                  Icons.chevron_right_rounded,
+                  color: Color(0xFF94A3B8),
+                ),
+              ),
+            ],
           ),
         ),
       );
     }
 
-    final selectedDep = _dependencyStats.firstWhere(
-      (d) => d.name == _selectedDependencyName,
-      orElse: () => _dependencyStats.first,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: _azulOscuro.withValues(alpha: 0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Mapa de procesos y dependencias internas',
+                  style: TextStyle(
+                    color: _azulOscuro,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Contratos y valor reales de SECOP II ($alcance). SECOP II no publica la dependencia que contrata: '
+                  'cada contrato se asigna a una sola dependencia según las palabras de su objeto. Haz clic en una para ver sus contratos.',
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 12.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_conteoDependencias.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(36),
+              child: Center(
+                child: Text(
+                  _cargandoDependencias || _isLoadingLive
+                      ? 'Clasificando contratos por dependencia…'
+                      : 'No fue posible clasificar los contratos de este alcance. Intenta “Actualizar datos”.',
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            )
+          else
+            for (final macro in _macroprocesos) ...[
+              Container(
+                color: const Color(0xFFF8FAFC),
+                padding: const EdgeInsets.fromLTRB(20, 9, 20, 9),
+                child: Text(
+                  'PROCESOS ${macro.toUpperCase()}',
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              for (final d in _dependenciasInternas.where(
+                (d) => d.macroproceso == macro,
+              )) ...[
+                fila(d),
+                const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              ],
+            ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUnidadesSecop() {
+    final consulta = _normalizar(_filtroUnidades.trim());
+    final visibles = consulta.isEmpty
+        ? _unidades
+        : _unidades
+              .where(
+                (u) => _normalizar(
+                  '${u.nombre} ${u.departamento}',
+                ).contains(consulta),
+              )
+              .toList();
+    final alcance = [
+      _selectedRegionalDept == null
+          ? 'consolidado nacional'
+          : _formatRegionalDisplayName(_selectedRegionalDept!),
+      _onlyCurrentYear2026
+          ? 'vigencia $_activeBudgetYear'
+          : 'historial 2015–${AniosSecop.actual}',
+    ].join(', ');
+
+    const estiloCabecera = TextStyle(
+      color: _azulOscuro,
+      fontSize: 11.5,
+      fontWeight: FontWeight.w800,
     );
 
-    final isNational =
-        _ordenEntidad.toUpperCase().contains('NACIONAL') ||
-        _isNationalMultiRegionalEntity();
-
-    final categories = <_ProcessMapCategorySpec>[
-      _ProcessMapCategorySpec(
-        macroTitle: '1. PROCESOS ESTRATÉGICOS Y DE DIRECCIÓN',
-        macroSubtitle: 'Direccionamiento institucional, Despacho General/Regional y Oficina Asesora de Planeación.',
-        bannerColor: const Color(0xFF1E3A8A),
-        bannerBg: const Color(0xFFDBEAFE),
-        icon: Icons.account_tree_rounded,
-        dependencyNames: [
-          isNational
-              ? 'Despacho de Dirección General / Dirección Regional'
-              : 'Despacho del Alcalde / Gobernador y Dirección Superior',
-          'Oficina Asesora de Planeación y Direccionamiento',
-        ],
-      ),
-      _ProcessMapCategorySpec(
-        macroTitle: '2. PROCESOS MISIONALES Y OPERATIVOS TERRITORIALES',
-        macroSubtitle: 'Ejecución misional, centros de formación/atención, infraestructura física y bienestar social.',
-        bannerColor: const Color(0xFF15803D),
-        bannerBg: const Color(0xFFDCFCE7),
-        icon: Icons.hub_rounded,
-        dependencyNames: [
-          isNational
-              ? 'Subdirecciones y Centros de Ejecución Misional'
-              : 'Secretaría de Educación, Cultura y Formación',
-          'Secretaría / Área de Infraestructura Física y Obras',
-          'Dirección de Desarrollo Social, Salud y Bienestar',
-        ],
-      ),
-      _ProcessMapCategorySpec(
-        macroTitle: '3. PROCESOS DE APOYO Y GESTIÓN ADMINISTRATIVA',
-        macroSubtitle: 'Grupo de apoyo administrativo, gestión financiera/presupuestal, contratación jurídica y TIC.',
-        bannerColor: const Color(0xFF0F766E),
-        bannerBg: const Color(0xFFCCFBF1),
-        icon: Icons.settings_suggest_rounded,
-        dependencyNames: [
-          isNational
-              ? 'Secretaría General y Grupo de Apoyo Administrativo'
-              : 'Secretaría General y Gestión Administrativa',
-          'Dirección Financiera, Presupuesto y Hacienda',
-          'Oficina Asesora Jurídica y Contratación',
-          'Oficina de Tecnologías de la Información (TIC)',
-        ],
-      ),
-      _ProcessMapCategorySpec(
-        macroTitle: '4. PROCESOS DE EVALUACIÓN, CONTROL Y SUPERVISIÓN',
-        macroSubtitle: 'Control interno de gestión, interventorías técnicas y supervisión contractual.',
-        bannerColor: const Color(0xFFB45309),
-        bannerBg: const Color(0xFFFEF3C7),
-        icon: Icons.verified_user_outlined,
-        dependencyNames: [
-          'Oficina de Control Interno y Supervisión Contractual',
-        ],
-      ),
-    ];
-
-    final activeScopeName = _selectedRegionalDept == null
-        ? 'Consolidado Nacional'
-        : _formatRegionalDisplayName(_selectedRegionalDept!);
-
-    final displayContracts = _liveDependencyContracts.isNotEmpty
-        ? _liveDependencyContracts
-        : selectedDep.contracts;
-    final displayTotalCount = _liveDependencyTotalCount > 0
-        ? _liveDependencyTotalCount
-        : selectedDep.contractsCount;
-    final displayTotalCop = _liveDependencyTotalCop > 0
-        ? _liveDependencyTotalCop
-        : selectedDep.totalCop;
-
-    final totalPages = displayTotalCount <= 0
-        ? 1
-        : (displayTotalCount / _contractsPageSize).ceil();
-    final safePage = _dependencyContractsPage.clamp(1, totalPages);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // MAPA DE PROCESOS INSTITUCIONAL INTERACTIVO (SUBDIVISIÓN POR REGIONAL + DEPENDENCIA)
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: _azulOscuro.withValues(alpha: 0.05),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
+    final filtro = SizedBox(
+      width: _isMobile ? double.infinity : 300,
+      child: TextField(
+        onChanged: (v) => setState(() => _filtroUnidades = v),
+        style: const TextStyle(fontSize: 13),
+        decoration: InputDecoration(
+          hintText: 'Filtrar unidades (ej. Cesar, centro, apoyo)…',
+          hintStyle: const TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8)),
+          prefixIcon: const Icon(Icons.filter_list_rounded, size: 18),
+          isDense: true,
+          filled: true,
+          fillColor: const Color(0xFFF8FAFC),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.account_tree_rounded,
-                              color: _azulPrimario,
-                              size: 22,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Mapa de Procesos y Dependencias Internas · $activeScopeName',
-                                style: const TextStyle(
-                                  color: _azulOscuro,
-                                  fontSize: 18.5,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Subdivide la contratación de ${widget.entity.name} ($activeScopeName) por macroprocesos y dependencias internas (ej. Despacho, Planeación, Misional, Apoyo Administrativo).',
-                          style: const TextStyle(
-                            color: Color(0xFF64748B),
-                            fontSize: 12.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              for (final cat in categories) ...[
-                Container(
-                  margin: const EdgeInsets.only(bottom: 14),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          ),
+        ),
+      ),
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: _azulOscuro.withValues(alpha: 0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+            child: Wrap(
+              spacing: 16,
+              runSpacing: 10,
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 720),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            flex: _isMobile ? 1 : 3,
-                            fit: FlexFit.loose,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: cat.bannerBg,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    cat.icon,
-                                    size: 15,
-                                    color: cat.bannerColor,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Flexible(
-                                    child: Text(
-                                      cat.macroTitle,
-                                      style: TextStyle(
-                                        color: cat.bannerColor,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w900,
-                                        letterSpacing: 0.3,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          if (!_isMobile) const SizedBox(width: 10),
-                          if (!_isMobile)
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                cat.macroSubtitle,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Color(0xFF64748B),
-                                  fontSize: 11.5,
-                                ),
-                              ),
-                            ),
-                        ],
+                      Text(
+                        'Unidades de contratación (${_unidades.length})',
+                        style: const TextStyle(
+                          color: _azulOscuro,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        children: [
-                          for (final depName in cat.dependencyNames)
-                            for (final dep in _dependencyStats.where(
-                              (d) => d.name == depName,
-                            ))
-                              InkWell(
-                                onTap: () =>
-                                    _selectDependencyAndFetchSecop(dep),
-                                borderRadius: BorderRadius.circular(12),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 160),
-                                  width: _isMobile ? double.infinity : 280,
-                                  padding: const EdgeInsets.all(13),
-                                  decoration: BoxDecoration(
-                                    color: selectedDep.name == dep.name
-                                        ? dep.iconBg.withValues(alpha: 0.75)
-                                        : Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: selectedDep.name == dep.name
-                                          ? dep.iconColor
-                                          : const Color(0xFFE2E8F0),
-                                      width: selectedDep.name == dep.name
-                                          ? 2
-                                          : 1,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        width: 38,
-                                        height: 38,
-                                        decoration: BoxDecoration(
-                                          color: dep.iconBg,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Icon(
-                                          dep.icon,
-                                          color: dep.iconColor,
-                                          size: 19,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 11),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              dep.name,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                color: _azulOscuro,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w800,
-                                                height: 1.2,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              '${_formatIntWithDots(dep.contractsCount)} cont. · ${_formatCompactCardMillions(dep.totalCop)}',
-                                              style: TextStyle(
-                                                color: dep.iconColor,
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w800,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                        ],
+                      const SizedBox(height: 3),
+                      Text(
+                        'Cuentas que contratan en SECOP II con el NIT de la entidad ($alcance). '
+                        'Haz clic en una para ver sus contratos.',
+                        style: const TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 12.5,
+                        ),
                       ),
                     ],
                   ),
                 ),
+                if (_unidades.length > 8) filtro,
               ],
-            ],
+            ),
           ),
-        ),
-        const SizedBox(height: 18),
-        // Tabla de contratos específicos de la dependencia + regional seleccionada
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: _azulOscuro.withValues(alpha: 0.05),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
+          if (_unidades.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(36),
+              child: Center(
+                child: Text(
+                  _isLoadingLive
+                      ? 'Consultando unidades en SECOP II…'
+                      : 'SECOP II no reporta unidades para este alcance.',
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(22, 18, 22, 14),
-                child: Row(
+            )
+          else
+            _responsiveTable([
+              Container(
+                color: const Color(0xFFF8FAFC),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 11,
+                ),
+                child: const Row(
                   children: [
-                    Icon(
-                      selectedDep.icon,
-                      color: selectedDep.iconColor,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 10),
                     Expanded(
+                      flex: 6,
+                      child: Text('Unidad', style: estiloCabecera),
+                    ),
+                    Expanded(
+                      flex: 3,
+                      child: Text('Departamento', style: estiloCabecera),
+                    ),
+                    Expanded(
+                      flex: 2,
                       child: Text(
-                        '$activeScopeName → ${selectedDep.name} (${_formatIntWithDots(displayTotalCount)} contratos · ${_formatShortMillions(displayTotalCop)})',
-                        style: const TextStyle(
-                          color: _azulOscuro,
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w900,
-                        ),
+                        'Contratos',
+                        textAlign: TextAlign.right,
+                        style: estiloCabecera,
                       ),
                     ),
-                    if (_isLoadingDependencyLive)
-                      const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: _azulPrimario,
-                        ),
+                    Expanded(
+                      flex: 3,
+                      child: Text(
+                        'Valor',
+                        textAlign: TextAlign.right,
+                        style: estiloCabecera,
                       ),
+                    ),
+                    SizedBox(width: 36),
                   ],
                 ),
               ),
-              _responsiveTable([
-                _buildContractsTableHeaderRow(),
-                for (var i = 0; i < displayContracts.length; i++) ...[
-                  _buildContractRowWidget(displayContracts[i]),
-                  if (i < displayContracts.length - 1)
-                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                ],
-              ]),
-              _buildFullHistoryPaginationFooter(
-                currentPage: safePage,
-                totalPages: totalPages,
-                totalRecords: displayTotalCount,
-                onPageChanged: (p) =>
-                    _selectDependencyAndFetchSecop(selectedDep, page: p),
+              if (visibles.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(28),
+                  child: Center(
+                    child: Text(
+                      'Ninguna unidad coincide con el filtro.',
+                      style: TextStyle(color: Color(0xFF64748B)),
+                    ),
+                  ),
+                ),
+              for (var i = 0; i < visibles.length; i++) ...[
+                if (i > 0) const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                _buildFilaUnidad(visibles[i]),
+              ],
+            ]),
+          if (_unidades.length == 1)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 4, 20, 16),
+              child: Text(
+                'Esta entidad contrata desde una sola cuenta en SECOP II, así que no tiene unidades separadas.',
+                style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
               ),
-            ],
-          ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilaUnidad(_UnidadContratante u) {
+    final seleccionada = u.nombre == _selectedUnidad;
+    return InkWell(
+      onTap: () => _seleccionarUnidad(u.nombre, irAContratos: true),
+      child: Container(
+        color: seleccionada ? const Color(0xFFEFF6FF) : null,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 6,
+              child: Text(
+                u.nombre,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: _azulOscuro,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            Expanded(
+              flex: 3,
+              child: Text(
+                u.departamento.isEmpty ? '—' : u.departamento,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Color(0xFF475569), fontSize: 12),
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Text(
+                _formatIntWithDots(u.contractsCount),
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                  color: _azulOscuro,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            Expanded(
+              flex: 3,
+              child: Text(
+                _formatCompactCardMillions(u.totalCop),
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                  color: Color(0xFF334155),
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(
+              width: 36,
+              child: Icon(
+                Icons.chevron_right_rounded,
+                color: Color(0xFF94A3B8),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -4175,55 +4211,34 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final content = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _buildRegionalesBreakdownBar(),
-        switch (_selectedTabIndex) {
-          0 => _buildResumenTab(),
-          1 => _buildContratosTab(),
-          2 => _buildDependenciasTab(),
-          3 => _buildContratistasTab(),
-          _ => _buildResumenTab(),
-        },
-      ],
-    );
+    final contenido = switch (_selectedTabIndex) {
+      1 => _buildContratosTab(),
+      2 => _buildDependenciasTab(),
+      3 => _buildContratistasTab(),
+      _ => _buildResumenTab(),
+    };
 
-    // En celular el encabezado se desplaza junto con el contenido para liberar espacio vertical.
-    if (_isMobile) {
-      return Scaffold(
-        backgroundColor: _bgCrema,
-        body: SafeArea(
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildGenericPaletteHeader(),
-                _buildProfileTabsBar(),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 14, 12, 28),
-                  child: content,
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
+    // Encabezado, pestañas y búsqueda quedan fijos (≈ 20 % del alto en
+    // escritorio); solo el contenido de la pestaña se desplaza.
     return Scaffold(
       backgroundColor: _bgCrema,
-      body: Column(
-        children: [
-          _buildGenericPaletteHeader(),
-          _buildProfileTabsBar(),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(32, 20, 32, 36),
-              child: content,
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildCompactHeader(),
+            _buildProfileTabsBar(),
+            _buildBarraExploracion(),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: _isMobile
+                    ? const EdgeInsets.fromLTRB(12, 14, 12, 28)
+                    : const EdgeInsets.fromLTRB(32, 20, 32, 36),
+                child: contenido,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
