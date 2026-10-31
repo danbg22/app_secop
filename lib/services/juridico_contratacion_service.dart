@@ -11,6 +11,7 @@ import '../utils/document_file_picker.dart';
 import '../utils/file_downloader.dart';
 import '../utils/pdf_unificado.dart';
 import '../utils/realtime_tab_bridge.dart';
+import 'archivo_fragmentado.dart';
 import 'auth_service.dart';
 import 'equipo_juridico_service.dart';
 import 'security_service.dart';
@@ -1022,6 +1023,7 @@ class JuridicoContratacionService {
     final faltantes = expediente.apartados.where(
       (a) =>
           a.tieneArchivoCargado &&
+          a.archivoTamanoBytes <= _maxBytesHidratacion &&
           (a.archivoBase64 == null || a.archivoBase64!.isEmpty),
     );
     if (faltantes.isEmpty) return;
@@ -1032,14 +1034,7 @@ class JuridicoContratacionService {
       final mapaBinarios = <String, String>{};
 
       for (final ap in faltantes) {
-        final doc = await FirebaseFirestore.instance
-            .collection('expedientes_juridicos')
-            .doc(token)
-            .collection('archivos')
-            .doc(ap.id)
-            .get()
-            .timeout(const Duration(milliseconds: 2000));
-        final b64 = doc.data()?['archivoBase64']?.toString();
+        final b64 = await ArchivoFragmentado.leer(_refArchivo(token, ap.id));
         if (b64 != null && b64.isNotEmpty) {
           mapaBinarios[ap.id] = b64;
           actualizoBinario = true;
@@ -1065,6 +1060,19 @@ class JuridicoContratacionService {
       }
     } catch (_) {}
   }
+
+  static DocumentReference<Map<String, dynamic>> _refArchivo(
+    String tokenInvitado,
+    String apartadoId,
+  ) => FirebaseFirestore.instance
+      .collection('expedientes_juridicos')
+      .doc(tokenInvitado.toLowerCase())
+      .collection('archivos')
+      .doc(apartadoId);
+
+  /// Archivos hasta este tamaño se traen al abrir el expediente; los más
+  /// grandes se descargan solo cuando se abren, descargan o imprimen.
+  static const int _maxBytesHidratacion = 1024 * 1024;
 
   /// Extrae de forma determinista el token de un enlace de contratista invitado.
   static String extraerTokenInvitadoDeUri(Uri uri) {
@@ -2027,46 +2035,30 @@ class JuridicoContratacionService {
     } catch (_) {}
   }
 
-  /// Obtiene los bytes reales del documento cargado (o un PDF válido de respaldo).
-  static ({List<int> bytes, String fileName, String mimeType})?
+  /// Bytes reales del documento cargado: la copia en memoria o, para los
+  /// archivos grandes que no se guardan en el navegador, la de Firestore.
+  /// `null` si no hay archivo o no se pudo obtener.
+  static Future<({Uint8List bytes, String fileName, String mimeType})?>
   obtenerBinarioDocumento({
     required ExpedienteContratoPs expediente,
     required ApartadoDocumentoContrato apartado,
-  }) {
+  }) async {
     if (!apartado.tieneArchivoCargado) return null;
-
-    List<int> bytes;
-    String fileName = (apartado.archivoNombre ?? 'documento.pdf').trim();
-    String mime = (apartado.archivoMime ?? 'application/pdf').trim();
-
-    if (apartado.archivoBase64 != null &&
-        apartado.archivoBase64!.trim().isNotEmpty) {
-      try {
-        bytes = base64Decode(apartado.archivoBase64!);
-      } catch (_) {
-        bytes = _generarPdfSoporteRespaldo(expediente, apartado);
-        mime = 'application/pdf';
-        if (!fileName.toLowerCase().endsWith('.pdf')) {
-          fileName = '$fileName.pdf';
-        }
-      }
-    } else {
-      bytes = _generarPdfSoporteRespaldo(expediente, apartado);
-      mime = 'application/pdf';
-      if (!fileName.toLowerCase().endsWith('.pdf')) {
-        fileName = '$fileName.pdf';
-      }
-    }
-
-    return (bytes: bytes, fileName: fileName, mimeType: mime);
+    final bytes = await _bytesOriginalesDocumento(expediente, apartado);
+    if (bytes == null) return null;
+    return (
+      bytes: bytes,
+      fileName: (apartado.archivoNombre ?? 'documento').trim(),
+      mimeType: (apartado.archivoMime ?? 'application/octet-stream').trim(),
+    );
   }
 
   /// Abre el documento en una pestaña nueva del navegador para lectura completa.
-  static bool abrirDocumentoEnPestana({
+  static Future<bool> abrirDocumentoEnPestana({
     required ExpedienteContratoPs expediente,
     required ApartadoDocumentoContrato apartado,
-  }) {
-    final data = obtenerBinarioDocumento(
+  }) async {
+    final data = await obtenerBinarioDocumento(
       expediente: expediente,
       apartado: apartado,
     );
@@ -2075,11 +2067,11 @@ class JuridicoContratacionService {
   }
 
   /// Descarga individualmente el archivo subido por el contratista.
-  static bool descargarDocumentoIndividual({
+  static Future<bool> descargarDocumentoIndividual({
     required ExpedienteContratoPs expediente,
     required ApartadoDocumentoContrato apartado,
-  }) {
-    final data = obtenerBinarioDocumento(
+  }) async {
+    final data = await obtenerBinarioDocumento(
       expediente: expediente,
       apartado: apartado,
     );
@@ -2233,17 +2225,12 @@ class JuridicoContratacionService {
       } catch (_) {}
     }
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('expedientes_juridicos')
-          .doc(expediente.tokenInvitado.toLowerCase())
-          .collection('archivos')
-          .doc(apartado.id)
-          .get()
-          .timeout(const Duration(seconds: 15));
-      final data = doc.data();
-      final remoto = data?['archivoBase64']?.toString() ?? '';
-      final version = (data?['versionCarga'] as num?)?.toInt();
-      if (remoto.isEmpty || version != apartado.versionCarga) return null;
+      int? version;
+      final remoto = await ArchivoFragmentado.leer(
+        _refArchivo(expediente.tokenInvitado, apartado.id),
+        metadatos: (m) => version = (m['versionCarga'] as num?)?.toInt(),
+      );
+      if (remoto == null || version != apartado.versionCarga) return null;
       return base64Decode(remoto);
     } catch (_) {
       return null;
@@ -2380,7 +2367,7 @@ class JuridicoContratacionService {
     // 2. Emitir actualización instantánea (< 2 ms) a todas las pestañas abiertas
     if (emitirBroadcast) {
       final payloadCompleto = jsonEncode(
-        expediente.toMap(omitLargeBinary: false),
+        expediente.toMap(omitLargeBinary: true),
       );
       broadcastRealtimePayload(_broadcastChannelName, payloadCompleto);
     }
@@ -2399,7 +2386,9 @@ class JuridicoContratacionService {
     List<ExpedienteContratoPs> expedientes,
   ) async {
     try {
-      final encoded = jsonEncode(expedientes.map((e) => e.toMap()).toList());
+      final encoded = jsonEncode(
+        expedientes.map((e) => e.toMap(omitLargeBinary: true)).toList(),
+      );
       writeSharedStorage(_sharedWebKey, encoded);
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_prefsKey, encoded);
@@ -2426,26 +2415,20 @@ class JuridicoContratacionService {
   }) async {
     final rawB64 = apartado.archivoBase64 ?? '';
     if (rawB64.isEmpty) return 'el archivo está vacío.';
-    if (rawB64.length > 940000) {
-      return 'el archivo supera el tamaño máximo permitido (680 KB).';
-    }
 
     try {
-      await FirebaseFirestore.instance
-          .collection('expedientes_juridicos')
-          .doc(tokenInvitado.toLowerCase())
-          .collection('archivos')
-          .doc(apartado.id)
-          .set(<String, dynamic>{
-            'apartadoId': apartado.id,
-            'archivoNombre': apartado.archivoNombre,
-            'archivoMime': apartado.archivoMime,
-            'archivoSha256': apartado.archivoSha256,
-            'archivoBase64': rawB64,
-            'versionCarga': apartado.versionCarga,
-            'fechaCargaIso': apartado.fechaCargaIso,
-          })
-          .timeout(const Duration(seconds: 20));
+      await ArchivoFragmentado.guardar(
+        _refArchivo(tokenInvitado, apartado.id),
+        base64: rawB64,
+        metadatos: <String, dynamic>{
+          'apartadoId': apartado.id,
+          'archivoNombre': apartado.archivoNombre,
+          'archivoMime': apartado.archivoMime,
+          'archivoSha256': apartado.archivoSha256,
+          'versionCarga': apartado.versionCarga,
+          'fechaCargaIso': apartado.fechaCargaIso,
+        },
+      );
       return null;
     } on TimeoutException {
       return 'el servidor tardó demasiado en responder. Revisa tu conexión e inténtalo de nuevo.';
@@ -2503,24 +2486,6 @@ class JuridicoContratacionService {
     }).toList();
 
     return base.copyWith(apartados: apartadosFusionados);
-  }
-
-  static List<int> _generarPdfSoporteRespaldo(
-    ExpedienteContratoPs expediente,
-    ApartadoDocumentoContrato apartado,
-  ) {
-    return _construirPdf14Simple(<String>[
-      'CONTRATA LEGAL - SOPORTE DOCUMENTAL REGISTRADO',
-      '====================================================================',
-      'Contrato            : ${_ascii(expediente.numeroContrato)}',
-      'Entidad             : ${_ascii(expediente.entidadNombre)}',
-      'Documento           : ${_ascii(apartado.nombre)}',
-      'Archivo             : ${_ascii(apartado.archivoNombre ?? "documento.pdf")}',
-      'Version             : v${apartado.versionCarga}',
-      'SHA-256             : ${apartado.archivoSha256 ?? "Verificado"}',
-      'Cargado por         : ${_ascii(apartado.cargadoPorNombre ?? expediente.contratistaNombreEsperado)}',
-      'Estado              : ${_ascii(apartado.estado.etiqueta)}',
-    ]);
   }
 
   static String _ascii(String input) {

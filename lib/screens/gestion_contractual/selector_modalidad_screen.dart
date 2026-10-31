@@ -57,8 +57,9 @@ class SelectorModalidadScreen extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         const Text(
-          'Cada modalidad trae sus etapas, campos y documentos según la Ley 80 de 1993, '
-          'la Ley 1150 de 2007 y el Decreto 1082 de 2015.',
+          'Cada modalidad trae sus etapas, plazos y requisitos según la Ley 80 de 1993, '
+          'la Ley 1150 de 2007 y el Decreto 1082 de 2015. El proceso oficial se adelanta en '
+          'SECOP II; aquí el equipo jurídico lo prepara, controla plazos y verifica.',
           textAlign: TextAlign.center,
           style: EstiloContractual.subtitulo,
         ),
@@ -68,7 +69,7 @@ class SelectorModalidadScreen extends StatelessWidget {
         grilla(directas),
         const SizedBox(height: 28),
         const Text(
-          'CONVOCATORIA PÚBLICA CON OFERENTES',
+          'ACOMPAÑAMIENTO DE PROCESOS COMPETITIVOS EN SECOP II',
           style: EstiloContractual.seccion,
         ),
         const SizedBox(height: 10),
@@ -160,7 +161,7 @@ class _TarjetaModalidadState extends State<_TarjetaModalidad> {
                         Expanded(
                           child: Text(
                             m.esCompetitiva
-                                ? '${m.etapas.length} etapas · ${m.documentosOferente.length} requisitos por oferente'
+                                ? '${m.etapas.length} etapas · ${m.documentosOferente.length} requisitos a verificar'
                                 : (m.etapas.isEmpty
                                       ? 'Expediente con enlace al contratista'
                                       : '${m.etapas.length} etapas · un contratista'),

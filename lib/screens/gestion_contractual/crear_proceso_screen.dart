@@ -12,13 +12,9 @@ class CrearProcesoScreen extends StatefulWidget {
   const CrearProcesoScreen({
     super.key,
     required this.modalidad,
-    this.onAbrirExpediente,
   });
 
   final ModalidadContratacion modalidad;
-
-  /// Abre la verificación documental de un expediente (oferente o contratista).
-  final void Function(String tokenExpediente)? onAbrirExpediente;
 
   @override
   State<CrearProcesoScreen> createState() => _CrearProcesoScreenState();
@@ -30,6 +26,7 @@ class _CrearProcesoScreenState extends State<CrearProcesoScreen> {
   final _nit = TextEditingController();
   final _dependencia = TextEditingController();
   final _numero = TextEditingController();
+  final _idSecop = TextEditingController();
   final _objeto = TextEditingController();
   final _presupuesto = TextEditingController();
   final _plazo = TextEditingController();
@@ -56,6 +53,7 @@ class _CrearProcesoScreenState extends State<CrearProcesoScreen> {
       _nit,
       _dependencia,
       _numero,
+      _idSecop,
       _objeto,
       _presupuesto,
       _plazo,
@@ -80,6 +78,7 @@ class _CrearProcesoScreenState extends State<CrearProcesoScreen> {
         presupuestoCop:
             int.tryParse(_presupuesto.text.replaceAll(RegExp(r'\D'), '')) ?? 0,
         plazoEjecucion: _plazo.text,
+        idProcesoSecop: _idSecop.text,
         campos: {
           for (final e in _camposTexto.entries) e.key: e.value.text,
           ..._seleccion,
@@ -88,10 +87,7 @@ class _CrearProcesoScreenState extends State<CrearProcesoScreen> {
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
-          builder: (_) => ProcesoDetalleScreen(
-            procesoId: proceso.id,
-            onAbrirExpediente: widget.onAbrirExpediente,
-          ),
+          builder: (_) => ProcesoDetalleScreen(procesoId: proceso.id),
         ),
       );
     } on ProcesoContratacionException catch (e) {
@@ -191,6 +187,21 @@ class _CrearProcesoScreenState extends State<CrearProcesoScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFBFDBFE)),
+              ),
+              child: const Text(
+                'Registra aquí el proceso que la entidad adelanta en SECOP II para que el equipo '
+                'jurídico controle plazos, documentos, observaciones y verificación de ofertas. '
+                'Publicación, recepción de ofertas y adjudicación se hacen únicamente en SECOP II.',
+                style: TextStyle(color: Color(0xFF1E3A8A), fontSize: 12.6, height: 1.4),
+              ),
+            ),
+            const SizedBox(height: 18),
             const Text('DATOS DEL PROCESO', style: EstiloContractual.seccion),
             const SizedBox(height: 14),
             par(
@@ -216,9 +227,17 @@ class _CrearProcesoScreenState extends State<CrearProcesoScreen> {
                 validator: _requerido,
               ),
               TextFormField(
-                controller: _dependencia,
-                decoration: _decoracion('Dependencia que contrata'),
+                controller: _idSecop,
+                decoration: _decoracion(
+                  'ID del proceso en SECOP II',
+                  ayuda: 'Opcional. Ej.: CO1.REQ.1234567. Puedes vincularlo después.',
+                ),
               ),
+            ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _dependencia,
+              decoration: _decoracion('Dependencia que contrata'),
             ),
             const SizedBox(height: 14),
             TextFormField(
@@ -343,7 +362,8 @@ class _CrearProcesoScreenState extends State<CrearProcesoScreen> {
 }
 
 /// Lo que exige la ley para la modalidad: etapas, documentos de la entidad
-/// y de los oferentes, y criterio de escogencia.
+/// a cargo del equipo, requisitos que se verifican en cada oferta y criterio
+/// de escogencia.
 class _ResumenRequisitos extends StatelessWidget {
   const _ResumenRequisitos({required this.modalidad});
 
@@ -464,12 +484,12 @@ class _ResumenRequisitos extends StatelessWidget {
             const SizedBox(height: 12),
           ],
           if (m.documentosOferente.isNotEmpty)
-            lista('CADA OFERENTE CARGA', m.documentosOferente),
+            lista('REQUISITOS A VERIFICAR EN CADA OFERTA', m.documentosOferente),
           if (m.documentosContrato.isNotEmpty)
             lista(
               m.esCompetitiva
-                  ? 'EL ADJUDICATARIO CARGA'
-                  : 'EL CONTRATISTA CARGA',
+                  ? 'LEGALIZACIÓN DEL ADJUDICATARIO'
+                  : 'DOCUMENTOS DEL CONTRATISTA A VERIFICAR',
               m.documentosContrato,
             ),
         ],

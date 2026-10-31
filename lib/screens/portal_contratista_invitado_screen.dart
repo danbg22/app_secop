@@ -183,18 +183,24 @@ class _PortalContratistaInvitadoScreenState
     }
   }
 
-  void _verDocumentoCargado(
+  Future<void> _verDocumentoCargado(
     ExpedienteContratoPs exp,
     ApartadoDocumentoContrato apartado,
-  ) {
-    final abierto = JuridicoContratacionService.abrirDocumentoEnPestana(
+  ) async {
+    final abierto = await JuridicoContratacionService.abrirDocumentoEnPestana(
       expediente: exp,
       apartado: apartado,
     );
-    if (!abierto) {
-      JuridicoContratacionService.descargarDocumentoIndividual(
-        expediente: exp,
-        apartado: apartado,
+    if (abierto) return;
+    final descargado =
+        await JuridicoContratacionService.descargarDocumentoIndividual(
+          expediente: exp,
+          apartado: apartado,
+        );
+    if (!descargado) {
+      _mostrarMensaje(
+        'No fue posible obtener el archivo. Revisa tu conexión e inténtalo de nuevo.',
+        esError: true,
       );
     }
   }

@@ -1,7 +1,10 @@
 // ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
 import 'dart:async';
 import 'dart:html' as html;
+import 'dart:js_interop';
 import 'dart:typed_data';
+
+import 'package:web/web.dart' as web;
 
 import '../services/security_service.dart';
 import 'document_file_picker_types.dart';
@@ -9,7 +12,7 @@ import 'document_file_picker_types.dart';
 bool get supportsContractDocumentPicker => true;
 
 /// Selector seguro de documentos contractuales en Web (PDF, PNG, JPG, JPEG, WEBP, DOC, DOCX).
-/// Verifica Magic Bytes reales y bloquea SVG/HTML/JS ejecutables o archivos > 680 KB.
+/// Verifica Magic Bytes reales y bloquea SVG/HTML/JS ejecutables o archivos > 25 MB.
 Future<PickedContractDocumentFile?> pickContractDocumentFile() async {
   final completer = Completer<PickedContractDocumentFile?>();
   final uploadInput = html.FileUploadInputElement()
@@ -53,7 +56,7 @@ Future<PickedContractDocumentFile?> pickContractDocumentFile() async {
             bytes: Uint8List(0),
             sha256Hash: '',
             errorMessage:
-                'El archivo supera el límite permitido de 680 KB. Por favor adjunta un documento más liviano o comprimido.',
+                'El archivo supera el límite permitido de 25 MB. Por favor adjunta un documento más liviano o comprimido.',
           ),
         );
       }
@@ -62,7 +65,7 @@ Future<PickedContractDocumentFile?> pickContractDocumentFile() async {
 
     final reader = html.FileReader();
     reader.readAsArrayBuffer(file);
-    reader.onLoadEnd.first.then((_) {
+    reader.onLoadEnd.first.then((_) async {
       if (completer.isCompleted) return;
       final rawResult = reader.result;
       Uint8List? bytes;
@@ -107,9 +110,8 @@ Future<PickedContractDocumentFile?> pickContractDocumentFile() async {
         return;
       }
 
-      final digestHex = SecurityService.bytesToHex(
-        SecurityService.sha256Bytes(bytes),
-      );
+      final digestHex = await _sha256Hex(bytes);
+      if (completer.isCompleted) return;
 
       completer.complete(
         PickedContractDocumentFile(
@@ -130,3 +132,17 @@ Future<PickedContractDocumentFile?> pickContractDocumentFile() async {
   return completer.future;
 }
 
+/// SHA-256 con la criptografía nativa del navegador: con archivos de hasta
+/// 25 MB la implementación en Dart tardaría varios segundos.
+Future<String> _sha256Hex(Uint8List bytes) async {
+  try {
+    final resultado = await web.window.crypto.subtle
+        .digest('SHA-256'.toJS, bytes.toJS)
+        .toDart;
+    return SecurityService.bytesToHex(
+      (resultado as JSArrayBuffer).toDart.asUint8List(),
+    );
+  } catch (_) {
+    return SecurityService.bytesToHex(SecurityService.sha256Bytes(bytes));
+  }
+}

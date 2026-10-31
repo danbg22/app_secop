@@ -499,7 +499,23 @@ class CollapsibleSideMenu extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
+            _TarjetaPerfil(
+              nombre: fullName,
+              rol: AuthService.getActiveUserRoleDisplayLabel(),
+              avatar: avatarImage,
+              inicial: initial,
+              onPerfil: () => CustomUserHeaderActions.handleMenuSelection(
+                context: context,
+                value: 'profile',
+              ),
+              onCerrarSesion: () => CustomUserHeaderActions.handleMenuSelection(
+                context: context,
+                value: 'logout',
+                onLogout: onLogout,
+              ),
+            ),
+            const SizedBox(height: 12),
             Padding(
               padding: const EdgeInsets.only(left: 4),
               child: Text(
@@ -664,4 +680,124 @@ class _BubbleArrowPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _BubbleArrowPainter oldDelegate) =>
       oldDelegate.color != color;
+}
+
+/// Perfil del usuario al pie del menú lateral (escritorio): nombre, roles y
+/// accesos a "Mi perfil" y "Cerrar sesión". En celular el perfil sigue en la
+/// barra superior.
+class _TarjetaPerfil extends StatelessWidget {
+  const _TarjetaPerfil({
+    required this.nombre,
+    required this.rol,
+    required this.avatar,
+    required this.inicial,
+    required this.onPerfil,
+    required this.onCerrarSesion,
+  });
+
+  final String nombre;
+  final String rol;
+  final ImageProvider<Object>? avatar;
+  final String inicial;
+  final VoidCallback onPerfil;
+  final VoidCallback onCerrarSesion;
+
+  static const Color _navy = Color(0xFF1A2B4C);
+
+  @override
+  Widget build(BuildContext context) {
+    final estiloBoton = OutlinedButton.styleFrom(
+      foregroundColor: _navy,
+      backgroundColor: Colors.white,
+      side: const BorderSide(color: Color(0xFFE2DAC8)),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      minimumSize: const Size.fromHeight(34),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      alignment: Alignment.centerLeft,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    );
+    const estiloTexto = TextStyle(fontSize: 12, fontWeight: FontWeight.w700);
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFEDE3CC)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 19,
+                backgroundImage: avatar,
+                backgroundColor: const Color(0xFFB81D4E),
+                child: avatar == null
+                    ? Text(
+                        inicial,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      nombre,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _navy,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      rol,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 11.3,
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              OutlinedButton.icon(
+                onPressed: onPerfil,
+                style: estiloBoton,
+                icon: const Icon(Icons.person_outline_rounded, size: 15),
+                label: const Text('Mi perfil', style: estiloTexto),
+              ),
+              const SizedBox(height: 6),
+              OutlinedButton.icon(
+                onPressed: onCerrarSesion,
+                style: estiloBoton,
+                icon: const Icon(Icons.logout_rounded, size: 15),
+                label: const Text('Cerrar sesión', style: estiloTexto),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }

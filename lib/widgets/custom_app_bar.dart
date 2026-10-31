@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../screens/perfil_usuario_screen.dart';
 import '../services/auth_service.dart';
+import 'user_profile_header_action.dart';
 
 /// Cabecera estandarizada de Contrata Legal para todas las pantallas del SaaS.
 /// Unifica buscador opcional, título/navegación opcional, una única campana de
@@ -183,7 +184,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               ...extraActions,
               const SizedBox(width: 4),
             ],
-            if (showUserActions) ...[
+            // En escritorio el perfil va al pie del menú lateral.
+            if (showUserActions &&
+                MediaQuery.sizeOf(context).width <
+                    UserProfileHeaderAction.anchoEscritorio) ...[
               SizedBox(width: isMobile ? 6 : 16),
               CustomUserHeaderActions(
                 onLogout: onLogout,

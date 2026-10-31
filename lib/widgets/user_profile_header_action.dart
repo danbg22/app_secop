@@ -17,8 +17,15 @@ class UserProfileHeaderAction extends StatelessWidget {
   final bool darkTheme;
   final bool showNotificationBell;
 
+  /// En escritorio el perfil vive al pie del menú lateral
+  /// (`CollapsibleSideMenu`); la barra superior solo lo muestra en celular.
+  static const double anchoEscritorio = 768;
+
   @override
   Widget build(BuildContext context) {
+    if (MediaQuery.sizeOf(context).width >= anchoEscritorio) {
+      return const SizedBox.shrink();
+    }
     return CustomUserHeaderActions(
       onLogout: onLogout,
       darkTheme: darkTheme,

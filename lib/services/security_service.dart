@@ -42,10 +42,9 @@ class SecurityService {
   /// Tamaño máximo permitido para avatares codificados localmente (1.5 MB).
   static const int maxAvatarBytes = 1572864;
 
-  /// Tamaño máximo permitido por documento contractual cargado en línea
-  /// (680 KB). Cada archivo se sincroniza en base64 dentro de un documento de
-  /// Firestore (límite de 1 MB y regla de 950.000 caracteres).
-  static const int maxContractDocumentBytes = 680 * 1024;
+  /// Tamaño máximo por documento contractual (25 MB). Los archivos se guardan
+  /// en Firestore divididos en fragmentos (ver `ArchivoFragmentado`).
+  static const int maxContractDocumentBytes = 25 * 1024 * 1024;
 
   static final Map<String, List<int>> _slidingWindows = <String, List<int>>{};
 

@@ -9,6 +9,13 @@ import 'package:flutter/material.dart';
 /// del contrato. La interfaz se arma a partir de estos datos: para agregar o
 /// ajustar una modalidad basta con editar este archivo.
 ///
+/// Contrata Legal no reemplaza a SECOP II, que es el sistema transaccional
+/// oficial: allí se publican los documentos, se reciben las ofertas y se
+/// adjudica. Para las modalidades distintas de prestación de servicios la
+/// plataforma es el tablero interno del equipo jurídico (cronograma con
+/// plazos legales, control de publicación, verificación de ofertas,
+/// observaciones y borradores). Ningún proponente entra a la plataforma.
+///
 /// Los plazos son los generales del Decreto 1082 de 2015; el pliego de
 /// condiciones de cada proceso puede fijar los suyos.
 
@@ -17,8 +24,8 @@ enum ResponsableDocumento { entidad, oferente, adjudicatario }
 
 /// Cómo se tramita la modalidad en la plataforma.
 enum FlujoModalidad {
-  /// Un solo contratista definido desde el inicio (contratación directa):
-  /// expediente con enlace de invitado.
+  /// Un solo contratista definido desde el inicio (contratación directa).
+  /// Solo prestación de servicios usa expediente con enlace de invitado.
   contratoDirecto,
 
   /// Convocatoria pública con varios oferentes, evaluación y adjudicación.
@@ -63,6 +70,50 @@ class EtapaProceso {
   final String? plazo;
 }
 
+/// Plazo legal de un hito respecto de otro, en días hábiles.
+class ReglaPlazo {
+  const ReglaPlazo({
+    required this.desdeHito,
+    required this.diasHabiles,
+    required this.minimo,
+    required this.descripcion,
+    this.fundamento,
+  });
+
+  /// Hito de referencia.
+  final String desdeHito;
+  final int diasHabiles;
+
+  /// `true`: el hito no puede ser antes de `desde + días` (p. ej. el proyecto
+  /// de pliego publicado 10 días hábiles antes de la apertura). `false`: no
+  /// puede ser después (p. ej. audiencia de riesgos dentro de 3 días hábiles).
+  final bool minimo;
+  final String descripcion;
+  final String? fundamento;
+}
+
+/// Fecha clave del proceso en SECOP II que el equipo registra para controlar
+/// los plazos legales.
+class HitoCronograma {
+  const HitoCronograma({
+    required this.id,
+    required this.nombre,
+    this.regla,
+    this.obligatorio = true,
+  });
+
+  final String id;
+  final String nombre;
+  final ReglaPlazo? regla;
+  final bool obligatorio;
+}
+
+/// Plazo para publicar en SECOP II los documentos del proceso desde su
+/// expedición.
+const int diasHabilesPublicacionSecop = 3;
+const String fundamentoPublicacionSecop =
+    'Decreto 1082 de 2015, art. 2.2.1.1.1.7.1';
+
 class CampoModalidad {
   const CampoModalidad({
     required this.id,
@@ -96,6 +147,7 @@ class ModalidadContratacion {
     this.documentosOferente = const [],
     this.documentosContrato = const [],
     this.criterioEvaluacion,
+    this.hitos = const [],
   });
 
   final String id;
@@ -112,14 +164,18 @@ class ModalidadContratacion {
   final List<CampoModalidad> campos;
   final List<EtapaProceso> etapas;
 
-  /// Requisitos habilitantes y oferta que sube cada oferente por su enlace.
+  /// Requisitos que el equipo verifica en cada oferta recibida en SECOP II
+  /// (matriz de verificación interna; el oferente no entra a la plataforma).
   final List<DocumentoRequerido> documentosOferente;
 
-  /// Documentos de legalización y ejecución que aporta el adjudicatario.
+  /// Requisitos de legalización del contrato que el equipo verifica.
   final List<DocumentoRequerido> documentosContrato;
 
   /// Cómo se escoge la oferta ganadora.
   final String? criterioEvaluacion;
+
+  /// Fechas del cronograma en SECOP II con sus plazos legales.
+  final List<HitoCronograma> hitos;
 
   bool get esCompetitiva => flujo == FlujoModalidad.procesoCompetitivo;
 
@@ -388,6 +444,19 @@ const List<ModalidadContratacion> modalidadesContratacion = [
     color: Color(0xFF28559A),
     fondo: Color(0xFFE8F1FC),
     flujo: FlujoModalidad.contratoDirecto,
+    hitos: [
+      HitoCronograma(
+        id: 'acto_justificacion',
+        nombre: 'Expedición del acto de justificación',
+        obligatorio: false,
+      ),
+      HitoCronograma(id: 'firma_contrato', nombre: 'Firma del contrato'),
+      HitoCronograma(
+        id: 'acta_inicio',
+        nombre: 'Acta de inicio',
+        obligatorio: false,
+      ),
+    ],
     campos: [
       CampoModalidad(
         id: 'causal',
@@ -445,6 +514,36 @@ const List<ModalidadContratacion> modalidadesContratacion = [
     color: Color(0xFF1F6E7A),
     fondo: Color(0xFFE3F3F2),
     flujo: FlujoModalidad.procesoCompetitivo,
+    hitos: [
+      HitoCronograma(id: 'invitacion', nombre: 'Publicación de la invitación'),
+      HitoCronograma(
+        id: 'cierre',
+        nombre: 'Cierre (plazo para ofertas)',
+        regla: ReglaPlazo(
+          desdeHito: 'invitacion',
+          diasHabiles: 1,
+          minimo: true,
+          descripcion:
+              'La invitación debe estar publicada por lo menos un día hábil.',
+          fundamento: 'Decreto 1082 de 2015, art. 2.2.1.2.1.5.2',
+        ),
+      ),
+      HitoCronograma(
+        id: 'informe_evaluacion',
+        nombre: 'Publicación del informe de evaluación',
+      ),
+      HitoCronograma(
+        id: 'aceptacion',
+        nombre: 'Comunicación de aceptación de la oferta',
+        regla: ReglaPlazo(
+          desdeHito: 'informe_evaluacion',
+          diasHabiles: 1,
+          minimo: true,
+          descripcion: 'El informe se publica por lo menos un día hábil para observaciones.',
+          fundamento: 'Decreto 1082 de 2015, art. 2.2.1.2.1.5.2',
+        ),
+      ),
+    ],
     criterioEvaluacion:
         'Menor precio, verificando requisitos habilitantes de esa oferta.',
     etapas: [
@@ -473,7 +572,7 @@ const List<ModalidadContratacion> modalidadesContratacion = [
         id: 'ofertas',
         nombre: 'Recepción de ofertas',
         descripcion:
-            'Los oferentes cargan su oferta y requisitos por su enlace.',
+            'Las ofertas se reciben en SECOP II; regístralas aquí para verificarlas.',
         documentosEntidad: [_actaCierre],
       ),
       EtapaProceso(
@@ -526,6 +625,57 @@ const List<ModalidadContratacion> modalidadesContratacion = [
     color: Color(0xFF5D469C),
     fondo: Color(0xFFEEEAF9),
     flujo: FlujoModalidad.procesoCompetitivo,
+    hitos: [
+      HitoCronograma(
+        id: 'proyecto_pliego',
+        nombre: 'Publicación del aviso y proyecto de pliego',
+      ),
+      HitoCronograma(
+        id: 'apertura',
+        nombre: 'Acto de apertura y pliego definitivo',
+        regla: ReglaPlazo(
+          desdeHito: 'proyecto_pliego',
+          diasHabiles: 5,
+          minimo: true,
+          descripcion: 'El proyecto de pliego debe publicarse por lo menos 5 días hábiles antes de la apertura.',
+          fundamento: 'Decreto 1082 de 2015, art. 2.2.1.1.2.1.4',
+        ),
+      ),
+      HitoCronograma(
+        id: 'manifestacion_interes',
+        nombre: 'Límite para manifestar interés',
+        regla: ReglaPlazo(
+          desdeHito: 'apertura',
+          diasHabiles: 3,
+          minimo: false,
+          descripcion: 'Dentro de los 3 días hábiles siguientes a la apertura.',
+          fundamento: 'Decreto 1082 de 2015, art. 2.2.1.2.1.2.20',
+        ),
+      ),
+      HitoCronograma(
+        id: 'sorteo',
+        nombre: 'Sorteo de interesados',
+        obligatorio: false,
+      ),
+      HitoCronograma(id: 'cierre', nombre: 'Cierre (plazo para ofertas)'),
+      HitoCronograma(
+        id: 'informe_evaluacion',
+        nombre: 'Publicación del informe de evaluación',
+      ),
+      HitoCronograma(
+        id: 'adjudicacion',
+        nombre: 'Acto de adjudicación',
+        regla: ReglaPlazo(
+          desdeHito: 'informe_evaluacion',
+          diasHabiles: 3,
+          minimo: true,
+          descripcion:
+              'El informe queda en traslado 3 días hábiles antes de adjudicar.',
+          fundamento: 'Decreto 1082 de 2015, art. 2.2.1.2.1.2.20',
+        ),
+      ),
+      HitoCronograma(id: 'firma_contrato', nombre: 'Firma del contrato'),
+    ],
     criterioEvaluacion: 'Factores de calidad y precio definidos en el pliego.',
     etapas: [
       _etapaPlaneacion,
@@ -562,7 +712,7 @@ const List<ModalidadContratacion> modalidadesContratacion = [
         id: 'ofertas',
         nombre: 'Cierre y ofertas',
         descripcion:
-            'Los oferentes cargan su oferta y requisitos habilitantes.',
+            'Las ofertas se reciben en SECOP II; regístralas aquí para verificarlas.',
         documentosEntidad: [_actaCierre],
       ),
       EtapaProceso(
@@ -599,6 +749,31 @@ const List<ModalidadContratacion> modalidadesContratacion = [
     color: Color(0xFFC2410C),
     fondo: Color(0xFFFFEDD5),
     flujo: FlujoModalidad.procesoCompetitivo,
+    hitos: [
+      HitoCronograma(
+        id: 'proyecto_pliego',
+        nombre: 'Publicación del aviso y proyecto de pliego',
+      ),
+      HitoCronograma(
+        id: 'apertura',
+        nombre: 'Acto de apertura y pliego definitivo',
+        regla: ReglaPlazo(
+          desdeHito: 'proyecto_pliego',
+          diasHabiles: 5,
+          minimo: true,
+          descripcion: 'El proyecto de pliego debe publicarse por lo menos 5 días hábiles antes de la apertura.',
+          fundamento: 'Decreto 1082 de 2015, art. 2.2.1.1.2.1.4',
+        ),
+      ),
+      HitoCronograma(id: 'cierre', nombre: 'Cierre (plazo para ofertas)'),
+      HitoCronograma(
+        id: 'informe_habilitacion',
+        nombre: 'Informe de verificación de requisitos',
+      ),
+      HitoCronograma(id: 'subasta', nombre: 'Realización de la subasta'),
+      HitoCronograma(id: 'adjudicacion', nombre: 'Acto de adjudicación'),
+      HitoCronograma(id: 'firma_contrato', nombre: 'Firma del contrato'),
+    ],
     criterioEvaluacion:
         'Menor precio en la subasta, entre oferentes habilitados.',
     campos: [
@@ -645,7 +820,7 @@ const List<ModalidadContratacion> modalidadesContratacion = [
       EtapaProceso(
         id: 'ofertas',
         nombre: 'Ofertas y habilitación',
-        descripcion: 'Los oferentes cargan sus requisitos y la oferta inicial de precio.',
+        descripcion: 'Las ofertas y requisitos se reciben en SECOP II; regístralos aquí para verificarlos.',
         documentosEntidad: [_actaCierre, _informeEvaluacion],
       ),
       EtapaProceso(
@@ -692,6 +867,51 @@ const List<ModalidadContratacion> modalidadesContratacion = [
     color: Color(0xFF0E2646),
     fondo: Color(0xFFE2E8F0),
     flujo: FlujoModalidad.procesoCompetitivo,
+    hitos: [
+      HitoCronograma(
+        id: 'proyecto_pliego',
+        nombre: 'Publicación del aviso y proyecto de pliego',
+      ),
+      HitoCronograma(
+        id: 'apertura',
+        nombre: 'Acto de apertura y pliego definitivo',
+        regla: ReglaPlazo(
+          desdeHito: 'proyecto_pliego',
+          diasHabiles: 10,
+          minimo: true,
+          descripcion: 'El proyecto de pliego debe publicarse por lo menos 10 días hábiles antes de la apertura.',
+          fundamento: 'Decreto 1082 de 2015, art. 2.2.1.1.2.1.4',
+        ),
+      ),
+      HitoCronograma(
+        id: 'audiencia_riesgos',
+        nombre: 'Audiencia de asignación de riesgos',
+        regla: ReglaPlazo(
+          desdeHito: 'apertura',
+          diasHabiles: 3,
+          minimo: false,
+          descripcion: 'Dentro de los 3 días hábiles siguientes al inicio del plazo para ofertar.',
+          fundamento: 'Decreto 1082 de 2015, art. 2.2.1.2.1.1.2',
+        ),
+      ),
+      HitoCronograma(id: 'cierre', nombre: 'Cierre (plazo para ofertas)'),
+      HitoCronograma(
+        id: 'informe_evaluacion',
+        nombre: 'Publicación del informe de evaluación',
+      ),
+      HitoCronograma(
+        id: 'audiencia_adjudicacion',
+        nombre: 'Audiencia pública de adjudicación',
+        regla: ReglaPlazo(
+          desdeHito: 'informe_evaluacion',
+          diasHabiles: 5,
+          minimo: true,
+          descripcion: 'El informe queda en traslado 5 días hábiles antes de la audiencia.',
+          fundamento: 'Ley 80 de 1993, art. 30 num. 8',
+        ),
+      ),
+      HitoCronograma(id: 'firma_contrato', nombre: 'Firma del contrato'),
+    ],
     criterioEvaluacion:
         'Oferta más favorable según los factores de ponderación del pliego.',
     campos: [
@@ -750,7 +970,7 @@ const List<ModalidadContratacion> modalidadesContratacion = [
         id: 'ofertas',
         nombre: 'Cierre y ofertas',
         descripcion:
-            'Los oferentes cargan su oferta y requisitos habilitantes.',
+            'Las ofertas se reciben en SECOP II; regístralas aquí para verificarlas.',
         documentosEntidad: [_actaCierre],
       ),
       EtapaProceso(
@@ -802,6 +1022,41 @@ const List<ModalidadContratacion> modalidadesContratacion = [
     color: Color(0xFF15803D),
     fondo: Color(0xFFDCFCE7),
     flujo: FlujoModalidad.procesoCompetitivo,
+    hitos: [
+      HitoCronograma(
+        id: 'proyecto_pliego',
+        nombre: 'Publicación del aviso y proyecto de pliego',
+      ),
+      HitoCronograma(
+        id: 'apertura',
+        nombre: 'Acto de apertura y pliego definitivo',
+        regla: ReglaPlazo(
+          desdeHito: 'proyecto_pliego',
+          diasHabiles: 5,
+          minimo: true,
+          descripcion: 'El proyecto de pliego debe publicarse por lo menos 5 días hábiles antes de la apertura.',
+          fundamento: 'Decreto 1082 de 2015, art. 2.2.1.1.2.1.4',
+        ),
+      ),
+      HitoCronograma(id: 'cierre', nombre: 'Cierre (plazo para ofertas)'),
+      HitoCronograma(
+        id: 'informe_evaluacion',
+        nombre: 'Publicación del informe de evaluación',
+      ),
+      HitoCronograma(
+        id: 'adjudicacion',
+        nombre: 'Acto de adjudicación',
+        regla: ReglaPlazo(
+          desdeHito: 'informe_evaluacion',
+          diasHabiles: 3,
+          minimo: true,
+          descripcion:
+              'El informe queda en traslado 3 días hábiles antes de adjudicar.',
+          fundamento: 'Decreto 1082 de 2015, art. 2.2.1.2.1.3.2',
+        ),
+      ),
+      HitoCronograma(id: 'firma_contrato', nombre: 'Firma del contrato'),
+    ],
     criterioEvaluacion: 'Calidad técnica y experiencia; luego se revisa la oferta económica del primer lugar.',
     campos: [
       CampoModalidad(
@@ -846,7 +1101,7 @@ const List<ModalidadContratacion> modalidadesContratacion = [
         id: 'ofertas',
         nombre: 'Cierre y ofertas técnicas',
         descripcion:
-            'Los oferentes cargan su oferta técnica y requisitos habilitantes.',
+            'Las ofertas técnicas se reciben en SECOP II; regístralas aquí para verificarlas.',
         documentosEntidad: [_actaCierre],
       ),
       EtapaProceso(
@@ -894,6 +1149,16 @@ const List<ModalidadContratacion> modalidadesContratacion = [
     color: Color(0xFF64748B),
     fondo: Color(0xFFF1F5F9),
     flujo: FlujoModalidad.procesoCompetitivo,
+    hitos: [
+      HitoCronograma(
+        id: 'invitacion',
+        nombre: 'Publicación de la invitación o términos',
+      ),
+      HitoCronograma(id: 'cierre', nombre: 'Cierre (plazo para ofertas)'),
+      HitoCronograma(id: 'informe_evaluacion', nombre: 'Informe de evaluación'),
+      HitoCronograma(id: 'seleccion', nombre: 'Acto de selección'),
+      HitoCronograma(id: 'firma_contrato', nombre: 'Firma del contrato'),
+    ],
     criterioEvaluacion:
         'El que defina el manual de contratación y los términos de referencia.',
     campos: [
@@ -936,7 +1201,7 @@ const List<ModalidadContratacion> modalidadesContratacion = [
       EtapaProceso(
         id: 'ofertas',
         nombre: 'Ofertas',
-        descripcion: 'Los oferentes cargan su oferta y documentos.',
+        descripcion: 'Las ofertas se reciben por el canal que fije el manual; regístralas aquí para verificarlas.',
         documentosEntidad: [_actaCierre],
       ),
       EtapaProceso(

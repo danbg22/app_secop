@@ -78,6 +78,7 @@ void main() {
   group('ProcesoContratacion', () {
     ProcesoContratacion proceso({
       Map<String, DocumentoEntidadCargado> docs = const {},
+      Map<String, String> cronograma = const {},
     }) => ProcesoContratacion(
       id: 'a' * 32,
       modalidadId: 'minima_cuantia',
@@ -93,16 +94,17 @@ void main() {
       plazoEjecucion: '1 mes',
       fechaCreacionIso: '2026-10-31T00:00:00Z',
       documentosEntidad: docs,
-      oferentes: const [
-        OferenteProceso(
+      cronograma: cronograma,
+      ofertas: const [
+        OfertaRecibida(
           id: 'OF-1',
-          nombre: 'Proveedor SAS',
-          documento: '900123',
-          correo: 'p@x.co',
-          tokenExpediente: 'tok',
-          estado: EstadoOferente.habilitado,
-          valorOfertaCop: 9000000,
+          proponente: 'Proveedor SAS',
+          nit: '900123',
+          valorCop: 9000000,
           puntaje: 80,
+          verificaciones: {
+            'rut': VerificacionRequisito(estado: EstadoVerificacion.cumple),
+          },
         ),
       ],
     );
@@ -120,8 +122,103 @@ void main() {
       final copia = ProcesoContratacion.fromMap(original.toMap());
       expect(copia.modalidad.id, 'minima_cuantia');
       expect(copia.documentosEntidad.keys, ['estudios_previos']);
-      expect(copia.oferentes.single.estado, EstadoOferente.habilitado);
-      expect(copia.oferentes.single.puntaje, 80);
+      expect(copia.ofertas.single.proponente, 'Proveedor SAS');
+      expect(copia.ofertas.single.puntaje, 80);
+      expect(
+        copia.ofertas.single.verificaciones['rut']?.estado,
+        EstadoVerificacion.cumple,
+      );
+    });
+
+    test('cronograma: el cierre de mínima cuantía exige 1 día hábil', () {
+      // 2 de noviembre de 2026 es festivo (Todos los Santos trasladado).
+      final incumple = proceso(
+        cronograma: {'invitacion': '2026-10-30', 'cierre': '2026-11-02'},
+      );
+      expect(incumple.alertasCronograma.map((e) => e.hito.id), ['cierre']);
+      final cumple = proceso(
+        cronograma: {'invitacion': '2026-10-30', 'cierre': '2026-11-03'},
+      );
+      expect(cumple.alertasCronograma, isEmpty);
+      final cierre = cumple
+          .evaluarCronograma()
+          .firstWhere((e) => e.hito.id == 'cierre');
+      expect(cierre.limite, DateTime(2026, 11, 3));
+      expect(cierre.cumple, isTrue);
+    });
+
+    test('alerta de documentos sin publicar en SECOP II', () {
+      const sinPublicar = DocumentoEntidadCargado(
+        archivoNombre: 'ep.pdf',
+        archivoMime: 'application/pdf',
+        tamanoBytes: 10,
+        sha256: 'x',
+        cargadoPor: 'Abogada',
+        fechaIso: '2026-10-26T12:00:00',
+      );
+      final hoy = DateTime(2026, 11, 3);
+      // 27, 28, 29, 30 de octubre y 3 de noviembre: 5 días hábiles.
+      expect(sinPublicar.diasSinPublicar(hoy), 5);
+      expect(
+        proceso(docs: {'estudios_previos': sinPublicar})
+            .publicacionesVencidas(hoy),
+        ['estudios_previos'],
+      );
+      const publicado = DocumentoEntidadCargado(
+        archivoNombre: 'ep.pdf',
+        archivoMime: 'application/pdf',
+        tamanoBytes: 10,
+        sha256: 'x',
+        cargadoPor: 'Abogada',
+        fechaIso: '2026-10-26T12:00:00',
+        publicadoSecop: true,
+        fechaPublicacionIso: '2026-10-27',
+      );
+      expect(
+        proceso(docs: {'estudios_previos': publicado}).publicacionesVencidas(hoy),
+        isEmpty,
+      );
+    });
+
+    test('resultado de verificación según los requisitos obligatorios', () {
+      const a = DocumentoRequerido(id: 'a', nombre: 'A', descripcion: '');
+      const b = DocumentoRequerido(id: 'b', nombre: 'B', descripcion: '');
+      const opcional = DocumentoRequerido(
+        id: 'c',
+        nombre: 'C',
+        descripcion: '',
+        obligatorio: false,
+      );
+      const reqs = [a, b, opcional];
+      VerificacionRequisito v(EstadoVerificacion e) =>
+          VerificacionRequisito(estado: e);
+      expect(ResultadoVerificacion.calcular(reqs, {}),
+          ResultadoVerificacion.sinIniciar);
+      expect(
+        ResultadoVerificacion.calcular(reqs, {'a': v(EstadoVerificacion.cumple)}),
+        ResultadoVerificacion.enVerificacion,
+      );
+      expect(
+        ResultadoVerificacion.calcular(reqs, {
+          'a': v(EstadoVerificacion.cumple),
+          'b': v(EstadoVerificacion.subsanable),
+        }),
+        ResultadoVerificacion.requiereSubsanar,
+      );
+      expect(
+        ResultadoVerificacion.calcular(reqs, {
+          'a': v(EstadoVerificacion.noCumple),
+          'b': v(EstadoVerificacion.subsanable),
+        }),
+        ResultadoVerificacion.noHabilitada,
+      );
+      expect(
+        ResultadoVerificacion.calcular(reqs, {
+          'a': v(EstadoVerificacion.cumple),
+          'b': v(EstadoVerificacion.cumple),
+        }),
+        ResultadoVerificacion.habilitada,
+      );
     });
 
     test('pendientes de la etapa: solo obligatorios no cargados', () {

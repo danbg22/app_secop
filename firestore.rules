@@ -65,6 +65,15 @@ service cloud.firestore {
       return miembroVigente(masterUid) && membresiaPropia().permisos.hasAny([permiso]);
     }
 
+    // Archivo en un solo documento (`archivoBase64`) o dividido en `partes`
+    // (ver lib/services/archivo_fragmentado.dart); máximo 25 MB = 40 partes.
+    function archivoValido(data) {
+      return isNonEmptyString(data.get('archivoBase64', ''), 950000) ||
+          (data.get('partes', 0) is int &&
+           data.get('partes', 0) > 0 &&
+           data.get('partes', 0) <= 50);
+    }
+
     // Master del equipo o abogado vigente de su equipo.
     function esDelEquipo(equipoUid) {
       return isSignedIn() &&
@@ -215,12 +224,20 @@ service cloud.firestore {
               request.resource.data.get('equipoUid', '') == resource.data.equipoUid);
       allow delete: if isSignedIn() && resource.data.creadoPorUid == request.auth.uid;
 
-      // Subcolección de binarios individuales para sincronización entre dispositivos
+      // Subcolección de binarios individuales para sincronización entre dispositivos.
+      // Los archivos de más de ~500 KB se dividen en `partes` (hasta 25 MB).
       match /archivos/{apartadoId} {
         allow get, list: if token.matches('^[a-f0-9]{32,64}$');
         allow create, update: if token.matches('^[a-f0-9]{32,64}$') &&
-            isNonEmptyString(request.resource.data.archivoBase64, 950000);
+            archivoValido(request.resource.data);
         allow delete: if false;
+
+        match /partes/{parte} {
+          allow get, list: if token.matches('^[a-f0-9]{32,64}$');
+          allow create, update: if token.matches('^[a-f0-9]{32,64}$') &&
+              isNonEmptyString(request.resource.data.datos, 950000);
+          allow delete: if false;
+        }
       }
     }
 
@@ -286,8 +303,17 @@ service cloud.firestore {
             get(/databases/$(database)/documents/procesos_contratacion/$(procesoId)).data.equipoUid);
         allow create, update: if esDelEquipo(
             get(/databases/$(database)/documents/procesos_contratacion/$(procesoId)).data.equipoUid) &&
-            isNonEmptyString(request.resource.data.archivoBase64, 950000);
+            archivoValido(request.resource.data);
         allow delete: if false;
+
+        match /partes/{parte} {
+          allow get: if esDelEquipo(
+              get(/databases/$(database)/documents/procesos_contratacion/$(procesoId)).data.equipoUid);
+          allow create, update: if esDelEquipo(
+              get(/databases/$(database)/documents/procesos_contratacion/$(procesoId)).data.equipoUid) &&
+              isNonEmptyString(request.resource.data.datos, 950000);
+          allow delete: if false;
+        }
       }
     }
 

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -196,28 +195,9 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
     }
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => CrearProcesoScreen(
-          modalidad: modalidad,
-          onAbrirExpediente: _abrirExpedientePorToken,
-        ),
+        builder: (_) => CrearProcesoScreen(modalidad: modalidad),
       ),
     );
-  }
-
-  /// Abre la verificación documental del expediente de un oferente o
-  /// contratista de un proceso.
-  Future<void> _abrirExpedientePorToken(String token) async {
-    var exp = _expedientes.where((e) => e.tokenInvitado == token).firstOrNull;
-    if (exp == null) {
-      await _cargarExpedientes();
-      exp = _expedientes.where((e) => e.tokenInvitado == token).firstOrNull;
-    }
-    if (!mounted) return;
-    if (exp == null) {
-      _mostrarMensaje('El expediente aún se está sincronizando. Intenta de nuevo.', esError: true);
-      return;
-    }
-    _abrirDetalleAspirante(exp);
   }
 
   Stream<List<ProcesoContratacion>>? _procesosStream;
@@ -290,14 +270,12 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
     final etapa = m.etapas.isEmpty
         ? ''
         : 'Etapa ${p.etapaActual + 1} de ${m.etapas.length} · ${m.etapas[p.etapaActual].nombre}';
+    final alertas = p.alertasCronograma.length + p.publicacionesVencidas(DateTime.now()).length;
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => ProcesoDetalleScreen(
-            procesoId: p.id,
-            onAbrirExpediente: _abrirExpedientePorToken,
-          ),
+          builder: (_) => ProcesoDetalleScreen(procesoId: p.id),
         ),
       ),
       child: Container(
@@ -359,9 +337,23 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
               ),
             const SizedBox(height: 2),
             Text(
-              '${_monedaFormat.format(p.presupuestoCop)} · ${m.esCompetitiva ? '${p.oferentes.length} oferentes' : (p.oferentes.isEmpty ? 'sin contratista' : p.oferentes.first.nombre)}',
+              '${_monedaFormat.format(p.presupuestoCop)} · ${m.esCompetitiva ? '${p.ofertas.length} ofertas registradas' : (p.ofertas.isEmpty ? 'sin contratista' : p.ofertas.first.proponente)}'
+              '${p.idProcesoSecop.isEmpty ? ' · sin vincular a SECOP II' : ' · ${p.idProcesoSecop}'}',
               style: const TextStyle(color: EstiloContractual.gris, fontSize: 12),
             ),
+            if (alertas > 0) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded, size: 15, color: Color(0xFFC2410C)),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$alertas ${alertas == 1 ? 'alerta' : 'alertas'} de plazos o publicación',
+                    style: const TextStyle(color: Color(0xFFC2410C), fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -547,26 +539,25 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
     ExpedienteContratoPs expediente,
     ApartadoDocumentoContrato apartado,
   ) async {
-    final binario = JuridicoContratacionService.obtenerBinarioDocumento(
+    if (!apartado.tieneArchivoCargado) {
+      _mostrarMensaje('Este documento aún no ha sido cargado.', esError: true);
+      return;
+    }
+    // Los archivos grandes no se guardan en el navegador: se traen de la nube.
+    final binario = await JuridicoContratacionService.obtenerBinarioDocumento(
       expediente: expediente,
       apartado: apartado,
     );
     if (binario == null) {
-      _mostrarMensaje('Este documento aún no ha sido cargado.', esError: true);
+      _mostrarMensaje(
+        'No fue posible obtener el archivo. Revisa tu conexión e inténtalo de nuevo.',
+        esError: true,
+      );
       return;
     }
 
-    final esImagen =
-        binario.mimeType.startsWith('image/') &&
-        apartado.archivoBase64 != null &&
-        apartado.archivoBase64!.isNotEmpty;
-
-    Uint8List? bytesImagen;
-    if (esImagen) {
-      try {
-        bytesImagen = base64Decode(apartado.archivoBase64!);
-      } catch (_) {}
-    }
+    final Uint8List? bytesImagen =
+        binario.mimeType.startsWith('image/') ? binario.bytes : null;
 
     if (!mounted) return;
     await showDialog<void>(
@@ -749,14 +740,14 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                       label: const Text('Descargar'),
                     ),
                     FilledButton.icon(
-                      onPressed: () {
+                      onPressed: () async {
                         final abierto =
-                            JuridicoContratacionService.abrirDocumentoEnPestana(
+                            await JuridicoContratacionService.abrirDocumentoEnPestana(
                               expediente: expediente,
                               apartado: apartado,
                             );
                         if (!abierto) {
-                          JuridicoContratacionService.descargarDocumentoIndividual(
+                          await JuridicoContratacionService.descargarDocumentoIndividual(
                             expediente: expediente,
                             apartado: apartado,
                           );
