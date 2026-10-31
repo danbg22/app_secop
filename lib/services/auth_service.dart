@@ -369,8 +369,22 @@ class AuthService {
 
   /// Construye un [ImageProvider] seguro validando Magic Bytes (PNG/JPEG/WEBP/GIF)
   /// y URLs externas HTTPS públicas (bloqueando SVG XSS y Mixed Content).
+  ///
+  /// Se llama en cada build de la barra lateral y de los encabezados: el
+  /// proveedor se memoriza por fuente para no decodificar el base64 (hasta
+  /// 1,5 MB) ni invalidar la caché de imágenes de Flutter en cada tecla.
   static ImageProvider<Object>? getActiveUserAvatarImageProvider() {
     final src = getActiveUserPhotoSource();
+    if (src == _avatarFuenteCache) return _avatarCache;
+    _avatarFuenteCache = src;
+    _avatarCache = _construirAvatarImageProvider(src);
+    return _avatarCache;
+  }
+
+  static String? _avatarFuenteCache;
+  static ImageProvider<Object>? _avatarCache;
+
+  static ImageProvider<Object>? _construirAvatarImageProvider(String? src) {
     if (src == null || src.isEmpty) return null;
 
     if (src.startsWith('data:image/')) {

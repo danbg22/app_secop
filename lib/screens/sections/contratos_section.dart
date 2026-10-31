@@ -1905,7 +1905,23 @@ class _ContratosSectionState extends State<ContratosSection> {
     return clean;
   }
 
+  // La lista filtrada se consulta varias veces por build (tabla, paginación,
+  // contadores): se memoriza mientras no cambien los datos ni los filtros.
+  List<ContractRecord>? _filteredCache;
+  String _filteredCacheKey = '';
+
   List<ContractRecord> get _filteredContracts {
+    final key = '${identityHashCode(_secopContracts)}|${_secopContracts.length}|'
+        '$_selectedSector|$_selectedDependencia|$_selectedEstado|$_selectedAnio|'
+        '$_minValueFilter|$_maxValueFilter|$_sortBy';
+    if (_filteredCache != null && key == _filteredCacheKey) {
+      return _filteredCache!;
+    }
+    _filteredCacheKey = key;
+    return _filteredCache = _calcularContratosFiltrados();
+  }
+
+  List<ContractRecord> _calcularContratosFiltrados() {
     final list = _secopContracts.where((c) {
       if (_selectedSector.isNotEmpty &&
           !_matchesSectorMacroFilter(c, _selectedSector)) {
@@ -3650,10 +3666,11 @@ class _ContratosSectionState extends State<ContratosSection> {
                   child: TextField(
                     controller: _contractsSearchController,
                     onChanged: (_) {
-                      setState(() {});
+                      // Sin setState por tecla: reconstruía toda la sección.
+                      // La búsqueda (y su setState) se lanza al dejar de escribir.
                       _searchDebounce?.cancel();
                       _searchDebounce = Timer(
-                        const Duration(milliseconds: 180),
+                        const Duration(milliseconds: 350),
                         () => _executeContractSearch(silent: true),
                       );
                     },
