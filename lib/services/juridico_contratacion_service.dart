@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../utils/document_file_picker.dart';
 import '../utils/file_downloader.dart';
+import '../utils/pdf_unificado.dart';
 import '../utils/realtime_tab_bridge.dart';
 import 'auth_service.dart';
 import 'security_service.dart';
@@ -432,6 +433,24 @@ class ExpedienteContratoPs {
     }
     return obligatorios.every((a) => a.estaAprobado);
   }
+
+  /// Documentos que entran al PDF unificado de impresión, en el orden del
+  /// expediente: todos los que tienen archivo (los opcionales sin cargar se
+  /// omiten).
+  List<ApartadoDocumentoContrato> get documentosParaImpresion =>
+      apartados.where((a) => a.tieneArchivoCargado).toList();
+
+  /// Documentos que impiden generar el PDF unificado: obligatorios o
+  /// cargados que aún no están revisados y verificados.
+  int get documentosSinVerificarParaImpresion => apartados
+      .where((a) => (a.obligatorio || a.tieneArchivoCargado) && !a.estaAprobado)
+      .length;
+
+  /// El PDF unificado solo se habilita cuando cada documento del expediente
+  /// pasó por la verificación jurídica (no basta con el aval global).
+  bool get listoParaPdfUnificado =>
+      documentosParaImpresion.isNotEmpty &&
+      documentosSinVerificarParaImpresion == 0;
 
   String get estadoGlobalEtiqueta {
     if (avalJuridicoEmitido || todosObligatoriosAprobados) {
@@ -1510,13 +1529,13 @@ class JuridicoContratacionService {
 
     // Se espera la subida: si el archivo no llega a Firestore, el equipo
     // jurídico no lo recibiría en su dispositivo.
-    final subido = await _subirBinarioIndividualFirestoreEnFondo(
+    final errorSubida = await _subirBinarioFirestore(
       tokenInvitado: exp.tokenInvitado,
       apartado: apartadoActualizado,
     );
-    if (!subido) {
+    if (errorSubida != null) {
       throw StateError(
-        'No fue posible enviar el documento al equipo jurídico. Revisa tu conexión e inténtalo de nuevo.',
+        'No fue posible enviar el documento al equipo jurídico: $errorSubida',
       );
     }
     await _guardarExpedienteInmediato(actualizado);
@@ -2081,6 +2100,107 @@ class JuridicoContratacionService {
     );
   }
 
+  /// Genera y descarga un único PDF para impresión con todos los documentos
+  /// verificados, cada uno precedido de una hoja separadora con su nombre.
+  ///
+  /// Devuelve `null` si la descarga se inició o el motivo por el que no fue
+  /// posible. Nunca usa el PDF de respaldo de [obtenerBinarioDocumento]: si
+  /// falta un archivo original, no se genera un expediente incompleto.
+  static Future<String?> descargarPdfUnificadoParaImpresion(
+    ExpedienteContratoPs expediente,
+  ) async {
+    if (!expediente.listoParaPdfUnificado) {
+      return 'Todos los documentos deben estar revisados y verificados.';
+    }
+    if (!unionPdfDisponible) {
+      return 'El PDF unificado solo está disponible en la versión web.';
+    }
+
+    final documentos = <DocumentoParaUnir>[];
+    final sinArchivo = <String>[];
+    for (final ap in expediente.documentosParaImpresion) {
+      final bytes = await _bytesOriginalesDocumento(expediente, ap);
+      if (bytes == null) {
+        sinArchivo.add(ap.nombre);
+        continue;
+      }
+      final nombreArchivo = (ap.archivoNombre ?? '').trim();
+      documentos.add(
+        DocumentoParaUnir(
+          titulo: ap.nombre,
+          nombreArchivo: nombreArchivo,
+          bytes: bytes,
+          tipo: TipoDocumentoParaUnir.detectar(bytes, nombreArchivo),
+          sha256Esperado: ap.archivoSha256 ?? '',
+        ),
+      );
+    }
+    if (sinArchivo.isNotEmpty) {
+      return 'No se encontró el archivo original de: ${sinArchivo.join(', ')}. '
+          'Ábrelo desde el navegador donde se cargó o pide al contratista que lo vuelva a subir.';
+    }
+
+    final Uint8List pdf;
+    try {
+      pdf = await unirDocumentosEnPdf(
+        documentos,
+        tituloDocumento:
+            'Expediente ${expediente.numeroContrato} - ${expediente.contratistaNombreEsperado}',
+      );
+    } on PdfUnificadoException catch (e) {
+      return e.message;
+    }
+
+    String limpio(String v) => v
+        .trim()
+        .replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_')
+        .replaceAll(RegExp(r'_+'), '_');
+    final nombre = [
+      'Expediente',
+      limpio(expediente.numeroContrato),
+      limpio(_ascii(expediente.contratistaNombreEsperado)),
+      'impresion',
+    ].where((p) => p.isNotEmpty && p != '_').join('_');
+
+    final descargado = downloadBinaryBytes(
+      bytes: pdf,
+      fileName: '$nombre.pdf',
+      mimeType: 'application/pdf',
+    );
+    return descargado ? null : 'No fue posible iniciar la descarga.';
+  }
+
+  /// Bytes reales del archivo cargado: primero la copia local y, si no está
+  /// (los archivos grandes no se guardan en caché), la de Firestore, siempre
+  /// que corresponda a la misma versión que se verificó.
+  static Future<Uint8List?> _bytesOriginalesDocumento(
+    ExpedienteContratoPs expediente,
+    ApartadoDocumentoContrato apartado,
+  ) async {
+    final local = (apartado.archivoBase64 ?? '').trim();
+    if (local.isNotEmpty) {
+      try {
+        return base64Decode(local);
+      } catch (_) {}
+    }
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('expedientes_juridicos')
+          .doc(expediente.tokenInvitado.toLowerCase())
+          .collection('archivos')
+          .doc(apartado.id)
+          .get()
+          .timeout(const Duration(seconds: 15));
+      final data = doc.data();
+      final remoto = data?['archivoBase64']?.toString() ?? '';
+      final version = (data?['versionCarga'] as num?)?.toInt();
+      if (remoto.isEmpty || version != apartado.versionCarga) return null;
+      return base64Decode(remoto);
+    } catch (_) {
+      return null;
+    }
+  }
+
   // ===========================================================================
   // MOTOR DE PERSISTENCIA COMPARTIDA + BROADCAST EN TIEMPO REAL + FIRESTORE
   // ===========================================================================
@@ -2249,12 +2369,17 @@ class JuridicoContratacionService {
     } catch (_) {}
   }
 
-  static Future<bool> _subirBinarioIndividualFirestoreEnFondo({
+  /// Sube el binario y devuelve `null` si llegó a Firestore o, si no, el
+  /// motivo en lenguaje claro (el código técnico queda en la consola).
+  static Future<String?> _subirBinarioFirestore({
     required String tokenInvitado,
     required ApartadoDocumentoContrato apartado,
   }) async {
     final rawB64 = apartado.archivoBase64 ?? '';
-    if (rawB64.isEmpty || rawB64.length > 940000) return false;
+    if (rawB64.isEmpty) return 'el archivo está vacío.';
+    if (rawB64.length > 940000) {
+      return 'el archivo supera el tamaño máximo permitido (680 KB).';
+    }
 
     try {
       await FirebaseFirestore.instance
@@ -2272,9 +2397,23 @@ class JuridicoContratacionService {
             'fechaCargaIso': apartado.fechaCargaIso,
           })
           .timeout(const Duration(seconds: 20));
-      return true;
-    } catch (_) {
-      return false;
+      return null;
+    } on TimeoutException {
+      return 'el servidor tardó demasiado en responder. Revisa tu conexión e inténtalo de nuevo.';
+    } on FirebaseException catch (e) {
+      debugPrint('Subida de documento rechazada por Firestore: ${e.code} ${e.message}');
+      return switch (e.code) {
+        'permission-denied' =>
+          'el servidor rechazó el archivo por permisos (código permission-denied).',
+        'unavailable' =>
+          'no hay conexión con el servidor. Revisa tu conexión e inténtalo de nuevo.',
+        'resource-exhausted' =>
+          'se alcanzó el límite de uso del servidor. Inténtalo más tarde.',
+        _ => 'error del servidor (código ${e.code}).',
+      };
+    } catch (e) {
+      debugPrint('Subida de documento falló: $e');
+      return 'error inesperado ($e).';
     }
   }
 

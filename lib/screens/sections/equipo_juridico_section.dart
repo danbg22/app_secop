@@ -51,6 +51,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
   List<bool> _checksLocales = <bool>[false, false, false, false, false];
   bool _trazabilidadExpandida = true;
   bool _procesandoAccion = false;
+  bool _generandoPdfUnificado = false;
   Timer? _sincronizadorContinuo;
 
   @override
@@ -155,6 +156,22 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
           exp.entidadNombre.toLowerCase().contains(query) ||
           exp.objetoContrato.toLowerCase().contains(query);
     }).toList();
+  }
+
+  Future<void> _generarPdfUnificado(ExpedienteContratoPs exp) async {
+    setState(() => _generandoPdfUnificado = true);
+    try {
+      final error =
+          await JuridicoContratacionService.descargarPdfUnificadoParaImpresion(
+            exp,
+          );
+      _mostrarMensaje(
+        error ?? 'PDF unificado generado. Revisa tus descargas.',
+        esError: error != null,
+      );
+    } finally {
+      if (mounted) setState(() => _generandoPdfUnificado = false);
+    }
   }
 
   void _mostrarMensaje(String texto, {bool esError = false}) {
@@ -2245,6 +2262,70 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
             if (i > 0) const Divider(height: 1, color: Color(0xFFF1F5F9)),
             _buildFilaDocumentoVerificacion(exp, exp.apartados[i]),
           ],
+          const Divider(height: 1, color: _bordeSuave),
+          _buildPieImpresionUnificada(exp),
+        ],
+      ),
+    );
+  }
+
+  /// Botón del PDF unificado: solo se habilita cuando todos los documentos
+  /// están revisados y verificados.
+  Widget _buildPieImpresionUnificada(ExpedienteContratoPs exp) {
+    final listo = exp.listoParaPdfUnificado;
+    final faltan = exp.documentosSinVerificarParaImpresion;
+    final total = exp.documentosParaImpresion.length;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+      child: Wrap(
+        spacing: 14,
+        runSpacing: 10,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          FilledButton.icon(
+            onPressed: listo && !_generandoPdfUnificado
+                ? () => _generarPdfUnificado(exp)
+                : null,
+            style: FilledButton.styleFrom(
+              backgroundColor: _azulOscuro,
+              disabledBackgroundColor: const Color(0xFFE2E8F0),
+              disabledForegroundColor: const Color(0xFF94A3B8),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            icon: _generandoPdfUnificado
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.print_outlined, size: 18),
+            label: Text(
+              _generandoPdfUnificado
+                  ? 'Generando PDF…'
+                  : 'Generar PDF unificado para impresión',
+              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
+            ),
+          ),
+          Text(
+            listo
+                ? 'Incluye $total documento${total == 1 ? '' : 's'}, cada uno precedido de una hoja separadora.'
+                : faltan == 0
+                ? 'Se habilita cuando haya documentos cargados y verificados.'
+                : 'Se habilita cuando todos los documentos estén revisados y verificados '
+                      '(falta${faltan == 1 ? '' : 'n'} $faltan).',
+            style: const TextStyle(
+              color: _textoSecundario,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );
