@@ -5,8 +5,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
+import '../../services/equipo_juridico_service.dart';
 import '../../services/juridico_contratacion_service.dart';
 import '../../widgets/user_profile_header_action.dart';
+import '../../data/modalidades_contratacion.dart';
+import '../../services/procesos_contratacion_service.dart';
+import '../gestion_contractual/crear_proceso_screen.dart';
+import '../gestion_contractual/estilo_contractual.dart';
+import '../gestion_contractual/proceso_detalle_screen.dart';
+import '../gestion_contractual/selector_modalidad_screen.dart';
+import '../gestion_equipo_screen.dart';
 
 class EquipoJuridicoSection extends StatefulWidget {
   const EquipoJuridicoSection({
@@ -23,10 +31,9 @@ class EquipoJuridicoSection extends StatefulWidget {
 }
 
 class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
-  static const Color _bgCrema = Color(0xFFFFF8EE);
-  static const Color _azulOscuro = Color(0xFF1A2B4C);
+  static const Color _bgCrema = EstiloContractual.crema;
+  static const Color _azulOscuro = EstiloContractual.navy;
   static const Color _azulPrimario = Color(0xFF2563EB);
-  static const Color _dorado = Color(0xFFF5B82E);
   static const Color _bordeSuave = Color(0xFFE2E8F0);
   static const Color _textoSecundario = Color(0xFF64748B);
 
@@ -172,6 +179,205 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
     } finally {
       if (mounted) setState(() => _generandoPdfUnificado = false);
     }
+  }
+
+  /// Primer paso de cualquier contratación: escoger la modalidad. Prestación
+  /// de servicios conserva su formulario de expediente; las demás crean un
+  /// proceso por etapas.
+  Future<void> _nuevoProceso() async {
+    if (!_puede(PermisoEquipo.crearContratos)) return;
+    final modalidad = await Navigator.of(context).push<ModalidadContratacion>(
+      MaterialPageRoute(builder: (_) => const SelectorModalidadScreen()),
+    );
+    if (!mounted || modalidad == null) return;
+    if (modalidad.id == 'prestacion_servicios') {
+      await _abrirModalCrearContrato();
+      return;
+    }
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CrearProcesoScreen(
+          modalidad: modalidad,
+          onAbrirExpediente: _abrirExpedientePorToken,
+        ),
+      ),
+    );
+  }
+
+  /// Abre la verificación documental del expediente de un oferente o
+  /// contratista de un proceso.
+  Future<void> _abrirExpedientePorToken(String token) async {
+    var exp = _expedientes.where((e) => e.tokenInvitado == token).firstOrNull;
+    if (exp == null) {
+      await _cargarExpedientes();
+      exp = _expedientes.where((e) => e.tokenInvitado == token).firstOrNull;
+    }
+    if (!mounted) return;
+    if (exp == null) {
+      _mostrarMensaje('El expediente aún se está sincronizando. Intenta de nuevo.', esError: true);
+      return;
+    }
+    _abrirDetalleAspirante(exp);
+  }
+
+  Stream<List<ProcesoContratacion>>? _procesosStream;
+  String _procesosEquipo = '';
+
+  Stream<List<ProcesoContratacion>> get _procesos {
+    final equipo = EquipoJuridicoService.equipoUidActivo;
+    if (_procesosStream == null || _procesosEquipo != equipo) {
+      _procesosEquipo = equipo;
+      _procesosStream = ProcesosContratacionService.escucharProcesos();
+    }
+    return _procesosStream!;
+  }
+
+  Widget _buildProcesosDelEquipo(bool isMobile) {
+    return StreamBuilder<List<ProcesoContratacion>>(
+      stream: _procesos,
+      builder: (context, snap) {
+        final procesos = snap.data ?? const <ProcesoContratacion>[];
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'PROCESOS DE CONTRATACIÓN (${procesos.length})',
+              style: EstiloContractual.seccion,
+            ),
+            const SizedBox(height: 10),
+            if (snap.hasError)
+              const Text(
+                'No fue posible cargar los procesos. Revisa tu conexión o las reglas de Firestore.',
+                style: TextStyle(color: Color(0xFFB91C1C), fontSize: 13),
+              )
+            else if (procesos.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(22),
+                decoration: EstiloContractual.tarjeta(),
+                child: const Row(
+                  children: [
+                    Icon(Icons.account_tree_outlined, color: EstiloContractual.gris),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Aún no hay procesos. Con "Nuevo proceso" eliges la modalidad (licitación, mínima cuantía, selección abreviada…) y la plataforma arma sus etapas y documentos.',
+                        style: TextStyle(color: EstiloContractual.texto, fontSize: 13.2),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Wrap(
+                spacing: 14,
+                runSpacing: 14,
+                children: [
+                  for (final p in procesos)
+                    SizedBox(
+                      width: isMobile ? double.infinity : 360,
+                      child: _buildTarjetaProceso(p),
+                    ),
+                ],
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildTarjetaProceso(ProcesoContratacion p) {
+    final m = p.modalidad;
+    final etapa = m.etapas.isEmpty
+        ? ''
+        : 'Etapa ${p.etapaActual + 1} de ${m.etapas.length} · ${m.etapas[p.etapaActual].nombre}';
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ProcesoDetalleScreen(
+            procesoId: p.id,
+            onAbrirExpediente: _abrirExpedientePorToken,
+          ),
+        ),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: EstiloContractual.tarjeta(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Flexible(
+                  child: EtiquetaColor(
+                    texto: m.nombre,
+                    color: m.color,
+                    fondo: m.fondo,
+                    icono: m.icono,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  p.estado.etiqueta,
+                  style: TextStyle(
+                    color: p.estado == EstadoProceso.enCurso
+                        ? const Color(0xFF1D4ED8)
+                        : (p.estado == EstadoProceso.adjudicado
+                              ? const Color(0xFF15803D)
+                              : const Color(0xFFB91C1C)),
+                    fontSize: 11.8,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              p.numeroProceso,
+              style: const TextStyle(
+                color: EstiloContractual.navy,
+                fontSize: 15.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              p.objeto,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: EstiloContractual.texto, fontSize: 12.8),
+            ),
+            const SizedBox(height: 10),
+            if (etapa.isNotEmpty)
+              Text(
+                etapa,
+                style: const TextStyle(
+                  color: EstiloContractual.navy,
+                  fontSize: 12.3,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            const SizedBox(height: 2),
+            Text(
+              '${_monedaFormat.format(p.presupuestoCop)} · ${m.esCompetitiva ? '${p.oferentes.length} oferentes' : (p.oferentes.isEmpty ? 'sin contratista' : p.oferentes.first.nombre)}',
+              style: const TextStyle(color: EstiloContractual.gris, fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Los abogados temporales solo ejecutan las acciones que su Master les
+  /// asignó; las reglas de Firestore lo vuelven a comprobar al crear.
+  bool _puede(PermisoEquipo permiso) {
+    if (EquipoJuridicoService.tienePermiso(permiso)) return true;
+    _mostrarMensaje(
+      'Tu usuario del equipo no tiene el permiso "${permiso.etiqueta}". '
+      'Pídeselo al titular de la cuenta.',
+      esError: true,
+    );
+    return false;
   }
 
   void _mostrarMensaje(String texto, {bool esError = false}) {
@@ -583,6 +789,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
     ExpedienteContratoPs expediente,
     ApartadoDocumentoContrato apartado,
   ) async {
+    if (!_puede(PermisoEquipo.verificarDocumentos)) return;
     try {
       final actualizado =
           await JuridicoContratacionService.aprobarApartadoJuridico(
@@ -603,6 +810,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
   Future<void> _ejecutarRevisadoYVerificado(
     ExpedienteContratoPs expediente,
   ) async {
+    if (!_puede(PermisoEquipo.verificarDocumentos)) return;
     if (_procesandoAccion) return;
     setState(() => _procesandoAccion = true);
     try {
@@ -630,6 +838,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
   Future<void> _ejecutarDevolucionAlContratista(
     ExpedienteContratoPs expediente,
   ) async {
+    if (!_puede(PermisoEquipo.pedirDocumentos)) return;
     if (_procesandoAccion) return;
     if (_idsMarcadosParaDevolver.isEmpty) {
       _mostrarMensaje(
@@ -676,6 +885,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
   Future<void> _ejecutarCorreoRequerimiento(
     ExpedienteContratoPs expediente,
   ) async {
+    if (!_puede(PermisoEquipo.pedirDocumentos)) return;
     try {
       final actualizado =
           await JuridicoContratacionService.enviarCorreoRequerimiento(
@@ -713,6 +923,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
   Future<void> _abrirModalAgregarDocumento(
     ExpedienteContratoPs expediente,
   ) async {
+    if (!_puede(PermisoEquipo.pedirDocumentos)) return;
     final nombreCtrl = TextEditingController();
     final descCtrl = TextEditingController();
     bool obligatorio = true;
@@ -822,6 +1033,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
   }
 
   Future<void> _abrirModalCrearContrato() async {
+    if (!_puede(PermisoEquipo.crearContratos)) return;
     final nombreCtrl = TextEditingController();
     final cedulaCtrl = TextEditingController();
     final correoCtrl = TextEditingController();
@@ -1454,73 +1666,84 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Encabezado limpio y minimalista
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+              // Encabezado con el lenguaje visual del registro
+              Wrap(
+                spacing: 12,
+                runSpacing: 14,
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  Expanded(
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 640),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'Gestión contractual',
-                          style: TextStyle(
-                            color: _azulOscuro,
-                            fontSize: isMobile ? 23 : 30,
-                            fontWeight: FontWeight.w800,
-                            height: 1.1,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Container(
-                          width: 36,
-                          height: 3.5,
-                          decoration: BoxDecoration(
-                            color: _dorado,
-                            borderRadius: BorderRadius.circular(2),
+                          style: EstiloContractual.titulo.copyWith(
+                            fontSize: isMobile ? 26 : 32,
                           ),
                         ),
                         const SizedBox(height: 8),
                         const Text(
-                          'Contratación estatal de prestación de servicios (OPS) · Perfiles de aspirantes y verificación documental',
-                          style: TextStyle(
-                            color: _textoSecundario,
-                            fontSize: 13.5,
-                          ),
+                          'Tramita procesos de cualquier modalidad, pide documentos por enlace y verifícalos con trazabilidad.',
+                          style: EstiloContractual.subtitulo,
                         ),
+                        if (EquipoJuridicoService.esMiembroVigente) ...[
+                          const SizedBox(height: 10),
+                          EtiquetaColor(
+                            texto:
+                                'Equipo de ${EquipoJuridicoService.membresia.value?.masterNombre ?? ''}',
+                            color: const Color(0xFF28559A),
+                            fondo: const Color(0xFFE8F1FC),
+                            icono: Icons.groups_2_outlined,
+                          ),
+                        ],
                       ],
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  FilledButton.icon(
-                    onPressed: _abrirModalCrearContrato,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _azulOscuro,
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isMobile ? 14 : 18,
-                        vertical: isMobile ? 11 : 13,
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (EquipoJuridicoService.esMaster)
+                        OutlinedButton.icon(
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const GestionEquipoScreen(),
+                            ),
+                          ),
+                          style: EstiloContractual.botonSecundario(),
+                          icon: const Icon(Icons.groups_2_outlined, size: 19),
+                          label: const Text(
+                            'Mi equipo',
+                            style: EstiloContractual.etiquetaBoton,
+                          ),
+                        ),
+                      FilledButton.icon(
+                        onPressed: _nuevoProceso,
+                        style: EstiloContractual.botonPrincipal(),
+                        icon: const Icon(Icons.add_rounded, size: 20),
+                        label: const Text(
+                          'Nuevo proceso',
+                          style: EstiloContractual.etiquetaBoton,
+                        ),
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(11),
-                      ),
-                    ),
-                    icon: const Icon(Icons.add_rounded, size: 19),
-                    label: Text(
-                      isMobile ? 'Crear' : 'Crear contrato',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13.5,
-                      ),
-                    ),
+                      if (!isMobile)
+                        UserProfileHeaderAction(onLogout: widget.onLogout),
+                    ],
                   ),
-                  if (!isMobile) ...[
-                    const SizedBox(width: 12),
-                    UserProfileHeaderAction(onLogout: widget.onLogout),
-                  ],
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 26),
+              _buildProcesosDelEquipo(isMobile),
+              const SizedBox(height: 26),
+              const Text(
+                'EXPEDIENTES DE CONTRATISTAS Y OFERENTES',
+                style: EstiloContractual.seccion,
+              ),
+              const SizedBox(height: 10),
 
               // Filtro corto superior
               Container(
@@ -1528,11 +1751,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                   horizontal: 14,
                   vertical: 10,
                 ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: _bordeSuave),
-                ),
+                decoration: EstiloContractual.tarjeta(),
                 child: Wrap(
                   spacing: 12,
                   runSpacing: 10,
@@ -1639,7 +1858,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                       ),
                       const SizedBox(height: 4),
                       const Text(
-                        'Usa el botón "Crear contrato" para registrar un nuevo aspirante a contratista.',
+                        'Usa "Nuevo proceso" y elige Prestación de servicios para registrar un contratista.',
                         style: TextStyle(
                           color: _textoSecundario,
                           fontSize: 12.5,
@@ -2933,8 +3152,8 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                     ),
                   ),
                   const SizedBox(height: 3),
-                  RichText(
-                    text: TextSpan(
+                  Text.rich(
+                    TextSpan(
                       style: const TextStyle(
                         color: _azulOscuro,
                         fontSize: 13,

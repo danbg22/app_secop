@@ -117,62 +117,36 @@ class OnboardingUnifiedBackground extends StatelessWidget {
   }
 }
 
-/// Renderiza el logo oficial de Contrata Legal en alta definición (HD),
-/// recortando los márgenes blancos sobrantes de `assets/images/logo.png`
-/// para que el mapa de Colombia y el texto se vean grandes, nítidos y completos.
+/// Logo de Contrata Legal recortado al área real del dibujo de
+/// `assets/images/logo.png` (fondo transparente con márgenes amplios), sin
+/// tarjeta de fondo. El recorte deja un pequeño margen alrededor para no
+/// cortar la punta del mapa ni el pie de la "g".
 class ContrataLegalHdLogo extends StatelessWidget {
-  const ContrataLegalHdLogo({
-    super.key,
-    this.height = 56,
-    this.withWhitePill = false,
-  });
+  const ContrataLegalHdLogo({super.key, this.height = 56});
 
+  /// Alto visible del logo (sin los márgenes transparentes del PNG).
   final double height;
-  final bool withWhitePill;
+
+  // Dibujo medido en el PNG: x 12,6 %–89,4 %, y 18,3 %–89,7 %.
+  static const double _anchoVisible = 0.79;
+  static const double _altoVisible = 0.74;
+  static const Alignment _centroDibujo = Alignment(0.095, 0.31);
 
   @override
   Widget build(BuildContext context) {
-    final croppedLogo = ClipRect(
+    return ClipRect(
       child: Align(
-        alignment: Alignment.center,
-        widthFactor: 0.78,
-        heightFactor: 0.64,
+        alignment: _centroDibujo,
+        widthFactor: _anchoVisible,
+        heightFactor: _altoVisible,
         child: Image.asset(
           'assets/images/logo.png',
-          height: height / 0.64,
+          height: height / _altoVisible,
           fit: BoxFit.contain,
           filterQuality: FilterQuality.high,
           isAntiAlias: true,
         ),
       ),
-    );
-
-    if (!withWhitePill) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: croppedLogo,
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE6DFCF), width: 1.1),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0E2646).withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: croppedLogo,
     );
   }
 }
@@ -335,7 +309,7 @@ class OnboardingUnifiedTopBar extends StatelessWidget {
             children: [
               backBtn,
               if (showBrandLogo)
-                const ContrataLegalHdLogo(height: 38, withWhitePill: true)
+                const ContrataLegalHdLogo(height: 38)
               else if (showSteps)
                 Flexible(child: stepIndicator),
             ],
@@ -362,7 +336,7 @@ class OnboardingUnifiedTopBar extends StatelessWidget {
               backBtn,
               if (showBrandLogo) ...[
                 const SizedBox(width: 14),
-                const ContrataLegalHdLogo(height: 48, withWhitePill: true),
+                const ContrataLegalHdLogo(height: 48),
               ],
             ],
           ),
@@ -876,8 +850,8 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: isPersona
-                    ? RichText(
-                        text: const TextSpan(
+                    ? Text.rich(
+                        const TextSpan(
                           style: TextStyle(
                             color: _subtitleBlue,
                             fontSize: 13.5,

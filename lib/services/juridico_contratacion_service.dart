@@ -12,6 +12,7 @@ import '../utils/file_downloader.dart';
 import '../utils/pdf_unificado.dart';
 import '../utils/realtime_tab_bridge.dart';
 import 'auth_service.dart';
+import 'equipo_juridico_service.dart';
 import 'security_service.dart';
 
 /// Estados del ciclo de vida de cada documento requerido en la OPS.
@@ -374,6 +375,7 @@ class ExpedienteContratoPs {
     required this.apartados,
     required this.trazabilidad,
     this.creadoPorUid = '',
+    this.equipoUid = '',
     this.actualizadoEnMs = 0,
     this.notificacionesCorreo = const <NotificacionCorreoSubsanacion>[],
     this.avalJuridicoEmitido = false,
@@ -400,6 +402,11 @@ class ExpedienteContratoPs {
   final String creadoPorEmail;
   final String creadoPorNombre;
   final String creadoPorUid;
+
+  /// Master Jurídico dueño del expediente: lo ven y trabajan él y los
+  /// abogados vigentes de su equipo. Vacío en expedientes anteriores al
+  /// equipo (se completa con el creador al sincronizar).
+  final String equipoUid;
   final String fechaCreacionIso;
   final int actualizadoEnMs;
   final List<ApartadoDocumentoContrato> apartados;
@@ -486,6 +493,7 @@ class ExpedienteContratoPs {
     List<bool>? checksVerificacion,
     String? conceptoJuridico,
     int? actualizadoEnMs,
+    String? equipoUid,
   }) {
     return ExpedienteContratoPs(
       id: id,
@@ -506,6 +514,7 @@ class ExpedienteContratoPs {
       creadoPorEmail: creadoPorEmail,
       creadoPorNombre: creadoPorNombre,
       creadoPorUid: creadoPorUid,
+      equipoUid: equipoUid ?? this.equipoUid,
       fechaCreacionIso: fechaCreacionIso,
       actualizadoEnMs: actualizadoEnMs ?? this.actualizadoEnMs,
       apartados: apartados ?? this.apartados,
@@ -542,6 +551,7 @@ class ExpedienteContratoPs {
       'creadoPorEmail': creadoPorEmail,
       'creadoPorNombre': creadoPorNombre,
       'creadoPorUid': creadoPorUid,
+      'equipoUid': equipoUid,
       'fechaCreacionIso': fechaCreacionIso,
       'actualizadoEnMs': actualizadoEnMs,
       'apartados': apartados
@@ -592,6 +602,7 @@ class ExpedienteContratoPs {
       creadoPorEmail: (map['creadoPorEmail'] ?? '').toString(),
       creadoPorNombre: (map['creadoPorNombre'] ?? '').toString(),
       creadoPorUid: (map['creadoPorUid'] ?? '').toString(),
+      equipoUid: (map['equipoUid'] ?? '').toString(),
       fechaCreacionIso: (map['fechaCreacionIso'] ?? '').toString(),
       actualizadoEnMs: (map['actualizadoEnMs'] as num?)?.toInt() ?? 0,
       apartados: rawApartados is List
@@ -679,6 +690,9 @@ class JuridicoContratacionService {
       <String, StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>>{};
   static StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
   _suscripcionCreador;
+  static final List<StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>
+  _suscripcionesEquipo = [];
+  static String _equipoSuscrito = '';
   static bool _puenteTiempoRealInicializado = false;
 
   /// Checklist jurídico estándar para contratos de prestación de servicios (OPS).
@@ -952,28 +966,53 @@ class JuridicoContratacionService {
     } catch (_) {}
   }
 
+  /// Escucha los expedientes del equipo activo (el del Master si el usuario
+  /// es abogado temporal) y, para el Master, también los que creó antes de
+  /// existir el equipo, a los que les asigna su `equipoUid`.
   static void _asegurarSuscripcionColeccionCreador() {
-    if (_suscripcionCreador != null) return;
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null || uid.isEmpty) return;
+    final equipo = EquipoJuridicoService.equipoUidActivo;
+    if (uid == null || uid.isEmpty || equipo.isEmpty) return;
+    if (_suscripcionCreador != null && _equipoSuscrito == equipo) return;
+    for (final sub in _suscripcionesEquipo) {
+      sub.cancel();
+    }
+    _suscripcionesEquipo.clear();
+    _suscripcionCreador = null;
+    _equipoSuscrito = equipo;
+
+    void integrar(QuerySnapshot<Map<String, dynamic>> querySnap) {
+      for (final doc in querySnap.docs) {
+        var remoto = ExpedienteContratoPs.fromMap(doc.data());
+        if (remoto.tokenInvitado.isEmpty) continue;
+        if (remoto.equipoUid.isEmpty && remoto.creadoPorUid == uid) {
+          remoto = remoto.copyWith(equipoUid: uid);
+          unawaited(_enviarExpedienteAFirestoreEnFondo(remoto));
+        }
+        _integrarExpedienteEntranteEnMemoria(remoto);
+        _asegurarSuscripcionDocumentoFirestore(remoto.tokenInvitado);
+      }
+    }
 
     try {
-      _suscripcionCreador = FirebaseFirestore.instance
-          .collection('expedientes_juridicos')
-          .where('creadoPorUid', isEqualTo: uid)
-          .snapshots()
-          .listen(
-            (QuerySnapshot<Map<String, dynamic>> querySnap) {
-              for (final doc in querySnap.docs) {
-                final remoto = ExpedienteContratoPs.fromMap(doc.data());
-                if (remoto.tokenInvitado.isNotEmpty) {
-                  _integrarExpedienteEntranteEnMemoria(remoto);
-                  _asegurarSuscripcionDocumentoFirestore(remoto.tokenInvitado);
-                }
-              }
-            },
-            onError: (_) {},
-          );
+      final coleccion = FirebaseFirestore.instance.collection(
+        'expedientes_juridicos',
+      );
+      _suscripcionesEquipo.add(
+        coleccion
+            .where('equipoUid', isEqualTo: equipo)
+            .snapshots()
+            .listen(integrar, onError: (_) {}),
+      );
+      if (equipo == uid) {
+        _suscripcionesEquipo.add(
+          coleccion
+              .where('creadoPorUid', isEqualTo: uid)
+              .snapshots()
+              .listen(integrar, onError: (_) {}),
+        );
+      }
+      _suscripcionCreador = _suscripcionesEquipo.first;
     } catch (_) {}
   }
 
@@ -1134,6 +1173,10 @@ class JuridicoContratacionService {
 
   static bool _perteneceAlUsuarioActivo(ExpedienteContratoPs exp) {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final equipo = EquipoJuridicoService.equipoUidActivo;
+    if (exp.equipoUid.isNotEmpty) {
+      return equipo.isNotEmpty && exp.equipoUid == equipo;
+    }
     final scope = AuthService.getActiveUserStorageScope();
     final email = AuthService.getActiveUserEmail();
     if (exp.creadoPorUid.isNotEmpty) {
@@ -1225,6 +1268,11 @@ class JuridicoContratacionService {
         'Selecciona al menos un documento requerido para el contrato.',
       );
     }
+    if (!EquipoJuridicoService.tienePermiso(PermisoEquipo.crearContratos)) {
+      throw ArgumentError(
+        'Tu usuario del equipo no tiene permiso para crear contratos.',
+      );
+    }
 
     final ahoraMs = DateTime.now().millisecondsSinceEpoch;
     final ahoraIso = DateTime.fromMillisecondsSinceEpoch(
@@ -1290,6 +1338,7 @@ class JuridicoContratacionService {
       creadoPorEmail: creadorEmail,
       creadoPorNombre: creadorNombre,
       creadoPorUid: creadorUid,
+      equipoUid: EquipoJuridicoService.equipoUidActivo,
       fechaCreacionIso: ahoraIso,
       actualizadoEnMs: ahoraMs,
       apartados: apartados,

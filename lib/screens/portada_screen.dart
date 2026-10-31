@@ -135,25 +135,9 @@ class PortadaScreen extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context, bool isMobile) {
-    return Row(
-      children: [
-        ContrataLegalHdLogo(height: isMobile ? 38 : 48, withWhitePill: true),
-        const Spacer(),
-        _PortadaPillButton(
-          label: 'Iniciar sesión',
-          icon: Icons.login_rounded,
-          compact: isMobile,
-          onTap: () => _irALogin(context),
-        ),
-        if (!isMobile) ...[
-          const SizedBox(width: 10),
-          _PortadaPillButton(
-            label: 'Registrarse',
-            filled: true,
-            onTap: () => _irARegistro(context),
-          ),
-        ],
-      ],
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: ContrataLegalHdLogo(height: isMobile ? 46 : 64),
     );
   }
 
@@ -366,76 +350,6 @@ class _PortadaFeatureCard extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Botón píldora de la barra superior, con el estilo del botón "Portada"
-/// del registro (blanco con borde cálido) o relleno azul marino.
-class _PortadaPillButton extends StatelessWidget {
-  const _PortadaPillButton({
-    required this.label,
-    required this.onTap,
-    this.icon,
-    this.filled = false,
-    this.compact = false,
-  });
-
-  final String label;
-  final IconData? icon;
-  final VoidCallback onTap;
-  final bool filled;
-  final bool compact;
-
-  static const Color _navy = Color(0xFF0E2646);
-
-  @override
-  Widget build(BuildContext context) {
-    final foreground = filled ? Colors.white : _navy;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Ink(
-          padding: EdgeInsets.symmetric(
-            horizontal: compact ? 14 : 18,
-            vertical: compact ? 9 : 11,
-          ),
-          decoration: BoxDecoration(
-            color: filled ? _navy : Colors.white.withValues(alpha: 0.95),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: filled ? _navy : const Color(0xFFE2DAC8),
-              width: 1.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: _navy.withValues(alpha: 0.05),
-                blurRadius: 12,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null) ...[
-                Icon(icon, size: compact ? 18 : 20, color: foreground),
-                const SizedBox(width: 8),
-              ],
-              Text(
-                label,
-                style: TextStyle(
-                  color: foreground,
-                  fontSize: compact ? 13.5 : 14.5,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

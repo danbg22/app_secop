@@ -1356,8 +1356,8 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        RichText(
-          text: const TextSpan(
+        Text.rich(
+          const TextSpan(
             style: TextStyle(
               color: _subtitleSlate,
               fontSize: 13.6,

@@ -1364,10 +1364,10 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  RichText(
+                  Text.rich(
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    text: TextSpan(
+                    TextSpan(
                       children: [
                         TextSpan(
                           text: trendPercent,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../services/equipo_juridico_service.dart';
 
 /// Aviso para las cuentas administradoras que aún no tienen el acceso activo:
 /// correo sin verificar en Firebase o sesión restaurada sin Firebase. No
@@ -57,8 +58,22 @@ class _AdminVerificationBannerState extends State<AdminVerificationBanner> {
           );
         }
 
-        if (!AuthService.adminPendienteDeVerificacion) {
+        final esAbogadoPendiente =
+            EquipoJuridicoService.miembroPendienteDeVerificacion;
+        if (!AuthService.adminPendienteDeVerificacion && !esAbogadoPendiente) {
           return const SizedBox.shrink();
+        }
+        if (esAbogadoPendiente) {
+          final equipo =
+              EquipoJuridicoService.membresia.value?.masterNombre ?? 'tu entidad';
+          return _contenedor(
+            titulo: 'Verifica tu correo para entrar al equipo jurídico',
+            detalle:
+                'Tu cuenta ($correo) fue agregada al equipo jurídico de $equipo. '
+                'Para activar el acceso, abre el enlace de verificación que te '
+                'enviamos (revisa también spam) y luego pulsa "Ya lo verifiqué".',
+            acciones: _accionesVerificacion(),
+          );
         }
 
         return _contenedor(
@@ -95,6 +110,31 @@ class _AdminVerificationBannerState extends State<AdminVerificationBanner> {
       },
     );
   }
+
+  List<Widget> _accionesVerificacion() => [
+    OutlinedButton.icon(
+      onPressed: _procesando
+          ? null
+          : () => _ejecutar(
+              AuthService.reenviarVerificacionCorreo,
+              () => 'Te enviamos un nuevo enlace de verificación.',
+            ),
+      icon: const Icon(Icons.mark_email_unread_outlined, size: 18),
+      label: const Text('Reenviar verificación'),
+    ),
+    ElevatedButton.icon(
+      onPressed: _procesando
+          ? null
+          : () => _ejecutar(
+              AuthService.refrescarVerificacionCorreo,
+              () => EquipoJuridicoService.miembroPendienteDeVerificacion
+                  ? 'Aún no vemos el correo verificado. Abre el enlace e inténtalo de nuevo.'
+                  : 'Acceso al equipo jurídico activado.',
+            ),
+      icon: const Icon(Icons.refresh_rounded, size: 18),
+      label: const Text('Ya lo verifiqué'),
+    ),
+  ];
 
   Widget _contenedor({
     required String titulo,

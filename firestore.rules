@@ -27,6 +27,50 @@ service cloud.firestore {
              (!('pagoWompiPendiente' in data) || data.pagoWompiPendiente == false))));
     }
 
+    // Correos administradores (misma lista que lib/services/admin_access.dart).
+    function isAdmin() {
+      return isSignedIn() &&
+          request.auth.token.email_verified == true &&
+          request.auth.token.email in [
+            'danielbg2231@gmail.com',
+            'ivanbolano19@gmail.com',
+            'ibolano@sena.edu.co'
+          ];
+    }
+
+    // Titular de la suscripción Equipo Jurídico (o administrador).
+    function isMasterJuridico() {
+      return isAdmin() ||
+          (isSignedIn() &&
+           exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+           get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('rolesActivos', []).hasAny(['equipo_juridico']));
+    }
+
+    // Abogado temporal vigente del equipo de `masterUid`: correo verificado,
+    // membresía activa y sin vencer (ver lib/services/equipo_juridico_service.dart).
+    function membresiaPropia() {
+      return get(/databases/$(database)/documents/miembros_equipo/$(request.auth.token.email)).data;
+    }
+
+    function miembroVigente(masterUid) {
+      return isSignedIn() &&
+          request.auth.token.email_verified == true &&
+          exists(/databases/$(database)/documents/miembros_equipo/$(request.auth.token.email)) &&
+          membresiaPropia().masterUid == masterUid &&
+          membresiaPropia().estado == 'activo' &&
+          membresiaPropia().vigenteHasta > request.time;
+    }
+
+    function permisoEquipo(masterUid, permiso) {
+      return miembroVigente(masterUid) && membresiaPropia().permisos.hasAny([permiso]);
+    }
+
+    // Master del equipo o abogado vigente de su equipo.
+    function esDelEquipo(equipoUid) {
+      return isSignedIn() &&
+          (equipoUid == request.auth.uid || miembroVigente(equipoUid));
+    }
+
     // Verifica que cualquier activación o acumulación de rol pagado esté
     // respaldada por un recibo aprobado y registrado en el libro mayor `pagos_wompi`.
     function hasVerifiedWompiLedger(data) {
@@ -142,23 +186,106 @@ service cloud.firestore {
     //   suscribirse en tiempo real (`get`) y sincronizar cargas, revisiones y trazabilidad.
     match /expedientes_juridicos/{token} {
       allow get: if token.matches('^[a-f0-9]{32,64}$');
-      allow list: if isSignedIn() && resource.data.creadoPorUid == request.auth.uid;
+      // Listan el creador, el Master del equipo y sus abogados vigentes.
+      allow list: if isSignedIn() &&
+          (resource.data.creadoPorUid == request.auth.uid ||
+           resource.data.equipoUid == request.auth.uid ||
+           miembroVigente(resource.data.equipoUid));
       allow create: if token.matches('^[a-f0-9]{32,64}$') &&
           request.resource.data.tokenInvitado == token &&
           isNonEmptyString(request.resource.data.numeroContrato, 80) &&
-          isNonEmptyString(request.resource.data.objetoContrato, 2000);
+          isNonEmptyString(request.resource.data.objetoContrato, 2000) &&
+          // Un expediente de equipo solo lo crea su Master o un abogado con permiso.
+          (request.resource.data.get('equipoUid', '') == '' ||
+           (isSignedIn() &&
+            (request.resource.data.equipoUid == request.auth.uid ||
+             permisoEquipo(request.resource.data.equipoUid, 'crear_contratos'))));
       allow update: if token.matches('^[a-f0-9]{32,64}$') &&
           request.resource.data.tokenInvitado == resource.data.tokenInvitado &&
           request.resource.data.numeroContrato == resource.data.numeroContrato &&
           // El propietario no puede ser reasignado por quien tenga el enlace.
           (!('creadoPorUid' in resource.data) ||
-           request.resource.data.creadoPorUid == resource.data.creadoPorUid);
+           request.resource.data.creadoPorUid == resource.data.creadoPorUid) &&
+          // El equipo tampoco; solo el creador asigna el suyo a expedientes antiguos.
+          (resource.data.get('equipoUid', '') == '' ?
+              (request.resource.data.get('equipoUid', '') == '' ||
+               (isSignedIn() &&
+                request.resource.data.equipoUid == request.auth.uid &&
+                resource.data.creadoPorUid == request.auth.uid)) :
+              request.resource.data.get('equipoUid', '') == resource.data.equipoUid);
       allow delete: if isSignedIn() && resource.data.creadoPorUid == request.auth.uid;
 
       // Subcolección de binarios individuales para sincronización entre dispositivos
       match /archivos/{apartadoId} {
         allow get, list: if token.matches('^[a-f0-9]{32,64}$');
         allow create, update: if token.matches('^[a-f0-9]{32,64}$') &&
+            isNonEmptyString(request.resource.data.archivoBase64, 950000);
+        allow delete: if false;
+      }
+    }
+
+    // =========================================================================
+    // 4b. EQUIPO JURÍDICO "MASTER CHIEF" (`miembros_equipo/{correo}`)
+    // =========================================================================
+    // El Master Jurídico crea abogados temporales con permisos y vigencia. El
+    // documento se identifica con el correo del abogado; él puede leer el suyo.
+    match /miembros_equipo/{email} {
+      allow get: if isSignedIn() &&
+          (request.auth.token.email == email ||
+           resource.data.masterUid == request.auth.uid);
+      allow list: if isSignedIn() && resource.data.masterUid == request.auth.uid;
+
+      function membresiaValida(data) {
+        return data.keys().hasOnly([
+              'email', 'nombre', 'masterUid', 'masterNombre', 'permisos',
+              'vigenteHasta', 'estado', 'creadoEn'
+            ]) &&
+            data.email == email &&
+            data.masterUid == request.auth.uid &&
+            isNonEmptyString(data.nombre, 120) &&
+            data.permisos is list &&
+            data.permisos.hasOnly(['crear_contratos', 'pedir_documentos', 'verificar_documentos']) &&
+            data.estado in ['activo', 'suspendido'] &&
+            data.vigenteHasta is timestamp &&
+            data.vigenteHasta < request.time + duration.value(367, 'd');
+      }
+
+      allow create: if isMasterJuridico() &&
+          email != request.auth.token.email &&
+          membresiaValida(request.resource.data);
+      allow update: if isSignedIn() &&
+          resource.data.masterUid == request.auth.uid &&
+          membresiaValida(request.resource.data);
+      allow delete: if isSignedIn() && resource.data.masterUid == request.auth.uid;
+    }
+
+    // =========================================================================
+    // 4c. PROCESOS DE CONTRATACIÓN POR MODALIDAD (`procesos_contratacion/{id}`)
+    // =========================================================================
+    match /procesos_contratacion/{procesoId} {
+      allow get, list: if esDelEquipo(resource.data.equipoUid);
+      allow create: if isSignedIn() &&
+          procesoId.matches('^[a-f0-9]{32}$') &&
+          request.resource.data.id == procesoId &&
+          request.resource.data.creadoPorUid == request.auth.uid &&
+          ((request.resource.data.equipoUid == request.auth.uid && isMasterJuridico()) ||
+           permisoEquipo(request.resource.data.equipoUid, 'crear_contratos')) &&
+          isNonEmptyString(request.resource.data.numeroProceso, 80) &&
+          isNonEmptyString(request.resource.data.objeto, 2000);
+      // Nadie cambia el equipo, el creador ni la modalidad de un proceso.
+      allow update: if esDelEquipo(resource.data.equipoUid) &&
+          request.resource.data.id == resource.data.id &&
+          request.resource.data.equipoUid == resource.data.equipoUid &&
+          request.resource.data.creadoPorUid == resource.data.creadoPorUid &&
+          request.resource.data.modalidadId == resource.data.modalidadId;
+      allow delete: if false;
+
+      // Documentos de la entidad por etapa (mismo esquema que los expedientes).
+      match /archivos/{documentoId} {
+        allow get: if esDelEquipo(
+            get(/databases/$(database)/documents/procesos_contratacion/$(procesoId)).data.equipoUid);
+        allow create, update: if esDelEquipo(
+            get(/databases/$(database)/documents/procesos_contratacion/$(procesoId)).data.equipoUid) &&
             isNonEmptyString(request.resource.data.archivoBase64, 950000);
         allow delete: if false;
       }

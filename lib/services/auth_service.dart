@@ -9,6 +9,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'admin_access.dart';
+import 'equipo_juridico_service.dart';
 import 'consent_service.dart';
 import 'payment_service.dart';
 import 'security_service.dart';
@@ -236,6 +237,7 @@ class AuthService {
     try {
       await user.reload().timeout(const Duration(seconds: 6));
     } catch (_) {}
+    await EquipoJuridicoService.recargarMembresia();
     authStateVersion.value++;
   }
 
@@ -246,6 +248,7 @@ class AuthService {
     // `restoreSessionFromPrefs`: cada cambio de sesión recalcula los permisos
     // (incluido el acceso de administrador) en toda la app.
     _auth.authStateChanges().listen((_) => authStateVersion.value++);
+    EquipoJuridicoService.iniciar();
     unawaited(
       _auth.authStateChanges().first.then((_) => refrescarVerificacionCorreo()),
     );
@@ -278,10 +281,14 @@ class AuthService {
     if (requiresMandatoryWompiPayment) {
       return const <String>[];
     }
-    if (_cachedRoles.isEmpty) {
-      return const <String>['persona'];
+    final roles = _cachedRoles.isEmpty ? const <String>['persona'] : _cachedRoles;
+    // Abogado temporal de un equipo vigente: trabaja con el rol del equipo
+    // sin pagar su propia suscripción (la paga el Master Jurídico).
+    if (EquipoJuridicoService.esMiembroVigente &&
+        !roles.contains('equipo_juridico')) {
+      return List<String>.unmodifiable(<String>[...roles, 'equipo_juridico']);
     }
-    return List<String>.unmodifiable(_cachedRoles);
+    return List<String>.unmodifiable(roles);
   }
 
   /// Devuelve la etiqueta visible de los roles activos (ej. `'Persona'` o `'Persona + Empresa licitante'`).
