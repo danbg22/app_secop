@@ -854,7 +854,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Ministerio de Transporte',
-      nit: '899999059',
+      nit: '899999055',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Ministerio',
@@ -870,7 +870,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Ministerio de Salud y Protección Social',
-      nit: '830027786',
+      nit: '900474727',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Ministerio',
@@ -878,7 +878,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Ministerio de Tecnologías de la Información y las Comunicaciones - MinTIC',
-      nit: '899999053',
+      nit: '800131648',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Ministerio',
@@ -894,7 +894,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Ministerio de Justicia y del Derecho',
-      nit: '899999028',
+      nit: '900457461',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Ministerio',
@@ -902,7 +902,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Ministerio de Agricultura y Desarrollo Rural',
-      nit: '899999014',
+      nit: '899999028',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Ministerio',
@@ -910,7 +910,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Ministerio de Minas y Energía',
-      nit: '899999082',
+      nit: '899999022',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Ministerio',
@@ -918,7 +918,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Ministerio de Comercio, Industria y Turismo - MinCIT',
-      nit: '899999066',
+      nit: '830115297',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Ministerio',
@@ -926,7 +926,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Ministerio de Ambiente y Desarrollo Sostenible',
-      nit: '830024928',
+      nit: '830115395',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Ministerio',
@@ -950,7 +950,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Ministerio de Relaciones Exteriores - Cancillería',
-      nit: '899999070',
+      nit: '899999042',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Ministerio',
@@ -958,7 +958,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Ministerio de las Culturas, las Artes y los Saberes - Mincultura',
-      nit: '811019744',
+      nit: '830034348',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Ministerio',
@@ -966,7 +966,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Ministerio del Deporte - Mindeporte',
-      nit: '901326466',
+      nit: '899999306',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Ministerio',
@@ -974,7 +974,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Ministerio de Ciencia, Tecnología e Innovación - MinCiencias',
-      nit: '901341294',
+      nit: '899999296',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Ministerio',
@@ -1030,7 +1030,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Fiscalía General de la Nación',
-      nit: '800150868',
+      nit: '800152783',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Orden Nacional',
@@ -1046,7 +1046,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Registraduría Nacional del Estado Civil',
-      nit: '899999119',
+      nit: '899999737',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Organismo Electoral',
@@ -1054,7 +1054,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Procuraduría General de la Nación',
-      nit: '899999094',
+      nit: '899999119',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Órgano de Control',
@@ -1078,7 +1078,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Agencia Nacional de Infraestructura - ANI',
-      nit: '800112808',
+      nit: '830125996',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Agencia Nacional',
@@ -1094,7 +1094,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Unidad para la Atención y Reparación Integral a las Víctimas',
-      nit: '900508544',
+      nit: '900490473',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Unidad Nacional',
@@ -1126,7 +1126,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Departamento Nacional de Planeación - DNP',
-      nit: '899999044',
+      nit: '899999011',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Departamento Administrativo',
@@ -1134,7 +1134,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Departamento Administrativo Nacional de Estadística - DANE',
-      nit: '899999054',
+      nit: '899999027',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Departamento Administrativo',
@@ -1142,7 +1142,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Prosperidad Social - DPS',
-      nit: '900481282',
+      nit: '900039533',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Departamento Administrativo',
@@ -1150,7 +1150,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Unidad Nacional de Protección - UNP',
-      nit: '900478811',
+      nit: '900475780',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Unidad Nacional',
@@ -1158,7 +1158,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Unidad Nacional para la Gestión del Riesgo de Desastres - UNGRD',
-      nit: '900479708',
+      nit: '900478966',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Unidad Nacional',
@@ -1174,7 +1174,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Instituto Colombiano Agropecuario - ICA',
-      nit: '899999091',
+      nit: '899999069',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Instituto Nacional',
@@ -1222,7 +1222,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Corporación Autónoma Regional del Cesar - Corpocesar',
-      nit: '892300438',
+      nit: '892301483',
       municipio: 'Valledupar',
       departamento: 'Cesar',
       category: 'Corporación Autónoma',

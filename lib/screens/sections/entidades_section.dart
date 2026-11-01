@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../../data/colombia_entities_database.dart';
+import '../../data/logos_entidades.dart';
 import '../../services/auth_service.dart';
 import '../../services/secop_i_procesos_service.dart';
 import '../../services/security_service.dart';
@@ -2486,6 +2487,28 @@ class EntityEmblemWidget extends StatelessWidget {
     final scope = EntityBrandScope.maybeOf(context);
     final normName = _norm(scope?.entityName ?? '');
     final nitClean = (scope?.nit ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+
+    final logo = LogosEntidades.buscar(
+      nombre: scope?.entityName ?? '',
+      nit: nitClean,
+    );
+    if (logo != null) {
+      return Container(
+        width: size,
+        height: size,
+        padding: EdgeInsets.all(size * 0.06),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(size * 0.22),
+        ),
+        child: Image.asset(
+          logo.asset,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.medium,
+          semanticLabel: 'Logo de ${scope?.entityName ?? 'la entidad'}',
+        ),
+      );
+    }
 
     if (normName.contains('SENA') ||
         normName.contains('APRENDIZAJE') ||

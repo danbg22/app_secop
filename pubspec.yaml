@@ -73,6 +73,7 @@ flutter:
     - assets/contratos_bucaramanga_mvp.json
     - assets/images/fondo_valledupar.jpg
     - assets/images/logo.png
+    - assets/logos_entidades/
 
   # Tipografía corporativa global (Inter, SIL Open Font License 1.1).
   fonts:
