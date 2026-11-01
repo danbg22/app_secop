@@ -7,12 +7,13 @@ import 'package:intl/intl.dart';
 import '../../services/equipo_juridico_service.dart';
 import '../../services/juridico_contratacion_service.dart';
 import '../../widgets/user_profile_header_action.dart';
-import '../../data/modalidades_contratacion.dart';
 import '../../services/procesos_contratacion_service.dart';
-import '../gestion_contractual/crear_proceso_screen.dart';
+import '../gestion_contractual/estado_secop.dart';
+import '../gestion_contractual/importar_proceso_screen.dart';
+import '../gestion_contractual/inicio_gestion_screen.dart';
+import '../gestion_contractual/seguimiento_secop_screen.dart';
 import '../gestion_contractual/estilo_contractual.dart';
 import '../gestion_contractual/proceso_detalle_screen.dart';
-import '../gestion_contractual/selector_modalidad_screen.dart';
 import '../gestion_equipo_screen.dart';
 import '../supervision/bandeja_supervision_screen.dart';
 import '../supervision/supervision_contrato_screen.dart';
@@ -284,19 +285,20 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
   /// proceso por etapas.
   Future<void> _nuevoProceso() async {
     if (!_puede(PermisoEquipo.crearContratos)) return;
-    final modalidad = await Navigator.of(context).push<ModalidadContratacion>(
-      MaterialPageRoute(builder: (_) => const SelectorModalidadScreen()),
+    final camino = await Navigator.of(context).push<CaminoGestion>(
+      MaterialPageRoute(builder: (_) => const InicioGestionScreen()),
     );
-    if (!mounted || modalidad == null) return;
-    if (modalidad.id == 'prestacion_servicios') {
-      await _abrirModalCrearContrato();
-      return;
+    if (!mounted || camino == null) return;
+    switch (camino) {
+      case CaminoGestion.prestacionServicios:
+        await _abrirModalCrearContrato();
+      case CaminoGestion.importarSecop:
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const ImportarProcesoScreen(),
+          ),
+        );
     }
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => CrearProcesoScreen(modalidad: modalidad),
-      ),
-    );
   }
 
   Stream<List<ProcesoContratacion>>? _procesosStream;
@@ -319,9 +321,30 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'PROCESOS DE CONTRATACIÓN (${procesos.length})',
-              style: EstiloContractual.seccion,
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'PROCESOS EN SECOP II (${procesos.length})',
+                    style: EstiloContractual.seccion,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const SeguimientoSecopScreen(),
+                    ),
+                  ),
+                  icon: const Icon(Icons.dashboard_outlined, size: 18),
+                  label: Text(
+                    '${procesos.where((p) => p.secopNovedades.isNotEmpty).isEmpty ? '' : '${procesos.where((p) => p.secopNovedades.isNotEmpty).length} con novedades · '}Panel de seguimiento',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: EstiloContractual.navy,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 10),
             if (snap.hasError)
@@ -342,7 +365,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                     SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Aún no hay procesos. Con "Nuevo proceso" eliges la modalidad (licitación, mínima cuantía, selección abreviada…) y la plataforma arma sus etapas y documentos.',
+                        'Aún no hay procesos. Con "Nuevo proceso" → "Importar proceso existente" traes un proceso de SECOP II (licitación, mínima cuantía, selección abreviada…) para hacerle seguimiento.',
                         style: TextStyle(
                           color: EstiloContractual.texto,
                           fontSize: 13.2,
@@ -401,21 +424,30 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                     icono: m.icono,
                   ),
                 ),
-                const Spacer(),
-                Text(
-                  p.estado.etiqueta,
-                  style: TextStyle(
-                    color: p.estado == EstadoProceso.enCurso
-                        ? const Color(0xFF1D4ED8)
-                        : (p.estado == EstadoProceso.adjudicado
-                              ? const Color(0xFF15803D)
-                              : const Color(0xFFB91C1C)),
-                    fontSize: 11.8,
-                    fontWeight: FontWeight.w800,
+                const SizedBox(width: 8),
+                if (p.idProcesoSecop.isNotEmpty)
+                  ChipEstadoSecop(secop: p.secop)
+                else
+                  Text(
+                    p.estado.etiqueta,
+                    style: const TextStyle(
+                      color: Color(0xFF1D4ED8),
+                      fontSize: 11.8,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                ),
               ],
             ),
+            if (p.secopNovedades.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              EtiquetaColor(
+                texto:
+                    '${p.secopNovedades.length} novedad${p.secopNovedades.length == 1 ? '' : 'es'} en SECOP II',
+                color: const Color(0xFFC2410C),
+                fondo: const Color(0xFFFFEDD5),
+                icono: Icons.fiber_new_rounded,
+              ),
+            ],
             const SizedBox(height: 10),
             Text(
               p.numeroProceso,

@@ -3,7 +3,6 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:http/http.dart' as http;
 
 import '../data/modalidades_contratacion.dart';
 import '../utils/dias_habiles_colombia.dart';
@@ -13,6 +12,7 @@ import 'archivo_fragmentado.dart';
 import 'auth_service.dart';
 import 'equipo_juridico_service.dart';
 import 'juridico_contratacion_service.dart';
+import 'secop_importacion_service.dart';
 import 'security_service.dart';
 
 // =============================================================================
@@ -49,8 +49,11 @@ enum EstadoVerificacion {
   const EstadoVerificacion(this.etiqueta);
   final String etiqueta;
 
-  static EstadoVerificacion desde(String? v) => EstadoVerificacion.values
-      .firstWhere((e) => e.name == v, orElse: () => EstadoVerificacion.pendiente);
+  static EstadoVerificacion desde(String? v) =>
+      EstadoVerificacion.values.firstWhere(
+        (e) => e.name == v,
+        orElse: () => EstadoVerificacion.pendiente,
+      );
 
   /// Siguiente estado al tocar la celda de la matriz.
   EstadoVerificacion get siguiente =>
@@ -66,7 +69,10 @@ class VerificacionRequisito {
   final EstadoVerificacion estado;
   final String observacion;
 
-  Map<String, dynamic> toMap() => {'estado': estado.name, 'observacion': observacion};
+  Map<String, dynamic> toMap() => {
+    'estado': estado.name,
+    'observacion': observacion,
+  };
 
   factory VerificacionRequisito.fromMap(Map<String, dynamic> m) =>
       VerificacionRequisito(
@@ -106,9 +112,13 @@ enum ResultadoVerificacion {
         verificaciones[r.id]?.estado ?? EstadoVerificacion.pendiente,
     ];
     if (estados.contains(EstadoVerificacion.noCumple)) return noHabilitada;
-    if (estados.contains(EstadoVerificacion.subsanable)) return requiereSubsanar;
+    if (estados.contains(EstadoVerificacion.subsanable)) {
+      return requiereSubsanar;
+    }
     if (estados.every((e) => e == EstadoVerificacion.cumple)) return habilitada;
-    if (estados.every((e) => e == EstadoVerificacion.pendiente)) return sinIniciar;
+    if (estados.every((e) => e == EstadoVerificacion.pendiente)) {
+      return sinIniciar;
+    }
     return enVerificacion;
   }
 }
@@ -267,15 +277,16 @@ class ObservacionProceso {
     'responsable': responsable,
   };
 
-  factory ObservacionProceso.fromMap(Map<String, dynamic> m) => ObservacionProceso(
-    id: '${m['id'] ?? ''}',
-    interesado: '${m['interesado'] ?? ''}',
-    fechaIso: '${m['fechaIso'] ?? ''}',
-    etapaId: '${m['etapaId'] ?? ''}',
-    texto: '${m['texto'] ?? ''}',
-    respuesta: '${m['respuesta'] ?? ''}',
-    responsable: '${m['responsable'] ?? ''}',
-  );
+  factory ObservacionProceso.fromMap(Map<String, dynamic> m) =>
+      ObservacionProceso(
+        id: '${m['id'] ?? ''}',
+        interesado: '${m['interesado'] ?? ''}',
+        fechaIso: '${m['fechaIso'] ?? ''}',
+        etapaId: '${m['etapaId'] ?? ''}',
+        texto: '${m['texto'] ?? ''}',
+        respuesta: '${m['respuesta'] ?? ''}',
+        responsable: '${m['responsable'] ?? ''}',
+      );
 }
 
 /// Resultado publicado en SECOP II: aquí solo se registra.
@@ -363,6 +374,10 @@ class ProcesoContratacion {
     this.estado = EstadoProceso.enCurso,
     this.trazabilidad = const [],
     this.actualizadoEnMs = 0,
+    this.origen = 'manual',
+    this.secop,
+    this.secopSincronizadoEnIso = '',
+    this.secopNovedades = const [],
   });
 
   final String id;
@@ -402,6 +417,17 @@ class ProcesoContratacion {
   final EstadoProceso estado;
   final List<EventoTrazabilidadContrato> trazabilidad;
   final int actualizadoEnMs;
+
+  /// `importado` si se trajo de SECOP II; `manual` si se registró a mano.
+  final String origen;
+
+  /// Última fotografía del proceso en SECOP II y lo que cambió en la última
+  /// sincronización (pendiente de que el equipo lo revise).
+  final ProcesoSecop? secop;
+  final String secopSincronizadoEnIso;
+  final List<String> secopNovedades;
+
+  bool get importado => origen == 'importado';
 
   ModalidadContratacion get modalidad =>
       modalidadPorId(modalidadId) ?? modalidadesContratacion.last;
@@ -462,9 +488,13 @@ class ProcesoContratacion {
   }
 
   double get avanceDocumentosEntidad {
-    final obligatorios = modalidad.documentosEntidad.where((d) => d.obligatorio);
+    final obligatorios = modalidad.documentosEntidad.where(
+      (d) => d.obligatorio,
+    );
     if (obligatorios.isEmpty) return 1;
-    final cargados = obligatorios.where((d) => documentosEntidad.containsKey(d.id));
+    final cargados = obligatorios.where(
+      (d) => documentosEntidad.containsKey(d.id),
+    );
     return cargados.length / obligatorios.length;
   }
 
@@ -494,10 +524,16 @@ class ProcesoContratacion {
     'ofertas': ofertas.map((o) => o.toMap()).toList(),
     'observaciones': observaciones.map((o) => o.toMap()).toList(),
     'resultado': resultado?.toMap(),
-    'legalizacion': {for (final e in legalizacion.entries) e.key: e.value.toMap()},
+    'legalizacion': {
+      for (final e in legalizacion.entries) e.key: e.value.toMap(),
+    },
     'estado': estado.name,
     'trazabilidad': trazabilidad.map((e) => e.toMap()).toList(),
     'actualizadoEnMs': actualizadoEnMs,
+    'origen': origen,
+    'secop': secop?.toMap(),
+    'secopSincronizadoEnIso': secopSincronizadoEnIso,
+    'secopNovedades': secopNovedades,
   };
 
   factory ProcesoContratacion.fromMap(Map<String, dynamic> m) {
@@ -525,13 +561,14 @@ class ProcesoContratacion {
       urlSecop: '${m['urlSecop'] ?? ''}',
       campos: mapa(m['campos']).map((k, v) => MapEntry(k, '$v')),
       etapaActual: (m['etapaActual'] as num?)?.toInt() ?? 0,
-      documentosEntidad: mapa(m['documentosEntidad']).map(
-        (k, v) => MapEntry(k, DocumentoEntidadCargado.fromMap(mapa(v))),
-      ),
+      documentosEntidad: mapa(m['documentosEntidad'])
+          .map((k, v) => MapEntry(k, DocumentoEntidadCargado.fromMap(mapa(v)))),
       cronograma: mapa(m['cronograma']).map((k, v) => MapEntry(k, '$v')),
       responsables: mapa(m['responsables']).map((k, v) => MapEntry(k, '$v')),
       ofertas: lista(m['ofertas']).map(OfertaRecibida.fromMap).toList(),
-      observaciones: lista(m['observaciones']).map(ObservacionProceso.fromMap).toList(),
+      observaciones: lista(m['observaciones'])
+          .map(ObservacionProceso.fromMap)
+          .toList(),
       resultado: m['resultado'] is Map
           ? ResultadoProceso.fromMap(mapa(m['resultado']))
           : null,
@@ -541,41 +578,14 @@ class ProcesoContratacion {
           .map(EventoTrazabilidadContrato.fromMap)
           .toList(),
       actualizadoEnMs: (m['actualizadoEnMs'] as num?)?.toInt() ?? 0,
+      origen: '${m['origen'] ?? 'manual'}',
+      secop: m['secop'] is Map ? ProcesoSecop.fromMap(mapa(m['secop'])) : null,
+      secopSincronizadoEnIso: '${m['secopSincronizadoEnIso'] ?? ''}',
+      secopNovedades: [
+        for (final n in (m['secopNovedades'] as List? ?? const [])) '$n',
+      ],
     );
   }
-}
-
-/// Lo que reporta SECOP II (Datos Abiertos) sobre el proceso.
-class EstadoProcesoSecop {
-  const EstadoProcesoSecop({
-    required this.idProceso,
-    required this.referencia,
-    required this.fase,
-    required this.estado,
-    required this.modalidad,
-    required this.ofertasRecibidas,
-    required this.manifestacionesInteres,
-    required this.adjudicado,
-    required this.proveedorAdjudicado,
-    required this.valorAdjudicado,
-    required this.fechaAdjudicacion,
-    required this.fechaPublicacion,
-    required this.url,
-  });
-
-  final String idProceso;
-  final String referencia;
-  final String fase;
-  final String estado;
-  final String modalidad;
-  final int ofertasRecibidas;
-  final int manifestacionesInteres;
-  final bool adjudicado;
-  final String proveedorAdjudicado;
-  final int valorAdjudicado;
-  final String fechaAdjudicacion;
-  final String fechaPublicacion;
-  final String url;
 }
 
 class ProcesoContratacionException implements Exception {
@@ -630,17 +640,26 @@ class ProcesosContratacionService {
   static Stream<List<ProcesoContratacion>> escucharProcesos() {
     final equipo = EquipoJuridicoService.equipoUidActivo;
     if (equipo.isEmpty) return Stream.value(const []);
-    return _col.where('equipoUid', isEqualTo: equipo).snapshots().map(
-      (snap) =>
-          snap.docs.map((d) => ProcesoContratacion.fromMap(d.data())).toList()
-            ..sort((a, b) => b.fechaCreacionIso.compareTo(a.fechaCreacionIso)),
-    );
+    return _col
+        .where('equipoUid', isEqualTo: equipo)
+        .snapshots()
+        .map(
+          (snap) =>
+              snap.docs
+                  .map((d) => ProcesoContratacion.fromMap(d.data()))
+                  .toList()
+                ..sort(
+                  (a, b) => b.fechaCreacionIso.compareTo(a.fechaCreacionIso),
+                ),
+        );
   }
 
   static Stream<ProcesoContratacion?> escucharProceso(String id) => _col
       .doc(id)
       .snapshots()
-      .map((d) => d.data() == null ? null : ProcesoContratacion.fromMap(d.data()!));
+      .map(
+        (d) => d.data() == null ? null : ProcesoContratacion.fromMap(d.data()!),
+      );
 
   static Future<ProcesoContratacion> crearProceso({
     required ModalidadContratacion modalidad,
@@ -664,7 +683,9 @@ class ProcesosContratacionService {
     }
     for (final c in modalidad.campos.where((c) => c.obligatorio)) {
       if ((campos[c.id] ?? '').trim().isEmpty) {
-        throw ProcesoContratacionException('Completa el campo "${c.etiqueta}".');
+        throw ProcesoContratacionException(
+          'Completa el campo "${c.etiqueta}".',
+        );
       }
     }
     final user = FirebaseAuth.instance.currentUser;
@@ -689,7 +710,8 @@ class ProcesosContratacionService {
       idProcesoSecop: _limpio(idProcesoSecop, 60).toUpperCase(),
       campos: {
         for (final c in modalidad.campos)
-          if ((campos[c.id] ?? '').trim().isNotEmpty) c.id: _limpio(campos[c.id]!, 300),
+          if ((campos[c.id] ?? '').trim().isNotEmpty)
+            c.id: _limpio(campos[c.id]!, 300),
       },
       trazabilidad: [
         _evento(
@@ -729,67 +751,169 @@ class ProcesosContratacionService {
     final id = _limpio(idProceso, 60).toUpperCase();
     final enlace = url.trim();
     if (enlace.isNotEmpty && !enlace.startsWith('https://')) {
-      throw const ProcesoContratacionException('El enlace debe empezar por https://');
+      throw const ProcesoContratacionException(
+        'El enlace debe empezar por https://',
+      );
     }
-    await _actualizar(
-      p,
-      {'idProcesoSecop': id, 'urlSecop': enlace},
-      _evento('VINCULO_SECOP', 'Vinculó el proceso de SECOP II $id', ''),
-    );
+    await _actualizar(p, {
+      'idProcesoSecop': id,
+      'urlSecop': enlace,
+    }, _evento('VINCULO_SECOP', 'Vinculó el proceso de SECOP II $id', ''));
   }
 
-  /// Consulta el proceso en Datos Abiertos (dataset SECOP II - Procesos de
-  /// Contratación) por su ID o, si no lo tiene, por referencia y NIT.
-  static Future<EstadoProcesoSecop?> consultarSecop(ProcesoContratacion p) async {
-    final id = p.idProcesoSecop.trim().toUpperCase();
-    String literal(String v) => v.replaceAll("'", "''");
-    final String where;
-    if (RegExp(r'^CO1\.[A-Z]+\.\d+$').hasMatch(id)) {
-      where = id.contains('.REQ.')
-          ? "id_del_proceso = '${literal(id)}'"
-          : "urlproceso like '%${literal(id)}%'";
-    } else if (p.entidadNit.isNotEmpty) {
-      where =
-          "referencia_del_proceso = '${literal(p.numeroProceso)}' AND nit_entidad = '${literal(p.entidadNit)}'";
-    } else {
-      throw const ProcesoContratacionException(
-        'Agrega el ID del proceso en SECOP II o el NIT de la entidad para consultarlo.',
-      );
-    }
-    final uri = Uri.https('www.datos.gov.co', '/resource/p6dx-8zbt.json', {
-      r'$where': where,
-      r'$order': 'fecha_de_ultima_publicaci DESC',
-      r'$limit': '1',
-    });
-    final resp = await http.get(uri).timeout(const Duration(seconds: 20));
-    if (resp.statusCode != 200) {
-      throw const ProcesoContratacionException(
-        'Datos Abiertos no respondió. Intenta de nuevo en unos minutos.',
-      );
-    }
-    final lista = jsonDecode(resp.body);
-    if (lista is! List || lista.isEmpty || lista.first is! Map) return null;
-    final r = Map<String, dynamic>.from(lista.first as Map);
-    int entero(String k) => int.tryParse('${r[k] ?? 0}'.split('.').first) ?? 0;
-    String texto(String k) => '${r[k] ?? ''}'.trim();
-    final url = r['urlproceso'] is Map ? '${(r['urlproceso'] as Map)['url'] ?? ''}' : '';
-    final adjudicado = texto('adjudicado').toLowerCase();
-    return EstadoProcesoSecop(
-      idProceso: texto('id_del_proceso'),
-      referencia: texto('referencia_del_proceso'),
-      fase: texto('fase'),
-      estado: texto('estado_del_procedimiento'),
-      modalidad: texto('modalidad_de_contratacion'),
-      ofertasRecibidas: entero('respuestas_al_procedimiento'),
-      manifestacionesInteres: entero('proveedores_que_manifestaron'),
-      adjudicado: adjudicado == 'si' || adjudicado == 'sí',
-      proveedorAdjudicado: texto('nombre_del_proveedor'),
-      valorAdjudicado: entero('valor_total_adjudicacion'),
-      fechaAdjudicacion: texto('fecha_adjudicacion'),
-      fechaPublicacion: texto('fecha_de_publicacion_del'),
-      url: url,
-    );
+  // ---------------------------------------------------------------------------
+  // Importación y sincronización con SECOP II
+  // ---------------------------------------------------------------------------
+
+  /// Fechas de SECOP II que corresponden a hitos del cronograma de la modalidad.
+  static Map<String, String> _cronogramaDesde(
+    ModalidadContratacion modalidad,
+    ProcesoSecop s,
+    Map<String, String> actual,
+  ) {
+    final hitos = {for (final h in modalidad.hitos) h.id};
+    final candidatos = <String, String?>{
+      'cierre': s.fechas['recepcionOfertas'],
+      'adjudicacion': s.fechas['adjudicacion'],
+      'aceptacion': s.fechas['adjudicacion'],
+      'seleccion': s.fechas['adjudicacion'],
+      'audiencia_adjudicacion': s.fechas['adjudicacion'],
+      if (modalidad.hitos.isNotEmpty)
+        modalidad.hitos.first.id: s.fechas['publicacion'],
+    };
+    return {
+      ...actual,
+      for (final e in candidatos.entries)
+        if (hitos.contains(e.key) &&
+            (e.value ?? '').isNotEmpty &&
+            (actual[e.key] ?? '').isEmpty)
+          e.key: e.value!,
+    };
   }
+
+  /// Crea el seguimiento de un proceso que ya existe en SECOP II.
+  static Future<ProcesoContratacion> importarDesdeSecop(
+    ProcesoSecop s, {
+    required ModalidadContratacion modalidad,
+  }) async {
+    _exigir(PermisoEquipo.crearContratos);
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw const ProcesoContratacionException('Inicia sesión nuevamente.');
+    }
+    final equipo = EquipoJuridicoService.equipoUidActivo;
+    final repetido = await _col
+        .where('equipoUid', isEqualTo: equipo)
+        .where('idProcesoSecop', isEqualTo: s.idProceso)
+        .limit(1)
+        .get();
+    if (repetido.docs.isNotEmpty) {
+      throw const ProcesoContratacionException(
+        'Este proceso ya está importado en el equipo. Búscalo en el panel de seguimiento.',
+      );
+    }
+    final numero = _limpio(
+      s.referencia.isEmpty ? s.idProceso : s.referencia,
+      80,
+    );
+    final objeto = _limpio(
+      s.descripcion.isEmpty
+          ? (s.nombre.isEmpty ? numero : s.nombre)
+          : s.descripcion,
+      2000,
+    );
+    final ahora = _ahoraIso();
+    final proceso = ProcesoContratacion(
+      id: SecurityService.generateSecureTokenHex(16),
+      modalidadId: modalidad.id,
+      equipoUid: equipo,
+      creadoPorUid: user.uid,
+      creadoPorNombre: AuthService.getActiveUserDisplayName(),
+      entidadNombre: _limpio(s.entidad, 200),
+      entidadNit: SecurityService.normalizeDocumentDigits(s.nit),
+      dependencia: _limpio(s.unidad, 160),
+      numeroProceso: numero,
+      objeto: objeto,
+      presupuestoCop: s.precioBase,
+      plazoEjecucion: _limpio(s.duracion, 90),
+      fechaCreacionIso: ahora,
+      idProcesoSecop: s.idProceso,
+      urlSecop: s.url,
+      cronograma: _cronogramaDesde(modalidad, s, const {}),
+      origen: 'importado',
+      secop: s,
+      secopSincronizadoEnIso: ahora,
+      trazabilidad: [
+        _evento(
+          'IMPORTACION_SECOP',
+          'Importó el proceso ${s.idProceso} desde SECOP II',
+          'Estado en SECOP II: ${s.estadoVisible}. ${s.documentos.length} documentos publicados.',
+        ),
+      ],
+      actualizadoEnMs: DateTime.now().millisecondsSinceEpoch,
+    );
+    await _col.doc(proceso.id).set(proceso.toMap());
+    return proceso;
+  }
+
+  /// Vuelve a consultar SECOP II y guarda lo que cambió. Devuelve las
+  /// novedades encontradas (vacío si no hubo cambios).
+  static Future<List<String>> sincronizarConSecop(ProcesoContratacion p) async {
+    final id = p.idProcesoSecop.isNotEmpty ? p.idProcesoSecop : p.urlSecop;
+    if (SecopImportacionService.extraerIdentificador(id) == null) {
+      throw const ProcesoContratacionException(
+        'Este proceso no tiene ID de SECOP II. Vincúlalo primero.',
+      );
+    }
+    final ProcesoSecop? nuevo;
+    try {
+      nuevo = await SecopImportacionService.buscar(id);
+    } on SecopImportacionException catch (e) {
+      throw ProcesoContratacionException(e.message);
+    }
+    if (nuevo == null) {
+      throw const ProcesoContratacionException(
+        'Datos Abiertos aún no reporta este proceso (se actualiza una vez al día).',
+      );
+    }
+    final novedades = p.secop == null
+        ? <String>[
+            'Primera sincronización con SECOP II: ${nuevo.estadoVisible}.',
+          ]
+        : SecopImportacionService.novedades(p.secop!, nuevo);
+    final ahora = _ahoraIso();
+    final cambios = <String, dynamic>{
+      'secop': nuevo.toMap(),
+      'secopSincronizadoEnIso': ahora,
+      if (novedades.isNotEmpty)
+        'secopNovedades': {...p.secopNovedades, ...novedades}.toList(),
+      if (p.idProcesoSecop != nuevo.idProceso && nuevo.idProceso.isNotEmpty)
+        'idProcesoSecop': nuevo.idProceso,
+      if (p.urlSecop.isEmpty && nuevo.url.isNotEmpty) 'urlSecop': nuevo.url,
+      'cronograma': _cronogramaDesde(p.modalidad, nuevo, p.cronograma),
+    };
+    if (novedades.isEmpty) {
+      await _col.doc(p.id).update({
+        ...cambios,
+        'actualizadoEnMs': DateTime.now().millisecondsSinceEpoch,
+      });
+    } else {
+      await _actualizar(
+        p,
+        cambios,
+        _evento(
+          'SINCRONIZACION_SECOP',
+          'Sincronizó con SECOP II',
+          novedades.join(' · '),
+        ),
+      );
+    }
+    return novedades;
+  }
+
+  /// El equipo ya revisó las novedades de SECOP II.
+  static Future<void> marcarNovedadesRevisadas(ProcesoContratacion p) =>
+      _col.doc(p.id).update({'secopNovedades': <String>[]});
 
   // ---------------------------------------------------------------------------
   // Cronograma, responsables y etapas
@@ -803,7 +927,11 @@ class ProcesosContratacionService {
     _exigir(PermisoEquipo.crearContratos);
     await _actualizar(
       p,
-      {'cronograma.${hito.id}': fecha == null ? FieldValue.delete() : fechaCorta(fecha)},
+      {
+        'cronograma.${hito.id}': fecha == null
+            ? FieldValue.delete()
+            : fechaCorta(fecha),
+      },
       _evento(
         'CRONOGRAMA',
         fecha == null
@@ -824,7 +952,11 @@ class ProcesosContratacionService {
     await _actualizar(
       p,
       {'responsables.${etapa.id}': r},
-      _evento('RESPONSABLE', 'Asignó "${etapa.nombre}" a ${r.isEmpty ? 'nadie' : r}', ''),
+      _evento(
+        'RESPONSABLE',
+        'Asignó "${etapa.nombre}" a ${r.isEmpty ? 'nadie' : r}',
+        '',
+      ),
     );
   }
 
@@ -841,11 +973,9 @@ class ProcesosContratacionService {
       );
     }
     final siguiente = etapas[p.etapaActual + 1];
-    await _actualizar(
-      p,
-      {'etapaActual': p.etapaActual + 1},
-      _evento('AVANCE_ETAPA', 'Pasó a la etapa "${siguiente.nombre}"', ''),
-    );
+    await _actualizar(p, {
+      'etapaActual': p.etapaActual + 1,
+    }, _evento('AVANCE_ETAPA', 'Pasó a la etapa "${siguiente.nombre}"', ''));
   }
 
   static Future<void> retrocederEtapa(ProcesoContratacion p) async {
@@ -937,7 +1067,9 @@ class ProcesosContratacionService {
       cargadoPor: actual.cargadoPor,
       fechaIso: actual.fechaIso,
       publicadoSecop: publicado,
-      fechaPublicacionIso: publicado ? fechaCorta(fecha ?? DateTime.now()) : null,
+      fechaPublicacionIso: publicado
+          ? fechaCorta(fecha ?? DateTime.now())
+          : null,
     );
     await _actualizar(
       p,
@@ -966,7 +1098,9 @@ class ProcesosContratacionService {
     _exigir(PermisoEquipo.verificarDocumentos);
     final nombre = _limpio(proponente, 160);
     if (nombre.isEmpty) {
-      throw const ProcesoContratacionException('Escribe el nombre del proponente.');
+      throw const ProcesoContratacionException(
+        'Escribe el nombre del proponente.',
+      );
     }
     if (p.esDirecta && p.ofertas.isNotEmpty) {
       throw const ProcesoContratacionException(
@@ -978,11 +1112,15 @@ class ProcesosContratacionService {
       proponente: nombre,
       nit: SecurityService.normalizeDocumentDigits(nit),
       valorCop: valorCop < 0 ? 0 : valorCop,
-      fechaRecepcionIso: fechaRecepcion == null ? '' : fechaCorta(fechaRecepcion),
+      fechaRecepcionIso: fechaRecepcion == null
+          ? ''
+          : fechaCorta(fechaRecepcion),
     );
     await _actualizar(
       p,
-      {'ofertas': [...p.ofertas.map((o) => o.toMap()), oferta.toMap()]},
+      {
+        'ofertas': [...p.ofertas.map((o) => o.toMap()), oferta.toMap()],
+      },
       _evento(
         'OFERTA',
         p.esDirecta
@@ -997,15 +1135,11 @@ class ProcesosContratacionService {
     ProcesoContratacion p,
     OfertaRecibida oferta,
     EventoTrazabilidadContrato evento,
-  ) => _actualizar(
-    p,
-    {
-      'ofertas': [
-        for (final o in p.ofertas) (o.id == oferta.id ? oferta : o).toMap(),
-      ],
-    },
-    evento,
-  );
+  ) => _actualizar(p, {
+    'ofertas': [
+      for (final o in p.ofertas) (o.id == oferta.id ? oferta : o).toMap(),
+    ],
+  }, evento);
 
   static Future<void> verificarRequisito(
     ProcesoContratacion p,
@@ -1059,7 +1193,10 @@ class ProcesosContratacionService {
     );
   }
 
-  static Future<void> quitarOferta(ProcesoContratacion p, OfertaRecibida oferta) async {
+  static Future<void> quitarOferta(
+    ProcesoContratacion p,
+    OfertaRecibida oferta,
+  ) async {
     _exigir(PermisoEquipo.verificarDocumentos);
     await _actualizar(
       p,
@@ -1069,7 +1206,11 @@ class ProcesosContratacionService {
             if (o.id != oferta.id) o.toMap(),
         ],
       },
-      _evento('OFERTA', 'Quitó la oferta de ${oferta.proponente} del registro', ''),
+      _evento(
+        'OFERTA',
+        'Quitó la oferta de ${oferta.proponente} del registro',
+        '',
+      ),
     );
   }
 
@@ -1087,7 +1228,9 @@ class ProcesosContratacionService {
     _exigir(PermisoEquipo.pedirDocumentos);
     final t = _limpio(texto, 3000);
     if (t.isEmpty) {
-      throw const ProcesoContratacionException('Escribe la observación recibida.');
+      throw const ProcesoContratacionException(
+        'Escribe la observación recibida.',
+      );
     }
     final obs = ObservacionProceso(
       id: 'OB-${SecurityService.generateSecureTokenHex(4)}',
@@ -1098,8 +1241,17 @@ class ProcesosContratacionService {
     );
     await _actualizar(
       p,
-      {'observaciones': [...p.observaciones.map((o) => o.toMap()), obs.toMap()]},
-      _evento('OBSERVACION', 'Registró una observación de ${obs.interesado}', ''),
+      {
+        'observaciones': [
+          ...p.observaciones.map((o) => o.toMap()),
+          obs.toMap(),
+        ],
+      },
+      _evento(
+        'OBSERVACION',
+        'Registró una observación de ${obs.interesado}',
+        '',
+      ),
     );
   }
 
@@ -1119,15 +1271,12 @@ class ProcesosContratacionService {
       respuesta: _limpio(respuesta, 4000),
       responsable: _limpio(responsable, 120),
     );
-    await _actualizar(
-      p,
-      {
-        'observaciones': [
-          for (final o in p.observaciones) (o.id == obs.id ? actualizada : o).toMap(),
-        ],
-      },
-      _evento('RESPUESTA', 'Proyectó la respuesta a ${obs.interesado}', ''),
-    );
+    await _actualizar(p, {
+      'observaciones': [
+        for (final o in p.observaciones)
+          (o.id == obs.id ? actualizada : o).toMap(),
+      ],
+    }, _evento('RESPUESTA', 'Proyectó la respuesta a ${obs.interesado}', ''));
   }
 
   // ---------------------------------------------------------------------------
@@ -1161,7 +1310,9 @@ class ProcesosContratacionService {
       p,
       {
         'resultado': resultado.toMap(),
-        'estado': (adjudicado ? EstadoProceso.adjudicado : EstadoProceso.desierto).name,
+        'estado':
+            (adjudicado ? EstadoProceso.adjudicado : EstadoProceso.desierto)
+                .name,
       },
       _evento(
         'RESULTADO',

@@ -6,7 +6,14 @@ import 'estilo_contractual.dart';
 /// Primer paso de Gestión contractual: escoger la modalidad de selección.
 /// Devuelve la modalidad elegida con `Navigator.pop`.
 class SelectorModalidadScreen extends StatelessWidget {
-  const SelectorModalidadScreen({super.key});
+  const SelectorModalidadScreen({
+    super.key,
+    this.sinPrestacionServicios = false,
+  });
+
+  /// Para registrar a mano un proceso de SECOP II: la prestación de
+  /// servicios tiene su propio camino.
+  final bool sinPrestacionServicios;
 
   @override
   Widget build(BuildContext context) {
@@ -14,6 +21,7 @@ class SelectorModalidadScreen extends StatelessWidget {
     final columnas = ancho >= 1040 ? 3 : (ancho >= 680 ? 2 : 1);
     final directas = modalidadesContratacion
         .where((m) => !m.esCompetitiva)
+        .where((m) => !sinPrestacionServicios || m.id != 'prestacion_servicios')
         .toList();
     final competitivas = modalidadesContratacion
         .where((m) => m.esCompetitiva)

@@ -7,6 +7,7 @@ import '../../services/borradores_proceso.dart';
 import '../../services/equipo_juridico_service.dart';
 import '../../services/juridico_contratacion_service.dart';
 import '../../services/procesos_contratacion_service.dart';
+import 'estado_secop.dart';
 import 'estilo_contractual.dart';
 
 final NumberFormat _cop = NumberFormat.currency(
@@ -78,7 +79,6 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
   _Pestana _pestana = _Pestana.cronograma;
   int? _etapaVista;
   bool _ocupado = false;
-  EstadoProcesoSecop? _secop;
   bool _consultandoSecop = false;
 
   bool get _puedeGestionar =>
@@ -137,15 +137,15 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
   Future<void> _consultarSecop(ProcesoContratacion p) async {
     setState(() => _consultandoSecop = true);
     try {
-      final r = await ProcesosContratacionService.consultarSecop(p);
+      final novedades = await ProcesosContratacionService.sincronizarConSecop(
+        p,
+      );
       if (!mounted) return;
-      setState(() => _secop = r);
-      if (r == null) {
-        _mensaje(
-          'SECOP II aún no reporta este proceso en Datos Abiertos (se actualiza a diario).',
-          error: true,
-        );
-      }
+      _mensaje(
+        novedades.isEmpty
+            ? 'Sin cambios en SECOP II desde la última sincronización.'
+            : '${novedades.length} novedad${novedades.length == 1 ? '' : 'es'} desde SECOP II.',
+      );
     } on ProcesoContratacionException catch (e) {
       _mensaje(e.message, error: true);
     } catch (_) {
@@ -160,7 +160,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
 
   String? _urlSecop(ProcesoContratacion p) {
     if (p.urlSecop.isNotEmpty) return p.urlSecop;
-    if (_secop?.url.isNotEmpty ?? false) return _secop!.url;
+    if (p.secop?.url.isNotEmpty ?? false) return p.secop!.url;
     final id = p.idProcesoSecop;
     if (id.contains('.NTC.')) {
       return 'https://community.secop.gov.co/Public/Tendering/OpportunityDetail/Index?noticeUID=$id';
@@ -199,12 +199,13 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
           const SizedBox(height: 14),
           _VinculoSecop(
             proceso: p,
-            secop: _secop,
             consultando: _consultandoSecop,
             url: _urlSecop(p),
             puedeEditar: _puedeGestionar,
             onEditar: () => _editarVinculo(p),
             onConsultar: () => _consultarSecop(p),
+            onNovedadesRevisadas: () =>
+                ProcesosContratacionService.marcarNovedadesRevisadas(p),
           ),
           const SizedBox(height: 14),
           _Alertas(proceso: p, onIr: (t) => setState(() => _pestana = t)),
@@ -693,11 +694,11 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                 )
               : null,
           children: [
-            if (_secop != null && _secop!.adjudicado)
+            if (p.secop != null && p.secop!.adjudicado)
               Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: Text(
-                  'SECOP II reporta adjudicación a ${_secop!.proveedorAdjudicado} por ${_cop.format(_secop!.valorAdjudicado)}.',
+                  'SECOP II reporta adjudicación a ${p.secop!.proveedor} por ${_cop.format(p.secop!.valorAdjudicado)}.',
                   style: const TextStyle(
                     color: Color(0xFF1D4ED8),
                     fontWeight: FontWeight.w700,
@@ -1259,29 +1260,32 @@ class _Encabezado extends StatelessWidget {
 class _VinculoSecop extends StatelessWidget {
   const _VinculoSecop({
     required this.proceso,
-    required this.secop,
     required this.consultando,
     required this.url,
     required this.puedeEditar,
     required this.onEditar,
     required this.onConsultar,
+    required this.onNovedadesRevisadas,
   });
 
   final ProcesoContratacion proceso;
-  final EstadoProcesoSecop? secop;
   final bool consultando;
   final String? url;
   final bool puedeEditar;
   final VoidCallback onEditar;
   final VoidCallback onConsultar;
+  final VoidCallback onNovedadesRevisadas;
 
   @override
   Widget build(BuildContext context) {
     final id = proceso.idProcesoSecop;
-    final s = secop;
+    final s = proceso.secop;
+    final novedades = proceso.secopNovedades;
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: EstiloContractual.tarjeta(),
+      decoration: EstiloContractual.tarjeta(
+        colorBorde: novedades.isNotEmpty ? const Color(0xFFFDBA74) : null,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1299,7 +1303,8 @@ class _VinculoSecop extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              if (puedeEditar)
+              if (id.isNotEmpty) ChipEstadoSecop(secop: s),
+              if (puedeEditar && !proceso.importado)
                 TextButton(
                   onPressed: onEditar,
                   style: TextButton.styleFrom(
@@ -1310,6 +1315,13 @@ class _VinculoSecop extends StatelessWidget {
                     style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                 ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
               if (url != null)
                 OutlinedButton.icon(
                   onPressed: () => launchUrl(
@@ -1323,50 +1335,142 @@ class _VinculoSecop extends StatelessWidget {
                     style: EstiloContractual.etiquetaBoton,
                   ),
                 ),
-              OutlinedButton.icon(
-                onPressed: consultando ? null : onConsultar,
-                style: EstiloContractual.botonSecundario(),
-                icon: consultando
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.travel_explore_rounded, size: 17),
-                label: const Text(
-                  'Consultar estado',
-                  style: EstiloContractual.etiquetaBoton,
+              if (id.isNotEmpty)
+                FilledButton.icon(
+                  onPressed: consultando ? null : onConsultar,
+                  style: EstiloContractual.botonPrincipal(),
+                  icon: consultando
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.sync_rounded, size: 18),
+                  label: const Text(
+                    'Actualizar estado desde SECOP',
+                    style: EstiloContractual.etiquetaBoton,
+                  ),
                 ),
-              ),
             ],
           ),
+          if (novedades.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF7ED),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFED7AA)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.fiber_new_rounded,
+                        color: Color(0xFFC2410C),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 6),
+                      const Expanded(
+                        child: Text(
+                          'Novedades en SECOP II',
+                          style: TextStyle(
+                            color: Color(0xFF9A3412),
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: onNovedadesRevisadas,
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF9A3412),
+                        ),
+                        child: const Text('Marcar como revisadas'),
+                      ),
+                    ],
+                  ),
+                  for (final n in novedades)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        '• $n',
+                        style: const TextStyle(
+                          color: Color(0xFF9A3412),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
           if (s != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             Wrap(
               spacing: 24,
-              runSpacing: 8,
+              runSpacing: 10,
               children: [
                 _dato('Fase', s.fase),
                 _dato('Estado', s.estado),
                 _dato('Modalidad en SECOP', s.modalidad),
-                _dato('Ofertas recibidas', '${s.ofertasRecibidas}'),
-                if (s.manifestacionesInteres > 0)
-                  _dato(
-                    'Manifestaciones de interés',
-                    '${s.manifestacionesInteres}',
-                  ),
+                _dato('Ofertas recibidas', '${s.ofertas}'),
+                if (s.manifestaciones > 0)
+                  _dato('Manifestaciones de interés', '${s.manifestaciones}'),
+                if (s.fechas['recepcionOfertas'] != null)
+                  _dato('Cierre de ofertas', s.fechas['recepcionOfertas']!),
                 _dato(
                   'Adjudicación',
                   s.adjudicado
-                      ? '${s.proveedorAdjudicado} · ${_cop.format(s.valorAdjudicado)}'
+                      ? '${s.proveedor} · ${_cop.format(s.valorAdjudicado)}'
                       : 'Sin adjudicar',
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 14),
+            Theme(
+              data: Theme.of(context)
+                  .copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                childrenPadding: EdgeInsets.zero,
+                title: Text(
+                  'Documentos publicados en SECOP II (${s.documentos.length})',
+                  style: const TextStyle(
+                    color: EstiloContractual.navy,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                children: [
+                  ListaDocumentosSecop(
+                    documentos: s.documentos,
+                    abrir: (u) => launchUrl(
+                      Uri.parse(u),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              'Sincronizado ${haceCuanto(proceso.secopSincronizadoEnIso)}. Fuente: Datos Abiertos SECOP II '
+              '(se actualiza a diario; puede tener un día de rezago).',
+              style: const TextStyle(
+                color: EstiloContractual.gris,
+                fontSize: 11.5,
+              ),
+            ),
+          ] else if (id.isNotEmpty) ...[
+            const SizedBox(height: 10),
             const Text(
-              'Fuente: Datos Abiertos SECOP II (se actualiza a diario; puede tener un día de rezago).',
-              style: TextStyle(color: EstiloContractual.gris, fontSize: 11.5),
+              'Aún no se ha sincronizado. Toca "Actualizar estado desde SECOP" para traer su estado y documentos.',
+              style: TextStyle(color: EstiloContractual.gris, fontSize: 12.5),
             ),
           ],
         ],

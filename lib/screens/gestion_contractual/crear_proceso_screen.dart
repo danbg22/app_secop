@@ -12,9 +12,13 @@ class CrearProcesoScreen extends StatefulWidget {
   const CrearProcesoScreen({
     super.key,
     required this.modalidad,
+    this.idProcesoSecop = '',
   });
 
   final ModalidadContratacion modalidad;
+
+  /// ID de SECOP II ya conocido (registro manual desde la importación).
+  final String idProcesoSecop;
 
   @override
   State<CrearProcesoScreen> createState() => _CrearProcesoScreenState();
@@ -26,7 +30,7 @@ class _CrearProcesoScreenState extends State<CrearProcesoScreen> {
   final _nit = TextEditingController();
   final _dependencia = TextEditingController();
   final _numero = TextEditingController();
-  final _idSecop = TextEditingController();
+  late final _idSecop = TextEditingController(text: widget.idProcesoSecop);
   final _objeto = TextEditingController();
   final _presupuesto = TextEditingController();
   final _plazo = TextEditingController();
@@ -198,7 +202,11 @@ class _CrearProcesoScreenState extends State<CrearProcesoScreen> {
                 'Registra aquí el proceso que la entidad adelanta en SECOP II para que el equipo '
                 'jurídico controle plazos, documentos, observaciones y verificación de ofertas. '
                 'Publicación, recepción de ofertas y adjudicación se hacen únicamente en SECOP II.',
-                style: TextStyle(color: Color(0xFF1E3A8A), fontSize: 12.6, height: 1.4),
+                style: TextStyle(
+                  color: Color(0xFF1E3A8A),
+                  fontSize: 12.6,
+                  height: 1.4,
+                ),
               ),
             ),
             const SizedBox(height: 18),
@@ -484,7 +492,10 @@ class _ResumenRequisitos extends StatelessWidget {
             const SizedBox(height: 12),
           ],
           if (m.documentosOferente.isNotEmpty)
-            lista('REQUISITOS A VERIFICAR EN CADA OFERTA', m.documentosOferente),
+            lista(
+              'REQUISITOS A VERIFICAR EN CADA OFERTA',
+              m.documentosOferente,
+            ),
           if (m.documentosContrato.isNotEmpty)
             lista(
               m.esCompetitiva
