@@ -1,0 +1,582 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
+import '../../services/juridico_contratacion_service.dart';
+import '../../services/supervision_service.dart';
+import '../gestion_contractual/estilo_contractual.dart';
+import 'componentes_supervision.dart';
+import 'revision_informe_screen.dart';
+import 'supervision_contrato_screen.dart';
+
+/// Bandeja de supervisión del equipo: informes de todos los contratos
+/// agrupados por paso, con lo que le toca al usuario primero.
+class BandejaSupervisionScreen extends StatefulWidget {
+  const BandejaSupervisionScreen({super.key, required this.expedientes});
+
+  final List<ExpedienteContratoPs> expedientes;
+
+  @override
+  State<BandejaSupervisionScreen> createState() =>
+      _BandejaSupervisionScreenState();
+}
+
+enum _Filtro {
+  meToca('Me toca'),
+  porRevisar('Por revisar'),
+  porAprobar('Por aprobar'),
+  devueltos('Devueltos'),
+  aprobados('Aprobados'),
+  pagados('Pagados');
+
+  const _Filtro(this.etiqueta);
+  final String etiqueta;
+}
+
+class _BandejaSupervisionScreenState extends State<BandejaSupervisionScreen> {
+  late final Stream<List<InformeEnBandeja>> _bandeja =
+      SupervisionService.escucharBandeja(widget.expedientes);
+  _Filtro _filtro = _Filtro.meToca;
+  String _buscar = '';
+
+  bool _meToca(InformeEnBandeja i) => switch (i.informe.estado) {
+    EstadoInforme.enviado => SupervisionService.puedeRevisar(i.expediente),
+    EstadoInforme.revisado => SupervisionService.puedeAprobar(
+      i.expediente,
+      i.plan,
+    ),
+    EstadoInforme.aprobado => SupervisionService.puedeRevisar(i.expediente),
+    _ => false,
+  };
+
+  bool _pasa(InformeEnBandeja i, _Filtro f) => switch (f) {
+    _Filtro.meToca => _meToca(i),
+    _Filtro.porRevisar => i.informe.estado == EstadoInforme.enviado,
+    _Filtro.porAprobar => i.informe.estado == EstadoInforme.revisado,
+    _Filtro.devueltos => i.informe.estado == EstadoInforme.devuelto,
+    _Filtro.aprobados => i.informe.estado == EstadoInforme.aprobado,
+    _Filtro.pagados => i.informe.estado == EstadoInforme.pagado,
+  };
+
+  static String _norm(String t) => t
+      .toLowerCase()
+      .replaceAll('á', 'a')
+      .replaceAll('é', 'e')
+      .replaceAll('í', 'i')
+      .replaceAll('ó', 'o')
+      .replaceAll('ú', 'u');
+
+  @override
+  Widget build(BuildContext context) {
+    final mobile = MediaQuery.sizeOf(context).width < 760;
+    return StreamBuilder<List<InformeEnBandeja>>(
+      stream: _bandeja,
+      builder: (context, snap) {
+        final todos = snap.data ?? const <InformeEnBandeja>[];
+        final conteo = {
+          for (final f in _Filtro.values)
+            f: todos.where((i) => _pasa(i, f)).length,
+        };
+        final q = _norm(_buscar.trim());
+        final visibles = todos
+            .where((i) => _pasa(i, _filtro))
+            .where(
+              (i) =>
+                  q.isEmpty ||
+                  _norm(
+                    '${i.expediente.contratistaNombreEsperado} ${i.expediente.numeroContrato} ${nombrePeriodo(i.informe.periodo)}',
+                  ).contains(q),
+            )
+            .toList();
+        final email = FirebaseAuth.instance.currentUser?.email ?? '';
+
+        return PantallaContractual(
+          anchoMaximo: 1120,
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: PildoraVolver(
+                etiqueta: 'Equipo jurídico',
+                onTap: () => Navigator.pop(context),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text('Supervisión mensual', style: EstiloContractual.titulo),
+            const SizedBox(height: 6),
+            const Text(
+              'Informes de los contratistas, revisión documental, aprobación del supervisor y pago.',
+              style: EstiloContractual.subtitulo,
+            ),
+            const SizedBox(height: 20),
+            LayoutBuilder(
+              builder: (context, c) {
+                final columnas = c.maxWidth >= 860 ? 4 : 2;
+                final ancho = (c.maxWidth - 12 * (columnas - 1)) / columnas;
+                Widget contador(_Filtro f, IconData icono, Color color) =>
+                    SizedBox(
+                      width: ancho,
+                      child: _Contador(
+                        titulo: f.etiqueta,
+                        valor: conteo[f] ?? 0,
+                        icono: icono,
+                        color: color,
+                        activo: _filtro == f,
+                        onTap: () => setState(() => _filtro = f),
+                      ),
+                    );
+                return Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    contador(
+                      _Filtro.meToca,
+                      Icons.notifications_active_outlined,
+                      const Color(0xFFDC2626),
+                    ),
+                    contador(
+                      _Filtro.porRevisar,
+                      Icons.fact_check_outlined,
+                      const Color(0xFF1D4ED8),
+                    ),
+                    contador(
+                      _Filtro.porAprobar,
+                      Icons.verified_user_outlined,
+                      const Color(0xFF7C3AED),
+                    ),
+                    contador(
+                      _Filtro.devueltos,
+                      Icons.undo_rounded,
+                      const Color(0xFFB45309),
+                    ),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: EdgeInsets.all(mobile ? 14 : 18),
+              decoration: EstiloContractual.tarjeta(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            for (final f in _Filtro.values) ...[
+                              ChoiceChip(
+                                label: Text(
+                                  '${f.etiqueta} (${conteo[f] ?? 0})',
+                                ),
+                                selected: _filtro == f,
+                                showCheckmark: false,
+                                onSelected: (_) => setState(() => _filtro = f),
+                                selectedColor: EstiloContractual.navy,
+                                backgroundColor: Colors.white,
+                                side: const BorderSide(
+                                  color: Color(0xFFD8DEE8),
+                                ),
+                                labelStyle: TextStyle(
+                                  color: _filtro == f
+                                      ? Colors.white
+                                      : EstiloContractual.navy,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12.5,
+                                ),
+                                shape: const StadiumBorder(),
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                          ],
+                        ),
+                      ),
+                      SizedBox(
+                        width: mobile ? double.infinity : 260,
+                        child: TextField(
+                          onChanged: (v) => setState(() => _buscar = v),
+                          decoration:
+                              decoracionCampo('Buscar contratista o contrato')
+                                  .copyWith(
+                                    prefixIcon: const Icon(
+                                      Icons.search_rounded,
+                                      size: 18,
+                                    ),
+                                    isDense: true,
+                                  ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  if (snap.connectionState == ConnectionState.waiting &&
+                      !snap.hasData)
+                    const Padding(
+                      padding: EdgeInsets.all(30),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (visibles.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 30),
+                      child: Column(
+                        children: [
+                          const Icon(
+                            Icons.inbox_outlined,
+                            size: 36,
+                            color: Color(0xFF94A3B8),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _filtro == _Filtro.meToca
+                                ? 'No tienes informes pendientes. ¡Al día!'
+                                : 'No hay informes en "${_filtro.etiqueta}".',
+                            style: const TextStyle(
+                              color: EstiloContractual.gris,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    for (final i in visibles)
+                      _FilaInforme(
+                        item: i,
+                        meToca: _meToca(i),
+                        soySupervisor: i.plan.esSupervisor(email),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => RevisionInformeScreen(
+                              expediente: i.expediente,
+                              periodo: i.informe.periodo,
+                            ),
+                          ),
+                        ),
+                      ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            _Contratos(expedientes: widget.expedientes),
+            const SizedBox(height: 30),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _Contador extends StatelessWidget {
+  const _Contador({
+    required this.titulo,
+    required this.valor,
+    required this.icono,
+    required this.color,
+    required this.activo,
+    required this.onTap,
+  });
+
+  final String titulo;
+  final int valor;
+  final IconData icono;
+  final Color color;
+  final bool activo;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: activo ? color : EstiloContractual.borde,
+              width: activo ? 1.8 : 1.3,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icono, color: color, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$valor',
+                      style: const TextStyle(
+                        color: EstiloContractual.navy,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      titulo,
+                      style: const TextStyle(
+                        color: EstiloContractual.gris,
+                        fontSize: 12.3,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FilaInforme extends StatelessWidget {
+  const _FilaInforme({
+    required this.item,
+    required this.meToca,
+    required this.soySupervisor,
+    required this.onTap,
+  });
+
+  final InformeEnBandeja item;
+  final bool meToca;
+  final bool soySupervisor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final e = item.expediente;
+    final inf = item.informe;
+    final enviado = DateTime.tryParse(inf.enviadoEnIso);
+    final dias = enviado == null
+        ? null
+        : DateTime.now().difference(enviado).inDays;
+    final iniciales = e.contratistaNombreEsperado
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .take(2)
+        .map((p) => p[0].toUpperCase())
+        .join();
+    final mobile = MediaQuery.sizeOf(context).width < 680;
+
+    final datos = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          e.contratistaNombreEsperado.isEmpty
+              ? 'Contratista'
+              : e.contratistaNombreEsperado,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: EstiloContractual.navy,
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        Text(
+          'Contrato ${e.numeroContrato} · ${nombrePeriodo(inf.periodo)}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: EstiloContractual.gris, fontSize: 12.3),
+        ),
+      ],
+    );
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: meToca ? const Color(0xFFFFFBF2) : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: meToca ? const Color(0xFFF5C77E) : const Color(0xFFEEF2F6),
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: const Color(0xFFE0E7FF),
+                  child: Text(
+                    iniciales.isEmpty ? '?' : iniciales,
+                    style: const TextStyle(
+                      color: EstiloContractual.navy,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: mobile
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            datos,
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 4,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                ChipEstadoInforme(inf.estado),
+                                Text(
+                                  formatoCop(inf.valorCobradoCop),
+                                  style: const TextStyle(
+                                    color: EstiloContractual.texto,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            Expanded(flex: 5, child: datos),
+                            Expanded(
+                              flex: 2,
+                              child: Text(
+                                formatoCop(inf.valorCobradoCop),
+                                style: const TextStyle(
+                                  color: EstiloContractual.navy,
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 3,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  ChipEstadoInforme(inf.estado),
+                                  if (inf.estado == EstadoInforme.enviado ||
+                                      inf.estado == EstadoInforme.revisado)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 3),
+                                      child: Text(
+                                        dias == null || dias == 0
+                                            ? 'Enviado hoy'
+                                            : 'Enviado hace $dias día${dias == 1 ? '' : 's'}',
+                                        style: TextStyle(
+                                          color: (dias ?? 0) > 5
+                                              ? const Color(0xFFB91C1C)
+                                              : EstiloContractual.gris,
+                                          fontSize: 11.3,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+                if (meToca)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: EtiquetaColor(
+                      texto:
+                          soySupervisor && inf.estado == EstadoInforme.revisado
+                          ? 'Tu aprobación'
+                          : 'Te toca',
+                      color: const Color(0xFFB45309),
+                      fondo: const Color(0xFFFEF3C7),
+                    ),
+                  ),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: EstiloContractual.gris,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Contratos del equipo para abrir o configurar su supervisión.
+class _Contratos extends StatefulWidget {
+  const _Contratos({required this.expedientes});
+  final List<ExpedienteContratoPs> expedientes;
+
+  @override
+  State<_Contratos> createState() => _ContratosState();
+}
+
+class _ContratosState extends State<_Contratos> {
+  bool _abierto = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return TarjetaSupervision(
+      titulo: 'Contratos',
+      subtitulo: 'Abre un contrato para configurar su supervisión o ver todos sus meses.',
+      icono: Icons.folder_shared_outlined,
+      accion: TextButton(
+        onPressed: () => setState(() => _abierto = !_abierto),
+        style: TextButton.styleFrom(foregroundColor: EstiloContractual.navy),
+        child: Text(_abierto ? 'Ocultar' : 'Ver ${widget.expedientes.length}'),
+      ),
+      children: [
+        if (_abierto)
+          for (final e in widget.expedientes)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(
+                Icons.description_outlined,
+                color: EstiloContractual.navy,
+              ),
+              title: Text(
+                e.contratistaNombreEsperado.isEmpty
+                    ? 'Contrato ${e.numeroContrato}'
+                    : e.contratistaNombreEsperado,
+                style: const TextStyle(
+                  color: EstiloContractual.navy,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13.5,
+                ),
+              ),
+              subtitle: Text(
+                'Contrato ${e.numeroContrato}',
+                style: const TextStyle(fontSize: 12),
+              ),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => SupervisionContratoScreen(expediente: e),
+                ),
+              ),
+            ),
+      ],
+    );
+  }
+}

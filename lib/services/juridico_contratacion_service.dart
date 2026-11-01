@@ -15,6 +15,7 @@ import 'archivo_fragmentado.dart';
 import 'auth_service.dart';
 import 'equipo_juridico_service.dart';
 import 'security_service.dart';
+import 'supervision_service.dart';
 
 /// Estados del ciclo de vida de cada documento requerido en la OPS.
 enum EstadoDocumentoJuridico {
@@ -1340,6 +1341,7 @@ class JuridicoContratacionService {
     }
 
     await _borrarArchivosRemotos(ref);
+    await SupervisionService.borrarDatos(token);
     _retirarExpedienteLocal(token, notificarPestanas: true);
     return null;
   }

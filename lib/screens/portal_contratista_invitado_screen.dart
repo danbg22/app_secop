@@ -5,12 +5,10 @@ import 'package:intl/intl.dart';
 
 import '../services/juridico_contratacion_service.dart';
 import '../utils/document_file_picker.dart';
+import 'supervision/informes_contratista_view.dart';
 
 class PortalContratistaInvitadoScreen extends StatefulWidget {
-  const PortalContratistaInvitadoScreen({
-    super.key,
-    required this.token,
-  });
+  const PortalContratistaInvitadoScreen({super.key, required this.token});
 
   final String token;
 
@@ -131,9 +129,10 @@ class _PortalContratistaInvitadoScreenState
       if (!mounted) return;
       setState(() {
         _validandoIngreso = false;
-        _mensajeErrorIngreso = e
-            .toString()
-            .replaceFirst('Invalid argument(s): ', '');
+        _mensajeErrorIngreso = e.toString().replaceFirst(
+          'Invalid argument(s): ',
+          '',
+        );
       });
     }
   }
@@ -175,7 +174,8 @@ class _PortalContratistaInvitadoScreenState
       if (!mounted) return;
       setState(() => _apartadoSubiendoId = null);
       _mostrarMensaje(
-        e.toString()
+        e
+            .toString()
             .replaceFirst('Invalid argument(s): ', '')
             .replaceFirst('Bad state: ', ''),
         esError: true,
@@ -686,6 +686,12 @@ class _PortalContratistaInvitadoScreenState
                     ),
                   ],
                 ),
+              ),
+
+              // Informes mensuales (solo si el equipo activó la supervisión)
+              InformesContratistaView(
+                expediente: exp,
+                contratistaNombre: _contratistaNombreActivo,
               ),
 
               // Aviso claro cuando hay documentos devueltos con observaciones

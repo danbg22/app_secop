@@ -14,6 +14,8 @@ import '../gestion_contractual/estilo_contractual.dart';
 import '../gestion_contractual/proceso_detalle_screen.dart';
 import '../gestion_contractual/selector_modalidad_screen.dart';
 import '../gestion_equipo_screen.dart';
+import '../supervision/bandeja_supervision_screen.dart';
+import '../supervision/supervision_contrato_screen.dart';
 
 class EquipoJuridicoSection extends StatefulWidget {
   const EquipoJuridicoSection({
@@ -333,12 +335,18 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                 decoration: EstiloContractual.tarjeta(),
                 child: const Row(
                   children: [
-                    Icon(Icons.account_tree_outlined, color: EstiloContractual.gris),
+                    Icon(
+                      Icons.account_tree_outlined,
+                      color: EstiloContractual.gris,
+                    ),
                     SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         'Aún no hay procesos. Con "Nuevo proceso" eliges la modalidad (licitación, mínima cuantía, selección abreviada…) y la plataforma arma sus etapas y documentos.',
-                        style: TextStyle(color: EstiloContractual.texto, fontSize: 13.2),
+                        style: TextStyle(
+                          color: EstiloContractual.texto,
+                          fontSize: 13.2,
+                        ),
                       ),
                     ),
                   ],
@@ -367,7 +375,9 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
     final etapa = m.etapas.isEmpty
         ? ''
         : 'Etapa ${p.etapaActual + 1} de ${m.etapas.length} · ${m.etapas[p.etapaActual].nombre}';
-    final alertas = p.alertasCronograma.length + p.publicacionesVencidas(DateTime.now()).length;
+    final alertas =
+        p.alertasCronograma.length +
+        p.publicacionesVencidas(DateTime.now()).length;
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: () => Navigator.of(context).push(
@@ -420,7 +430,10 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
               p.objeto,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: EstiloContractual.texto, fontSize: 12.8),
+              style: const TextStyle(
+                color: EstiloContractual.texto,
+                fontSize: 12.8,
+              ),
             ),
             const SizedBox(height: 10),
             if (etapa.isNotEmpty)
@@ -436,17 +449,28 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
             Text(
               '${_monedaFormat.format(p.presupuestoCop)} · ${m.esCompetitiva ? '${p.ofertas.length} ofertas registradas' : (p.ofertas.isEmpty ? 'sin contratista' : p.ofertas.first.proponente)}'
               '${p.idProcesoSecop.isEmpty ? ' · sin vincular a SECOP II' : ' · ${p.idProcesoSecop}'}',
-              style: const TextStyle(color: EstiloContractual.gris, fontSize: 12),
+              style: const TextStyle(
+                color: EstiloContractual.gris,
+                fontSize: 12,
+              ),
             ),
             if (alertas > 0) ...[
               const SizedBox(height: 6),
               Row(
                 children: [
-                  const Icon(Icons.warning_amber_rounded, size: 15, color: Color(0xFFC2410C)),
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    size: 15,
+                    color: Color(0xFFC2410C),
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     '$alertas ${alertas == 1 ? 'alerta' : 'alertas'} de plazos o publicación',
-                    style: const TextStyle(color: Color(0xFFC2410C), fontSize: 12, fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                      color: Color(0xFFC2410C),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
@@ -653,8 +677,9 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
       return;
     }
 
-    final Uint8List? bytesImagen =
-        binario.mimeType.startsWith('image/') ? binario.bytes : null;
+    final Uint8List? bytesImagen = binario.mimeType.startsWith('image/')
+        ? binario.bytes
+        : null;
 
     if (!mounted) return;
     await showDialog<void>(
@@ -1422,8 +1447,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                         _buildModalField(
                           controller: objetoCtrl,
                           label: 'Objeto del contrato *',
-                          hint:
-                              'Prestación de servicios profesionales o de apoyo a la gestión para...',
+                          hint: 'Prestación de servicios profesionales o de apoyo a la gestión para...',
                           maxLines: 3,
                         ),
                         const SizedBox(height: 20),
@@ -1505,8 +1529,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                               child: _buildModalField(
                                 controller: docExtraCtrl,
                                 label: 'Añadir otro documento específico',
-                                hint:
-                                    'Ej.: Certificación SST o Estampilla departamental',
+                                hint: 'Ej.: Certificación SST o Estampilla departamental',
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -1627,9 +1650,10 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                             await _generarYMostrarLinkContratista(nuevo);
                           } catch (e) {
                             setModalState(() {
-                              errorModal = e
-                                  .toString()
-                                  .replaceFirst('Invalid argument(s): ', '');
+                              errorModal = e.toString().replaceFirst(
+                                'Invalid argument(s): ',
+                                '',
+                              );
                             });
                           }
                         },
@@ -1809,6 +1833,24 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                             style: EstiloContractual.etiquetaBoton,
                           ),
                         ),
+                      OutlinedButton.icon(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => BandejaSupervisionScreen(
+                              expedientes: _expedientes,
+                            ),
+                          ),
+                        ),
+                        style: EstiloContractual.botonSecundario(),
+                        icon: const Icon(
+                          Icons.assignment_turned_in_outlined,
+                          size: 19,
+                        ),
+                        label: const Text(
+                          'Supervisión',
+                          style: EstiloContractual.etiquetaBoton,
+                        ),
+                      ),
                       FilledButton.icon(
                         onPressed: _nuevoProceso,
                         style: EstiloContractual.botonPrincipal(),
@@ -1857,8 +1899,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                         ),
                         decoration: InputDecoration(
                           isDense: true,
-                          hintText:
-                              'Buscar por aspirante, cédula o número de contrato...',
+                          hintText: 'Buscar por aspirante, cédula o número de contrato...',
                           hintStyle: const TextStyle(
                             color: Color(0xFF94A3B8),
                             fontSize: 13,
@@ -1991,10 +2032,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
 
   /// Banner minimalista tipo perfil de aspirante a contratista con un único
   /// botón abajo para generar el link personalizado del contrato.
-  Widget _buildBannerPerfilAspirante(
-    ExpedienteContratoPs exp,
-    bool isMobile,
-  ) {
+  Widget _buildBannerPerfilAspirante(ExpedienteContratoPs exp, bool isMobile) {
     final nombre = exp.contratistaNombreEsperado.isEmpty
         ? 'Aspirante sin nombre'
         : exp.contratistaNombreEsperado;
@@ -2440,6 +2478,36 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                       ),
                     ),
                   ),
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            SupervisionContratoScreen(expediente: exp),
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _azulOscuro,
+                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 13,
+                        vertical: 9,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    icon: const Icon(
+                      Icons.assignment_turned_in_outlined,
+                      size: 17,
+                    ),
+                    label: Text(
+                      isMobile ? 'Supervisión' : 'Supervisión mensual',
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                   if (JuridicoContratacionService.puedeEliminar(exp))
                     OutlinedButton.icon(
                       onPressed: () => _confirmarEliminarExpediente(exp),
@@ -2650,7 +2718,10 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
               _generandoPdfUnificado
                   ? 'Generando PDF…'
                   : 'Generar PDF unificado para impresión',
-              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
+              style: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
           Text(
@@ -2781,10 +2852,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
               ),
               child: Text(
                 'Sin archivo cargado aún · ${ap.descripcion}',
-                style: const TextStyle(
-                  color: _textoSecundario,
-                  fontSize: 12.5,
-                ),
+                style: const TextStyle(color: _textoSecundario, fontSize: 12.5),
               ),
             ),
 
@@ -2944,9 +3012,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               onChanged: (v) {
-                                setState(
-                                  () => _checksLocales[i] = v ?? false,
-                                );
+                                setState(() => _checksLocales[i] = v ?? false);
                                 JuridicoContratacionService.guardarEstadoChecklist(
                                   tokenInvitado: exp.tokenInvitado,
                                   checks: _checksLocales,
@@ -3024,10 +3090,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                 ),
                 child: const Text(
                   'Revisado y verificado',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
                 ),
               ),
 
@@ -3097,10 +3160,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                 ),
                 child: const Text(
                   'Devolver al contratista',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
                 ),
               ),
             ],
@@ -3131,10 +3191,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                 ),
                 child: const Text(
                   'Enviar correo de requerimiento',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                 ),
               ),
               const SizedBox(height: 8),
