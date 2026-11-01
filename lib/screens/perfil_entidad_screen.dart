@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../utils/anios_secop.dart';
+import '../widgets/presupuesto_dependencias_panel.dart';
 import 'detalle_screen.dart';
 import 'perfil_contratista_screen.dart';
 import 'sections/entidades_section.dart';
@@ -329,7 +330,8 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   String? _selectedDependencia;
   // Conteo real por dependencia interna: id -> (contratos, valor).
   Map<String, (int, double)> _conteoDependencias = {};
-  bool _verUnidadesSecop = false;
+  // 0: presupuesto por dependencia, 1: por área temática, 2: cuentas SECOP II.
+  int _vistaDependencias = 0;
   bool _cargandoDependencias = false;
   int _dependenciasRequestId = 0;
   String _busqueda = '';
@@ -2736,7 +2738,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                     const SizedBox(height: 14),
                     InkWell(
                       onTap: () => setState(() {
-                        _verUnidadesSecop = false;
+                        _vistaDependencias = 1;
                         _selectedTabIndex = 2;
                       }),
                       child: const Text(
@@ -3257,22 +3259,27 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         );
 
   Widget _buildDependenciasTab() {
-    final selector = SegmentedButton<bool>(
+    final selector = SegmentedButton<int>(
       segments: [
         const ButtonSegment(
-          value: false,
+          value: 0,
+          icon: Icon(Icons.account_balance_wallet_outlined, size: 18),
+          label: Text('Presupuesto por dependencia'),
+        ),
+        const ButtonSegment(
+          value: 1,
           icon: Icon(Icons.account_tree_rounded, size: 18),
-          label: Text('Dependencias internas'),
+          label: Text('Por área temática'),
         ),
         ButtonSegment(
-          value: true,
+          value: 2,
           icon: const Icon(Icons.apartment_rounded, size: 18),
-          label: Text('Unidades en SECOP II (${_unidades.length})'),
+          label: Text('Cuentas en SECOP II (${_unidades.length})'),
         ),
       ],
-      selected: {_verUnidadesSecop},
+      selected: {_vistaDependencias},
       showSelectedIcon: false,
-      onSelectionChanged: (v) => setState(() => _verUnidadesSecop = v.first),
+      onSelectionChanged: (v) => setState(() => _vistaDependencias = v.first),
       style: SegmentedButton.styleFrom(
         selectedBackgroundColor: _azulOscuro,
         selectedForegroundColor: Colors.white,
@@ -3294,10 +3301,25 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
               : selector,
         ),
         const SizedBox(height: 14),
-        if (_verUnidadesSecop)
-          _buildUnidadesSecop()
-        else
-          _buildDependenciasInternas(),
+        switch (_vistaDependencias) {
+          0 => PresupuestoDependenciasPanel(
+            nit: _nitEntidad.replaceAll(RegExp(r'[^0-9]'), ''),
+            anio: _onlyCurrentYear2026 ? _activeBudgetYear : null,
+            departamento: _selectedRegionalDept,
+            cuentaSecop: _selectedUnidad,
+            alcance: [
+              _selectedUnidad ??
+                  (_selectedRegionalDept == null
+                      ? 'Consolidado nacional'
+                      : _formatRegionalDisplayName(_selectedRegionalDept!)),
+              _onlyCurrentYear2026
+                  ? 'vigencia $_activeBudgetYear'
+                  : 'historial 2015–${AniosSecop.actual}',
+            ].join(', '),
+          ),
+          2 => _buildUnidadesSecop(),
+          _ => _buildDependenciasInternas(),
+        },
       ],
     );
   }

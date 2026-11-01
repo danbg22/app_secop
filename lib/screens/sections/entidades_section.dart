@@ -2466,10 +2466,18 @@ class EntityBrandScope extends InheritedWidget {
 }
 
 class EntityEmblemWidget extends StatelessWidget {
-  const EntityEmblemWidget({super.key, required this.type, this.size = 42});
+  const EntityEmblemWidget({
+    super.key,
+    required this.type,
+    this.size = 42,
+    this.usarLogoOriginal = true,
+  });
 
   final EntityEmblemType type;
   final double size;
+
+  /// Si el logo original no carga, se dibuja el emblema genérico.
+  final bool usarLogoOriginal;
 
   static String _norm(String s) {
     return s
@@ -2488,10 +2496,9 @@ class EntityEmblemWidget extends StatelessWidget {
     final normName = _norm(scope?.entityName ?? '');
     final nitClean = (scope?.nit ?? '').replaceAll(RegExp(r'[^0-9]'), '');
 
-    final logo = LogosEntidades.buscar(
-      nombre: scope?.entityName ?? '',
-      nit: nitClean,
-    );
+    final logo = usarLogoOriginal
+        ? LogosEntidades.buscar(nombre: scope?.entityName ?? '', nit: nitClean)
+        : null;
     if (logo != null) {
       return Container(
         width: size,
@@ -2506,11 +2513,16 @@ class EntityEmblemWidget extends StatelessWidget {
           fit: BoxFit.contain,
           filterQuality: FilterQuality.medium,
           semanticLabel: 'Logo de ${scope?.entityName ?? 'la entidad'}',
+          errorBuilder: (_, _, _) => EntityEmblemWidget(
+            type: type,
+            size: size * 0.88,
+            usarLogoOriginal: false,
+          ),
         ),
       );
     }
 
-    if (normName.contains('SENA') ||
+    if (RegExp(r'\bSENA\b').hasMatch(normName) ||
         normName.contains('APRENDIZAJE') ||
         nitClean.startsWith('899999034')) {
       return SizedBox(

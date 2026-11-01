@@ -134,6 +134,103 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
     });
   }
 
+  /// Pide confirmación y elimina el expediente con sus documentos.
+  Future<void> _confirmarEliminarExpediente(ExpedienteContratoPs exp) async {
+    final contratista = exp.contratistaNombreEsperado.trim().isEmpty
+        ? 'sin contratista asignado'
+        : exp.contratistaNombreEsperado.trim();
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        icon: const Icon(
+          Icons.delete_forever_rounded,
+          color: Color(0xFFB91C1C),
+          size: 36,
+        ),
+        title: const Text(
+          '¿Seguro que quieres eliminar este expediente?',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: _azulOscuro,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 440),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _bordeSuave),
+                ),
+                child: Text(
+                  'Contrato ${exp.numeroContrato}\n$contratista\n'
+                  '${exp.totalCargados} documento${exp.totalCargados == 1 ? '' : 's'} cargado${exp.totalCargados == 1 ? '' : 's'}',
+                  style: const TextStyle(
+                    color: _azulOscuro,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    height: 1.45,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Se borrarán los documentos cargados, la verificación y la '
+                'trazabilidad, para ti y para todo tu equipo. El enlace del '
+                'contratista dejará de funcionar. Esta acción no se puede deshacer.',
+                style: TextStyle(
+                  color: Color(0xFF475569),
+                  fontSize: 13.2,
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actionsAlignment: MainAxisAlignment.end,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFB91C1C),
+              foregroundColor: Colors.white,
+            ),
+            icon: const Icon(Icons.delete_outline_rounded, size: 18),
+            label: const Text(
+              'Sí, eliminar',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmado != true || !mounted) return;
+
+    final error = await JuridicoContratacionService.eliminarExpediente(exp);
+    if (!mounted) return;
+    if (error != null) {
+      _mostrarMensaje('No se eliminó el expediente: $error', esError: true);
+      return;
+    }
+    if (_tokenDetalleAbierto == exp.tokenInvitado) _volverAListaAspirantes();
+    await _cargarExpedientes();
+    _mostrarMensaje('Expediente ${exp.numeroContrato} eliminado.');
+  }
+
   void _volverAListaAspirantes() {
     setState(() {
       _tokenDetalleAbierto = null;
@@ -2115,6 +2212,16 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                     ),
                   ),
                 ),
+                if (JuridicoContratacionService.puedeEliminar(exp))
+                  IconButton(
+                    tooltip: 'Eliminar expediente',
+                    onPressed: () => _confirmarEliminarExpediente(exp),
+                    icon: const Icon(
+                      Icons.delete_outline_rounded,
+                      color: Color(0xFFB91C1C),
+                      size: 20,
+                    ),
+                  ),
                 TextButton.icon(
                   onPressed: () => _abrirDetalleAspirante(exp),
                   style: TextButton.styleFrom(
@@ -2333,6 +2440,29 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                       ),
                     ),
                   ),
+                  if (JuridicoContratacionService.puedeEliminar(exp))
+                    OutlinedButton.icon(
+                      onPressed: () => _confirmarEliminarExpediente(exp),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFB91C1C),
+                        side: const BorderSide(color: Color(0xFFFECACA)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 13,
+                          vertical: 9,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      icon: const Icon(Icons.delete_outline_rounded, size: 17),
+                      label: Text(
+                        isMobile ? 'Eliminar' : 'Eliminar expediente',
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ],

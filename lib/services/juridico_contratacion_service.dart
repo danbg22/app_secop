@@ -674,6 +674,31 @@ class JuridicoContratacionService {
     'a8f49c217e5b4d3091bc6e2f84a105d9',
     'c31e7b904f2a48d5b6190e84d2c7f3a2',
   };
+  /// Tokens de expedientes eliminados en este navegador: evita que una copia
+  /// local vieja (de otra pestaña o de antes de borrar) los vuelva a mostrar.
+  static const String _eliminadosKey = 'contrata_legal_ops_eliminados_v1';
+  static final Set<String> _tokensEliminados = {};
+  static String? _eliminadosLeidos;
+
+  /// Se relee del navegador para ver lo que borraron otras pestañas.
+  static Set<String> get _eliminados {
+    final raw = readSharedStorage(_eliminadosKey);
+    if (raw != null && raw != _eliminadosLeidos) {
+      _eliminadosLeidos = raw;
+      try {
+        _tokensEliminados.addAll((jsonDecode(raw) as List).map((e) => '$e'));
+      } catch (_) {}
+    }
+    return _tokensEliminados;
+  }
+
+  static bool _estaRetirado(String token) =>
+      _tokensDemostracionRetirados.contains(token) ||
+      _eliminados.contains(token);
+
+  static bool _esMarcaEliminado(Map<dynamic, dynamic>? data) =>
+      data != null && data['eliminado'] == true;
+
   static const String _sharedWebKey = 'contrata_legal_ops_shared_v2';
   static const String _broadcastChannelName = 'contrata_legal_ops_realtime_v2';
   static const String _legacyPrefsKey = 'expedientes_juridicos_ps_v1';
@@ -792,6 +817,10 @@ class JuridicoContratacionService {
         if (payloadJson != null && payloadJson.trim().isNotEmpty) {
           try {
             final decoded = jsonDecode(payloadJson);
+            if (decoded is Map && _esMarcaEliminado(decoded)) {
+              _retirarExpedienteLocal('${decoded['tokenInvitado'] ?? ''}');
+              return;
+            }
             if (decoded is Map) {
               final entrante = ExpedienteContratoPs.fromMap(
                 Map<String, dynamic>.from(decoded),
@@ -844,7 +873,7 @@ class JuridicoContratacionService {
     bool huboCambio = false;
     for (final entrante in candidatos) {
       final key = entrante.tokenInvitado.toLowerCase();
-      if (key.isEmpty || _tokensDemostracionRetirados.contains(key)) continue;
+      if (key.isEmpty || _estaRetirado(key)) continue;
       final previo = mapa[key];
       if (previo == null) {
         mapa[key] = entrante;
@@ -895,7 +924,7 @@ class JuridicoContratacionService {
     bool persistirLocal = true,
   }) {
     final key = entrante.tokenInvitado.toLowerCase();
-    if (key.isEmpty || _tokensDemostracionRetirados.contains(key)) return;
+    if (key.isEmpty || _estaRetirado(key)) return;
 
     final lista = _cacheMemoria ?? <ExpedienteContratoPs>[];
     final idx = lista.indexWhere((e) => e.tokenInvitado.toLowerCase() == key);
@@ -957,6 +986,10 @@ class JuridicoContratacionService {
           .listen(
             (DocumentSnapshot<Map<String, dynamic>> snap) {
               if (!snap.exists || snap.data() == null) return;
+              if (_esMarcaEliminado(snap.data())) {
+                _retirarExpedienteLocal(token);
+                return;
+              }
               final remoto = ExpedienteContratoPs.fromMap(snap.data()!);
               _integrarExpedienteEntranteEnMemoria(remoto);
               unawaited(_hidratarBinariosFaltantesDesdeFirestore(remoto));
@@ -984,6 +1017,10 @@ class JuridicoContratacionService {
 
     void integrar(QuerySnapshot<Map<String, dynamic>> querySnap) {
       for (final doc in querySnap.docs) {
+        if (_esMarcaEliminado(doc.data())) {
+          _retirarExpedienteLocal(doc.id);
+          continue;
+        }
         var remoto = ExpedienteContratoPs.fromMap(doc.data());
         if (remoto.tokenInvitado.isEmpty) continue;
         if (remoto.equipoUid.isEmpty && remoto.creadoPorUid == uid) {
@@ -1223,6 +1260,10 @@ class JuridicoContratacionService {
           .doc(token)
           .get()
           .timeout(const Duration(milliseconds: 1800));
+      if (_esMarcaEliminado(doc.data())) {
+        _retirarExpedienteLocal(token);
+        return null;
+      }
       if (doc.exists && doc.data() != null) {
         final remoto = ExpedienteContratoPs.fromMap(doc.data()!);
         await _guardarExpedienteInmediato(
@@ -1236,6 +1277,123 @@ class JuridicoContratacionService {
     } catch (_) {}
 
     return null;
+  }
+
+  /// Pueden eliminar el expediente quien lo creó, el Master del equipo y
+  /// los abogados con permiso para crear contratos.
+  static bool puedeEliminar(ExpedienteContratoPs expediente) {
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (uid.isEmpty) return false;
+    if (expediente.creadoPorUid == uid || expediente.equipoUid == uid) {
+      return true;
+    }
+    return expediente.equipoUid.isNotEmpty &&
+        EquipoJuridicoService.equipoUidActivo == expediente.equipoUid &&
+        EquipoJuridicoService.tienePermiso(PermisoEquipo.crearContratos);
+  }
+
+  /// Elimina el expediente y sus documentos. En Firestore queda solo una
+  /// marca de eliminado, sin datos personales, para que las copias locales
+  /// de otras pestañas y dispositivos del equipo también lo retiren.
+  /// Devuelve `null` si se eliminó o el motivo si no fue posible.
+  static Future<String?> eliminarExpediente(
+    ExpedienteContratoPs expediente,
+  ) async {
+    final token = expediente.tokenInvitado.trim().toLowerCase();
+    if (!_esTokenHexValido(token)) return 'el expediente no es válido.';
+    if (!puedeEliminar(expediente)) {
+      return 'solo quien lo creó, el titular del equipo o un abogado con '
+          'permiso para crear contratos puede eliminarlo.';
+    }
+
+    final ref = FirebaseFirestore.instance
+        .collection('expedientes_juridicos')
+        .doc(token);
+    try {
+      final actual = await ref.get().timeout(const Duration(seconds: 10));
+      final remoto = actual.data();
+      if (actual.exists && remoto != null && !_esMarcaEliminado(remoto)) {
+        await ref
+            .set({
+              'tokenInvitado': token,
+              'numeroContrato': remoto['numeroContrato'] ?? '',
+              if (remoto.containsKey('creadoPorUid'))
+                'creadoPorUid': remoto['creadoPorUid'],
+              if (remoto.containsKey('equipoUid'))
+                'equipoUid': remoto['equipoUid'],
+              'eliminado': true,
+              'eliminadoPorUid': FirebaseAuth.instance.currentUser?.uid ?? '',
+              'eliminadoPorNombre': AuthService.getActiveUserDisplayName(),
+              'eliminadoEnIso': DateTime.now().toUtc().toIso8601String(),
+              'actualizadoEnMs': DateTime.now().millisecondsSinceEpoch,
+            })
+            .timeout(const Duration(seconds: 10));
+      }
+    } on FirebaseException catch (e) {
+      debugPrint('eliminarExpediente: ${e.code} ${e.message}');
+      return e.code == 'permission-denied'
+          ? 'no tienes permiso para eliminarlo. Si acabas de actualizar la '
+                'app, publica de nuevo las reglas de Firestore.'
+          : 'no fue posible conectar con el servidor. Intenta de nuevo.';
+    } on TimeoutException {
+      return 'el servidor no respondió. Revisa tu conexión e intenta de nuevo.';
+    }
+
+    await _borrarArchivosRemotos(ref);
+    _retirarExpedienteLocal(token, notificarPestanas: true);
+    return null;
+  }
+
+  /// Borra los documentos cargados (y sus partes) del expediente.
+  static Future<void> _borrarArchivosRemotos(
+    DocumentReference<Map<String, dynamic>> ref,
+  ) async {
+    try {
+      final archivos = await ref
+          .collection('archivos')
+          .get()
+          .timeout(const Duration(seconds: 15));
+      for (final archivo in archivos.docs) {
+        final partes = archivo.data()['partes'];
+        if (partes is int) {
+          for (var i = 0; i < partes; i++) {
+            await archivo.reference.collection('partes').doc('$i').delete();
+          }
+        }
+        await archivo.reference.delete();
+      }
+    } catch (e) {
+      debugPrint('eliminarExpediente: archivos sin borrar ($e)');
+    }
+  }
+
+  static void _retirarExpedienteLocal(
+    String rawToken, {
+    bool notificarPestanas = false,
+  }) {
+    final token = rawToken.trim().toLowerCase();
+    if (token.isEmpty) return;
+    if (_eliminados.add(token)) {
+      final encoded = jsonEncode(_tokensEliminados.toList());
+      writeSharedStorage(_eliminadosKey, encoded);
+      _eliminadosLeidos = encoded;
+    }
+    unawaited(_suscripcionesPorToken.remove(token)?.cancel());
+    final lista = _cacheMemoria;
+    if (lista != null) {
+      final antes = lista.length;
+      lista.removeWhere((e) => e.tokenInvitado.toLowerCase() == token);
+      if (lista.length != antes) {
+        unawaited(_persistirEnAlmacenamientoLocal(lista));
+        expedientesVersion.value++;
+      }
+    }
+    if (notificarPestanas) {
+      broadcastRealtimePayload(
+        _broadcastChannelName,
+        jsonEncode({'eliminado': true, 'tokenInvitado': token}),
+      );
+    }
   }
 
   /// Crea un nuevo contrato de prestación de servicios (OPS) de forma inmediata.
@@ -2288,7 +2446,7 @@ class JuridicoContratacionService {
     void absorberLista(List<ExpedienteContratoPs> origen) {
       for (final item in origen) {
         final key = item.tokenInvitado.toLowerCase();
-        if (key.isEmpty || _tokensDemostracionRetirados.contains(key)) continue;
+        if (key.isEmpty || _estaRetirado(key)) continue;
         final previo = mapaUnificado[key];
         if (previo == null) {
           mapaUnificado[key] = item;

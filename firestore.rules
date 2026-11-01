@@ -74,6 +74,25 @@ service cloud.firestore {
            data.get('partes', 0) <= 50);
     }
 
+    // Elimina un expediente quien lo creó, el Master de su equipo o un
+    // abogado del equipo con permiso para crear contratos.
+    function puedeEliminarExpediente(data) {
+      return isSignedIn() &&
+          (data.get('creadoPorUid', '') == request.auth.uid ||
+           (data.get('equipoUid', '') != '' &&
+            (data.equipoUid == request.auth.uid ||
+             permisoEquipo(data.equipoUid, 'crear_contratos'))));
+    }
+
+    function expedienteDe(token) {
+      return get(/databases/$(database)/documents/expedientes_juridicos/$(token)).data;
+    }
+
+    function expedienteActivo(token) {
+      return !exists(/databases/$(database)/documents/expedientes_juridicos/$(token)) ||
+          expedienteDe(token).get('eliminado', false) != true;
+    }
+
     // Master del equipo o abogado vigente de su equipo.
     function esDelEquipo(equipoUid) {
       return isSignedIn() &&
@@ -209,7 +228,12 @@ service cloud.firestore {
            (isSignedIn() &&
             (request.resource.data.equipoUid == request.auth.uid ||
              permisoEquipo(request.resource.data.equipoUid, 'crear_contratos'))));
+      // Un expediente eliminado queda solo como marca, sin datos personales,
+      // y ya no admite cambios.
       allow update: if token.matches('^[a-f0-9]{32,64}$') &&
+          resource.data.get('eliminado', false) != true &&
+          (request.resource.data.get('eliminado', false) != true ||
+           puedeEliminarExpediente(resource.data)) &&
           request.resource.data.tokenInvitado == resource.data.tokenInvitado &&
           request.resource.data.numeroContrato == resource.data.numeroContrato &&
           // El propietario no puede ser reasignado por quien tenga el enlace.
@@ -229,14 +253,16 @@ service cloud.firestore {
       match /archivos/{apartadoId} {
         allow get, list: if token.matches('^[a-f0-9]{32,64}$');
         allow create, update: if token.matches('^[a-f0-9]{32,64}$') &&
-            archivoValido(request.resource.data);
-        allow delete: if false;
+            archivoValido(request.resource.data) &&
+            expedienteActivo(token);
+        allow delete: if puedeEliminarExpediente(expedienteDe(token));
 
         match /partes/{parte} {
           allow get, list: if token.matches('^[a-f0-9]{32,64}$');
           allow create, update: if token.matches('^[a-f0-9]{32,64}$') &&
-              isNonEmptyString(request.resource.data.datos, 950000);
-          allow delete: if false;
+              isNonEmptyString(request.resource.data.datos, 950000) &&
+              expedienteActivo(token);
+          allow delete: if puedeEliminarExpediente(expedienteDe(token));
         }
       }
     }
