@@ -60,3 +60,7 @@ key.properties
 *.pem
 *.p12
 
+
+# Impeccable: el motor se descarga solo en el primer uso; los hooks son locales
+.claude/skills/impeccable/scripts/bin/
+.claude/settings.local.json
