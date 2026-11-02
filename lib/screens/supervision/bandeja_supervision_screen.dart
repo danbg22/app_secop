@@ -4,6 +4,7 @@ import '../../services/juridico_contratacion_service.dart';
 import '../../services/supervision_service.dart';
 import '../gestion_contractual/estilo_contractual.dart';
 import 'componentes_supervision.dart';
+import 'plantilla_informe_screen.dart';
 import 'revision_supervisor_screen.dart';
 import 'supervision_contrato_screen.dart';
 
@@ -103,11 +104,48 @@ class _BandejaSupervisionScreenState extends State<BandejaSupervisionScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            const Text('Supervisión mensual', style: EstiloContractual.titulo),
-            const SizedBox(height: 6),
-            const Text(
-              'Informes de los contratistas, revisión documental, aprobación del supervisor y pago.',
-              style: EstiloContractual.subtitulo,
+            Wrap(
+              spacing: 16,
+              runSpacing: 12,
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.end,
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 680),
+                  child: const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Supervisión mensual',
+                        style: EstiloContractual.titulo,
+                      ),
+                      SizedBox(height: 6),
+                      Text(
+                        'El contratista llena su informe en la app; cada etapa de la entidad lo aprueba o lo devuelve, y al final se registra el pago.',
+                        style: EstiloContractual.subtitulo,
+                      ),
+                    ],
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => PlantillaInformeScreen(
+                        entidad: widget.expedientes.isEmpty
+                            ? ''
+                            : widget.expedientes.first.entidadNombre,
+                      ),
+                    ),
+                  ),
+                  style: EstiloContractual.botonSecundario(),
+                  icon: const Icon(Icons.tune_rounded, size: 18),
+                  label: const Text(
+                    'Plantilla de la entidad',
+                    style: EstiloContractual.etiquetaBoton,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 20),
             LayoutBuilder(
@@ -536,10 +574,31 @@ class _Contratos extends StatefulWidget {
 }
 
 class _ContratosState extends State<_Contratos> {
-  bool _abierto = false;
+  // Con pocos contratos se muestran de una vez.
+  late bool _abierto = widget.expedientes.length <= 6;
 
   @override
   Widget build(BuildContext context) {
+    if (widget.expedientes.isEmpty) {
+      return const TarjetaSupervision(
+        titulo: 'Contratos',
+        subtitulo:
+            'Aún no hay contratos de prestación de servicios en este equipo.',
+        icono: Icons.folder_shared_outlined,
+        children: [
+          Text(
+            'Para empezar: vuelve a Equipo jurídico, toca "Nuevo proceso" y elige Prestación de servicios. '
+            'Cuando el expediente exista, ábrelo aquí para configurar su supervisión: periodos, obligaciones y quién aprueba. '
+            'Después invita al contratista, que llena cada informe desde su portal.',
+            style: TextStyle(
+              color: EstiloContractual.texto,
+              fontSize: 13.5,
+              height: 1.5,
+            ),
+          ),
+        ],
+      );
+    }
     return TarjetaSupervision(
       titulo: 'Contratos',
       subtitulo: 'Abre un contrato para configurar su supervisión o ver todos sus meses.',
