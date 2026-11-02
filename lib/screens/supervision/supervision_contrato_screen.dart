@@ -198,7 +198,10 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
             DatoSupervision('Supervisor', plan.supervisorNombre),
             DatoSupervision(
               'Aprueban',
-              plan.etapas.map((e) => e.nombre).join(' → '),
+              [
+                for (final (i, e) in plan.etapas.indexed)
+                  '${i + 1}. ${e.nombre}',
+              ].join(' · '),
             ),
           ],
         ),
@@ -384,7 +387,7 @@ class _TarjetaPeriodo extends StatelessWidget {
                     'N.º ${periodo.numero}',
                     style: const TextStyle(
                       color: EstiloContractual.gris,
-                      fontSize: 11,
+                      fontSize: 11.5,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -394,7 +397,7 @@ class _TarjetaPeriodo extends StatelessWidget {
                       'EN CURSO',
                       style: TextStyle(
                         color: EstiloContractual.navy,
-                        fontSize: 10,
+                        fontSize: 11.5,
                         fontWeight: FontWeight.w800,
                       ),
                     ),

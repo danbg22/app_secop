@@ -1,0 +1,627 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-02T21:48:12.681003+00:00",
+  "title": "Design System: Contrata Legal",
+  "extensions": {
+    "colorMeta": {
+      "navy-institucional": {
+        "role": "primary",
+        "displayName": "Navy Institucional",
+        "canonical": "#0E2646",
+        "tonalRamp": [
+          "#172435",
+          "#244066",
+          "#2A5B9D",
+          "#3076D4",
+          "#6C99D6",
+          "#A2BBDD",
+          "#CED9E9",
+          "#EEF2F6"
+        ]
+      },
+      "tinta-pizarra": {
+        "role": "neutral",
+        "displayName": "Tinta Pizarra",
+        "canonical": "#364F6B",
+        "tonalRamp": [
+          "#1F262E",
+          "#344455",
+          "#476280",
+          "#5980AB",
+          "#869FBB",
+          "#B1BECE",
+          "#D5DBE2",
+          "#F0F2F4"
+        ]
+      },
+      "gris-pizarra": {
+        "role": "neutral",
+        "displayName": "Gris Pizarra",
+        "canonical": "#64748B",
+        "tonalRamp": [
+          "#23262A",
+          "#3D434D",
+          "#556172",
+          "#6E7E96",
+          "#949EAE",
+          "#B8BEC7",
+          "#D8DBDF",
+          "#F1F2F3"
+        ]
+      },
+      "crema-fondo": {
+        "role": "neutral",
+        "displayName": "Crema Fondo",
+        "canonical": "#FEF9EB",
+        "tonalRamp": [
+          "#3A3012",
+          "#725A18",
+          "#B28815",
+          "#F2B712",
+          "#E9C359",
+          "#E8D297",
+          "#EEE4C9",
+          "#F8F5ED"
+        ]
+      },
+      "blanco-tarjeta": {
+        "role": "neutral",
+        "displayName": "Blanco Tarjeta",
+        "canonical": "#FFFFFF",
+        "tonalRamp": [
+          "#262626",
+          "#454545",
+          "#636363",
+          "#828282",
+          "#A1A1A1",
+          "#BFBFBF",
+          "#DBDBDB",
+          "#F2F2F2"
+        ]
+      },
+      "borde-frio": {
+        "role": "neutral",
+        "displayName": "Borde Frío",
+        "canonical": "#E6ECF5",
+        "tonalRamp": [
+          "#1D2430",
+          "#2F415A",
+          "#3E5C88",
+          "#4D77B7",
+          "#7F9AC3",
+          "#ACBBD2",
+          "#D3DAE4",
+          "#F0F2F5"
+        ]
+      },
+      "borde-calido": {
+        "role": "neutral",
+        "displayName": "Borde Cálido",
+        "canonical": "#E2DAC8",
+        "tonalRamp": [
+          "#2D291F",
+          "#544B35",
+          "#7E6E49",
+          "#A8915C",
+          "#B9AA88",
+          "#CDC5B1",
+          "#E2DED5",
+          "#F4F3F0"
+        ]
+      },
+      "trazo-campo": {
+        "role": "neutral",
+        "displayName": "Trazo Campo",
+        "canonical": "#D8DEE8",
+        "tonalRamp": [
+          "#21252C",
+          "#384252",
+          "#4D5E7A",
+          "#627AA2",
+          "#8C9CB5",
+          "#B4BCCB",
+          "#D6DAE1",
+          "#F1F2F4"
+        ]
+      },
+      "trazo-foco": {
+        "role": "neutral",
+        "displayName": "Trazo Foco",
+        "canonical": "#CBD5E1",
+        "tonalRamp": [
+          "#20262C",
+          "#374452",
+          "#4C617B",
+          "#617FA3",
+          "#8B9FB6",
+          "#B3BECB",
+          "#D6DBE1",
+          "#F1F2F4"
+        ]
+      },
+      "relleno-quieto": {
+        "role": "neutral",
+        "displayName": "Relleno Quieto",
+        "canonical": "#F1F5F9",
+        "tonalRamp": [
+          "#1D262F",
+          "#314559",
+          "#416386",
+          "#5182B3",
+          "#81A1C1",
+          "#ADBFD1",
+          "#D3DBE3",
+          "#F0F2F5"
+        ]
+      },
+      "carril-pendiente": {
+        "role": "neutral",
+        "displayName": "Carril Pendiente",
+        "canonical": "#E2E8F0",
+        "tonalRamp": [
+          "#1F252D",
+          "#354355",
+          "#48607F",
+          "#5B7CA9",
+          "#879DBA",
+          "#B1BDCD",
+          "#D5DAE2",
+          "#F0F2F4"
+        ]
+      },
+      "verde-hecho": {
+        "role": "semantic",
+        "displayName": "Verde Hecho",
+        "canonical": "#16A34A",
+        "tonalRamp": [
+          "#153722",
+          "#1F6B3B",
+          "#22A552",
+          "#24E069",
+          "#64DD91",
+          "#9DE1B6",
+          "#CCEBD7",
+          "#EEF7F1"
+        ]
+      },
+      "verde-texto": {
+        "role": "semantic",
+        "displayName": "Verde Texto",
+        "canonical": "#15803D",
+        "tonalRamp": [
+          "#163622",
+          "#21693C",
+          "#25A154",
+          "#29DB6C",
+          "#67DA92",
+          "#9FDFB7",
+          "#CDEAD8",
+          "#EEF6F1"
+        ]
+      },
+      "verde-lavado": {
+        "role": "semantic",
+        "displayName": "Verde Lavado",
+        "canonical": "#DCFCE7",
+        "tonalRamp": [
+          "#143920",
+          "#1B6F38",
+          "#1BAC4D",
+          "#1AEA62",
+          "#5EE48C",
+          "#9AE5B4",
+          "#CAECD6",
+          "#EDF7F1"
+        ]
+      },
+      "ambar-devuelto": {
+        "role": "semantic",
+        "displayName": "Ambar Devuelto",
+        "canonical": "#D97706",
+        "tonalRamp": [
+          "#3B2811",
+          "#744816",
+          "#B56912",
+          "#F78A0D",
+          "#ECA655",
+          "#E9C295",
+          "#EEDDC8",
+          "#F8F3ED"
+        ]
+      },
+      "ambar-texto": {
+        "role": "semantic",
+        "displayName": "Ambar Texto",
+        "canonical": "#B45309",
+        "tonalRamp": [
+          "#3A2412",
+          "#723F18",
+          "#B25915",
+          "#F27312",
+          "#E99759",
+          "#E8BA97",
+          "#EED9C9",
+          "#F8F2ED"
+        ]
+      },
+      "ambar-profundo": {
+        "role": "semantic",
+        "displayName": "Ambar Profundo",
+        "canonical": "#92400E",
+        "tonalRamp": [
+          "#392214",
+          "#6E3B1C",
+          "#AB521C",
+          "#E8691C",
+          "#E2915F",
+          "#E4B69A",
+          "#ECD7CB",
+          "#F7F1ED"
+        ]
+      },
+      "ambar-lavado": {
+        "role": "semantic",
+        "displayName": "Ambar Lavado",
+        "canonical": "#FEF3C7",
+        "tonalRamp": [
+          "#3C3311",
+          "#756215",
+          "#B79510",
+          "#F9CA0B",
+          "#EDCF54",
+          "#EAD994",
+          "#EFE7C8",
+          "#F8F6ED"
+        ]
+      },
+      "ambar-aviso-fondo": {
+        "role": "semantic",
+        "displayName": "Ambar Aviso Fondo",
+        "canonical": "#FFFBEB",
+        "tonalRamp": [
+          "#3C3410",
+          "#776313",
+          "#BA970D",
+          "#FECC07",
+          "#F0D051",
+          "#ECDA93",
+          "#F0E7C7",
+          "#F8F6EC"
+        ]
+      },
+      "ambar-aviso-borde": {
+        "role": "semantic",
+        "displayName": "Ambar Aviso Borde",
+        "canonical": "#FCD34D",
+        "tonalRamp": [
+          "#3C3211",
+          "#755E15",
+          "#B79010",
+          "#F9C10B",
+          "#EECA54",
+          "#EAD694",
+          "#EFE6C8",
+          "#F8F5ED"
+        ]
+      },
+      "rojo-falta": {
+        "role": "semantic",
+        "displayName": "Rojo Falta",
+        "canonical": "#DC2626",
+        "tonalRamp": [
+          "#361616",
+          "#692121",
+          "#A22525",
+          "#DB2929",
+          "#DA6767",
+          "#DF9F9F",
+          "#EACDCD",
+          "#F6EEEE"
+        ]
+      },
+      "rojo-texto": {
+        "role": "semantic",
+        "displayName": "Rojo Texto",
+        "canonical": "#B91C1C",
+        "tonalRamp": [
+          "#371616",
+          "#6A2020",
+          "#A32424",
+          "#DD2727",
+          "#DB6666",
+          "#E09E9E",
+          "#EACCCC",
+          "#F7EEEE"
+        ]
+      },
+      "rojo-lavado": {
+        "role": "semantic",
+        "displayName": "Rojo Lavado",
+        "canonical": "#FEE2E2",
+        "tonalRamp": [
+          "#3B1212",
+          "#731616",
+          "#B41313",
+          "#F50F0F",
+          "#EB5656",
+          "#E99696",
+          "#EEC8C8",
+          "#F8EDED"
+        ]
+      },
+      "azul-info-texto": {
+        "role": "semantic",
+        "displayName": "Azul Info Texto",
+        "canonical": "#1D4ED8",
+        "tonalRamp": [
+          "#151E37",
+          "#1F336B",
+          "#2244A5",
+          "#2455E0",
+          "#6484DD",
+          "#9DAFE1",
+          "#CCD4EB",
+          "#EEF0F7"
+        ]
+      },
+      "azul-info-lavado": {
+        "role": "semantic",
+        "displayName": "Azul Info Lavado",
+        "canonical": "#DBEAFE",
+        "tonalRamp": [
+          "#11233B",
+          "#163E74",
+          "#1258B5",
+          "#0D71F7",
+          "#5596EC",
+          "#95B9E9",
+          "#C8D9EE",
+          "#EDF1F8"
+        ]
+      },
+      "verde-azulado-pagado": {
+        "role": "semantic",
+        "displayName": "Verde Azulado Pagado",
+        "canonical": "#0F766E",
+        "tonalRamp": [
+          "#153735",
+          "#1E6B65",
+          "#21A69C",
+          "#22E2D3",
+          "#63DED5",
+          "#9DE2DC",
+          "#CCEBE9",
+          "#EEF7F6"
+        ]
+      },
+      "verde-azulado-lavado": {
+        "role": "semantic",
+        "displayName": "Verde Azulado Lavado",
+        "canonical": "#CCFBF1",
+        "tonalRamp": [
+          "#133931",
+          "#1A6F5D",
+          "#1AAD8E",
+          "#19ECBF",
+          "#5DE5C8",
+          "#99E5D5",
+          "#CAEDE5",
+          "#EDF7F5"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Hub screen titles (26px on the read-only report)."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "The single question of the guided assistant; 19px below 720px."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card titles and the assistant top-band report name."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Subtitles and help text (13.5px for question help)."
+      },
+      "body-sm": {
+        "displayName": "Body small",
+        "purpose": "List rows, verification results, sheet values."
+      },
+      "label-button": {
+        "displayName": "Label button",
+        "purpose": "Every pill button label."
+      },
+      "label-dato": {
+        "displayName": "Label dato",
+        "purpose": "Uppercase key of a key-value pair only."
+      },
+      "meta": {
+        "displayName": "Meta",
+        "purpose": "Dates, counters, file names, remaining-steps note."
+      }
+    },
+    "shadows": [
+      {
+        "name": "tarjeta",
+        "value": "0 6px 18px rgba(14, 38, 70, 0.04)",
+        "purpose": "Every card on the cream ground."
+      },
+      {
+        "name": "hoja",
+        "value": "0 8px 22px rgba(14, 38, 70, 0.07)",
+        "purpose": "Formal report sheet in the reviewer split."
+      }
+    ],
+    "motion": [
+      {
+        "name": "paso-cambio",
+        "value": "220ms cubic-bezier(0.215, 0.61, 0.355, 1)",
+        "purpose": "Guided assistant step change: fade plus 3% upward slide (Curves.easeOutCubic)."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "filas-compactas",
+        "value": "640px"
+      },
+      {
+        "name": "movil",
+        "value": "680px"
+      },
+      {
+        "name": "asistente",
+        "value": "720px"
+      },
+      {
+        "name": "bandejas",
+        "value": "760px"
+      },
+      {
+        "name": "revision-dividida",
+        "value": "1000px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one filled navy pill per decision point, e.g. \"Siguiente\".",
+      "html": "<button class=\"ds-btn-primary\">Siguiente <svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z\"/></svg></button>",
+      "css": ".ds-btn-primary{font-family:Inter,system-ui,sans-serif;display:inline-flex;align-items:center;gap:8px;background:#0E2646;color:#fff;border:none;border-radius:999px;padding:16px 22px;font-size:13.5px;font-weight:800;cursor:pointer;transition:background .2s,box-shadow .2s} .ds-btn-primary:hover{background:#1A3560} .ds-btn-primary:focus-visible{outline:2px solid #0E2646;outline-offset:3px} .ds-btn-primary:disabled{background:#CBD5E1;cursor:default}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "White pill with the warm stroke for every non-primary action.",
+      "html": "<button class=\"ds-btn-secondary\">Informe en PDF</button>",
+      "css": ".ds-btn-secondary{font-family:Inter,system-ui,sans-serif;background:#fff;color:#0E2646;border:1.2px solid #E2DAC8;border-radius:999px;padding:15px 18px;font-size:13.5px;font-weight:800;cursor:pointer;transition:background .2s,border-color .2s} .ds-btn-secondary:hover{background:#FEF9EB;border-color:#CFC4AA} .ds-btn-secondary:focus-visible{outline:2px solid #0E2646;outline-offset:3px}"
+    },
+    {
+      "name": "Back Pill",
+      "kind": "nav",
+      "refersTo": "button-back",
+      "description": "\"Volver\" control at the top-left of every page.",
+      "html": "<button class=\"ds-btn-back\"><svg width=\"19\" height=\"19\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z\"/></svg> Volver</button>",
+      "css": ".ds-btn-back{font-family:Inter,system-ui,sans-serif;display:inline-flex;align-items:center;gap:8px;background:#fff;color:#0E2646;border:1.2px solid #E2DAC8;border-radius:14px;padding:14px 18px;font-size:13.5px;font-weight:800;cursor:pointer} .ds-btn-back:hover{background:#FEF9EB} .ds-btn-back:focus-visible{outline:2px solid #0E2646;outline-offset:3px}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Filled white field, 12px radius, navy focus stroke.",
+      "html": "<label class=\"ds-field\"><span>Concepto (opcional)</span><input placeholder=\"Ej.: Cumple\"></label>",
+      "css": ".ds-field{font-family:Inter,system-ui,sans-serif;display:flex;flex-direction:column;gap:6px;color:#64748B;font-size:12.3px} .ds-field input{font-family:Inter,system-ui,sans-serif;background:#fff;border:1px solid #D8DEE8;border-radius:12px;padding:14px 14px;font-size:14.5px;color:#0E2646;outline:none;transition:border-color .15s} .ds-field input:hover{border-color:#CBD5E1} .ds-field input:focus-visible{border:1.5px solid #0E2646}"
+    },
+    {
+      "name": "Status Chips",
+      "kind": "chip",
+      "refersTo": "chip-status",
+      "description": "Report state on its tonal wash; colour always with its word.",
+      "html": "<span class=\"ds-chip ds-chip-rev\">En revisión</span> <span class=\"ds-chip ds-chip-dev\">Devuelto</span> <span class=\"ds-chip ds-chip-apr\">Aprobado</span>",
+      "css": ".ds-chip{font-family:Inter,system-ui,sans-serif;display:inline-block;border-radius:12px;padding:4px 10px;font-size:11.5px;font-weight:800} .ds-chip-rev{background:#DBEAFE;color:#1D4ED8} .ds-chip-dev{background:#FEF3C7;color:#B45309} .ds-chip-apr{background:#DCFCE7;color:#15803D}"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "White card on cream with the soft navy Tarjeta shadow.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-t\">Verificación automática</div><div class=\"ds-card-s\">La app revisa estos puntos; la decisión es de quien tiene la etapa.</div></div>",
+      "css": ".ds-card{font-family:Inter,system-ui,sans-serif;background:#fff;border:1.3px solid #E6ECF5;border-radius:20px;padding:22px;box-shadow:0 6px 18px rgba(14,38,70,.04);max-width:420px} .ds-card-t{color:#0E2646;font-size:16.5px;font-weight:800} .ds-card-s{color:#364F6B;font-size:12.8px;line-height:1.4;margin-top:3px}"
+    },
+    {
+      "name": "Guided Question Card",
+      "kind": "custom",
+      "refersTo": "card-question",
+      "description": "One question at a time with help line, input, and Anterior / Siguiente.",
+      "html": "<div class=\"ds-q\"><h3>¿Qué hiciste para cumplir la obligación 5?</h3><p>Sé concreto: qué hiciste, cuántos, en qué fechas y qué entregaste.</p><textarea rows=\"3\" placeholder=\"Actividades realizadas\"></textarea><div class=\"ds-q-row\"><button class=\"ds-q-prev\">Anterior</button><button class=\"ds-q-next\">Siguiente <svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z\"/></svg></button></div></div>",
+      "css": ".ds-q{font-family:Inter,system-ui,sans-serif;background:#fff;border:1.3px solid #CBD5E1;border-radius:20px;padding:26px;box-shadow:0 6px 18px rgba(14,38,70,.04);max-width:640px} .ds-q h3{margin:0;color:#0E2646;font-size:22px;font-weight:800;line-height:1.25;letter-spacing:-.3px} .ds-q p{margin:6px 0 18px;color:#364F6B;font-size:13.5px;line-height:1.45} .ds-q textarea{font-family:Inter,system-ui,sans-serif;width:100%;box-sizing:border-box;border:1px solid #D8DEE8;border-radius:12px;padding:14px;font-size:14.5px} .ds-q textarea:focus-visible{outline:none;border:1.5px solid #0E2646} .ds-q-row{display:flex;justify-content:space-between;margin-top:22px} .ds-q-prev{font-family:Inter,system-ui,sans-serif;background:none;border:none;color:#0E2646;font-size:14px;cursor:pointer} .ds-q-next{font-family:Inter,system-ui,sans-serif;display:inline-flex;align-items:center;gap:8px;background:#0E2646;color:#fff;border:none;border-radius:999px;padding:16px 22px;font-size:13.5px;font-weight:800;cursor:pointer} .ds-q-next:hover{background:#1A3560} .ds-q-next:focus-visible,.ds-q-prev:focus-visible{outline:2px solid #0E2646;outline-offset:3px}"
+    },
+    {
+      "name": "Answer Row",
+      "kind": "custom",
+      "refersTo": "answer-row",
+      "description": "Collapsed answered step above the current question.",
+      "html": "<div class=\"ds-ans\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"#16A34A\" aria-hidden=\"true\"><path d=\"M12 2a10 10 0 100 20 10 10 0 000-20zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z\"/></svg><b>Obligación 2</b><span>Durante el periodo reportado se proyectaron 12 autos de embargo…</span><button>Editar</button></div>",
+      "css": ".ds-ans{font-family:Inter,system-ui,sans-serif;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.7);border-radius:12px;padding:9px 6px 9px 12px;max-width:640px} .ds-ans b{width:150px;flex:none;color:#0E2646;font-size:13px;font-weight:700} .ds-ans span{flex:1;color:#64748B;font-size:12.8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .ds-ans button{font-family:Inter,system-ui,sans-serif;background:none;border:none;color:#0E2646;font-size:14px;cursor:pointer;padding:6px 10px;border-radius:999px} .ds-ans button:hover{background:#F1F5F9} .ds-ans button:focus-visible{outline:2px solid #0E2646}"
+    },
+    {
+      "name": "Returned Notice",
+      "kind": "custom",
+      "refersTo": "notice-returned",
+      "description": "Leads the screen when a reviewer returned the report.",
+      "html": "<div class=\"ds-ret\"><b>Enlace devolvió tu informe</b><p>Por favor, revisa y corrige la redacción de la actividad 4.</p><small>Iván David Bolaño Castillo · sáb 31 oct 2026, 15:00</small><button>Ir a corregir: Obligación 4</button></div>",
+      "css": ".ds-ret{font-family:Inter,system-ui,sans-serif;background:#FFFBEB;border:1px solid #FCD34D;border-radius:16px;padding:16px;color:#92400E;max-width:640px} .ds-ret b{font-size:15px;font-weight:800} .ds-ret p{margin:4px 0 6px;font-size:13.5px;line-height:1.45} .ds-ret small{display:block;color:#B45309;font-size:11.8px} .ds-ret button{font-family:Inter,system-ui,sans-serif;margin-top:8px;background:none;border:none;color:#92400E;font-size:14px;cursor:pointer;padding:6px 0} .ds-ret button:hover{text-decoration:underline} .ds-ret button:focus-visible{outline:2px solid #92400E}"
+    },
+    {
+      "name": "Formal Sheet",
+      "kind": "custom",
+      "refersTo": "formal-sheet",
+      "description": "The report as the entity will sign it, in the reviewer split.",
+      "html": "<div class=\"ds-sheet\"><div class=\"ds-sh-h\">ALCALDÍA DE VALLEDUPAR</div><div class=\"ds-sh-t\">Informe mensual de ejecución contractual N.º 1</div><div class=\"ds-sh-r\"><span>CONTRATO</span><span>3468-SGR DE 2026</span></div><div class=\"ds-sh-r\"><span>VALOR A COBRAR</span><span>$ 3.500.000</span></div></div>",
+      "css": ".ds-sheet{font-family:Inter,system-ui,sans-serif;background:#fff;border:1px solid #E2E8F0;border-radius:6px;padding:24px 26px;box-shadow:0 8px 22px rgba(14,38,70,.07);max-width:560px;color:#0E2646} .ds-sh-h{text-align:center;font-size:12.5px;font-weight:800} .ds-sh-t{text-align:center;font-size:16px;font-weight:800;margin:6px 0 14px} .ds-sh-r{display:flex;border-bottom:1px solid #E2E8F0;padding:7px 0;font-size:13px} .ds-sh-r span:first-child{width:170px;color:#64748B;font-size:11.5px;font-weight:800;letter-spacing:.3px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "La Oficina Clara",
+    "overview": "**Creative North Star: \"La Oficina Clara\"**\n\nContrata Legal is an institutional workroom laid on warm paper: a cream ground, clean white cards resting on it with a barely-there navy shadow, one deep navy voice for text and action, and pill-shaped buttons. It is calm and administrative rather than expressive; the drama is left to the content (deadlines, amounts, who must act next). Every surface reads like a well-kept office desk where the next thing to do is already on top.\n\nDensity is moderate. Cards carry generous padding (16px on phones, 22px on desktop) and stack with a steady 14–16px gap. Colour beyond navy is semantic only: green means done, amber means returned or waiting on a correction, red means missing or late, blue means informational or in review. The Supervisión module adds two expressions of the same world: the guided assistant (one large question card at a time, previous answers stacked above as quiet rows) and the reviewer split (a formal paper sheet on the left, the reviewer's own cards on the right).\n\nThe system is built for older and non-technical officials as much as for lawyers, so legibility outranks compactness: explicit text labels on actions, strong navy-on-white contrast, and confirmation before anything destructive.",
+    "keyCharacteristics": [
+      "Cream ground (crema-fondo), white cards, deep navy (navy-institucional) for text and the one primary action.",
+      "Inter throughout, heavy weights (800) for titles and buttons, regular for reading text.",
+      "Pill buttons; generously rounded cards (20px); fields at 12px.",
+      "One soft, low-contrast navy shadow under cards; no hard or offset shadows.",
+      "State colours carry meaning only, always paired with a word or icon."
+    ],
+    "rules": [
+      {
+        "name": "The Colour Means Something Rule",
+        "body": "Green, amber, red, and blue appear only to state a status (hecho, devuelto, falta, en revisión). Decorative use of a state colour is a bug; a state colour never appears without its word or icon.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Navy Rule",
+        "body": "Navy is the only filled action colour. A screen has one filled navy button per decision point; every other action is a white pill with the warm stroke or a plain text button.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two Temperatures Rule",
+        "body": "Weight does the hierarchy, not size jumps: 800 navy for what is scanned, 400 slate for what is read. Mid weights (600/700) are reserved for list-row labels and stage names.",
+        "section": "typography"
+      },
+      {
+        "name": "The Uppercase Is a Key Rule",
+        "body": "Uppercase letter-spaced text is only the key of a data pair. It never introduces a section or sits above a heading.",
+        "section": "typography"
+      },
+      {
+        "name": "The Paper On A Desk Rule",
+        "body": "Shadows are diffuse, navy-tinted, and under 8% opacity. Hard, offset, or black shadows are outside this world.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** place every Gestión contractual and Supervisión screen on crema-fondo with white 20px cards carrying the Tarjeta shadow and a 1.3px borde-frio border.",
+      "**Do** keep exactly one filled navy pill per decision point; everything else is a white pill with the borde-calido stroke or a navy text button.",
+      "**Do** pair every state colour with its word or icon (check, undo, error) and use the fixed meanings: green hecho, amber devuelto, red falta, blue en revisión/información.",
+      "**Do** lead with what the user must do now: returned notice first, current question card largest, remaining steps and autosave stated in one line.",
+      "**Do** keep reading text at 13px or larger and metadata at 11.5px or larger; labels must stay legible for older officials.",
+      "**Do** use uppercase 11.5px/800 letter-spaced text only as the key of a key–value pair.",
+      "**Do** render the formal report as a 6px-radius sheet with hairline rows when the user is reviewing what the entity will sign.",
+      "**Do** write UI copy in Colombian Spanish, tú to the user, as direct questions and verb-first buttons."
+    ],
+    "donts": [
+      "**Don't** use state colours decoratively or as brand accents.",
+      "**Don't** use hard, offset, or black shadows; depth is the soft navy Tarjeta or Hoja shadow only.",
+      "**Don't** put uppercase letter-spaced labels above headings or sections as eyebrows; uppercase is reserved for data keys.",
+      "**Don't** ship icon-only actions; every action has a visible text label (icon buttons need a tooltip and are limited to back/close in bands).",
+      "**Don't** fill a returned or destructive action in red or amber; it stays a white pill with a recoloured label, and destructive actions confirm first.",
+      "**Don't** lay a long scroll of identical field cards for a guided task; ask one question at a time and collapse answered steps into rows."
+    ]
+  }
+}

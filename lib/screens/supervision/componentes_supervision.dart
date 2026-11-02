@@ -287,7 +287,7 @@ class RielEtapas extends StatelessWidget {
               textAlign: centrado ? TextAlign.center : TextAlign.start,
               style: const TextStyle(
                 color: EstiloContractual.gris,
-                fontSize: 11.3,
+                fontSize: 11.5,
               ),
             ),
           ],
@@ -436,10 +436,7 @@ class DatoSupervision extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.start,
     mainAxisSize: MainAxisSize.min,
     children: [
-      Text(
-        etiqueta.toUpperCase(),
-        style: EstiloContractual.seccion.copyWith(fontSize: 10.5),
-      ),
+      Text(etiqueta.toUpperCase(), style: EstiloContractual.seccion),
       const SizedBox(height: 3),
       Text(
         valor,

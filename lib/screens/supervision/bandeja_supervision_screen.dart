@@ -490,7 +490,7 @@ class _FilaInforme extends StatelessWidget {
                                           color: (dias ?? 0) > 5
                                               ? const Color(0xFFB91C1C)
                                               : EstiloContractual.gris,
-                                          fontSize: 11.3,
+                                          fontSize: 11.5,
                                         ),
                                       ),
                                     ),

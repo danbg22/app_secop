@@ -704,7 +704,7 @@ class _Hoja extends StatelessWidget {
               k.toUpperCase(),
               style: const TextStyle(
                 color: EstiloContractual.gris,
-                fontSize: 10.8,
+                fontSize: 11.5,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 0.3,
               ),

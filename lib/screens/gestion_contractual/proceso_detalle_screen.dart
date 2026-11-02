@@ -1233,7 +1233,7 @@ class _Encabezado extends StatelessWidget {
                   children: [
                     Text(
                       etiqueta.toUpperCase(),
-                      style: EstiloContractual.seccion.copyWith(fontSize: 10.5),
+                      style: EstiloContractual.seccion,
                     ),
                     const SizedBox(height: 3),
                     ConstrainedBox(
@@ -1482,10 +1482,7 @@ class _VinculoSecop extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.start,
     mainAxisSize: MainAxisSize.min,
     children: [
-      Text(
-        etiqueta.toUpperCase(),
-        style: EstiloContractual.seccion.copyWith(fontSize: 10.5),
-      ),
+      Text(etiqueta.toUpperCase(), style: EstiloContractual.seccion),
       const SizedBox(height: 2),
       Text(
         valor.isEmpty ? '—' : valor,

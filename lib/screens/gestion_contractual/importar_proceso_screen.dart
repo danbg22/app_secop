@@ -300,8 +300,8 @@ class _ImportarProcesoScreenState extends State<ImportarProcesoScreen> {
           ),
           const SizedBox(height: 18),
           Text(
-            'DOCUMENTOS PUBLICADOS (${r.documentos.length})',
-            style: EstiloContractual.seccion,
+            'Documentos publicados (${r.documentos.length})',
+            style: EstiloContractual.tituloGrupo,
           ),
           const SizedBox(height: 6),
           ListaDocumentosSecop(
@@ -388,10 +388,7 @@ class _ImportarProcesoScreenState extends State<ImportarProcesoScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          etiqueta.toUpperCase(),
-          style: EstiloContractual.seccion.copyWith(fontSize: 10.5),
-        ),
+        Text(etiqueta.toUpperCase(), style: EstiloContractual.seccion),
         const SizedBox(height: 3),
         Text(
           valor.isEmpty ? '—' : valor,

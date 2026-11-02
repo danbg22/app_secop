@@ -325,8 +325,8 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
               children: [
                 Expanded(
                   child: Text(
-                    'PROCESOS EN SECOP II (${procesos.length})',
-                    style: EstiloContractual.seccion,
+                    'Procesos en SECOP II (${procesos.length})',
+                    style: EstiloContractual.tituloGrupo,
                   ),
                 ),
                 TextButton.icon(
@@ -1902,8 +1902,8 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
               _buildProcesosDelEquipo(isMobile),
               const SizedBox(height: 26),
               const Text(
-                'EXPEDIENTES DE CONTRATISTAS Y OFERENTES',
-                style: EstiloContractual.seccion,
+                'Expedientes de contratistas y oferentes',
+                style: EstiloContractual.tituloGrupo,
               ),
               const SizedBox(height: 10),
 

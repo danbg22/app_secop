@@ -1584,13 +1584,29 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
                 const SizedBox(height: 4),
                 for (final f in faltan.take(6))
                   Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      '•  $f',
-                      style: const TextStyle(
-                        color: EstiloContractual.texto,
-                        fontSize: 12.8,
-                      ),
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.only(top: 2),
+                          child: Icon(
+                            Icons.radio_button_unchecked_rounded,
+                            size: 14,
+                            color: EstiloContractual.gris,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            f,
+                            style: const TextStyle(
+                              color: EstiloContractual.texto,
+                              fontSize: 12.8,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
               ],

@@ -62,11 +62,19 @@ class EstiloContractual {
     height: 1.45,
   );
 
+  /// Clave de un dato ("CONTRATO", "VALOR"): la única mayúscula sostenida.
   static const TextStyle seccion = TextStyle(
     color: gris,
     fontSize: 11.5,
     fontWeight: FontWeight.w800,
     letterSpacing: 0.6,
+  );
+
+  /// Título de un grupo dentro de una pantalla, en tipo oración.
+  static const TextStyle tituloGrupo = TextStyle(
+    color: navy,
+    fontSize: 15,
+    fontWeight: FontWeight.w800,
   );
 }
 

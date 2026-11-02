@@ -49,7 +49,7 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   static const TextStyle _heading = TextStyle(
-    color: Color(0xFF1A2B4C),
+    color: Color(0xFF0E2646),
     fontWeight: FontWeight.w800,
     letterSpacing: -0.5,
   );
@@ -64,10 +64,11 @@ class MyApp extends StatelessWidget {
         // Tipografía corporativa empaquetada en assets/fonts/inter: se aplica a
         // todos los textos que no fijan su propia familia.
         fontFamily: 'Inter',
-        scaffoldBackgroundColor: const Color(0xFFFFFDF8),
-        primaryColor: const Color(0xFF1A2B4C),
+        // Mismos valores que EstiloContractual (DESIGN.md): crema y azul marino.
+        scaffoldBackgroundColor: const Color(0xFFFEF9EB),
+        primaryColor: const Color(0xFF0E2646),
         colorScheme: const ColorScheme.light(
-          primary: Color(0xFF1A2B4C),
+          primary: Color(0xFF0E2646),
           secondary: Color(0xFFFFD54F),
         ),
         textTheme: const TextTheme(
@@ -78,7 +79,7 @@ class MyApp extends StatelessWidget {
           headlineMedium: _heading,
           headlineSmall: _heading,
           titleLarge: TextStyle(
-            color: Color(0xFF1A2B4C),
+            color: Color(0xFF0E2646),
             fontWeight: FontWeight.w700,
             letterSpacing: -0.2,
           ),
@@ -92,15 +93,12 @@ class MyApp extends StatelessWidget {
         '/escoger-rol': (context) => const EscogerRolScreen(),
         '/registro-datos': (context) => const RegistroScreen(),
         '/pasarela-wompi': (context) => const RouteSecurityGuard(
-              allowWhenPaymentPending: true,
-              child: PasarelaPagoWompiScreen(),
-            ),
-        '/planes': (context) => const RouteSecurityGuard(
-              child: PlanesScreen(),
-            ),
-        '/perfil': (context) => const RouteSecurityGuard(
-              child: PerfilUsuarioScreen(),
-            ),
+          allowWhenPaymentPending: true,
+          child: PasarelaPagoWompiScreen(),
+        ),
+        '/planes': (context) => const RouteSecurityGuard(child: PlanesScreen()),
+        '/perfil': (context) =>
+            const RouteSecurityGuard(child: PerfilUsuarioScreen()),
         '/home': (context) => const AuthGate(),
       },
       onGenerateRoute: (settings) {
@@ -120,9 +118,8 @@ class MyApp extends StatelessWidget {
         }
         return null;
       },
-      onUnknownRoute: (_) => MaterialPageRoute<void>(
-        builder: (_) => const AuthGate(),
-      ),
+      onUnknownRoute: (_) =>
+          MaterialPageRoute<void>(builder: (_) => const AuthGate()),
     );
   }
 }

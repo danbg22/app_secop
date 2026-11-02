@@ -210,7 +210,10 @@ class _CrearProcesoScreenState extends State<CrearProcesoScreen> {
               ),
             ),
             const SizedBox(height: 18),
-            const Text('DATOS DEL PROCESO', style: EstiloContractual.seccion),
+            const Text(
+              'Datos del proceso',
+              style: EstiloContractual.tituloGrupo,
+            ),
             const SizedBox(height: 14),
             par(
               TextFormField(
@@ -275,8 +278,8 @@ class _CrearProcesoScreenState extends State<CrearProcesoScreen> {
             if (_m.campos.isNotEmpty) ...[
               const SizedBox(height: 22),
               Text(
-                'PROPIO DE ${_m.nombre.toUpperCase()}',
-                style: EstiloContractual.seccion,
+                'Datos propios de ${_m.nombre}',
+                style: EstiloContractual.tituloGrupo,
               ),
               const SizedBox(height: 14),
               for (final c in _m.campos) ...[
@@ -383,7 +386,7 @@ class _ResumenRequisitos extends StatelessWidget {
     Widget lista(String titulo, List<DocumentoRequerido> docs) => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(titulo, style: EstiloContractual.seccion),
+        Text(titulo, style: EstiloContractual.tituloGrupo),
         const SizedBox(height: 8),
         for (final d in docs)
           Padding(
@@ -445,7 +448,7 @@ class _ResumenRequisitos extends StatelessWidget {
           ],
           const SizedBox(height: 16),
           if (m.etapas.isNotEmpty) ...[
-            const Text('ETAPAS', style: EstiloContractual.seccion),
+            const Text('Etapas', style: EstiloContractual.tituloGrupo),
             const SizedBox(height: 8),
             for (var i = 0; i < m.etapas.length; i++)
               Padding(
@@ -493,14 +496,14 @@ class _ResumenRequisitos extends StatelessWidget {
           ],
           if (m.documentosOferente.isNotEmpty)
             lista(
-              'REQUISITOS A VERIFICAR EN CADA OFERTA',
+              'Requisitos a verificar en cada oferta',
               m.documentosOferente,
             ),
           if (m.documentosContrato.isNotEmpty)
             lista(
               m.esCompetitiva
-                  ? 'LEGALIZACIÓN DEL ADJUDICATARIO'
-                  : 'DOCUMENTOS DEL CONTRATISTA A VERIFICAR',
+                  ? 'Legalización del adjudicatario'
+                  : 'Documentos del contratista a verificar',
               m.documentosContrato,
             ),
         ],
