@@ -1014,18 +1014,17 @@ class ProcesosContratacionService {
     final ref = _col.doc(p.id);
     try {
       // Primero los documentos: las reglas los autorizan leyendo el proceso.
-      final archivos = await ref
-          .collection('archivos')
-          .get()
-          .timeout(const Duration(seconds: 15));
-      for (final archivo in archivos.docs) {
-        final partes = archivo.data()['partes'];
+      // Se recorren por id (las reglas no permiten listar la subcolección).
+      for (final id in p.documentosEntidad.keys) {
+        final archivo = ref.collection('archivos').doc(id);
+        final snap = await archivo.get().timeout(const Duration(seconds: 10));
+        final partes = snap.data()?['partes'];
         if (partes is int) {
           for (var i = 0; i < partes; i++) {
-            await archivo.reference.collection('partes').doc('$i').delete();
+            await archivo.collection('partes').doc('$i').delete();
           }
         }
-        await archivo.reference.delete();
+        if (snap.exists) await archivo.delete();
       }
       await ref.delete().timeout(const Duration(seconds: 10));
     } on FirebaseException catch (e) {
