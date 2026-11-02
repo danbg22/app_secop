@@ -444,7 +444,11 @@ service cloud.firestore {
           request.resource.data.equipoUid == resource.data.equipoUid &&
           request.resource.data.creadoPorUid == resource.data.creadoPorUid &&
           request.resource.data.modalidadId == resource.data.modalidadId;
-      allow delete: if false;
+      // Elimina el proceso quien lo creó, el Master o un abogado con permiso.
+      allow delete: if isSignedIn() &&
+          (resource.data.creadoPorUid == request.auth.uid ||
+           resource.data.equipoUid == request.auth.uid ||
+           permisoEquipo(resource.data.equipoUid, 'crear_contratos'));
 
       // Documentos de la entidad por etapa (mismo esquema que los expedientes).
       match /archivos/{documentoId} {
@@ -453,7 +457,8 @@ service cloud.firestore {
         allow create, update: if esDelEquipo(
             get(/databases/$(database)/documents/procesos_contratacion/$(procesoId)).data.equipoUid) &&
             archivoValido(request.resource.data);
-        allow delete: if false;
+        allow delete: if esDelEquipo(
+            get(/databases/$(database)/documents/procesos_contratacion/$(procesoId)).data.equipoUid);
 
         match /partes/{parte} {
           allow get: if esDelEquipo(
@@ -461,7 +466,8 @@ service cloud.firestore {
           allow create, update: if esDelEquipo(
               get(/databases/$(database)/documents/procesos_contratacion/$(procesoId)).data.equipoUid) &&
               isNonEmptyString(request.resource.data.datos, 950000);
-          allow delete: if false;
+          allow delete: if esDelEquipo(
+              get(/databases/$(database)/documents/procesos_contratacion/$(procesoId)).data.equipoUid);
         }
       }
     }

@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 import '../data/modalidades_contratacion.dart';
 import '../utils/dias_habiles_colombia.dart';
@@ -987,6 +988,56 @@ class ProcesosContratacionService {
       {'etapaActual': p.etapaActual - 1},
       _evento('RETROCESO_ETAPA', 'Regresó a la etapa "${anterior.nombre}"', ''),
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Eliminación
+  // ---------------------------------------------------------------------------
+
+  /// Pueden eliminar el proceso quien lo creó, el Master del equipo y los
+  /// abogados con permiso para crear contratos.
+  static bool puedeEliminar(ProcesoContratacion p) {
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (uid.isEmpty) return false;
+    if (p.creadoPorUid == uid || p.equipoUid == uid) return true;
+    return EquipoJuridicoService.equipoUidActivo == p.equipoUid &&
+        EquipoJuridicoService.tienePermiso(PermisoEquipo.crearContratos);
+  }
+
+  /// Elimina el proceso con sus documentos internos. Lo que esté publicado
+  /// en SECOP II no se toca. Devuelve `null` si se eliminó o el motivo.
+  static Future<String?> eliminarProceso(ProcesoContratacion p) async {
+    if (!puedeEliminar(p)) {
+      return 'solo quien lo creó, el titular del equipo o un abogado con '
+          'permiso para crear contratos puede eliminarlo.';
+    }
+    final ref = _col.doc(p.id);
+    try {
+      // Primero los documentos: las reglas los autorizan leyendo el proceso.
+      final archivos = await ref
+          .collection('archivos')
+          .get()
+          .timeout(const Duration(seconds: 15));
+      for (final archivo in archivos.docs) {
+        final partes = archivo.data()['partes'];
+        if (partes is int) {
+          for (var i = 0; i < partes; i++) {
+            await archivo.reference.collection('partes').doc('$i').delete();
+          }
+        }
+        await archivo.reference.delete();
+      }
+      await ref.delete().timeout(const Duration(seconds: 10));
+    } on FirebaseException catch (e) {
+      debugPrint('eliminarProceso: ${e.code} ${e.message}');
+      return e.code == 'permission-denied'
+          ? 'no tienes permiso para eliminarlo. Si acabas de actualizar la '
+                'app, publica de nuevo las reglas de Firestore.'
+          : 'no fue posible conectar con el servidor. Intenta de nuevo.';
+    } on TimeoutException {
+      return 'el servidor no respondió. Revisa tu conexión e intenta de nuevo.';
+    }
+    return null;
   }
 
   // ---------------------------------------------------------------------------

@@ -123,6 +123,107 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
     }
   }
 
+  Future<void> _confirmarEliminar(ProcesoContratacion p) async {
+    final docs = p.documentosEntidad.length;
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        icon: const Icon(
+          Icons.delete_forever_rounded,
+          color: Color(0xFFB91C1C),
+          size: 36,
+        ),
+        title: const Text(
+          '¿Seguro que quieres eliminar este proceso?',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: EstiloContractual.navy,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 440),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Text(
+                  '${p.numeroProceso} · ${p.modalidad.nombre}\n'
+                  '$docs documento${docs == 1 ? '' : 's'} interno${docs == 1 ? '' : 's'} cargado${docs == 1 ? '' : 's'}',
+                  style: const TextStyle(
+                    color: EstiloContractual.navy,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    height: 1.45,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Se borrarán el cronograma, los documentos internos, las ofertas, '
+                'las observaciones y la trazabilidad, para ti y para todo tu equipo. '
+                'Lo publicado en SECOP II no cambia. Esta acción no se puede deshacer.',
+                style: TextStyle(
+                  color: EstiloContractual.texto,
+                  fontSize: 13.2,
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actionsAlignment: MainAxisAlignment.end,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFB91C1C),
+              foregroundColor: Colors.white,
+            ),
+            icon: const Icon(Icons.delete_outline_rounded, size: 18),
+            label: const Text(
+              'Sí, eliminar',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmado != true || !mounted) return;
+    setState(() => _ocupado = true);
+    final error = await ProcesosContratacionService.eliminarProceso(p);
+    if (!mounted) return;
+    setState(() => _ocupado = false);
+    if (error != null) {
+      _mensaje('No se eliminó el proceso: $error', error: true);
+      return;
+    }
+    final messenger = ScaffoldMessenger.of(context);
+    Navigator.of(context).pop();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text('Proceso ${p.numeroProceso} eliminado.'),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: EstiloContractual.navy,
+      ),
+    );
+  }
+
   Future<DateTime?> _elegirFecha({DateTime? inicial, String ayuda = 'Fecha'}) {
     final hoy = DateTime.now();
     return showDatePicker(
@@ -227,12 +328,23 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
         return PantallaContractual(
           anchoMaximo: 1240,
           children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: PildoraVolver(
-                etiqueta: 'Gestión contractual',
-                onTap: () => Navigator.of(context).pop(),
-              ),
+            Row(
+              children: [
+                PildoraVolver(
+                  etiqueta: 'Gestión contractual',
+                  onTap: () => Navigator.of(context).pop(),
+                ),
+                const Spacer(),
+                if (ProcesosContratacionService.puedeEliminar(p))
+                  TextButton.icon(
+                    onPressed: _ocupado ? null : () => _confirmarEliminar(p),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFFB91C1C),
+                    ),
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                    label: Text(mobile ? 'Eliminar' : 'Eliminar proceso'),
+                  ),
+              ],
             ),
             const SizedBox(height: 18),
             _Encabezado(proceso: p),
