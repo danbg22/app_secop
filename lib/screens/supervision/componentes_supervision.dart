@@ -82,89 +82,225 @@ class TarjetaSupervision extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(mobile ? 16 : 22),
       decoration: EstiloContractual.tarjeta(colorBorde: colorBorde),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (titulo != null) ...[
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (icono != null) ...[
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(icono, size: 18, color: EstiloContractual.navy),
-                  ),
-                  const SizedBox(width: 12),
-                ],
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        titulo!,
-                        style: const TextStyle(
-                          color: EstiloContractual.navy,
-                          fontSize: 16.5,
-                          fontWeight: FontWeight.w800,
-                        ),
+      // Material propio para que las ListTile pinten su tinta sobre la tarjeta.
+      child: Material(
+        type: MaterialType.transparency,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (titulo != null) ...[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (icono != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      if (subtitulo != null) ...[
-                        const SizedBox(height: 3),
+                      child: Icon(
+                        icono,
+                        size: 18,
+                        color: EstiloContractual.navy,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          subtitulo!,
+                          titulo!,
                           style: const TextStyle(
-                            color: EstiloContractual.texto,
-                            fontSize: 12.8,
-                            height: 1.4,
+                            color: EstiloContractual.navy,
+                            fontSize: 16.5,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
+                        if (subtitulo != null) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            subtitulo!,
+                            style: const TextStyle(
+                              color: EstiloContractual.texto,
+                              fontSize: 12.8,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
-                if (accion != null) ...[const SizedBox(width: 10), accion!],
-              ],
-            ),
-            const SizedBox(height: 16),
+                  if (accion != null) ...[const SizedBox(width: 10), accion!],
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+            ...children,
           ],
-          ...children,
-        ],
+        ),
       ),
     );
   }
 }
 
-/// Los cuatro pasos del mes: contratista → revisión → supervisor → pago.
-class LineaPasosInforme extends StatelessWidget {
-  const LineaPasosInforme({super.key, required this.estado});
-  final EstadoInforme estado;
+/// Recorrido del informe: el contratista y cada etapa de aprobación de la
+/// entidad, con quién aprobó y cuándo.
+class RielEtapas extends StatelessWidget {
+  const RielEtapas({
+    super.key,
+    required this.plan,
+    required this.informe,
+    this.vertical = false,
+  });
+  final PlanSupervision plan;
+  final InformePeriodo informe;
+  final bool vertical;
 
   @override
   Widget build(BuildContext context) {
-    final pasos = [
-      ('Informe del contratista', Icons.edit_note_rounded),
-      ('Revisión documental', Icons.fact_check_outlined),
-      ('Aprobación del supervisor', Icons.verified_user_outlined),
-      ('Pago', Icons.payments_outlined),
+    final inf = informe;
+    final aprobadoTodo =
+        inf.estado == EstadoInforme.aprobado ||
+        inf.estado == EstadoInforme.pagado;
+    final pasos = <(String, String, _EstadoPaso)>[
+      (
+        'Contratista',
+        inf.estado == EstadoInforme.devuelto
+            ? 'Corrigiendo'
+            : (inf.enviadoEnIso.isEmpty ? 'Elaborando' : 'Enviado'),
+        inf.estado.editablePorContratista
+            ? (inf.estado == EstadoInforme.devuelto
+                  ? _EstadoPaso.devuelto
+                  : _EstadoPaso.actual)
+            : _EstadoPaso.hecho,
+      ),
+      for (final (i, e) in plan.etapas.indexed)
+        () {
+          final r = inf.revisiones
+              .where((r) => r.etapaId == e.id && r.aprobado)
+              .lastOrNull;
+          final hecho = aprobadoTodo || (r != null && i < inf.etapaActual);
+          final actual =
+              inf.estado == EstadoInforme.enRevision && i == inf.etapaActual;
+          return (
+            e.nombre,
+            hecho && r != null
+                ? r.actor
+                : (e.responsableNombre.isEmpty
+                      ? 'Pendiente'
+                      : e.responsableNombre),
+            hecho
+                ? _EstadoPaso.hecho
+                : (actual ? _EstadoPaso.actual : _EstadoPaso.pendiente),
+          );
+        }(),
     ];
-    final actual = switch (estado) {
-      EstadoInforme.pendiente ||
-      EstadoInforme.borrador ||
-      EstadoInforme.devuelto => 0,
-      EstadoInforme.enviado => 1,
-      EstadoInforme.revisado => 2,
-      EstadoInforme.aprobado => 3,
-      EstadoInforme.pagado => 4,
-    };
-    final mobile = MediaQuery.sizeOf(context).width < 680;
+
+    Widget punto(_EstadoPaso e, int n) {
+      final (fondo, icono) = switch (e) {
+        _EstadoPaso.hecho => (const Color(0xFF16A34A), Icons.check_rounded),
+        _EstadoPaso.actual => (EstiloContractual.navy, null),
+        _EstadoPaso.devuelto => (const Color(0xFFD97706), Icons.undo_rounded),
+        _EstadoPaso.pendiente => (const Color(0xFFE2E8F0), null),
+      };
+      return Container(
+        width: 28,
+        height: 28,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(color: fondo, shape: BoxShape.circle),
+        child: icono != null
+            ? Icon(icono, size: 16, color: Colors.white)
+            : Text(
+                '$n',
+                style: TextStyle(
+                  color: e == _EstadoPaso.pendiente
+                      ? EstiloContractual.gris
+                      : Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12.5,
+                ),
+              ),
+      );
+    }
+
+    Widget textos((String, String, _EstadoPaso) p, {bool centrado = false}) =>
+        Column(
+          crossAxisAlignment: centrado
+              ? CrossAxisAlignment.center
+              : CrossAxisAlignment.start,
+          children: [
+            Text(
+              p.$1,
+              textAlign: centrado ? TextAlign.center : TextAlign.start,
+              style: TextStyle(
+                color: p.$3 == _EstadoPaso.pendiente
+                    ? EstiloContractual.gris
+                    : EstiloContractual.navy,
+                fontSize: 12.6,
+                fontWeight: p.$3 == _EstadoPaso.actual
+                    ? FontWeight.w800
+                    : FontWeight.w700,
+              ),
+            ),
+            Text(
+              p.$2,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: centrado ? TextAlign.center : TextAlign.start,
+              style: const TextStyle(
+                color: EstiloContractual.gris,
+                fontSize: 11.3,
+              ),
+            ),
+          ],
+        );
+
+    if (vertical) {
+      return Column(
+        children: [
+          for (final (i, p) in pasos.indexed)
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Column(
+                    children: [
+                      punto(p.$3, i + 1),
+                      if (i < pasos.length - 1)
+                        Expanded(
+                          child: Container(
+                            width: 2,
+                            margin: const EdgeInsets.symmetric(vertical: 3),
+                            color: p.$3 == _EstadoPaso.hecho
+                                ? const Color(0xFF16A34A)
+                                : const Color(0xFFE2E8F0),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        top: 4,
+                        bottom: i < pasos.length - 1 ? 14 : 0,
+                      ),
+                      child: textos(p),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      );
+    }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (var i = 0; i < pasos.length; i++) ...[
+        for (final (i, p) in pasos.indexed)
           Expanded(
             child: Column(
               children: [
@@ -172,41 +308,21 @@ class LineaPasosInforme extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Container(
-                        height: 3,
+                        height: 2,
                         color: i == 0
                             ? Colors.transparent
-                            : (i <= actual
+                            : (pasos[i - 1].$3 == _EstadoPaso.hecho
                                   ? const Color(0xFF16A34A)
                                   : const Color(0xFFE2E8F0)),
                       ),
                     ),
-                    Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: i < actual
-                            ? const Color(0xFF16A34A)
-                            : (i == actual
-                                  ? (estado == EstadoInforme.devuelto
-                                        ? const Color(0xFFD97706)
-                                        : EstiloContractual.navy)
-                                  : const Color(0xFFF1F5F9)),
-                      ),
-                      child: Icon(
-                        i < actual ? Icons.check_rounded : pasos[i].$2,
-                        size: 18,
-                        color: i <= actual
-                            ? Colors.white
-                            : const Color(0xFF94A3B8),
-                      ),
-                    ),
+                    punto(p.$3, i + 1),
                     Expanded(
                       child: Container(
-                        height: 3,
+                        height: 2,
                         color: i == pasos.length - 1
                             ? Colors.transparent
-                            : (i < actual
+                            : (p.$3 == _EstadoPaso.hecho
                                   ? const Color(0xFF16A34A)
                                   : const Color(0xFFE2E8F0)),
                       ),
@@ -214,45 +330,39 @@ class LineaPasosInforme extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  pasos[i].$1,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: i <= actual
-                        ? EstiloContractual.navy
-                        : EstiloContractual.gris,
-                    fontSize: mobile ? 10.5 : 12,
-                    fontWeight: i == actual ? FontWeight.w800 : FontWeight.w600,
-                  ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: textos(p, centrado: true),
                 ),
               ],
             ),
           ),
-        ],
       ],
     );
   }
 }
 
-/// Resultado de la verificación automática de la planilla.
-class ListaHallazgos extends StatelessWidget {
-  const ListaHallazgos({super.key, required this.hallazgos});
-  final List<HallazgoPlanilla> hallazgos;
+enum _EstadoPaso { hecho, actual, devuelto, pendiente }
+
+/// Resultado de la verificación automática.
+class ListaVerificaciones extends StatelessWidget {
+  const ListaVerificaciones({super.key, required this.verificaciones});
+  final List<Verificacion> verificaciones;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final h in hallazgos)
+        for (final h in verificaciones)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 3),
+            padding: const EdgeInsets.symmetric(vertical: 4),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(
                   h.cumple ? Icons.check_circle_rounded : Icons.error_rounded,
-                  size: 17,
+                  size: 18,
                   color: h.cumple
                       ? const Color(0xFF16A34A)
                       : const Color(0xFFDC2626),
@@ -265,7 +375,8 @@ class ListaHallazgos extends StatelessWidget {
                       color: h.cumple
                           ? EstiloContractual.texto
                           : const Color(0xFFB91C1C),
-                      fontSize: 12.8,
+                      fontSize: 13,
+                      height: 1.35,
                       fontWeight: h.cumple ? FontWeight.w500 : FontWeight.w700,
                     ),
                   ),

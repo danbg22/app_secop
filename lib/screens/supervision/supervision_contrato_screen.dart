@@ -5,10 +5,10 @@ import '../../services/supervision_service.dart';
 import '../gestion_contractual/estilo_contractual.dart';
 import 'componentes_supervision.dart';
 import 'editar_plan_screen.dart';
-import 'revision_informe_screen.dart';
+import 'revision_supervisor_screen.dart';
 
-/// Supervisión de un contrato: plan, avance del pago y los meses del
-/// contrato con el estado de cada informe.
+/// Supervisión de un contrato: plan, avance del pago y los informes por
+/// periodo con su estado.
 class SupervisionContratoScreen extends StatefulWidget {
   const SupervisionContratoScreen({super.key, required this.expediente});
 
@@ -24,7 +24,7 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
   late final Stream<PlanSupervision?> _plan = SupervisionService.escucharPlan(
     _exp.tokenInvitado,
   );
-  late final Stream<Map<String, InformeMensual>> _informes =
+  late final Stream<Map<String, InformePeriodo>> _informes =
       SupervisionService.escucharInformes(_exp.tokenInvitado);
 
   void _editar(PlanSupervision? plan) => Navigator.push(
@@ -34,10 +34,10 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
     ),
   );
 
-  void _abrirInforme(String periodo) => Navigator.push(
+  void _abrir(String id) => Navigator.push(
     context,
     MaterialPageRoute<void>(
-      builder: (_) => RevisionInformeScreen(expediente: _exp, periodo: periodo),
+      builder: (_) => RevisionSupervisorScreen(expediente: _exp, informeId: id),
     ),
   );
 
@@ -45,12 +45,11 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
   Widget build(BuildContext context) {
     return StreamBuilder<PlanSupervision?>(
       stream: _plan,
-      builder: (context, planSnap) => StreamBuilder<Map<String, InformeMensual>>(
+      builder: (context, planSnap) => StreamBuilder<Map<String, InformePeriodo>>(
         stream: _informes,
         builder: (context, infSnap) {
-          final cargando = planSnap.connectionState == ConnectionState.waiting;
           final plan = planSnap.data;
-          final informes = infSnap.data ?? const <String, InformeMensual>{};
+          final informes = infSnap.data ?? const <String, InformePeriodo>{};
           return PantallaContractual(
             anchoMaximo: 1120,
             children: [
@@ -72,7 +71,7 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
                 style: EstiloContractual.subtitulo,
               ),
               const SizedBox(height: 20),
-              if (cargando)
+              if (planSnap.connectionState == ConnectionState.waiting)
                 const Padding(
                   padding: EdgeInsets.all(40),
                   child: Center(child: CircularProgressIndicator()),
@@ -91,7 +90,7 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
               else ...[
                 _resumen(plan, informes),
                 const SizedBox(height: 16),
-                _meses(plan, informes),
+                _periodos(plan, informes),
               ],
               const SizedBox(height: 30),
             ],
@@ -112,7 +111,7 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
         ),
         const SizedBox(height: 12),
         const Text(
-          'Activa la supervisión mensual de este contrato',
+          'Activa los informes de ejecución de este contrato',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: EstiloContractual.navy,
@@ -122,9 +121,9 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
         ),
         const SizedBox(height: 8),
         const Text(
-          'Define el supervisor, los honorarios y las obligaciones. Cada mes el contratista envía su '
-          'informe desde el mismo enlace del expediente; un abogado revisa los documentos y la planilla, '
-          'y el supervisor aprueba y descarga el certificado de cumplimiento.',
+          'Define los periodos, el valor, las obligaciones y quién aprueba cada etapa. El contratista diligencia '
+          'cada informe desde el mismo enlace del expediente, sin Word ni Excel, y la app arma el informe, la cuenta '
+          'de cobro y el informe de supervisión.',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: EstiloContractual.texto,
@@ -153,26 +152,18 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
     );
   }
 
-  Widget _resumen(PlanSupervision plan, Map<String, InformeMensual> informes) {
-    final aprobado = informes.values
-        .where(
-          (i) =>
-              i.estado == EstadoInforme.aprobado ||
-              i.estado == EstadoInforme.pagado,
-        )
-        .fold<int>(0, (s, i) => s + i.valorCobradoCop);
-    final pagado = informes.values
-        .where((i) => i.estado == EstadoInforme.pagado)
-        .fold<int>(0, (s, i) => s + i.valorCobradoCop);
+  Widget _resumen(PlanSupervision plan, Map<String, InformePeriodo> informes) {
+    int suma(bool Function(InformePeriodo) f) =>
+        informes.values.where(f).fold<int>(0, (s, i) => s + i.valorCobradoCop);
+    final aprobado = suma(
+      (i) =>
+          i.estado == EstadoInforme.aprobado ||
+          i.estado == EstadoInforme.pagado,
+    );
+    final pagado = suma((i) => i.estado == EstadoInforme.pagado);
     final total = _exp.valorContratoCop > 0
         ? _exp.valorContratoCop
-        : plan.valorMensualCop * plan.periodos.length;
-    final aporte = AporteEsperado.calcular(
-      valorMensualCop: plan.valorMensualCop,
-      claseRiesgo: plan.claseRiesgo,
-      anio: plan.fechaInicio.year,
-    );
-    String f(DateTime d) => '${d.day}/${d.month}/${d.year}';
+        : plan.valorPeriodoCop * plan.periodos.length;
 
     return TarjetaSupervision(
       titulo: 'Plan de supervisión',
@@ -192,20 +183,23 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
           spacing: 28,
           runSpacing: 14,
           children: [
-            DatoSupervision('Supervisor', plan.supervisorNombre),
+            DatoSupervision(
+              'Informes',
+              '${plan.periodos.length} ${plan.periodicidad.adjetivo}es',
+            ),
             DatoSupervision(
               'Ejecución',
-              '${f(plan.fechaInicio)} – ${f(plan.fechaFin)}',
+              '${fechaNumerica(plan.fechaInicio)} – ${fechaNumerica(plan.fechaFin)}',
             ),
             DatoSupervision(
-              'Honorarios mensuales',
-              formatoCop(plan.valorMensualCop),
+              'Valor por periodo',
+              formatoCop(plan.valorPeriodoCop),
             ),
+            DatoSupervision('Supervisor', plan.supervisorNombre),
             DatoSupervision(
-              'Aporte mínimo mensual',
-              formatoCop(aporte.totalContratista),
+              'Aprueban',
+              plan.etapas.map((e) => e.nombre).join(' → '),
             ),
-            DatoSupervision('Obligaciones', '${plan.obligaciones.length}'),
           ],
         ),
         const SizedBox(height: 18),
@@ -266,38 +260,15 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 14),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Row(
-            children: [
-              Icon(Icons.link_rounded, size: 18, color: EstiloContractual.gris),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'El contratista envía sus informes desde el mismo enlace del expediente.',
-                  style: TextStyle(
-                    color: EstiloContractual.texto,
-                    fontSize: 12.5,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }
 
-  Widget _meses(PlanSupervision plan, Map<String, InformeMensual> informes) {
-    final actual = periodoDe(DateTime.now());
+  Widget _periodos(PlanSupervision plan, Map<String, InformePeriodo> informes) {
+    final hoy = DateTime.now();
     return TarjetaSupervision(
-      titulo: 'Informes mensuales',
-      subtitulo: 'Toca un mes para ver el informe y revisarlo.',
+      titulo: 'Informes por periodo',
+      subtitulo: 'Toca un informe enviado para revisarlo. Cada uno vence el último día de su periodo.',
       icono: Icons.calendar_month_rounded,
       children: [
         LayoutBuilder(
@@ -310,18 +281,20 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
               spacing: 10,
               runSpacing: 10,
               children: [
-                for (final (i, periodo) in plan.periodos.indexed)
+                for (final p in plan.periodos)
                   SizedBox(
                     width: ancho,
-                    child: _TarjetaMes(
-                      numero: i + 1,
-                      periodo: periodo,
-                      informe: informes[periodo],
-                      actual: periodo == actual,
-                      futuro: periodo.compareTo(actual) > 0,
-                      onTap: informes[periodo] == null
-                          ? null
-                          : () => _abrirInforme(periodo),
+                    child: _TarjetaPeriodo(
+                      periodo: p,
+                      informe: informes[p.id],
+                      plan: plan,
+                      actual:
+                          !hoy.isBefore(p.desde) &&
+                          !hoy.isAfter(p.hasta.add(const Duration(days: 1))),
+                      futuro: p.desde.isAfter(hoy),
+                      onTap: (informes[p.id]?.existe ?? false)
+                          ? () => _abrir(p.id)
+                          : null,
                     ),
                   ),
               ],
@@ -356,27 +329,37 @@ class _Leyenda extends StatelessWidget {
   );
 }
 
-class _TarjetaMes extends StatelessWidget {
-  const _TarjetaMes({
-    required this.numero,
+class _TarjetaPeriodo extends StatelessWidget {
+  const _TarjetaPeriodo({
     required this.periodo,
     required this.informe,
+    required this.plan,
     required this.actual,
     required this.futuro,
     required this.onTap,
   });
 
-  final int numero;
-  final String periodo;
-  final InformeMensual? informe;
+  final PeriodoInforme periodo;
+  final InformePeriodo? informe;
+  final PlanSupervision plan;
   final bool actual;
   final bool futuro;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final estado = informe?.estado ?? EstadoInforme.pendiente;
-    final mes = nombrePeriodo(periodo);
+    final inf = informe;
+    final estado = inf?.estado ?? EstadoInforme.pendiente;
+    final etapa =
+        inf != null &&
+            estado == EstadoInforme.enRevision &&
+            inf.etapaActual < plan.etapas.length
+        ? plan.etapas[inf.etapaActual].nombre
+        : null;
+    final vencido =
+        !futuro &&
+        !(inf?.existe ?? false) &&
+        DateTime.now().isAfter(periodo.limite.add(const Duration(days: 1)));
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(14),
@@ -398,7 +381,7 @@ class _TarjetaMes extends StatelessWidget {
               Row(
                 children: [
                   Text(
-                    'Mes $numero',
+                    'N.º ${periodo.numero}',
                     style: const TextStyle(
                       color: EstiloContractual.gris,
                       fontSize: 11,
@@ -408,7 +391,7 @@ class _TarjetaMes extends StatelessWidget {
                   const Spacer(),
                   if (actual)
                     const Text(
-                      'ACTUAL',
+                      'EN CURSO',
                       style: TextStyle(
                         color: EstiloContractual.navy,
                         fontSize: 10,
@@ -419,26 +402,43 @@ class _TarjetaMes extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                mes[0].toUpperCase() + mes.substring(1),
+                '${fechaLegible(periodo.desde, conDia: false)} – ${fechaLegible(periodo.hasta, conDia: false)}',
                 style: TextStyle(
                   color: futuro
                       ? EstiloContractual.gris
                       : EstiloContractual.navy,
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(height: 8),
-              futuro && informe == null
-                  ? const Text(
-                      'Próximo',
-                      style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
-                    )
-                  : ChipEstadoInforme(estado),
-              if (informe != null && informe!.valorCobradoCop > 0) ...[
-                const SizedBox(height: 6),
+              if (futuro && inf == null)
+                const Text(
+                  'Próximo',
+                  style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                )
+              else if (vencido)
+                const EtiquetaColor(
+                  texto: 'Vencido sin enviar',
+                  color: Color(0xFFB91C1C),
+                  fondo: Color(0xFFFEE2E2),
+                )
+              else
+                ChipEstadoInforme(estado),
+              if (etapa != null) ...[
+                const SizedBox(height: 4),
                 Text(
-                  formatoCop(informe!.valorCobradoCop),
+                  etapa,
+                  style: const TextStyle(
+                    color: EstiloContractual.texto,
+                    fontSize: 11.8,
+                  ),
+                ),
+              ],
+              if (inf != null && inf.valorCobradoCop > 0 && inf.existe) ...[
+                const SizedBox(height: 4),
+                Text(
+                  formatoCop(inf.valorCobradoCop),
                   style: const TextStyle(
                     color: EstiloContractual.texto,
                     fontSize: 12,

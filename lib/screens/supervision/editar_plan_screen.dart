@@ -6,9 +6,10 @@ import '../../services/juridico_contratacion_service.dart';
 import '../../services/supervision_service.dart';
 import '../gestion_contractual/estilo_contractual.dart';
 import 'componentes_supervision.dart';
+import 'plantilla_informe_screen.dart';
 
-/// Configuración de la supervisión de un contrato: supervisor, vigencia,
-/// honorarios, riesgo ARL y obligaciones que se reportan cada mes.
+/// Configuración de la supervisión de un contrato: periodos, presupuesto,
+/// obligaciones y quién aprueba cada etapa del informe.
 class EditarPlanScreen extends StatefulWidget {
   const EditarPlanScreen({super.key, required this.expediente, this.plan});
 
@@ -20,37 +21,51 @@ class EditarPlanScreen extends StatefulWidget {
 }
 
 class _EditarPlanScreenState extends State<EditarPlanScreen> {
-  late final TextEditingController _supervisor;
-  late final TextEditingController _correo;
-  late final TextEditingController _valor;
+  ExpedienteContratoPs get _exp => widget.expediente;
+
+  PlantillaInforme? _plantilla;
   late DateTime _inicio;
   late DateTime _fin;
+  late Periodicidad _periodicidad;
   late int _riesgo;
+  final Map<String, TextEditingController> _c = {};
   late List<TextEditingController> _obligaciones;
   late List<String> _ids;
-
-  static String _nuevoId() => 'o${DateTime.now().microsecondsSinceEpoch}';
   List<MiembroEquipo> _equipo = const [];
   bool _guardando = false;
+  String? _fechaCdp;
+  String? _fechaRp;
+
+  static String _nuevoId() => 'o${DateTime.now().microsecondsSinceEpoch}';
+
+  TextEditingController _t(String clave, [String inicial = '']) =>
+      _c.putIfAbsent(clave, () => TextEditingController(text: inicial));
 
   @override
   void initState() {
     super.initState();
     final p = widget.plan;
     final hoy = DateTime.now();
-    _inicio = p?.fechaInicio ?? DateTime(hoy.year, hoy.month, 1);
+    _inicio = p?.fechaInicio ?? DateTime(hoy.year, hoy.month, hoy.day);
     _fin = p?.fechaFin ?? DateTime(hoy.year, 12, 31);
+    _periodicidad = p?.periodicidad ?? Periodicidad.mensual;
     _riesgo = p?.claseRiesgo ?? 1;
-    _supervisor = TextEditingController(text: p?.supervisorNombre ?? '');
-    _correo = TextEditingController(text: p?.supervisorEmail ?? '');
+    _t('supNombre', p?.supervisorNombre ?? '');
+    _t('supEmail', p?.supervisorEmail ?? '');
     final meses =
         (_fin.year - _inicio.year) * 12 + _fin.month - _inicio.month + 1;
-    final sugerido = widget.expediente.valorContratoCop > 0 && meses > 0
-        ? (widget.expediente.valorContratoCop / meses).round()
+    final sugerido = _exp.valorContratoCop > 0 && meses > 0
+        ? (_exp.valorContratoCop / meses).round()
         : 0;
-    _valor = TextEditingController(
-      text: '${p?.valorMensualCop ?? (sugerido > 0 ? sugerido : '')}',
-    );
+    _t('valor', '${p?.valorPeriodoCop ?? (sugerido > 0 ? sugerido : '')}');
+    _t('formaPago', p?.formaPago ?? '');
+    _t('sectorial', p?.sectorial ?? _exp.dependencia);
+    _t('cdpNum', p?.cdp.numero ?? '');
+    _t('cdpValor', (p?.cdp.valorCop ?? 0) > 0 ? '${p!.cdp.valorCop}' : '');
+    _t('rpNum', p?.rp.numero ?? '');
+    _t('rpValor', (p?.rp.valorCop ?? 0) > 0 ? '${p!.rp.valorCop}' : '');
+    _fechaCdp = p?.cdp.fechaIso;
+    _fechaRp = p?.rp.fechaIso;
     final previas = p?.obligaciones ?? const <ObligacionContractual>[];
     _obligaciones = [
       for (final o in previas) TextEditingController(text: o.texto),
@@ -60,37 +75,101 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
       _obligaciones.add(TextEditingController());
       _ids.add(_nuevoId());
     }
+    if (p != null) {
+      _aplicarPlantilla(p.plantilla);
+    } else {
+      _cargarPlantilla();
+    }
     _cargarEquipo();
+  }
+
+  void _aplicarPlantilla(PlantillaInforme p) {
+    _plantilla = p;
+    for (final e in p.etapas) {
+      _t('etNombre:${e.id}', e.responsableNombre).text = e.responsableNombre;
+      _t('etEmail:${e.id}', e.responsableEmail).text = e.responsableEmail;
+    }
+    if (!p.quincenalHabilitado) _periodicidad = Periodicidad.mensual;
+  }
+
+  Future<void> _cargarPlantilla() async {
+    final p = await SupervisionService.plantillaDelEquipo(
+      entidad: _exp.entidadNombre,
+    );
+    if (!mounted) return;
+    setState(() {
+      // Conserva los responsables que ya estaban escritos para etapas iguales.
+      final previos = {
+        for (final e in _plantilla?.etapas ?? const <EtapaAprobacion>[])
+          e.id: e,
+      };
+      _aplicarPlantilla(
+        p.copyWith(
+          etapas: [
+            for (final e in p.etapas)
+              previos[e.id] == null
+                  ? e
+                  : e.copyWith(
+                      responsableNombre: previos[e.id]!.responsableNombre,
+                      responsableEmail: previos[e.id]!.responsableEmail,
+                    ),
+          ],
+        ),
+      );
+    });
   }
 
   Future<void> _cargarEquipo() async {
     if (!EquipoJuridicoService.esMaster) return;
     try {
       final lista = await EquipoJuridicoService.listarMiembros();
-      if (mounted) setState(() => _equipo = lista);
+      if (mounted) {
+        setState(
+          () => _equipo = lista.where((m) => m.estado == 'activo').toList(),
+        );
+      }
     } catch (_) {}
   }
 
   @override
   void dispose() {
-    for (final c in [_supervisor, _correo, _valor, ..._obligaciones]) {
+    for (final c in [..._c.values, ..._obligaciones]) {
       c.dispose();
     }
     super.dispose();
   }
 
-  Future<void> _elegirFecha(bool inicio) async {
+  int _n(String clave) =>
+      int.tryParse(_t(clave).text.replaceAll(RegExp(r'\D'), '')) ?? 0;
+
+  Future<void> _elegirFecha(String cual) async {
+    final inicial = switch (cual) {
+      'inicio' => _inicio,
+      'fin' => _fin,
+      'cdp' => DateTime.tryParse(_fechaCdp ?? '') ?? DateTime.now(),
+      _ => DateTime.tryParse(_fechaRp ?? '') ?? DateTime.now(),
+    };
     final f = await showDatePicker(
       context: context,
-      initialDate: inicio ? _inicio : _fin,
+      initialDate: inicial,
       firstDate: DateTime(2020),
       lastDate: DateTime(2035),
-      helpText: inicio ? 'Fecha de inicio' : 'Fecha de terminación',
     );
-    if (f != null) setState(() => inicio ? _inicio = f : _fin = f);
+    if (f == null) return;
+    setState(() {
+      switch (cual) {
+        case 'inicio':
+          _inicio = f;
+        case 'fin':
+          _fin = f;
+        case 'cdp':
+          _fechaCdp = fechaIsoCorta(f);
+        default:
+          _fechaRp = fechaIsoCorta(f);
+      }
+    });
   }
 
-  /// Pega varias obligaciones a la vez (una por línea).
   Future<void> _pegarVarias() async {
     final c = TextEditingController();
     final ok = await showDialog<bool>(
@@ -99,10 +178,10 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
         backgroundColor: Colors.white,
         title: const Text('Pegar obligaciones'),
         content: SizedBox(
-          width: 520,
+          width: 560,
           child: TextField(
             controller: c,
-            maxLines: 12,
+            maxLines: 14,
             decoration: decoracionCampo(
               'Una obligación por línea',
               ayuda: 'Cópialas de la cláusula de obligaciones específicas del contrato.',
@@ -148,24 +227,20 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
   }
 
   Future<void> _guardar() async {
-    final obligaciones = [
-      for (final (i, c) in _obligaciones.indexed)
-        if (c.text.trim().isNotEmpty)
-          ObligacionContractual(id: _ids[i], texto: c.text.trim()),
-    ];
-    if (_supervisor.text.trim().isEmpty || !_correo.text.contains('@')) {
+    final plantilla = _plantilla;
+    if (plantilla == null) return;
+    if (_t('supNombre').text.trim().isEmpty) {
       mensajeSupervision(
         context,
-        'Indica el nombre y el correo del supervisor.',
+        'Indica el nombre del supervisor.',
         error: true,
       );
       return;
     }
-    final valor = int.tryParse(_valor.text.replaceAll(RegExp(r'\D'), '')) ?? 0;
-    if (valor <= 0) {
+    if (_n('valor') <= 0) {
       mensajeSupervision(
         context,
-        'Indica el valor mensual de los honorarios.',
+        'Indica el valor que se cobra en cada periodo.',
         error: true,
       );
       return;
@@ -173,15 +248,41 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
     setState(() => _guardando = true);
     try {
       await SupervisionService.guardarPlan(
-        widget.expediente,
+        _exp,
         PlanSupervision(
-          supervisorNombre: _supervisor.text,
-          supervisorEmail: _correo.text,
+          supervisorNombre: _t('supNombre').text,
+          supervisorEmail: _t('supEmail').text,
           fechaInicio: _inicio,
           fechaFin: _fin,
-          valorMensualCop: valor,
+          periodicidad: _periodicidad,
+          valorPeriodoCop: _n('valor'),
+          formaPago: _t('formaPago').text,
+          sectorial: _t('sectorial').text,
           claseRiesgo: _riesgo,
-          obligaciones: obligaciones,
+          cdp: DatoPresupuestal(
+            numero: _t('cdpNum').text.trim(),
+            fechaIso: _fechaCdp ?? '',
+            valorCop: _n('cdpValor'),
+          ),
+          rp: DatoPresupuestal(
+            numero: _t('rpNum').text.trim(),
+            fechaIso: _fechaRp ?? '',
+            valorCop: _n('rpValor'),
+          ),
+          obligaciones: [
+            for (final (i, c) in _obligaciones.indexed)
+              if (c.text.trim().isNotEmpty)
+                ObligacionContractual(id: _ids[i], texto: c.text.trim()),
+          ],
+          plantilla: plantilla.copyWith(
+            etapas: [
+              for (final e in plantilla.etapas)
+                e.copyWith(
+                  responsableNombre: _t('etNombre:${e.id}').text.trim(),
+                  responsableEmail: _t('etEmail:${e.id}').text.trim(),
+                ),
+            ],
+          ),
         ),
       );
       if (!mounted) return;
@@ -194,17 +295,10 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
     }
   }
 
-  String _f(DateTime d) => '${d.day}/${d.month}/${d.year}';
-
   @override
   Widget build(BuildContext context) {
     final mobile = MediaQuery.sizeOf(context).width < 760;
-    final valor = int.tryParse(_valor.text.replaceAll(RegExp(r'\D'), '')) ?? 0;
-    final aporte = AporteEsperado.calcular(
-      valorMensualCop: valor,
-      claseRiesgo: _riesgo,
-      anio: _inicio.year,
-    );
+    final plantilla = _plantilla;
     Widget par(Widget a, Widget b) => mobile
         ? Column(children: [a, const SizedBox(height: 14), b])
         : Row(
@@ -215,9 +309,46 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
               Expanded(child: b),
             ],
           );
+    Widget fecha(String etiqueta, DateTime? f, String cual) =>
+        OutlinedButton.icon(
+          onPressed: () => _elegirFecha(cual),
+          style: EstiloContractual.botonSecundario(),
+          icon: const Icon(Icons.event_rounded, size: 18),
+          label: Text(
+            '$etiqueta: ${f == null ? 'sin fecha' : fechaNumerica(f)}',
+            style: EstiloContractual.etiquetaBoton,
+          ),
+        );
+    Widget dinero(String clave, String etiqueta) => TextField(
+      controller: _t(clave),
+      keyboardType: TextInputType.number,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      onChanged: (_) => setState(() {}),
+      decoration: decoracionCampo(etiqueta, prefijo: '\$ '),
+    );
+
+    final valor = _n('valor');
+    final aporte = AporteEsperado.calcular(
+      valorMensualCop: _periodicidad == Periodicidad.quincenal
+          ? valor * 2
+          : valor,
+      claseRiesgo: _riesgo,
+      anio: _inicio.year,
+    );
+    final periodos = PlanSupervision(
+      supervisorNombre: '',
+      supervisorEmail: '',
+      fechaInicio: _inicio,
+      fechaFin: _fin,
+      periodicidad: _periodicidad,
+      valorPeriodoCop: valor,
+      claseRiesgo: _riesgo,
+      obligaciones: const [],
+      plantilla: plantilla ?? PlantillaInforme.porDefecto(''),
+    ).periodos;
 
     return PantallaContractual(
-      anchoMaximo: 900,
+      anchoMaximo: 920,
       children: [
         Align(
           alignment: Alignment.centerLeft,
@@ -233,250 +364,328 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
         ),
         const SizedBox(height: 6),
         Text(
-          'Contrato ${widget.expediente.numeroContrato} · ${widget.expediente.contratistaNombreEsperado}',
+          'Contrato ${_exp.numeroContrato} · ${_exp.contratistaNombreEsperado}',
           style: EstiloContractual.subtitulo,
         ),
         const SizedBox(height: 20),
-        TarjetaSupervision(
-          titulo: 'Supervisor',
-          subtitulo:
-              'Quien aprueba cada informe y firma el certificado de cumplimiento. '
-              'Debe ingresar a Contrata Legal con este correo.',
-          icono: Icons.verified_user_outlined,
-          children: [
-            if (_equipo.isNotEmpty) ...[
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final m in _equipo.where((m) => m.estado == 'activo'))
-                    ActionChip(
-                      avatar: const Icon(
-                        Icons.person_outline_rounded,
-                        size: 16,
-                      ),
-                      label: Text(m.nombre),
-                      onPressed: () => setState(() {
-                        _supervisor.text = m.nombre;
-                        _correo.text = m.email;
-                      }),
-                    ),
-                ],
+        if (plantilla == null)
+          const Padding(
+            padding: EdgeInsets.all(40),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else ...[
+          TarjetaSupervision(
+            titulo: 'Periodos de los informes',
+            subtitulo: 'El contratista reporta un informe por periodo; cada uno vence su último día.',
+            icono: Icons.event_note_rounded,
+            children: [
+              par(
+                fecha('Inicio', _inicio, 'inicio'),
+                fecha('Terminación', _fin, 'fin'),
               ),
-              const SizedBox(height: 12),
-            ],
-            par(
-              TextField(
-                controller: _supervisor,
-                decoration: decoracionCampo('Nombre del supervisor'),
-              ),
-              TextField(
-                controller: _correo,
-                keyboardType: TextInputType.emailAddress,
-                decoration: decoracionCampo('Correo del supervisor'),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        TarjetaSupervision(
-          titulo: 'Ejecución y honorarios',
-          subtitulo: 'Con estos datos la app arma los meses del contrato y calcula los aportes mínimos.',
-          icono: Icons.event_note_rounded,
-          children: [
-            par(
-              OutlinedButton.icon(
-                onPressed: () => _elegirFecha(true),
-                style: EstiloContractual.botonSecundario(),
-                icon: const Icon(Icons.event_rounded, size: 18),
-                label: Text(
-                  'Inicio: ${_f(_inicio)}',
-                  style: EstiloContractual.etiquetaBoton,
-                ),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => _elegirFecha(false),
-                style: EstiloContractual.botonSecundario(),
-                icon: const Icon(Icons.event_available_rounded, size: 18),
-                label: Text(
-                  'Terminación: ${_f(_fin)}',
-                  style: EstiloContractual.etiquetaBoton,
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            par(
-              TextField(
-                controller: _valor,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                onChanged: (_) => setState(() {}),
-                decoration: decoracionCampo(
-                  'Honorarios mensuales',
-                  prefijo: '\$ ',
-                ),
-              ),
-              DropdownButtonFormField<int>(
-                initialValue: _riesgo,
-                isExpanded: true,
-                decoration: decoracionCampo(
-                  'Clase de riesgo ARL',
-                  ayuda: 'Riesgo I para labores de oficina. En IV y V la ARL la paga la entidad.',
-                ),
-                items: [
-                  for (final c in tarifaArlPorClase.entries)
-                    DropdownMenuItem(
-                      value: c.key,
-                      child: Text(
-                        'Riesgo ${['I', 'II', 'III', 'IV', 'V'][c.key - 1]} · ${(c.value * 100).toStringAsFixed(3).replaceAll('.', ',')} %',
-                      ),
-                    ),
-                ],
-                onChanged: (v) => setState(() => _riesgo = v ?? 1),
-              ),
-            ),
-            if (valor > 0) ...[
               const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF0F9FF),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFBAE6FD)),
-                ),
-                child: Wrap(
-                  spacing: 26,
-                  runSpacing: 10,
-                  children: [
-                    DatoSupervision('IBC mínimo', formatoCop(aporte.ibc)),
-                    DatoSupervision('Salud 12,5 %', formatoCop(aporte.salud)),
-                    DatoSupervision('Pensión 16 %', formatoCop(aporte.pension)),
-                    DatoSupervision(
-                      'ARL',
-                      aporte.arlLaPagaLaEntidad
-                          ? 'La paga la entidad'
-                          : formatoCop(aporte.arl),
-                    ),
-                    DatoSupervision(
-                      'Aporte mensual del contratista',
-                      formatoCop(aporte.totalContratista),
-                      color: const Color(0xFF0369A1),
-                    ),
-                  ],
-                ),
+              SegmentedButton<Periodicidad>(
+                segments: [
+                  const ButtonSegment(
+                    value: Periodicidad.mensual,
+                    label: Text('Mensual'),
+                  ),
+                  ButtonSegment(
+                    value: Periodicidad.quincenal,
+                    label: const Text('Quincenal'),
+                    enabled: plantilla.quincenalHabilitado,
+                    tooltip: plantilla.quincenalHabilitado ? null : 'La entidad no tiene habilitados los informes quincenales',
+                  ),
+                ],
+                selected: {_periodicidad},
+                showSelectedIcon: false,
+                onSelectionChanged: (v) =>
+                    setState(() => _periodicidad = v.first),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Text(
-                'IBC: 40 % de los honorarios, mínimo 1 SMMLV (${formatoCop(aporte.smmlv)} en ${_inicio.year}).',
+                '${periodos.length} informes: el primero del ${fechaLegible(periodos.first.desde, conDia: false)} '
+                'al ${fechaLegible(periodos.first.hasta, conDia: false)}.',
                 style: const TextStyle(
                   color: EstiloContractual.gris,
-                  fontSize: 11.8,
+                  fontSize: 12.3,
                 ),
               ),
             ],
-          ],
-        ),
-        const SizedBox(height: 16),
-        TarjetaSupervision(
-          titulo: 'Obligaciones del contrato',
-          subtitulo: 'El contratista describe cada mes qué hizo para cumplir cada una, y el supervisor lo verifica.',
-          icono: Icons.checklist_rounded,
-          accion: TextButton.icon(
-            onPressed: _pegarVarias,
-            icon: const Icon(Icons.content_paste_rounded, size: 17),
-            label: const Text('Pegar varias'),
-            style: TextButton.styleFrom(
-              foregroundColor: EstiloContractual.navy,
-            ),
           ),
-          children: [
-            for (final (i, c) in _obligaciones.indexed)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      margin: const EdgeInsets.only(top: 12),
-                      width: 26,
-                      height: 26,
-                      alignment: Alignment.center,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFF1F5F9),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        '${i + 1}',
-                        style: const TextStyle(
-                          color: EstiloContractual.navy,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
+          const SizedBox(height: 16),
+          TarjetaSupervision(
+            titulo: 'Valor, presupuesto y aportes',
+            icono: Icons.payments_outlined,
+            children: [
+              par(
+                dinero('valor', 'Valor que se cobra por periodo'),
+                DropdownButtonFormField<int>(
+                  initialValue: _riesgo,
+                  isExpanded: true,
+                  decoration: decoracionCampo(
+                    'Clase de riesgo ARL',
+                    ayuda: 'Riesgo I para labores de oficina. En IV y V la ARL la paga la entidad.',
+                  ),
+                  items: [
+                    for (final c in tarifaArlPorClase.entries)
+                      DropdownMenuItem(
+                        value: c.key,
+                        child: Text(
+                          'Riesgo ${['I', 'II', 'III', 'IV', 'V'][c.key - 1]} · ${(c.value * 100).toStringAsFixed(3).replaceAll('.', ',')} %',
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextField(
-                        controller: c,
-                        minLines: 1,
-                        maxLines: 4,
-                        decoration: decoracionCampo('Obligación ${i + 1}'),
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Quitar',
-                      onPressed: _obligaciones.length == 1
-                          ? null
-                          : () => setState(() {
-                              _obligaciones.removeAt(i).dispose();
-                              _ids.removeAt(i);
-                            }),
-                      icon: const Icon(
-                        Icons.close_rounded,
-                        color: EstiloContractual.gris,
-                      ),
-                    ),
                   ],
+                  onChanged: (v) => setState(() => _riesgo = v ?? 1),
                 ),
               ),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: () => setState(() {
-                  _obligaciones.add(TextEditingController());
-                  _ids.add(_nuevoId());
-                }),
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Agregar obligación'),
-                style: TextButton.styleFrom(
-                  foregroundColor: EstiloContractual.navy,
+              if (valor > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Aporte mínimo mensual del contratista: ${formatoCop(aporte.totalContratista())} (IBC ${formatoCop(aporte.ibc)}).',
+                    style: const TextStyle(
+                      color: Color(0xFF0369A1),
+                      fontSize: 12.6,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _t('formaPago'),
+                minLines: 2,
+                maxLines: 5,
+                decoration: decoracionCampo(
+                  'Forma de pago',
+                  ayuda: 'Como dice la cláusula del contrato. Sale en el informe de supervisión.',
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _t('sectorial'),
+                decoration: decoracionCampo('Dependencia o sectorial'),
+              ),
+              const SizedBox(height: 14),
+              par(
+                TextField(
+                  controller: _t('cdpNum'),
+                  decoration: decoracionCampo('CDP N.º'),
+                ),
+                par(
+                  fecha('Fecha CDP', DateTime.tryParse(_fechaCdp ?? ''), 'cdp'),
+                  dinero('cdpValor', 'Valor CDP'),
+                ),
+              ),
+              const SizedBox(height: 14),
+              par(
+                TextField(
+                  controller: _t('rpNum'),
+                  decoration: decoracionCampo(
+                    'RP N.º',
+                    ayuda: 'Si aún no existe, déjalo vacío.',
+                  ),
+                ),
+                par(
+                  fecha('Fecha RP', DateTime.tryParse(_fechaRp ?? ''), 'rp'),
+                  dinero('rpValor', 'Valor RP'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          TarjetaSupervision(
+            titulo: 'Quién aprueba el informe',
+            subtitulo:
+                'La cadena de la entidad: cada etapa aprueba o devuelve en este orden. Los responsables deben ser '
+                'del equipo y entrar con este correo.',
+            icono: Icons.alt_route_rounded,
+            accion: TextButton.icon(
+              onPressed: () async {
+                final cambio = await Navigator.push<bool>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        PlantillaInformeScreen(entidad: _exp.entidadNombre),
+                  ),
+                );
+                if (cambio == true) await _cargarPlantilla();
+              },
+              icon: const Icon(Icons.tune_rounded, size: 17),
+              label: const Text('Plantilla de la entidad'),
+              style: TextButton.styleFrom(
+                foregroundColor: EstiloContractual.navy,
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 20),
-        Align(
-          alignment: Alignment.centerRight,
-          child: FilledButton.icon(
-            onPressed: _guardando ? null : _guardar,
-            style: EstiloContractual.botonPrincipal(),
-            icon: _guardando
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Icon(Icons.save_outlined, size: 18),
-            label: const Text(
-              'Guardar supervisión',
-              style: EstiloContractual.etiquetaBoton,
+            children: [
+              for (final (i, e) in plantilla.etapas.indexed) ...[
+                Text(
+                  '${i + 1}. ${e.nombre}',
+                  style: const TextStyle(
+                    color: EstiloContractual.navy,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (_equipo.isNotEmpty) ...[
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final m in _equipo)
+                        ActionChip(
+                          label: Text(
+                            m.nombre,
+                            style: const TextStyle(fontSize: 12.3),
+                          ),
+                          onPressed: () => setState(() {
+                            _t('etNombre:${e.id}').text = m.nombre;
+                            _t('etEmail:${e.id}').text = m.email;
+                          }),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                par(
+                  TextField(
+                    controller: _t('etNombre:${e.id}'),
+                    decoration: decoracionCampo('Nombre del responsable'),
+                  ),
+                  TextField(
+                    controller: _t('etEmail:${e.id}'),
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: decoracionCampo('Correo del responsable'),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+              const Divider(height: 1),
+              const SizedBox(height: 14),
+              const Text(
+                'Supervisor del contrato (firma el informe de supervisión)',
+                style: TextStyle(
+                  color: EstiloContractual.navy,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              par(
+                TextField(
+                  controller: _t('supNombre'),
+                  decoration: decoracionCampo('Nombre del supervisor'),
+                ),
+                TextField(
+                  controller: _t('supEmail'),
+                  decoration: decoracionCampo('Correo (opcional)'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          TarjetaSupervision(
+            titulo: 'Obligaciones del contrato',
+            subtitulo: 'El contratista describe en cada informe qué hizo para cumplir cada una.',
+            icono: Icons.checklist_rounded,
+            accion: TextButton.icon(
+              onPressed: _pegarVarias,
+              icon: const Icon(Icons.content_paste_rounded, size: 17),
+              label: const Text('Pegar varias'),
+              style: TextButton.styleFrom(
+                foregroundColor: EstiloContractual.navy,
+              ),
+            ),
+            children: [
+              for (final (i, c) in _obligaciones.indexed)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.only(top: 12),
+                        width: 26,
+                        height: 26,
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFF1F5F9),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '${i + 1}',
+                          style: const TextStyle(
+                            color: EstiloContractual.navy,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: c,
+                          minLines: 1,
+                          maxLines: 5,
+                          decoration: decoracionCampo('Obligación ${i + 1}'),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Quitar',
+                        onPressed: _obligaciones.length == 1
+                            ? null
+                            : () => setState(() {
+                                _obligaciones.removeAt(i).dispose();
+                                _ids.removeAt(i);
+                              }),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: EstiloContractual.gris,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => setState(() {
+                    _obligaciones.add(TextEditingController());
+                    _ids.add(_nuevoId());
+                  }),
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Agregar obligación'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: EstiloContractual.navy,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton.icon(
+              onPressed: _guardando ? null : _guardar,
+              style: EstiloContractual.botonPrincipal(),
+              icon: _guardando
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.save_outlined, size: 18),
+              label: const Text(
+                'Guardar supervisión',
+                style: EstiloContractual.etiquetaBoton,
+              ),
             ),
           ),
-        ),
+        ],
         const SizedBox(height: 30),
       ],
     );

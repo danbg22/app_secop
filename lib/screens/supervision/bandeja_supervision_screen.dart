@@ -1,11 +1,10 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../services/juridico_contratacion_service.dart';
 import '../../services/supervision_service.dart';
 import '../gestion_contractual/estilo_contractual.dart';
 import 'componentes_supervision.dart';
-import 'revision_informe_screen.dart';
+import 'revision_supervisor_screen.dart';
 import 'supervision_contrato_screen.dart';
 
 /// Bandeja de supervisión del equipo: informes de todos los contratos
@@ -22,8 +21,8 @@ class BandejaSupervisionScreen extends StatefulWidget {
 
 enum _Filtro {
   meToca('Me toca'),
-  porRevisar('Por revisar'),
-  porAprobar('Por aprobar'),
+  porRevisar('En revisión'),
+  porAprobar('Última etapa'),
   devueltos('Devueltos'),
   aprobados('Aprobados'),
   pagados('Pagados');
@@ -39,19 +38,23 @@ class _BandejaSupervisionScreenState extends State<BandejaSupervisionScreen> {
   String _buscar = '';
 
   bool _meToca(InformeEnBandeja i) => switch (i.informe.estado) {
-    EstadoInforme.enviado => SupervisionService.puedeRevisar(i.expediente),
-    EstadoInforme.revisado => SupervisionService.puedeAprobar(
+    EstadoInforme.enRevision => SupervisionService.puedeDecidir(
       i.expediente,
       i.plan,
+      i.informe,
     ),
-    EstadoInforme.aprobado => SupervisionService.puedeRevisar(i.expediente),
+    EstadoInforme.aprobado => SupervisionService.puedeRegistrarPago(
+      i.expediente,
+    ),
     _ => false,
   };
 
   bool _pasa(InformeEnBandeja i, _Filtro f) => switch (f) {
     _Filtro.meToca => _meToca(i),
-    _Filtro.porRevisar => i.informe.estado == EstadoInforme.enviado,
-    _Filtro.porAprobar => i.informe.estado == EstadoInforme.revisado,
+    _Filtro.porRevisar => i.informe.estado == EstadoInforme.enRevision,
+    _Filtro.porAprobar =>
+      i.informe.estado == EstadoInforme.enRevision &&
+          i.informe.etapaActual >= i.plan.etapas.length - 1,
     _Filtro.devueltos => i.informe.estado == EstadoInforme.devuelto,
     _Filtro.aprobados => i.informe.estado == EstadoInforme.aprobado,
     _Filtro.pagados => i.informe.estado == EstadoInforme.pagado,
@@ -83,11 +86,11 @@ class _BandejaSupervisionScreenState extends State<BandejaSupervisionScreen> {
               (i) =>
                   q.isEmpty ||
                   _norm(
-                    '${i.expediente.contratistaNombreEsperado} ${i.expediente.numeroContrato} ${nombrePeriodo(i.informe.periodo)}',
+                    '${i.expediente.contratistaNombreEsperado} ${i.expediente.numeroContrato} informe ${i.informe.numero}',
                   ).contains(q),
             )
             .toList();
-        final email = FirebaseAuth.instance.currentUser?.email ?? '';
+        final email = SupervisionService.emailActual;
 
         return PantallaContractual(
           anchoMaximo: 1120,
@@ -246,13 +249,13 @@ class _BandejaSupervisionScreenState extends State<BandejaSupervisionScreen> {
                       _FilaInforme(
                         item: i,
                         meToca: _meToca(i),
-                        soySupervisor: i.plan.esSupervisor(email),
+                        soySupervisor: i.etapa?.esResponsable(email) ?? false,
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute<void>(
-                            builder: (_) => RevisionInformeScreen(
+                            builder: (_) => RevisionSupervisorScreen(
                               expediente: i.expediente,
-                              periodo: i.informe.periodo,
+                              informeId: i.informe.id,
                             ),
                           ),
                         ),
@@ -392,7 +395,8 @@ class _FilaInforme extends StatelessWidget {
           ),
         ),
         Text(
-          'Contrato ${e.numeroContrato} · ${nombrePeriodo(inf.periodo)}',
+          'Contrato ${e.numeroContrato} · informe N.º ${inf.numero}'
+          '${item.etapa == null ? '' : ' · ${item.etapa!.nombre}'}',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(color: EstiloContractual.gris, fontSize: 12.3),
@@ -475,8 +479,7 @@ class _FilaInforme extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   ChipEstadoInforme(inf.estado),
-                                  if (inf.estado == EstadoInforme.enviado ||
-                                      inf.estado == EstadoInforme.revisado)
+                                  if (inf.estado == EstadoInforme.enRevision)
                                     Padding(
                                       padding: const EdgeInsets.only(top: 3),
                                       child: Text(
@@ -502,7 +505,8 @@ class _FilaInforme extends StatelessWidget {
                     padding: const EdgeInsets.only(left: 8),
                     child: EtiquetaColor(
                       texto:
-                          soySupervisor && inf.estado == EstadoInforme.revisado
+                          soySupervisor &&
+                              inf.estado == EstadoInforme.enRevision
                           ? 'Tu aprobación'
                           : 'Te toca',
                       color: const Color(0xFFB45309),

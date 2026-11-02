@@ -47,6 +47,7 @@ dependencies:
   google_sign_in: ^7.2.0
   firebase_ai: ^4.0.0
   firebase_app_check: ^0.4.9
+  pdf: ^3.13.1
 
 dev_dependencies:
   flutter_test:

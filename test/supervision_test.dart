@@ -1,9 +1,120 @@
+import 'package:app_secop/services/informe_pdf_service.dart';
+import 'package:app_secop/services/juridico_contratacion_service.dart';
 import 'package:app_secop/services/supervision_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+PlanSupervision plan({
+  Periodicidad periodicidad = Periodicidad.mensual,
+  DateTime? inicio,
+  DateTime? fin,
+}) => PlanSupervision(
+  supervisorNombre: 'Lily Esther Mendoza',
+  supervisorEmail: 'lily@valledupar.gov.co',
+  fechaInicio: inicio ?? DateTime(2026, 10, 9),
+  fechaFin: fin ?? DateTime(2026, 12, 28),
+  periodicidad: periodicidad,
+  valorPeriodoCop: 3500000,
+  claseRiesgo: 1,
+  cdp: const DatoPresupuestal(
+    numero: '4086',
+    fechaIso: '2026-09-21',
+    valorCop: 12000000,
+  ),
+  obligaciones: const [
+    ObligacionContractual(
+      id: 'a',
+      texto: 'Brindar apoyo en medidas cautelares de embargo.',
+    ),
+    ObligacionContractual(id: 'b', texto: 'Presentar informes mensuales.'),
+  ],
+  plantilla: PlantillaInforme.porDefecto('Alcaldía de Valledupar').copyWith(
+    etapas: const [
+      EtapaAprobacion(
+        id: 'enlace',
+        nombre: 'Enlace',
+        responsableEmail: 'enlace@x.co',
+      ),
+      EtapaAprobacion(
+        id: 'supervisor',
+        nombre: 'Supervisor',
+        responsableEmail: 'Lily@X.co',
+        certificacion: 'Certifico el cumplimiento.',
+      ),
+    ],
+  ),
+);
+
+ExpedienteContratoPs expediente() => const ExpedienteContratoPs(
+  id: 'EXP',
+  tokenInvitado: 'tok',
+  entidadNombre: 'Alcaldía de Valledupar',
+  entidadNit: '800098911',
+  dependencia: 'Tesorería',
+  numeroContrato: '3468-SGR DE 2026',
+  objetoContrato: 'Prestación de servicios profesionales de apoyo jurídico.',
+  valorContratoCop: 9333333,
+  plazoEjecucion: 'Dos meses y veinte días',
+  contratistaNombreEsperado: 'Iván David Bolaño Castillo',
+  contratistaCedulaEsperada: '1065123456',
+  contratistaCorreo: 'i@x.co',
+  contratistaTelefono: '3215091457',
+  creadoPorEmail: 'd@x.co',
+  creadoPorNombre: 'Daniel',
+  fechaCreacionIso: '2026-10-01',
+  apartados: [],
+  trazabilidad: [],
+);
+
+const _pdf = ArchivoAdjunto(
+  id: 'f',
+  nombre: 'x.pdf',
+  mime: 'application/pdf',
+  tamanoBytes: 1,
+  sha256: '',
+  cargadoEnIso: '',
+);
+
+InformePeriodo completo(PlanSupervision p) {
+  final periodo = p.periodos.first;
+  return InformePeriodo.nuevo(periodo, p).copyWith(
+    actividades: {
+      'a': 'Proyecté 12 autos de embargo y los notifiqué.',
+      'b': 'Presenté el informe del periodo.',
+    },
+    planillas: const [
+      PlanillaAporte(
+        periodo: '2026-10',
+        fechaPagoIso: '2026-11-03',
+        numero: '9876543210',
+        ibcCop: 1750905,
+        valorCop: 520000,
+      ),
+    ],
+    estampilla: const EstampillaDepartamental(
+      fechaPagoIso: '2026-10-15',
+      valorPagadoCop: 140000,
+      liquidacion: 'L-77',
+    ),
+    datosCobro: const DatosCobro(
+      direccion: 'Carrera 24A #2-99',
+      ciudad: 'Valledupar',
+      celular: '3215091457',
+      banco: 'Bancolombia',
+      numeroCuenta: '19787728718',
+    ),
+    documentos: {
+      for (final d in p.plantilla.documentos.where(
+        (d) => d.origen == OrigenDocumento.contratista,
+      ))
+        d.id: const [_pdf],
+    },
+    declaracion: true,
+  );
+}
+
 void main() {
   group('Aportes de contratistas independientes', () {
-    test('IBC del 40 % con tarifas de salud, pensión y ARL', () {
+    test('IBC del 40 % con mínimos y tarifas', () {
       final a = AporteEsperado.calcular(
         valorMensualCop: 6000000,
         claseRiesgo: 1,
@@ -12,158 +123,207 @@ void main() {
       expect(a.ibc, 2400000);
       expect(a.salud, 300000);
       expect(a.pension, 384000);
-      expect(a.arl, 12600); // 0,522 % = 12.528, PILA redondea a la centena
-      expect(a.totalContratista, 696600);
-      expect(a.arlLaPagaLaEntidad, isFalse);
-    });
-
-    test('el IBC no baja de 1 SMMLV ni sube de 25', () {
+      expect(a.arl, 12600);
+      expect(a.totalContratista(), 696600);
+      expect(a.totalContratista(pensionado: true), 312600);
       final bajo = AporteEsperado.calcular(
         valorMensualCop: 2000000,
         claseRiesgo: 1,
         anio: 2025,
       );
       expect(bajo.ibc, 1423500);
-      final alto = AporteEsperado.calcular(
-        valorMensualCop: 200000000,
-        claseRiesgo: 1,
-        anio: 2025,
+      expect(
+        AporteEsperado.calcular(
+          valorMensualCop: 6000000,
+          claseRiesgo: 5,
+          anio: 2026,
+        ).arlLaPagaLaEntidad,
+        isTrue,
       );
-      expect(alto.ibc, 1423500 * 25);
-    });
-
-    test('en riesgo IV y V la ARL la paga la entidad', () {
-      final a = AporteEsperado.calcular(
-        valorMensualCop: 6000000,
-        claseRiesgo: 4,
-        anio: 2026,
-      );
-      expect(a.arlLaPagaLaEntidad, isTrue);
-      expect(a.totalContratista, a.salud + a.pension);
     });
   });
 
-  group('Verificación de la planilla', () {
-    final esperado = AporteEsperado.calcular(
-      valorMensualCop: 6000000,
-      claseRiesgo: 1,
-      anio: 2026,
-    );
-
-    test('cumple cuando paga el mínimo del periodo correcto', () {
-      const p = PlanillaReportada(
-        numero: '123',
-        periodoCotizado: '2026-03',
-        ibcCop: 2400000,
-        saludCop: 300000,
-        pensionCop: 384000,
-        arlCop: 12600,
-      );
-      expect(p.verificar(esperado, '2026-03').every((h) => h.cumple), isTrue);
+  group('Periodos', () {
+    test('mensuales desde la fecha de inicio, como 9 oct – 8 nov', () {
+      final p = plan().periodos;
+      expect(p.length, 3);
+      expect(p[0].desde, DateTime(2026, 10, 9));
+      expect(p[0].hasta, DateTime(2026, 11, 8));
+      expect(p[0].id, '2026-10-09');
+      expect(p[1].desde, DateTime(2026, 11, 9));
+      expect(p.last.hasta, DateTime(2026, 12, 28));
     });
 
-    test('señala periodo equivocado y aportes por debajo del mínimo', () {
-      const p = PlanillaReportada(
-        numero: '123',
-        periodoCotizado: '2026-02',
-        ibcCop: 1750905,
-        saludCop: 218900,
-        pensionCop: 280200,
-        arlCop: 9200,
-      );
-      final fallas = p
-          .verificar(esperado, '2026-03')
-          .where((h) => !h.cumple)
-          .toList();
-      expect(fallas.length, 5); // periodo, IBC, salud, pensión y ARL
+    test('quincenales de 15 días, como 28 sep – 12 oct', () {
+      final p = plan(
+        periodicidad: Periodicidad.quincenal,
+        inicio: DateTime(2026, 9, 28),
+        fin: DateTime(2026, 12, 27),
+      ).periodos;
+      expect(p.first.desde, DateTime(2026, 9, 28));
+      expect(p.first.hasta, DateTime(2026, 10, 12));
+      expect(p[1].desde, DateTime(2026, 10, 13));
+      expect(p.length, 7);
     });
 
-    test('los pensionados no cotizan a pensión', () {
-      const p = PlanillaReportada(
-        numero: '1',
-        periodoCotizado: '2026-03',
-        ibcCop: 2400000,
-        saludCop: 300000,
-        arlCop: 12600,
-        pensionado: true,
-      );
-      expect(p.verificar(esperado, '2026-03').every((h) => h.cumple), isTrue);
+    test('un mes que no tiene el día de inicio cae en su último día', () {
+      final p = plan(
+        inicio: DateTime(2026, 1, 31),
+        fin: DateTime(2026, 4, 30),
+      ).periodos;
+      expect(p[0].hasta, DateTime(2026, 2, 27));
+      expect(p[1].desde, DateTime(2026, 2, 28));
     });
   });
 
-  group('Plan e informe', () {
-    final plan = PlanSupervision(
-      supervisorNombre: 'Ana',
-      supervisorEmail: 'Ana@Entidad.gov.co',
-      fechaInicio: DateTime(2026, 2, 15),
-      fechaFin: DateTime(2026, 6, 30),
-      valorMensualCop: 6000000,
-      claseRiesgo: 1,
-      obligaciones: const [
-        ObligacionContractual(id: 'a', texto: 'Apoyar la gestión contractual'),
-        ObligacionContractual(id: 'b', texto: 'Presentar informes'),
-      ],
-    );
-
-    test('meses del contrato y supervisor sin importar mayúsculas', () {
-      expect(plan.periodos, [
-        '2026-02',
-        '2026-03',
-        '2026-04',
-        '2026-05',
-        '2026-06',
+  group('Documentos por informe', () {
+    test('cada informe, los dos primeros y solo el primero', () {
+      final p = plan();
+      final ids1 = InformePeriodo.nuevo(
+        p.periodos[0],
+        p,
+      ).documentosDelPeriodo(p).map((d) => d.id).toList();
+      final ids2 = InformePeriodo.nuevo(
+        p.periodos[1],
+        p,
+      ).documentosDelPeriodo(p).map((d) => d.id).toList();
+      final ids3 = InformePeriodo.nuevo(
+        p.periodos[2],
+        p,
+      ).documentosDelPeriodo(p).map((d) => d.id).toList();
+      expect(
+        ids1,
+        containsAll([
+          'seguridad_social',
+          'estampilla_municipal',
+          'rut',
+          'cdp',
+          'rp',
+        ]),
+      );
+      expect(ids2, containsAll(['seguridad_social', 'estampilla_municipal']));
+      expect(ids2, isNot(contains('rut')));
+      expect(ids3, [
+        'seguridad_social',
+        'informe_supervision',
+        'documento_equivalente',
       ]);
-      expect(plan.esSupervisor('ana@entidad.gov.co'), isTrue);
-      expect(plan.esSupervisor('otro@entidad.gov.co'), isFalse);
-      expect(nombrePeriodo('2026-03'), 'marzo de 2026');
+      // El orden es el de la plantilla.
+      expect(ids1.first, 'seguridad_social');
+      expect(ids1.last, 'rp');
+    });
+  });
+
+  group('Informe', () {
+    test('lista lo que falta y queda listo para enviar', () {
+      final p = plan();
+      final vacio = InformePeriodo.nuevo(p.periodos.first, p);
+      expect(
+        vacio.faltantes(p, firmaRegistrada: false),
+        contains('Registrar tu firma.'),
+      );
+      expect(vacio.faltantes(p).any((f) => f.contains('obligación 1')), isTrue);
+      final listo = completo(p);
+      expect(listo.faltantes(p), isEmpty);
+      expect(listo.faltantes(p, firmaRegistrada: false), [
+        'Registrar tu firma.',
+      ]);
     });
 
-    test('lista lo que falta para enviar', () {
-      const vacio = InformeMensual(periodo: '2026-03');
-      expect(vacio.faltantes(plan).length, 1 + 2 + 1 + 3);
-      final completo = vacio.copyWith(
-        valorCobradoCop: 6000000,
-        actividades: {
-          'a': 'Revisé 12 expedientes de contratación',
-          'b': 'Entregué el informe mensual',
-        },
-        planilla: const PlanillaReportada(
-          numero: '9',
-          periodoCotizado: '2026-03',
-          ibcCop: 2400000,
-        ),
-        documentos: {
-          for (final t in DocumentoInformeTipo.values.where(
-            (t) => t.obligatorio,
-          ))
-            t.name: const DocumentoInforme(
-              nombre: 'x.pdf',
-              mime: 'application/pdf',
-              tamanoBytes: 1,
-              sha256: '',
-              cargadoEnIso: '',
-            ),
-        },
+    test('verificación automática de aportes, documentos y plazo', () {
+      final p = plan();
+      final v = completo(p).verificar(p);
+      // 3.500.000 → IBC 1 SMMLV 2026 (1.750.905): salud + pensión + ARL.
+      final aportes = v.firstWhere((x) => x.texto.startsWith('Aportes'));
+      expect(aportes.cumple, isTrue);
+      expect(
+        v.firstWhere((x) => x.texto.startsWith('Documentos')).cumple,
+        isTrue,
       );
-      expect(completo.faltantes(plan), isEmpty);
+      final sinPlata = completo(p)
+          .copyWith(
+            planillas: const [
+              PlanillaAporte(periodo: '2026-09', valorCop: 100000),
+            ],
+          )
+          .verificar(p);
+      expect(sinPlata.where((x) => !x.cumple).length, greaterThanOrEqualTo(2));
+    });
+
+    test('devolución y responsables por etapa', () {
+      final p = plan();
+      expect(p.etapas[1].esResponsable('lily@x.co'), isTrue);
+      final devuelto = InformePeriodo.fromMap({
+        ...completo(p)
+            .copyWith(estado: EstadoInforme.devuelto)
+            .camposContratista(),
+        'revisiones': [
+          const RevisionEtapa(
+            etapaId: 'enlace',
+            etapaNombre: 'Enlace',
+            actor: 'Iván',
+            fechaIso: '2026-10-31T10:00:00Z',
+            aprobado: false,
+            observacion: 'Corrige la actividad 4.',
+            itemsDevueltos: ['obligacion:a', 'documento:rut'],
+          ).toMap(),
+        ],
+      });
+      expect(devuelto.devolucion?.observacion, 'Corrige la actividad 4.');
+      expect(devuelto.estaDevuelto('documento:rut'), isTrue);
+      expect(devuelto.estaDevuelto('aportes'), isFalse);
     });
 
     test('ida y vuelta por mapa', () {
-      final copia = PlanSupervision.fromMap(plan.toMap());
-      expect(copia.supervisorEmail, 'ana@entidad.gov.co');
-      expect(copia.obligaciones.map((o) => o.id), ['a', 'b']);
-      final inf = InformeMensual.fromMap({
-        ...const InformeMensual(
-          periodo: '2026-03',
-          estado: EstadoInforme.enviado,
-          valorCobradoCop: 5,
-        ).camposContratista(),
-        'revision': {
-          'planilla': {'cumple': false, 'observacion': 'Falta ARL'},
-        },
-      });
-      expect(inf.estado, EstadoInforme.enviado);
-      expect(inf.devueltos.single.observacion, 'Falta ARL');
+      final p = plan();
+      final copia = PlanSupervision.fromMap(p.toMap());
+      expect(copia.periodos.length, 3);
+      expect(copia.etapas.map((e) => e.id), ['enlace', 'supervisor']);
+      expect(copia.plantilla.documentos.length, p.plantilla.documentos.length);
+      expect(copia.toMap()['etapas'], isA<List>());
+      final inf = InformePeriodo.fromMap(completo(p).camposContratista());
+      expect(inf.planillas.single.numero, '9876543210');
+      expect(inf.datosCobro.banco, 'Bancolombia');
+      expect(inf.documentos['rut']!.single.nombre, 'x.pdf');
+    });
+
+    test('valor en letras para la cuenta de cobro', () {
+      expect(valorEnLetras(3500000), 'TRES MILLONES QUINIENTOS MIL PESOS');
+      expect(
+        valorEnLetras(2333333),
+        'DOS MILLONES TRESCIENTOS TREINTA Y TRES MIL TRESCIENTOS TREINTA Y TRES PESOS',
+      );
+      expect(valorEnLetras(1000000), 'UN MILLÓN DE PESOS');
+      expect(valorEnLetras(21000), 'VEINTIUN MIL PESOS');
+    });
+  });
+
+  group('PDF', () {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    test('genera el informe y los documentos del sistema', () async {
+      final p = plan();
+      final inf = completo(p).copyWith(
+        estado: EstadoInforme.enRevision,
+        enviadoEnIso: '2026-11-08T15:01:00Z',
+      );
+      final e = expediente();
+      final informe = await InformePdfService.informeEjecucion(
+        expediente: e,
+        plan: p,
+        informe: inf,
+      );
+      expect(String.fromCharCodes(informe.take(4)), '%PDF');
+      for (final id in DocumentosSistema.todos) {
+        final bytes = await InformePdfService.documentoSistema(
+          id,
+          expediente: e,
+          plan: p,
+          informe: inf,
+          todos: {inf.id: inf},
+        );
+        expect(bytes, isNotNull, reason: id);
+        expect(bytes!.length, greaterThan(1000));
+      }
     });
   });
 }

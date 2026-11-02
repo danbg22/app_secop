@@ -113,24 +113,26 @@ service cloud.firestore {
            expedienteDe(token).get('creadoPorUid', '') == request.auth.uid);
     }
 
-    // Supervisor asignado en el plan de supervisión del contrato.
-    function esSupervisorDeExpediente(token) {
+    // Responsable de la etapa `i` de la cadena de aprobación del contrato.
+    function esResponsableEtapa(token, i) {
+      let ruta = /databases/$(database)/documents/expedientes_juridicos/$(token)/supervision/plan;
       return isSignedIn() &&
           request.auth.token.get('email', '') != '' &&
-          exists(/databases/$(database)/documents/expedientes_juridicos/$(token)/supervision/plan) &&
-          get(/databases/$(database)/documents/expedientes_juridicos/$(token)/supervision/plan)
-              .data.get('supervisorEmail', '') == request.auth.token.email.lower();
+          exists(ruta) &&
+          get(ruta).data.get('etapas', []).size() > i &&
+          get(ruta).data.etapas[i].get('responsableEmail', '') == request.auth.token.email.lower();
     }
 
     // Campos que escribe el contratista desde su enlace y los del equipo.
     function camposContratistaInforme() {
-      return ['periodo', 'estado', 'valorCobradoCop', 'actividades', 'planilla',
-              'documentos', 'enviadoEnIso', 'historial', 'actualizadoEnMs'];
+      return ['id', 'numero', 'desdeIso', 'hastaIso', 'estado', 'valorCobradoCop',
+              'actividades', 'anexos', 'planillas', 'pensionado', 'motivoNoPension',
+              'estampilla', 'datosCobro', 'documentos', 'declaracion', 'enviadoEnIso',
+              'primeraPresentacionIso', 'respuestas', 'historial', 'actualizadoEnMs'];
     }
 
     function camposEquipoInforme() {
-      return ['estado', 'revision', 'revisorNombre', 'revisadoEnIso',
-              'supervisorNombre', 'aprobadoEnIso', 'conceptoSupervisor',
+      return ['estado', 'etapaActual', 'revisiones', 'declaracion', 'aprobadoEnIso',
               'pagoReferencia', 'pagadoEnIso', 'historial', 'actualizadoEnMs'];
     }
 
@@ -293,12 +295,20 @@ service cloud.firestore {
       // informes del contratista, que revisa el equipo y aprueba el supervisor.
       match /supervision/{doc} {
         allow get: if token.matches('^[a-f0-9]{32,64}$');
+        // Firma registrada del contratista (la escribe desde su enlace).
+        allow create, update: if token.matches('^[a-f0-9]{32,64}$') &&
+            doc == 'firma' &&
+            expedienteActivo(token) &&
+            request.resource.data.keys().hasOnly(['archivoBase64', 'partes', 'mime', 'actualizadoEnIso']) &&
+            isNonEmptyString(request.resource.data.archivoBase64, 900000);
         allow create, update: if token.matches('^[a-f0-9]{32,64}$') &&
             doc == 'plan' &&
             expedienteActivo(token) &&
             (esTitularDeExpediente(token) ||
              permisoEquipo(equipoDeExpediente(token), 'crear_contratos')) &&
-            isNonEmptyString(request.resource.data.supervisorEmail, 160) &&
+            request.resource.data.etapas is list &&
+            request.resource.data.etapas.size() > 0 &&
+            request.resource.data.etapas.size() <= 5 &&
             request.resource.data.obligaciones is list &&
             request.resource.data.obligaciones.size() <= 60;
         allow delete: if puedeEliminarExpediente(expedienteDe(token));
@@ -306,32 +316,41 @@ service cloud.firestore {
 
       match /informes/{periodo} {
         allow get, list: if token.matches('^[a-f0-9]{32,64}$');
-        // El contratista crea su informe en borrador o enviado.
+        // El contratista crea su informe (id = fecha de inicio del periodo).
         allow create: if token.matches('^[a-f0-9]{32,64}$') &&
-            periodo.matches('^[0-9]{4}-[0-9]{2}$') &&
+            periodo.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
             expedienteActivo(token) &&
-            request.resource.data.periodo == periodo &&
-            request.resource.data.estado in ['borrador', 'enviado'] &&
+            request.resource.data.id == periodo &&
+            request.resource.data.estado in ['borrador', 'enRevision'] &&
             request.resource.data.keys().hasOnly(camposContratistaInforme());
         allow update: if token.matches('^[a-f0-9]{32,64}$') &&
             expedienteActivo(token) &&
-            request.resource.data.periodo == periodo &&
+            request.resource.data.id == periodo &&
             (
               // Contratista: solo sus campos y mientras el informe es editable.
               (resource.data.estado in ['borrador', 'devuelto'] &&
-               request.resource.data.estado in ['borrador', 'devuelto', 'enviado'] &&
+               request.resource.data.estado in ['borrador', 'devuelto', 'enRevision'] &&
                (request.resource.data.estado != 'devuelto' ||
                 resource.data.estado == 'devuelto') &&
                request.resource.data.diff(resource.data).affectedKeys()
-                   .hasOnly(camposContratistaInforme())) ||
-              // Equipo: revisión, aprobación (solo supervisor o titular) y pago.
-              (esEquipoDeExpediente(token) &&
+                   .hasOnly(camposContratistaInforme()) &&
+               // La trazabilidad solo crece.
+               request.resource.data.get('historial', []).hasAll(resource.data.get('historial', []))) ||
+              // Etapa en curso: la decide su responsable o el titular del equipo.
+              (resource.data.estado == 'enRevision' &&
+               request.resource.data.estado in ['enRevision', 'devuelto', 'aprobado'] &&
+               esEquipoDeExpediente(token) &&
                request.resource.data.diff(resource.data).affectedKeys()
                    .hasOnly(camposEquipoInforme()) &&
-               (request.resource.data.estado != 'aprobado' ||
-                resource.data.estado == 'aprobado' ||
-                esSupervisorDeExpediente(token) ||
-                esTitularDeExpediente(token)))
+               (esTitularDeExpediente(token) ||
+                esResponsableEtapa(token, resource.data.get('etapaActual', 0)))) ||
+              // Registro del pago de un informe aprobado.
+              (resource.data.estado == 'aprobado' &&
+               request.resource.data.estado == 'pagado' &&
+               (esTitularDeExpediente(token) ||
+                permisoEquipo(equipoDeExpediente(token), 'verificar_documentos')) &&
+               request.resource.data.diff(resource.data).affectedKeys()
+                   .hasOnly(camposEquipoInforme()))
             );
         allow delete: if puedeEliminarExpediente(expedienteDe(token));
 
@@ -445,6 +464,21 @@ service cloud.firestore {
           allow delete: if false;
         }
       }
+    }
+
+    // =========================================================================
+    // 4d. PLANTILLA DE INFORMES DE LA ENTIDAD (`plantillas_informe/{equipoUid}`)
+    // =========================================================================
+    match /plantillas_informe/{equipoUid} {
+      allow get: if esDelEquipo(equipoUid);
+      allow create, update: if isSignedIn() &&
+          (equipoUid == request.auth.uid || permisoEquipo(equipoUid, 'crear_contratos')) &&
+          request.resource.data.etapas is list &&
+          request.resource.data.etapas.size() > 0 &&
+          request.resource.data.etapas.size() <= 5 &&
+          request.resource.data.documentos is list &&
+          request.resource.data.documentos.size() <= 40;
+      allow delete: if false;
     }
 
     // =========================================================================
