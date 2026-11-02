@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../services/supervision_service.dart';
 import '../gestion_contractual/estilo_contractual.dart';
@@ -55,6 +56,40 @@ class ChipEstadoInforme extends StatelessWidget {
     color: Color(estado.color),
     fondo: Color(estado.fondo),
   );
+}
+
+/// Campo de pesos que muestra los miles con punto mientras se escribe
+/// (3.500.000), para que se puedan revisar los ceros.
+class FormatoMilesCop extends TextInputFormatter {
+  const FormatoMilesCop();
+
+  /// Lee el valor sin los puntos.
+  static int leer(String texto) =>
+      int.tryParse(texto.replaceAll(RegExp(r'\D'), '')) ?? 0;
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue anterior,
+    TextEditingValue nuevo,
+  ) {
+    final digitos = nuevo.text.replaceAll(RegExp(r'\D'), '');
+    if (digitos.isEmpty) return const TextEditingValue();
+    final texto = milesCop(int.parse(digitos));
+    // Conserva el cursor contando los dígitos que quedan a su derecha.
+    final derecha = nuevo.text
+        .substring(nuevo.selection.end.clamp(0, nuevo.text.length))
+        .replaceAll(RegExp(r'\D'), '')
+        .length;
+    var pos = texto.length, vistos = 0;
+    while (pos > 0 && vistos < derecha) {
+      pos--;
+      if (texto[pos] != '.') vistos++;
+    }
+    return TextEditingValue(
+      text: texto,
+      selection: TextSelection.collapsed(offset: pos),
+    );
+  }
 }
 
 /// Tarjeta blanca con título, subtítulo y acción opcional.

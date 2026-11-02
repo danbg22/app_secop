@@ -234,11 +234,12 @@ class _RevisionSupervisorScreenState extends State<RevisionSupervisorScreen> {
         ),
         const SizedBox(height: 16),
         if (mobile) ...[
-          ...derecha.take(6),
-          const SizedBox(height: 14),
+          // En el celular se lee el informe antes de decidir: recorrido y
+          // verificación, luego el informe, y al final la decisión.
+          ...derecha.take(4),
           ...izquierda,
           const SizedBox(height: 14),
-          derecha.last,
+          ...derecha.skip(4),
         ] else
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -296,7 +297,7 @@ class _RevisionSupervisorScreenState extends State<RevisionSupervisorScreen> {
     return TarjetaSupervision(
       titulo: 'Documentos del informe',
       subtitulo:
-          '${docs.length} documentos del periodo y ${inf.anexos.length} anexos.',
+          '${docs.length} documento${docs.length == 1 ? '' : 's'} del periodo y ${inf.anexos.length} anexo${inf.anexos.length == 1 ? '' : 's'}.',
       icono: Icons.folder_open_rounded,
       children: [
         Wrap(

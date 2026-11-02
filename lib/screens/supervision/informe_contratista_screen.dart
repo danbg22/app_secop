@@ -262,7 +262,8 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
         id: 'documentos',
         etiqueta: 'Documentos',
         pregunta: 'Adjunta los documentos de este informe',
-        ayuda: 'En PDF. Los que dicen "Lo arma la app" no los tienes que adjuntar.',
+        ayuda:
+            'En PDF. Los que arma la app van al final; esos no los adjuntas.',
         listo: docsPendientes == 0,
         resumen: docsPendientes == 0
             ? '${docs.length} documentos listos'
@@ -371,7 +372,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
                         if (_paso < pasos.length - 1)
                           Text(
                             '${pasos.length - _paso - 1 == 1 ? 'Sigue 1 paso' : 'Siguen ${pasos.length - _paso - 1} pasos'}.'
-                            ' Todo se guarda solo mientras avanzas.',
+                            ' Lo que escribes se guarda automáticamente.',
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                               color: EstiloContractual.gris,
@@ -537,7 +538,13 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
               ),
               const SizedBox(width: 10),
               Text(
-                _guardando ? 'Guardando…' : _guardado,
+                [
+                  '$listos de ${pasos.length} listos',
+                  if (_guardando)
+                    'Guardando…'
+                  else if (_guardado.isNotEmpty)
+                    _guardado,
+                ].join(' · '),
                 style: const TextStyle(
                   color: EstiloContractual.gris,
                   fontSize: 11.5,
@@ -1059,13 +1066,19 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
               decoration: decoracionCampo('N.º de planilla (PILA)'),
             ),
             _CampoDinero(
-              controlador: _c('pl$i:ibc', p.ibcCop == 0 ? '' : '${p.ibcCop}'),
+              controlador: _c(
+                'pl$i:ibc',
+                p.ibcCop == 0 ? '' : milesCop(p.ibcCop),
+              ),
               etiqueta: 'IBC',
               onCambio: (v) =>
                   actualizar(i, inf.planillas[i].copyWith(ibcCop: v)),
             ),
             _CampoDinero(
-              controlador: _c('pl$i:v', p.valorCop == 0 ? '' : '${p.valorCop}'),
+              controlador: _c(
+                'pl$i:v',
+                p.valorCop == 0 ? '' : milesCop(p.valorCop),
+              ),
               etiqueta: 'Total pagado',
               onCambio: (v) =>
                   actualizar(i, inf.planillas[i].copyWith(valorCop: v)),
@@ -1180,7 +1193,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
           _CampoDinero(
             controlador: _c(
               'est:v',
-              e.valorPagadoCop == 0 ? '' : '${e.valorPagadoCop}',
+              e.valorPagadoCop == 0 ? '' : milesCop(e.valorPagadoCop),
             ),
             etiqueta: 'Valor pagado (total del recibo)',
             onCambio: (v) => act(con(v: v)),
@@ -1188,7 +1201,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
           _CampoDinero(
             controlador: _c(
               'est:i',
-              e.interesesCop == 0 ? '' : '${e.interesesCop}',
+              e.interesesCop == 0 ? '' : milesCop(e.interesesCop),
             ),
             etiqueta: 'Intereses pagados (si hubo)',
             onCambio: (v) => act(con(i: v)),
@@ -1229,7 +1242,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
         _CampoDinero(
           controlador: _c(
             'cobro:v',
-            inf.valorCobradoCop == 0 ? '' : '${inf.valorCobradoCop}',
+            inf.valorCobradoCop == 0 ? '' : milesCop(inf.valorCobradoCop),
           ),
           etiqueta: 'Valor a cobrar en este informe',
           ayuda:
@@ -1335,10 +1348,17 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
 
   Widget _pasoDocumentos() {
     final docs = _inf.documentosDelPeriodo(_plan);
+    final propios = docs
+        .where((d) => d.origen == OrigenDocumento.contratista)
+        .toList();
+    final generados = docs
+        .where((d) => d.origen == OrigenDocumento.sistema)
+        .toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final d in docs)
+        for (final (i, d) in propios.indexed) ...[
+          if (i > 0) const Divider(height: 1, color: Color(0xFFEDF0F4)),
           _FilaDocumento(
             documento: d,
             archivos: _inf.documentos[d.id] ?? const [],
@@ -1372,8 +1392,70 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
               guardarYa: true,
             ),
             onAbrir: (f) => SupervisionService.abrirArchivo(_token, _inf.id, f),
-            onVerGenerado: () => _verGenerado(d.id),
           ),
+        ],
+        if (generados.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.fromLTRB(14, 12, 8, 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF7FBF8),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.auto_awesome_outlined,
+                      size: 18,
+                      color: Color(0xFF16A34A),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        generados.length == 1
+                            ? '1 lo arma la app con tus respuestas'
+                            : '${generados.length} los arma la app con tus respuestas',
+                        style: const TextStyle(
+                          color: Color(0xFF15803D),
+                          fontSize: 13.2,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                for (final d in generados)
+                  Row(
+                    children: [
+                      const SizedBox(width: 26),
+                      Expanded(
+                        child: Text(
+                          d.regla == ReglaDocumento.cadaPeriodo
+                              ? d.nombre
+                              : '${d.nombre} · ${d.regla.etiqueta.toLowerCase()}',
+                          style: const TextStyle(
+                            color: EstiloContractual.navy,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => _verGenerado(d.id),
+                        style: TextButton.styleFrom(
+                          foregroundColor: EstiloContractual.navy,
+                        ),
+                        child: const Text('Ver cómo queda'),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -1392,9 +1474,6 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
 
   Widget _pasoFirma() {
     final faltan = _inf.faltantes(_plan, firmaRegistrada: _firma != null);
-    final sinDeclaracion = faltan
-        .where((f) => !f.startsWith('Aceptar'))
-        .toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1483,7 +1562,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
             ),
           ),
         ],
-        if (sinDeclaracion.isNotEmpty) ...[
+        if (faltan.isNotEmpty) ...[
           const SizedBox(height: 14),
           Container(
             padding: const EdgeInsets.all(14),
@@ -1503,7 +1582,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                for (final f in sinDeclaracion.take(6))
+                for (final f in faltan.take(6))
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(
@@ -1788,8 +1867,8 @@ class _CampoDinero extends StatelessWidget {
   Widget build(BuildContext context) => TextField(
     controller: controlador,
     keyboardType: TextInputType.number,
-    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-    onChanged: (v) => onCambio(int.tryParse(v) ?? 0),
+    inputFormatters: const [FormatoMilesCop()],
+    onChanged: (v) => onCambio(FormatoMilesCop.leer(v)),
     decoration: decoracionCampo(
       etiqueta,
       ayuda: ayuda,
@@ -1898,7 +1977,6 @@ class _FilaDocumento extends StatelessWidget {
     required this.onAdjuntar,
     required this.onQuitar,
     required this.onAbrir,
-    required this.onVerGenerado,
   });
 
   final DocumentoPlantilla documento;
@@ -1908,27 +1986,20 @@ class _FilaDocumento extends StatelessWidget {
   final VoidCallback onAdjuntar;
   final ValueChanged<ArchivoAdjunto> onQuitar;
   final ValueChanged<ArchivoAdjunto> onAbrir;
-  final VoidCallback onVerGenerado;
 
   @override
   Widget build(BuildContext context) {
     final d = documento;
-    final sistema = d.origen == OrigenDocumento.sistema;
-    final listo = sistema || archivos.isNotEmpty;
+    final listo = archivos.isNotEmpty;
+    // Fila plana; solo lo devuelto se resalta para que se vea qué reemplazar.
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
-      decoration: BoxDecoration(
-        color: devuelto
-            ? const Color(0xFFFFFBEB)
-            : (listo ? const Color(0xFFF7FBF8) : Colors.white),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: devuelto
-              ? const Color(0xFFFCD34D)
-              : (listo ? const Color(0xFFCDEBD6) : const Color(0xFFE2E8F0)),
-        ),
-      ),
+      padding: EdgeInsets.fromLTRB(devuelto ? 10 : 0, 12, 0, 12),
+      decoration: devuelto
+          ? BoxDecoration(
+              color: const Color(0xFFFFFBEB),
+              borderRadius: BorderRadius.circular(10),
+            )
+          : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1940,11 +2011,9 @@ class _FilaDocumento extends StatelessWidget {
                 child: Icon(
                   devuelto
                       ? Icons.undo_rounded
-                      : (sistema
-                            ? Icons.auto_awesome_outlined
-                            : (listo
-                                  ? Icons.check_circle_rounded
-                                  : Icons.upload_file_rounded)),
+                      : (listo
+                            ? Icons.check_circle_rounded
+                            : Icons.upload_file_rounded),
                   size: 20,
                   color: devuelto
                       ? const Color(0xFFD97706)
@@ -2012,47 +2081,24 @@ class _FilaDocumento extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              sistema
-                  ? TextButton.icon(
-                      onPressed: onVerGenerado,
-                      icon: const Icon(Icons.visibility_outlined, size: 17),
-                      label: const Text('Ver cómo queda'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: EstiloContractual.navy,
-                      ),
-                    )
-                  : OutlinedButton(
-                      onPressed: subiendo ? null : onAdjuntar,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: EstiloContractual.navy,
-                        side: const BorderSide(
-                          color: EstiloContractual.bordeCalido,
-                        ),
-                        shape: const StadiumBorder(),
-                      ),
-                      child: Text(
-                        archivos.isEmpty
-                            ? 'Adjuntar'
-                            : (devuelto || archivos.length >= d.maxArchivos
-                                  ? 'Reemplazar'
-                                  : 'Agregar otro'),
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                    ),
-            ],
-          ),
-          if (sistema)
-            const Padding(
-              padding: EdgeInsets.only(left: 30, top: 4),
-              child: Text(
-                'Lo arma la app con tus respuestas. No tienes que adjuntarlo.',
-                style: TextStyle(
-                  color: Color(0xFF15803D),
-                  fontSize: 12.3,
-                  fontWeight: FontWeight.w600,
+              OutlinedButton(
+                onPressed: subiendo ? null : onAdjuntar,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: EstiloContractual.navy,
+                  side: const BorderSide(color: EstiloContractual.bordeCalido),
+                  shape: const StadiumBorder(),
+                ),
+                child: Text(
+                  archivos.isEmpty
+                      ? 'Adjuntar'
+                      : (devuelto || archivos.length >= d.maxArchivos
+                            ? 'Reemplazar'
+                            : 'Agregar otro'),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
-            ),
+            ],
+          ),
           for (final f in archivos)
             Padding(
               padding: const EdgeInsets.only(left: 30, top: 6),

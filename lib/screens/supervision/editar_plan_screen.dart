@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../services/equipo_juridico_service.dart';
 import '../../services/juridico_contratacion_service.dart';
@@ -57,13 +56,18 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
     final sugerido = _exp.valorContratoCop > 0 && meses > 0
         ? (_exp.valorContratoCop / meses).round()
         : 0;
-    _t('valor', '${p?.valorPeriodoCop ?? (sugerido > 0 ? sugerido : '')}');
+    _t(
+      'valor',
+      p != null
+          ? milesCop(p.valorPeriodoCop)
+          : (sugerido > 0 ? milesCop(sugerido) : ''),
+    );
     _t('formaPago', p?.formaPago ?? '');
     _t('sectorial', p?.sectorial ?? _exp.dependencia);
     _t('cdpNum', p?.cdp.numero ?? '');
-    _t('cdpValor', (p?.cdp.valorCop ?? 0) > 0 ? '${p!.cdp.valorCop}' : '');
+    _t('cdpValor', (p?.cdp.valorCop ?? 0) > 0 ? milesCop(p!.cdp.valorCop) : '');
     _t('rpNum', p?.rp.numero ?? '');
-    _t('rpValor', (p?.rp.valorCop ?? 0) > 0 ? '${p!.rp.valorCop}' : '');
+    _t('rpValor', (p?.rp.valorCop ?? 0) > 0 ? milesCop(p!.rp.valorCop) : '');
     _fechaCdp = p?.cdp.fechaIso;
     _fechaRp = p?.rp.fechaIso;
     final previas = p?.obligaciones ?? const <ObligacionContractual>[];
@@ -322,7 +326,7 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
     Widget dinero(String clave, String etiqueta) => TextField(
       controller: _t(clave),
       keyboardType: TextInputType.number,
-      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      inputFormatters: const [FormatoMilesCop()],
       onChanged: (_) => setState(() {}),
       decoration: decoracionCampo(etiqueta, prefijo: '\$ '),
     );

@@ -990,7 +990,6 @@ class RevisionEtapa {
   /// `aportes`, `cobro`, `anexos`, `estampilla`.
   final List<String> itemsDevueltos;
 
-
   Map<String, dynamic> toMap() => {
     'etapaId': etapaId,
     'etapaNombre': etapaNombre,
@@ -1438,6 +1437,9 @@ String _miles(int v) =>
     v.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
 
 String formatoCop(int v) => '\$ ${_miles(v)}';
+
+/// Miles con punto, sin signo: 3500000 → "3.500.000".
+String milesCop(int v) => _miles(v);
 
 /// Valor en letras para la cuenta de cobro: "TRES MILLONES QUINIENTOS MIL PESOS".
 String valorEnLetras(int valor) {
