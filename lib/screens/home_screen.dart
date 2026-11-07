@@ -182,7 +182,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return const BottomNavigationBarItem(
           icon: Icon(Icons.event_note_outlined),
           activeIcon: Icon(Icons.event_note_rounded, color: _dorado),
-          label: 'Compras',
+          label: 'Licitaciones',
         );
       default:
         return const BottomNavigationBarItem(

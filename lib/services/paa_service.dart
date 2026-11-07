@@ -25,6 +25,7 @@ class PlanPaa {
     required this.minimaCuantiaCop,
     required this.actualizadoIso,
     required this.municipio,
+    this.departamento = '',
   });
 
   final String encabezadoId;
@@ -39,6 +40,7 @@ class PlanPaa {
   final double minimaCuantiaCop;
   final String actualizadoIso;
   final String municipio;
+  final String departamento;
 
   factory PlanPaa.fromMap(Map<String, dynamic> m) => PlanPaa(
     encabezadoId: '${m['identificador_unico'] ?? ''}',
@@ -51,6 +53,7 @@ class PlanPaa {
     minimaCuantiaCop: PaaService._num(m['presupuesto_minima_cuantia']),
     actualizadoIso: '${m['fecha_de_ultima_modificacion'] ?? ''}',
     municipio: '${m['municipio_paa'] ?? ''}',
+    departamento: '${m['departamento_paa'] ?? ''}',
   );
 }
 
@@ -175,6 +178,14 @@ class ItemPaa {
   }
 }
 
+/// Una cuenta compradora con su PAA (p. ej. "SENA REGIONAL CESAR Grupo de
+/// Apoyo Administrativo Mixto").
+class CuentaPaa {
+  const CuentaPaa({required this.plan});
+
+  final PlanPaa plan;
+}
+
 /// Contrato ya firmado por la entidad con los mismos códigos UNSPSC: sirve de
 /// referencia de la experiencia y los valores que maneja.
 class ContratoReferencia {
@@ -209,11 +220,15 @@ class PaaService {
   static double _num(dynamic v) => double.tryParse('${v ?? ''}') ?? 0;
   static String _sql(String v) => v.replaceAll("'", "''");
 
-  static Future<List<dynamic>> _get(String base, String query) async {
+  static Future<List<dynamic>> _get(
+    String base,
+    String query, {
+    Duration espera = const Duration(seconds: 45),
+  }) async {
     final uri = Uri.parse(base).replace(queryParameters: {r'$query': query});
     for (var intento = 1; ; intento++) {
       try {
-        final r = await http.get(uri).timeout(const Duration(seconds: 45));
+        final r = await http.get(uri).timeout(espera);
         if (r.statusCode == 200) {
           return jsonDecode(utf8.decode(r.bodyBytes)) as List<dynamic>;
         }
@@ -238,6 +253,188 @@ class PaaService {
       }
       await Future<void>.delayed(Duration(milliseconds: 700 * intento));
     }
+  }
+
+  /// Ejecuta [tareas] de a [n] a la vez. En Datos Abiertos, muchas consultas
+  /// por igualdad (indexadas, ~1 s) son mucho más rápidas que una con `in`
+  /// (de 20 s a 2 min).
+  static Future<List<T>> _deA<T>(
+    int n,
+    List<Future<T> Function()> tareas,
+  ) async {
+    final r = List<T?>.filled(tareas.length, null);
+    var siguiente = 0;
+    Future<void> trabajador() async {
+      while (siguiente < tareas.length) {
+        final i = siguiente++;
+        r[i] = await tareas[i]();
+      }
+    }
+
+    await Future.wait([for (var k = 0; k < n; k++) trabajador()]);
+    return r.cast<T>();
+  }
+
+  static const String _procesos =
+      'https://www.datos.gov.co/resource/p6dx-8zbt.json';
+
+  /// NIT sin dígito de verificación (algunas cuentas lo registran con él).
+  static String nit9(String nit) {
+    final d = nit.replaceAll(RegExp(r'[^0-9]'), '');
+    return d.length > 9 ? d.substring(0, 9) : d;
+  }
+
+  /// Código de cuenta → NIT. Sale del dataset de procesos de SECOP II, que
+  /// responde en menos de un segundo; el detalle del PAA tarda minutos.
+  static Future<Map<String, String>> _nitsDe(Iterable<String> codigos) async {
+    final lista = codigos.toSet().toList();
+    final r = <String, String>{};
+    for (var i = 0; i < lista.length; i += 100) {
+      final lote = lista.sublist(i, (i + 100).clamp(0, lista.length));
+      final filas = await _get(
+        _procesos,
+        'SELECT codigo_entidad, nit_entidad, count(*) AS n '
+        "WHERE codigo_entidad in (${lote.map((c) => "'${_sql(c)}'").join(',')}) "
+        'GROUP BY codigo_entidad, nit_entidad LIMIT 1000',
+      );
+      for (final f in filas.cast<Map<String, dynamic>>()) {
+        final nit = nit9('${f['nit_entidad'] ?? ''}');
+        if (nit.length >= 8) r['${f['codigo_entidad']}'] = nit;
+      }
+    }
+    return r;
+  }
+
+  /// Entidades (NIT) con PAA del año cuyo nombre contiene [texto], con las
+  /// cuentas encontradas de cada una.
+  static Future<Map<String, List<PlanPaa>>> buscarEntidades(
+    String texto,
+    int anio,
+  ) async {
+    final planes = await buscarPlanes(texto, anio);
+    if (planes.isEmpty) return const {};
+    final nits = await _nitsDe(planes.map((p) => p.codigoEntidad));
+    final r = <String, List<PlanPaa>>{};
+    for (final p in planes) {
+      final nit = nits[p.codigoEntidad] ?? '';
+      if (nit.length >= 8) r.putIfAbsent(nit, () => []).add(p);
+    }
+    return r;
+  }
+
+  /// Cuentas con PAA del año cuyo nombre contiene alguno de [patrones]
+  /// (mayúsculas, sin tildes). Para entidades cuyas seccionales tienen NIT
+  /// propio, como las direcciones territoriales de MinTrabajo.
+  static Future<List<CuentaPaa>> cuentasPorNombre(
+    List<String> patrones,
+    int anio,
+  ) async {
+    String tildes(String p) => p
+        .replaceAll('POLICIA', 'POLICÍA')
+        .replaceAll('ADMINISTRACION', 'ADMINISTRACIÓN');
+    final condiciones = {
+      for (final p in patrones) ...[p, tildes(p)],
+    }.map((p) => "upper(nombre_entidad) like '%${_sql(p)}%'");
+    final filas = await _get(
+      _encabezados,
+      'SELECT identificador_unico, codigo_entidad, nombre_entidad, anno, '
+      'version, valor_presupuesto_general, presupuesto_menor_cuantia, '
+      'presupuesto_minima_cuantia, fecha_de_ultima_modificacion, '
+      'municipio_paa, departamento_paa '
+      'WHERE anno=$anio AND (${condiciones.join(' OR ')}) LIMIT 2000',
+    );
+    final porCodigo = <String, PlanPaa>{};
+    for (final f in filas.cast<Map<String, dynamic>>()) {
+      final p = PlanPaa.fromMap(f);
+      final previo = porCodigo[p.codigoEntidad];
+      if (previo == null || p.version > previo.version) {
+        porCodigo[p.codigoEntidad] = p;
+      }
+    }
+    return [for (final p in porCodigo.values) CuentaPaa(plan: p)];
+  }
+
+  /// Todas las cuentas de la entidad [nit] con PAA del año: sus cuentas en
+  /// SECOP II (por NIT, en el dataset de procesos) y el plan de cada una.
+  static Future<List<CuentaPaa>> cuentasDe(String nit, int anio) async {
+    final n = nit9(nit);
+    final filas = await _get(
+      _procesos,
+      'SELECT codigo_entidad, count(*) AS n '
+      "WHERE starts_with(nit_entidad, '${_sql(n)}') "
+      'GROUP BY codigo_entidad LIMIT 2000',
+    );
+    final codigos = [
+      for (final f in filas.cast<Map<String, dynamic>>())
+        '${f['codigo_entidad'] ?? ''}',
+    ].where((c) => c.isNotEmpty).toList();
+    final porCodigo = <String, PlanPaa>{};
+    for (var i = 0; i < codigos.length; i += 100) {
+      final lote = codigos.sublist(i, (i + 100).clamp(0, codigos.length));
+      final r = await _get(
+        _encabezados,
+        'SELECT identificador_unico, codigo_entidad, nombre_entidad, anno, '
+        'version, valor_presupuesto_general, presupuesto_menor_cuantia, '
+        'presupuesto_minima_cuantia, fecha_de_ultima_modificacion, '
+        'municipio_paa, departamento_paa '
+        "WHERE anno=$anio AND codigo_entidad in (${lote.map((c) => "'${_sql(c)}'").join(',')}) "
+        'LIMIT 1000',
+      );
+      for (final f in r.cast<Map<String, dynamic>>()) {
+        final p = PlanPaa.fromMap(f);
+        final previo = porCodigo[p.codigoEntidad];
+        if (previo == null || p.version > previo.version) {
+          porCodigo[p.codigoEntidad] = p;
+        }
+      }
+    }
+    return [for (final p in porCodigo.values) CuentaPaa(plan: p)];
+  }
+
+  /// Compras y valor de cada cuenta, contando cada compra una vez, a medida
+  /// que llegan (las cuentas grandes tardan ~30 s). El valor que declara el
+  /// encabezado no se usa: en varias cuentas del SENA no coincide con sus
+  /// compras (Cundinamarca 2026: declara $ 217.934 M y sus compras suman
+  /// $ 152.197 M).
+  static Stream<(String, ({int compras, double total}))> totalesDe(
+    List<CuentaPaa> cuentas,
+  ) {
+    final control = StreamController<(String, ({int compras, double total}))>();
+    // Las que declaran menos primero: la pantalla se llena rápido.
+    final conDetalle = [...cuentas]
+      ..sort(
+        (a, b) => a.plan.presupuestoGeneralCop.compareTo(
+          b.plan.presupuestoGeneralCop,
+        ),
+      );
+    Future<void> uno(CuentaPaa c) async {
+      try {
+        final f = await _get(
+          _detalle,
+          'SELECT id, max(valor_total_esperado) AS v '
+          "WHERE id_paa_encabezado='${_sql(c.plan.encabezadoId)}' "
+          'GROUP BY id |> SELECT count(*) AS compras, sum(v) AS total',
+          espera: const Duration(seconds: 120),
+        );
+        final m = f.isEmpty
+            ? const <String, dynamic>{}
+            : f.first as Map<String, dynamic>;
+        control.add((
+          c.plan.encabezadoId,
+          (
+            compras: int.tryParse('${m['compras'] ?? 0}') ?? 0,
+            total: _num(m['total']),
+          ),
+        ));
+      } catch (e) {
+        control.addError(e);
+      }
+    }
+
+    _deA(6, [
+      for (final c in conDetalle) () => uno(c),
+    ]).whenComplete(control.close);
+    return control.stream;
   }
 
   /// Planes publicados del año cuyo nombre de entidad contiene [texto].

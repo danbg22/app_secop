@@ -41,7 +41,10 @@ class CollapsibleSideMenu extends StatelessWidget {
     MenuOptionItem(titulo: 'Alertas', icono: Icons.notifications_none),
     MenuOptionItem(titulo: 'Favoritos', icono: Icons.bookmark_border),
     MenuOptionItem(titulo: 'Gestión contractual', icono: Icons.gavel_outlined),
-    MenuOptionItem(titulo: 'Plan de compras', icono: Icons.event_note_outlined),
+    MenuOptionItem(
+      titulo: 'Predicción de licitaciones',
+      icono: Icons.event_note_outlined,
+    ),
   ];
 
   /// Calcula dinámicamente las secciones habilitadas según los roles pagados y acumulados.
