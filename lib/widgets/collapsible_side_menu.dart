@@ -40,10 +40,8 @@ class CollapsibleSideMenu extends StatelessWidget {
     MenuOptionItem(titulo: 'Estadísticas', icono: Icons.bar_chart),
     MenuOptionItem(titulo: 'Alertas', icono: Icons.notifications_none),
     MenuOptionItem(titulo: 'Favoritos', icono: Icons.bookmark_border),
-    MenuOptionItem(
-      titulo: 'Gestión contractual',
-      icono: Icons.gavel_outlined,
-    ),
+    MenuOptionItem(titulo: 'Gestión contractual', icono: Icons.gavel_outlined),
+    MenuOptionItem(titulo: 'Plan de compras', icono: Icons.event_note_outlined),
   ];
 
   /// Calcula dinámicamente las secciones habilitadas según los roles pagados y acumulados.
@@ -56,6 +54,9 @@ class CollapsibleSideMenu extends StatelessWidget {
     }
     if (tieneJuridico) {
       indices.add(8);
+    }
+    if (AuthService.hasActiveRole('empresa_licitante')) {
+      indices.add(9);
     }
     if (indices.isEmpty) {
       indices.addAll(const <int>[0, 2, 3, 4, 7]);
@@ -101,435 +102,455 @@ class CollapsibleSideMenu extends StatelessWidget {
         final String email = AuthService.getActiveUserEmail();
         final ImageProvider<Object>? avatarImage =
             AuthService.getActiveUserAvatarImageProvider();
-        final String initial =
-            fullName.isNotEmpty ? fullName[0].toUpperCase() : 'U';
+        final String initial = fullName.isNotEmpty
+            ? fullName[0].toUpperCase()
+            : 'U';
 
         return AnimatedContainer(
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
-      width: isCollapsed ? 68 : 240,
-      color: _bgMenu,
-      padding: EdgeInsets.fromLTRB(
-        isCollapsed ? 10 : 16,
-        0,
-        isCollapsed ? 10 : 14,
-        18,
-      ),
-      child: Column(
-        crossAxisAlignment:
-            isCollapsed ? CrossAxisAlignment.center : CrossAxisAlignment.stretch,
-        children: [
-          if (isCollapsed)
-            Padding(
-              padding: const EdgeInsets.only(top: 16, bottom: 16),
-              child: Center(
-                child: _SideMenuHoverBubble(
-                  key: const ValueKey('collapsed-logo-bubble'),
-                  label: 'Expandir barra lateral',
-                  child: Material(
-                    color: Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
-                    child: InkWell(
-                      onTap: onToggleCollapse,
-                      borderRadius: BorderRadius.circular(12),
-                      child: SizedBox(
-                        width: 42,
-                        height: 42,
-                        child: Center(child: _buildCollapsedIsotipo()),
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          width: isCollapsed ? 68 : 240,
+          color: _bgMenu,
+          padding: EdgeInsets.fromLTRB(
+            isCollapsed ? 10 : 16,
+            0,
+            isCollapsed ? 10 : 14,
+            18,
+          ),
+          child: Column(
+            crossAxisAlignment: isCollapsed
+                ? CrossAxisAlignment.center
+                : CrossAxisAlignment.stretch,
+            children: [
+              if (isCollapsed)
+                Padding(
+                  padding: const EdgeInsets.only(top: 16, bottom: 16),
+                  child: Center(
+                    child: _SideMenuHoverBubble(
+                      key: const ValueKey('collapsed-logo-bubble'),
+                      label: 'Expandir barra lateral',
+                      child: Material(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(12),
+                        child: InkWell(
+                          onTap: onToggleCollapse,
+                          borderRadius: BorderRadius.circular(12),
+                          child: SizedBox(
+                            width: 42,
+                            height: 42,
+                            child: Center(child: _buildCollapsedIsotipo()),
+                          ),
+                        ),
                       ),
+                    ),
+                  ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.only(
+                    left: 8,
+                    top: 18,
+                    bottom: 14,
+                    right: 2,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          onTap: onToggleCollapse,
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.asset(
+                            'assets/images/logo.png',
+                            height: 66,
+                            fit: BoxFit.contain,
+                            alignment: Alignment.centerLeft,
+                            filterQuality: FilterQuality.high,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        tooltip: 'Ocultar barra lateral',
+                        onPressed: onToggleCollapse,
+                        visualDensity: VisualDensity.compact,
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.white.withValues(alpha: 0.55),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(9),
+                          ),
+                        ),
+                        icon: const Icon(
+                          Icons.keyboard_double_arrow_left_rounded,
+                          color: _azulOscuro,
+                          size: 19,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 8),
+              if (!isCollapsed)
+                Padding(
+                  padding: const EdgeInsets.only(left: 12, bottom: 8),
+                  child: Text(
+                    'MENÚ PRINCIPAL',
+                    style: TextStyle(
+                      color: _azulOscuro.withValues(alpha: 0.48),
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.9,
                     ),
                   ),
                 ),
-              ),
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.only(
-                left: 8,
-                top: 18,
-                bottom: 14,
-                right: 2,
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: InkWell(
-                      onTap: onToggleCollapse,
-                      borderRadius: BorderRadius.circular(10),
-                      child: Image.asset(
-                        'assets/images/logo.png',
-                        height: 66,
-                        fit: BoxFit.contain,
-                        alignment: Alignment.centerLeft,
-                        filterQuality: FilterQuality.high,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  IconButton(
-                    tooltip: 'Ocultar barra lateral',
-                    onPressed: onToggleCollapse,
-                    visualDensity: VisualDensity.compact,
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.white.withValues(alpha: 0.55),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(9),
-                      ),
-                    ),
-                    icon: const Icon(
-                      Icons.keyboard_double_arrow_left_rounded,
-                      color: _azulOscuro,
-                      size: 19,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          const SizedBox(height: 8),
-          if (!isCollapsed)
-            Padding(
-              padding: const EdgeInsets.only(left: 12, bottom: 8),
-              child: Text(
-                'MENÚ PRINCIPAL',
-                style: TextStyle(
-                  color: _azulOscuro.withValues(alpha: 0.48),
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.9,
-                ),
-              ),
-            ),
-          Expanded(
-            child: Builder(
-              builder: (context) {
-                final visibleIndices = obtenerIndicesVisiblesPorRol();
-                return ListView.builder(
-                  padding: const EdgeInsets.only(top: 2),
-                  itemCount: visibleIndices.length,
-                  itemBuilder: (context, pos) {
-                    final index = visibleIndices[pos];
-                    final opcion = opcionesMenu[index];
-                    final seleccionado = index == selectedIndex;
-                    final IconData icono = (index == 2 && seleccionado)
-                        ? Icons.description
-                        : (index == 7 && seleccionado)
+              Expanded(
+                child: Builder(
+                  builder: (context) {
+                    final visibleIndices = obtenerIndicesVisiblesPorRol();
+                    return ListView.builder(
+                      padding: const EdgeInsets.only(top: 2),
+                      itemCount: visibleIndices.length,
+                      itemBuilder: (context, pos) {
+                        final index = visibleIndices[pos];
+                        final opcion = opcionesMenu[index];
+                        final seleccionado = index == selectedIndex;
+                        final IconData icono = (index == 2 && seleccionado)
+                            ? Icons.description
+                            : (index == 7 && seleccionado)
                             ? Icons.bookmark_rounded
                             : (index == 8 && seleccionado)
-                                ? Icons.gavel_rounded
-                                : opcion.icono;
+                            ? Icons.gavel_rounded
+                            : opcion.icono;
 
-                    if (isCollapsed) {
-                      return Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (index == 7 || (index == 8 && pos > 0))
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 8,
-                              ),
-                              child: Divider(
-                                height: 1,
-                                color: _azulOscuro.withValues(alpha: 0.12),
-                              ),
-                            ),
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Center(
-                              child: _SideMenuHoverBubble(
-                                key: ValueKey('menu-item-$index'),
-                                label: opcion.titulo,
-                                child: Material(
-                                  color: seleccionado
-                                      ? _tileSelected
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(12),
-                                    onTap: () => onItemSelected(index),
-                                    child: SizedBox(
-                                      width: 42,
-                                      height: 42,
-                                      child: Icon(
-                                        icono,
-                                        color: _azulOscuro,
-                                        size: 21,
-                                        weight: seleccionado ? 700 : 400,
+                        if (isCollapsed) {
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (index == 7 || (index == 8 && pos > 0))
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 8,
+                                  ),
+                                  child: Divider(
+                                    height: 1,
+                                    color: _azulOscuro.withValues(alpha: 0.12),
+                                  ),
+                                ),
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: Center(
+                                  child: _SideMenuHoverBubble(
+                                    key: ValueKey('menu-item-$index'),
+                                    label: opcion.titulo,
+                                    child: Material(
+                                      color: seleccionado
+                                          ? _tileSelected
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(12),
+                                        onTap: () => onItemSelected(index),
+                                        child: SizedBox(
+                                          width: 42,
+                                          height: 42,
+                                          child: Icon(
+                                            icono,
+                                            color: _azulOscuro,
+                                            size: 21,
+                                            weight: seleccionado ? 700 : 400,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ),
-                        ],
-                      );
-                    }
+                            ],
+                          );
+                        }
 
-                    return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (index == 7)
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
-                            child: Divider(
-                              height: 1,
-                              color: _azulOscuro.withValues(alpha: 0.10),
-                            ),
-                          ),
-                        if (index == 8) ...[
-                          if (pos > 0)
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (index == 7)
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  10,
+                                  6,
+                                  10,
+                                  10,
+                                ),
+                                child: Divider(
+                                  height: 1,
+                                  color: _azulOscuro.withValues(alpha: 0.10),
+                                ),
+                              ),
+                            if (index == 8) ...[
+                              if (pos > 0)
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    10,
+                                    8,
+                                    10,
+                                    8,
+                                  ),
+                                  child: Divider(
+                                    height: 1,
+                                    color: _azulOscuro.withValues(alpha: 0.12),
+                                  ),
+                                ),
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  left: 12,
+                                  bottom: 6,
+                                ),
+                                child: Text(
+                                  'EQUIPO JURÍDICO',
+                                  style: TextStyle(
+                                    color: _azulOscuro.withValues(alpha: 0.52),
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.9,
+                                  ),
+                                ),
+                              ),
+                            ],
                             Padding(
-                              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-                              child: Divider(
-                                height: 1,
-                                color: _azulOscuro.withValues(alpha: 0.12),
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: ListTile(
+                                dense: true,
+                                visualDensity: const VisualDensity(
+                                  vertical: -0.2,
+                                ),
+                                selected: seleccionado,
+                                selectedTileColor: _tileSelected,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                leading: Icon(
+                                  icono,
+                                  color: _azulOscuro,
+                                  size: 21,
+                                  weight: seleccionado ? 700 : 400,
+                                ),
+                                title: Text(
+                                  opcion.titulo,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: _azulOscuro,
+                                    fontSize: 14,
+                                    fontWeight: seleccionado
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                  ),
+                                ),
+                                onTap: () => onItemSelected(index),
                               ),
                             ),
-                          Padding(
-                            padding: const EdgeInsets.only(left: 12, bottom: 6),
-                            child: Text(
-                              'EQUIPO JURÍDICO',
-                              style: TextStyle(
-                                color: _azulOscuro.withValues(alpha: 0.52),
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.9,
-                              ),
-                            ),
-                          ),
-                        ],
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: ListTile(
-                            dense: true,
-                            visualDensity: const VisualDensity(vertical: -0.2),
-                            selected: seleccionado,
-                            selectedTileColor: _tileSelected,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            leading: Icon(
-                              icono,
-                              color: _azulOscuro,
-                              size: 21,
-                              weight: seleccionado ? 700 : 400,
-                            ),
-                            title: Text(
-                              opcion.titulo,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: _azulOscuro,
+                          ],
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+              if (isCollapsed) ...[
+                _SideMenuHoverBubble(
+                  key: const ValueKey('help-bubble'),
+                  label: '¿Necesitas ayuda?',
+                  child: InkWell(
+                    onTap: () => _showHelpDialog(context),
+                    borderRadius: BorderRadius.circular(12),
+                    child: const SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: Icon(
+                        Icons.help_outline_rounded,
+                        color: _azulOscuro,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _SideMenuHoverBubble(
+                  key: const ValueKey('profile-bubble'),
+                  label: fullName,
+                  child: PopupMenuButton<String>(
+                    tooltip: '',
+                    elevation: 8,
+                    color: Colors.white,
+                    surfaceTintColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                    onSelected: (value) =>
+                        CustomUserHeaderActions.handleMenuSelection(
+                          context: context,
+                          value: value,
+                          onLogout: onLogout,
+                        ),
+                    itemBuilder: (_) =>
+                        CustomUserHeaderActions.buildStandardMenuItems(
+                          fullName: fullName,
+                          email: email,
+                        ),
+                    child: CircleAvatar(
+                      radius: 17,
+                      backgroundImage: avatarImage,
+                      backgroundColor: const Color(0xFFB81D4E),
+                      foregroundColor: Colors.white,
+                      child: avatarImage == null
+                          ? Text(
+                              initial,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
                                 fontSize: 14,
-                                fontWeight: seleccionado
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
                               ),
+                            )
+                          : null,
+                    ),
+                  ),
+                ),
+              ] else ...[
+                InkWell(
+                  onTap: () => Navigator.of(context).pushNamed('/planes'),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 9,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEEFC3),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFF5C032)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(
+                          Icons.add_moderator_rounded,
+                          color: _azulOscuro,
+                          size: 18,
+                        ),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Acumular otro rol (+)',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: _azulOscuro,
+                              fontSize: 12.2,
+                              fontWeight: FontWeight.w800,
                             ),
-                            onTap: () => onItemSelected(index),
                           ),
                         ),
                       ],
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-          if (isCollapsed) ...[
-            _SideMenuHoverBubble(
-              key: const ValueKey('help-bubble'),
-              label: '¿Necesitas ayuda?',
-              child: InkWell(
-                onTap: () => _showHelpDialog(context),
-                borderRadius: BorderRadius.circular(12),
-                child: const SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: Icon(
-                    Icons.help_outline_rounded,
-                    color: _azulOscuro,
-                    size: 22,
+                    ),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            _SideMenuHoverBubble(
-              key: const ValueKey('profile-bubble'),
-              label: fullName,
-              child: PopupMenuButton<String>(
-                tooltip: '',
-                elevation: 8,
-                color: Colors.white,
-                surfaceTintColor: Colors.white,
-                shape: RoundedRectangleBorder(
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: () => _showHelpDialog(context),
                   borderRadius: BorderRadius.circular(14),
-                  side: const BorderSide(color: Color(0xFFE2E8F0)),
-                ),
-                onSelected: (value) =>
-                    CustomUserHeaderActions.handleMenuSelection(
-                  context: context,
-                  value: value,
-                  onLogout: onLogout,
-                ),
-                itemBuilder: (_) =>
-                    CustomUserHeaderActions.buildStandardMenuItems(
-                  fullName: fullName,
-                  email: email,
-                ),
-                child: CircleAvatar(
-                  radius: 17,
-                  backgroundImage: avatarImage,
-                  backgroundColor: const Color(0xFFB81D4E),
-                  foregroundColor: Colors.white,
-                  child: avatarImage == null
-                      ? Text(
-                          initial,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        )
-                      : null,
-                ),
-              ),
-            ),
-          ] else ...[
-            InkWell(
-              onTap: () => Navigator.of(context).pushNamed('/planes'),
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 9,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEEFC3),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFF5C032)),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(
-                      Icons.add_moderator_rounded,
-                      color: _azulOscuro,
-                      size: 18,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
                     ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Acumular otro rol (+)',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: _azulOscuro,
-                          fontSize: 12.2,
-                          fontWeight: FontWeight.w800,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.92),
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _azulOscuro.withValues(alpha: 0.04),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            InkWell(
-              onTap: () => _showHelpDialog(context),
-              borderRadius: BorderRadius.circular(14),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.92),
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _azulOscuro.withValues(alpha: 0.04),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.sms_outlined,
-                      color: _azulOscuro,
-                      size: 21,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            '¿Necesitas ayuda?',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: _azulOscuro,
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.bold,
-                            ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.sms_outlined,
+                          color: _azulOscuro,
+                          size: 21,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                '¿Necesitas ayuda?',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: _azulOscuro,
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Chat con nosotros',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Colors.blueGrey.shade600,
+                                  fontSize: 11.5,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Chat con nosotros',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.blueGrey.shade600,
-                              fontSize: 11.5,
-                            ),
-                          ),
-                        ],
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          color: Color(0xFF64748B),
+                          size: 18,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _TarjetaPerfil(
+                  nombre: fullName,
+                  rol: AuthService.getActiveUserRoleDisplayLabel(),
+                  avatar: avatarImage,
+                  inicial: initial,
+                  onPerfil: () => CustomUserHeaderActions.handleMenuSelection(
+                    context: context,
+                    value: 'profile',
+                  ),
+                  onCerrarSesion: () =>
+                      CustomUserHeaderActions.handleMenuSelection(
+                        context: context,
+                        value: 'logout',
+                        onLogout: onLogout,
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(
-                      Icons.chevron_right_rounded,
-                      color: Color(0xFF64748B),
-                      size: 18,
-                    ),
-                  ],
                 ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            _TarjetaPerfil(
-              nombre: fullName,
-              rol: AuthService.getActiveUserRoleDisplayLabel(),
-              avatar: avatarImage,
-              inicial: initial,
-              onPerfil: () => CustomUserHeaderActions.handleMenuSelection(
-                context: context,
-                value: 'profile',
-              ),
-              onCerrarSesion: () => CustomUserHeaderActions.handleMenuSelection(
-                context: context,
-                value: 'logout',
-                onLogout: onLogout,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.only(left: 4),
-              child: Text(
-                'Contrata Legal\n© 2026. Todos los derechos\nreservados.',
-                style: TextStyle(
-                  color: Colors.blueGrey.shade600,
-                  fontSize: 10.5,
-                  height: 1.35,
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Text(
+                    'Contrata Legal\n© 2026. Todos los derechos\nreservados.',
+                    style: TextStyle(
+                      color: Colors.blueGrey.shade600,
+                      fontSize: 10.5,
+                      height: 1.35,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ],
-        ],
-      ),
+              ],
+            ],
+          ),
         );
       },
     );

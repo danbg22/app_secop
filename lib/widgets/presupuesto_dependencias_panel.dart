@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../data/estructura_sena.dart';
 import '../services/presupuesto_dependencias_service.dart';
 
 /// Presupuesto asignado y ejecutado por cada dependencia (unidad de
@@ -41,6 +42,11 @@ class _PresupuestoDependenciasPanelState
   final Map<String, Future<EjecucionDependencia>> _ejecuciones = {};
   int _consulta = 0;
 
+  // Vista por estructura del SENA: Dirección General y regionales.
+  bool get _esSena => esNitSena(widget.nit) && widget.cuentaSecop == null;
+  final Set<String> _regionalesAbiertas = {};
+  bool _nacionalAbierto = false;
+
   @override
   void initState() {
     super.initState();
@@ -72,6 +78,8 @@ class _PresupuestoDependenciasPanelState
       _error = null;
       _abierta = null;
       _ejecuciones.clear();
+      _regionalesAbiertas.clear();
+      _nacionalAbierto = false;
     });
     try {
       final deps = await PresupuestoDependenciasService.dependencias(
@@ -81,7 +89,15 @@ class _PresupuestoDependenciasPanelState
         cuentaSecop: widget.cuentaSecop,
       );
       if (!mounted || id != _consulta) return;
-      setState(() => _dependencias = deps);
+      setState(() {
+        _dependencias = deps;
+        // Con una regional elegida en el perfil, se abre de una vez.
+        if (_esSena && widget.departamento != null) {
+          _regionalesAbiertas.addAll(
+            _arbolSena(deps).regionales.keys.map((r) => r.nombre),
+          );
+        }
+      });
     } catch (e) {
       if (!mounted || id != _consulta) return;
       setState(
@@ -124,6 +140,237 @@ class _PresupuestoDependenciasPanelState
       .replaceAll('Í', 'I')
       .replaceAll('Ó', 'O')
       .replaceAll('Ú', 'U');
+
+  _ArbolSena _arbolSena(List<DependenciaPresupuesto> deps) {
+    final nacional = <String, List<DependenciaPresupuesto>>{};
+    final porRegional =
+        <RegionalSena, Map<String, List<DependenciaPresupuesto>>>{};
+    final otras = <DependenciaPresupuesto>[];
+    for (final d in deps) {
+      final u = EstructuraSena.ubicar(
+        cuenta: d.cuentaSecop,
+        unidad: d.variantes.first,
+        departamento: d.departamento,
+      );
+      switch (u.nivel) {
+        case NivelSena.nacional:
+          nacional.putIfAbsent(u.nodo, () => []).add(d);
+        case NivelSena.otra:
+          otras.add(d);
+        default:
+          porRegional
+              .putIfAbsent(u.regional!, () => {})
+              .putIfAbsent(u.nodo, () => [])
+              .add(d);
+      }
+    }
+    DependenciaPresupuesto unir(
+      String clave,
+      String nombre,
+      List<DependenciaPresupuesto> p,
+    ) => p.length == 1
+        ? DependenciaPresupuesto(
+            clave: clave,
+            nombre: nombre,
+            cuentaSecop: p.single.cuentaSecop,
+            variantes: p.single.variantes,
+            procesos: p.single.procesos,
+            asignadoCop: p.single.asignadoCop,
+            departamento: p.single.departamento,
+          )
+        : DependenciaPresupuesto.agrupada(
+            clave: clave,
+            nombre: nombre,
+            partes: p,
+          );
+    return _ArbolSena(
+      nacional: [
+        for (final e in nacional.entries) unir('nac|${e.key}', e.key, e.value),
+      ]..sort((a, b) => b.asignadoCop.compareTo(a.asignadoCop)),
+      regionales: {
+        for (final e in porRegional.entries)
+          e.key: {
+            for (final n in e.value.entries)
+              n.key: unir('${e.key.nombre}|${n.key}', n.key, n.value),
+          },
+      },
+      otras: otras,
+    );
+  }
+
+  List<Widget> _vistaSena(List<DependenciaPresupuesto> deps, String consulta) {
+    final arbol = _arbolSena(deps);
+    bool coincide(String t) => consulta.isEmpty || _norm(t).contains(consulta);
+    const despacho = 'Despacho de la Dirección Regional';
+
+    final nacional = arbol.nacional
+        .where((d) => coincide(d.nombre) || coincide('direccion general'))
+        .toList();
+    final regionales = [
+      for (final r in regionalesSena)
+        if (arbol.regionales.containsKey(r) &&
+            (coincide('regional ${r.nombre}') ||
+                arbol.regionales[r]!.keys.any(coincide)))
+          r,
+    ];
+    final maxNodo = [
+      ...arbol.nacional,
+      for (final m in arbol.regionales.values) ...m.values,
+    ].fold<double>(1, (m, d) => d.asignadoCop > m ? d.asignadoCop : m);
+    final totalRegional = {
+      for (final e in arbol.regionales.entries)
+        e.key: e.value.values.fold<double>(0, (s, d) => s + d.asignadoCop),
+    };
+    final maxRegional = totalRegional.values.fold<double>(
+      1,
+      (m, v) => v > m ? v : m,
+    );
+    final totalNacional = arbol.nacional.fold<double>(
+      0,
+      (s, d) => s + d.asignadoCop,
+    );
+
+    Widget fila(DependenciaPresupuesto d) => _FilaDependencia(
+      dependencia: d,
+      proporcion: d.asignadoCop / maxNodo,
+      abierta: _abierta == d.clave,
+      ejecucion: _ejecuciones[d.clave],
+      mostrarCuenta: false,
+      onTap: () => _alternar(d),
+      onReintentar: () => setState(
+        () => _ejecuciones[d.clave] = PresupuestoDependenciasService.ejecucion(
+          d,
+          nit: widget.nit,
+          anio: widget.anio,
+        ),
+      ),
+      millones: _millones,
+    );
+
+    Widget subtitulo(String t) => Padding(
+      padding: const EdgeInsets.fromLTRB(4, 10, 0, 6),
+      child: Text(
+        t,
+        style: const TextStyle(
+          color: _navy,
+          fontSize: 13,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+
+    Widget vacio(String t) => Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFEEF2F6)),
+      ),
+      child: Text(t, style: const TextStyle(color: _gris, fontSize: 12.5)),
+    );
+
+    return [
+      const Text(
+        'Organizado como el SENA: la Dirección General y las direcciones regionales, '
+        'cada una con su despacho y sus centros de formación. Son quienes tienen '
+        'ordenador del gasto y firman los contratos.',
+        style: TextStyle(color: _gris, fontSize: 12.5, height: 1.45),
+      ),
+      const SizedBox(height: 14),
+      if (nacional.isNotEmpty) ...[
+        _GrupoSena(
+          titulo: 'Dirección General',
+          detalle:
+              'Nivel nacional · ${arbol.nacional.length} dependencias que contratan',
+          valor: _millones(totalNacional),
+          proporcion:
+              totalNacional /
+              (totalNacional > maxRegional ? totalNacional : maxRegional),
+          abierto: _nacionalAbierto || consulta.isNotEmpty,
+          onTap: () => setState(() => _nacionalAbierto = !_nacionalAbierto),
+          hijos: [for (final d in nacional) fila(d)],
+        ),
+        const SizedBox(height: 16),
+      ],
+      if (regionales.isNotEmpty) ...[
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            'Direcciones regionales (${arbol.regionales.length})',
+            style: const TextStyle(
+              color: _navy,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        for (final r in regionales)
+          Builder(
+            builder: (context) {
+              final nodos = arbol.regionales[r]!;
+              final centros = nodos.keys
+                  .where((k) => r.centros.any((c) => c.nombre == k))
+                  .length;
+              final otros = nodos.entries.where(
+                (e) =>
+                    e.key != despacho &&
+                    !r.centros.any((c) => c.nombre == e.key),
+              );
+              return _GrupoSena(
+                titulo: r.nombre == 'Distrito Capital'
+                    ? 'Regional Distrito Capital'
+                    : 'Regional ${r.nombre}',
+                detalle: centros == 0 && otros.isNotEmpty
+                    ? 'Despacho y centro contratan en un solo grupo'
+                    : [
+                        if (nodos.containsKey(despacho)) 'Despacho',
+                        '$centros de ${r.centros.length} centro${r.centros.length == 1 ? '' : 's'} con procesos',
+                      ].join(' · '),
+                valor: _millones(totalRegional[r]!),
+                proporcion: totalRegional[r]! / maxRegional,
+                abierto:
+                    _regionalesAbiertas.contains(r.nombre) ||
+                    consulta.isNotEmpty,
+                onTap: () => setState(
+                  () => _regionalesAbiertas.contains(r.nombre)
+                      ? _regionalesAbiertas.remove(r.nombre)
+                      : _regionalesAbiertas.add(r.nombre),
+                ),
+                hijos: [
+                  const SizedBox(height: 4),
+                  if (nodos[despacho] case final d?)
+                    fila(d)
+                  else
+                    vacio('Sin procesos propios del despacho en este alcance.'),
+                  subtitulo('Centros de formación (${r.centros.length})'),
+                  for (final c in r.centros)
+                    if (nodos[c.nombre] case final d?)
+                      fila(d)
+                    else
+                      vacio(
+                        '${c.nombre}: sin procesos en SECOP II en este alcance.',
+                      ),
+                  if (otros.isNotEmpty) ...[
+                    subtitulo('Sin identificar'),
+                    for (final e in otros) fila(e.value),
+                  ],
+                ],
+              );
+            },
+          ),
+      ],
+      if (arbol.otras.isNotEmpty && consulta.isEmpty) ...[
+        const SizedBox(height: 8),
+        subtitulo('Otras cuentas del SENA'),
+        for (final d in arbol.otras) fila(d),
+      ],
+      if (nacional.isEmpty && regionales.isEmpty)
+        const _Mensaje(
+          icono: Icons.inbox_outlined,
+          texto: 'Ninguna regional, centro o dependencia coincide con la búsqueda.',
+        ),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -185,6 +432,8 @@ class _PresupuestoDependenciasPanelState
                   Text(
                     totalAsignado == null
                         ? widget.alcance
+                        : _esSena
+                        ? 'SENA · ${widget.alcance} · ${_millones(totalAsignado)} asignados'
                         : '${!variasCuentas && deps!.isNotEmpty && widget.cuentaSecop == null ? '${deps.first.cuentaSecop} · ' : ''}'
                               '${widget.alcance} · ${deps!.length} dependencias · '
                               '${_millones(totalAsignado)} asignados',
@@ -235,6 +484,8 @@ class _PresupuestoDependenciasPanelState
               padding: EdgeInsets.symmetric(vertical: 36),
               child: Center(child: CircularProgressIndicator()),
             )
+          else if (_esSena && deps.isNotEmpty)
+            ..._vistaSena(deps, consulta)
           else if (visibles.isEmpty)
             _Mensaje(
               icono: Icons.inbox_outlined,
@@ -329,59 +580,104 @@ class _FilaDependencia extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                if (MediaQuery.sizeOf(context).width < 520) ...[
+                  // En el celular el nombre va completo y la cifra debajo.
+                  Text(
+                    d.nombre,
+                    style: const TextStyle(
+                      color: _navy,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  if (mostrarCuenta && d.cuentaSecop.isNotEmpty)
+                    Text(
+                      d.cuentaSecop,
+                      style: const TextStyle(color: _gris, fontSize: 11.8),
+                    ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Text(
+                        millones(d.asignadoCop),
+                        style: const TextStyle(
+                          color: _navy,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'asignado · ${d.procesos} procesos',
+                          style: const TextStyle(color: _gris, fontSize: 11.5),
+                        ),
+                      ),
+                      Icon(
+                        abierta
+                            ? Icons.expand_less_rounded
+                            : Icons.expand_more_rounded,
+                        color: _gris,
+                      ),
+                    ],
+                  ),
+                ] else
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              d.nombre,
+                              style: const TextStyle(
+                                color: _navy,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            if (mostrarCuenta && d.cuentaSecop.isNotEmpty)
+                              Text(
+                                d.cuentaSecop,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: _gris,
+                                  fontSize: 11.8,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            d.nombre,
+                            millones(d.asignadoCop),
                             style: const TextStyle(
                               color: _navy,
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
-                          if (mostrarCuenta && d.cuentaSecop.isNotEmpty)
-                            Text(
-                              d.cuentaSecop,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: _gris,
-                                fontSize: 11.8,
-                              ),
+                          Text(
+                            'asignado · ${d.procesos} procesos',
+                            style: const TextStyle(
+                              color: _gris,
+                              fontSize: 11.5,
                             ),
+                          ),
                         ],
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          millones(d.asignadoCop),
-                          style: const TextStyle(
-                            color: _navy,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        Text(
-                          'asignado · ${d.procesos} procesos',
-                          style: const TextStyle(color: _gris, fontSize: 11.5),
-                        ),
-                      ],
-                    ),
-                    Icon(
-                      abierta
-                          ? Icons.expand_less_rounded
-                          : Icons.expand_more_rounded,
-                      color: _gris,
-                    ),
-                  ],
-                ),
+                      Icon(
+                        abierta
+                            ? Icons.expand_less_rounded
+                            : Icons.expand_more_rounded,
+                        color: _gris,
+                      ),
+                    ],
+                  ),
                 const SizedBox(height: 8),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
@@ -625,6 +921,152 @@ class _Mensaje extends StatelessWidget {
             style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
           ),
           ?accion,
+        ],
+      ),
+    );
+  }
+}
+
+class _ArbolSena {
+  const _ArbolSena({
+    required this.nacional,
+    required this.regionales,
+    required this.otras,
+  });
+
+  final List<DependenciaPresupuesto> nacional;
+
+  /// Regional → despacho, centros y unidades sin identificar.
+  final Map<RegionalSena, Map<String, DependenciaPresupuesto>> regionales;
+  final List<DependenciaPresupuesto> otras;
+}
+
+/// Fila plegable de la Dirección General o de una regional.
+class _GrupoSena extends StatelessWidget {
+  const _GrupoSena({
+    required this.titulo,
+    required this.detalle,
+    required this.valor,
+    required this.proporcion,
+    required this.abierto,
+    required this.onTap,
+    required this.hijos,
+  });
+
+  final String titulo;
+  final String detalle;
+  final String valor;
+  final double proporcion;
+  final bool abierto;
+  final VoidCallback onTap;
+  final List<Widget> hijos;
+
+  static const Color _navy = Color(0xFF0E2646);
+  static const Color _gris = Color(0xFF64748B);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: abierto ? const Color(0xFFF8FAFC) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: abierto ? const Color(0xFFCBD5E1) : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 10, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                titulo,
+                                style: const TextStyle(
+                                  color: _navy,
+                                  fontSize: 15.5,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                detalle,
+                                style: const TextStyle(
+                                  color: _gris,
+                                  fontSize: 12.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              valor,
+                              style: const TextStyle(
+                                color: _navy,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const Text(
+                              'asignado',
+                              style: TextStyle(color: _gris, fontSize: 11.5),
+                            ),
+                          ],
+                        ),
+                        Icon(
+                          abierto
+                              ? Icons.expand_less_rounded
+                              : Icons.expand_more_rounded,
+                          color: _gris,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: proporcion.clamp(0, 1),
+                        minHeight: 6,
+                        color: const Color(0xFF0E2646),
+                        backgroundColor: const Color(0xFFF1F5F9),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (abierto)
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                MediaQuery.sizeOf(context).width < 520 ? 8 : 14,
+                0,
+                MediaQuery.sizeOf(context).width < 520 ? 8 : 14,
+                8,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: hijos,
+              ),
+            ),
         ],
       ),
     );

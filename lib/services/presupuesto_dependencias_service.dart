@@ -19,7 +19,27 @@ class DependenciaPresupuesto {
     required this.variantes,
     required this.procesos,
     required this.asignadoCop,
+    this.departamento = '',
+    this.partes = const [],
   });
+
+  /// Une varias unidades de SECOP II que son la misma dependencia (p. ej.
+  /// un centro del SENA que contrata desde dos cuentas).
+  factory DependenciaPresupuesto.agrupada({
+    required String clave,
+    required String nombre,
+    required List<DependenciaPresupuesto> partes,
+  }) => DependenciaPresupuesto(
+    clave: clave,
+    nombre: nombre,
+    cuentaSecop: partes.map((p) => p.cuentaSecop).toSet().length == 1
+        ? partes.first.cuentaSecop
+        : '',
+    variantes: [for (final p in partes) ...p.variantes],
+    procesos: partes.fold(0, (s, p) => s + p.procesos),
+    asignadoCop: partes.fold(0.0, (s, p) => s + p.asignadoCop),
+    partes: partes,
+  );
 
   /// Cuenta de SECOP II + nombre normalizado.
   final String clave;
@@ -32,6 +52,12 @@ class DependenciaPresupuesto {
   final List<String> variantes;
   final int procesos;
   final double asignadoCop;
+
+  /// `departamento_entidad` de la cuenta en SECOP II.
+  final String departamento;
+
+  /// Unidades que forman una dependencia agrupada.
+  final List<DependenciaPresupuesto> partes;
 }
 
 class EjecucionDependencia {
@@ -241,16 +267,23 @@ class PresupuestoDependenciasService {
   }) async {
     final filas = await _get(
       _procesos,
-      'SELECT entidad, nombre_de_la_unidad_de, count(*) AS n, '
-      'sum(precio_base) AS asignado '
+      // Datos Abiertos repite un proceso en varias filas (una convocatoria
+      // del SENA aparece 1.617 veces): primero se toma cada proceso una vez
+      // con su precio y después se suma por unidad.
+      'SELECT entidad, departamento_entidad, nombre_de_la_unidad_de, '
+      'id_del_proceso, max(precio_base) AS pb '
       'WHERE ${_filtroBase(nit: nit, anio: anio, departamento: departamento, cuentaSecop: cuentaSecop)} '
-      'GROUP BY entidad, nombre_de_la_unidad_de LIMIT 5000',
+      'GROUP BY entidad, departamento_entidad, nombre_de_la_unidad_de, id_del_proceso '
+      '|> SELECT entidad, departamento_entidad, nombre_de_la_unidad_de, '
+      'count(*) AS n, sum(pb) AS asignado '
+      'GROUP BY entidad, departamento_entidad, nombre_de_la_unidad_de LIMIT 10000',
     );
     final grupos =
         <
           String,
           ({
             String cuenta,
+            String departamento,
             String norm,
             Set<String> variantes,
             int n,
@@ -265,6 +298,7 @@ class PresupuestoDependenciasService {
       final previo = grupos[clave];
       grupos[clave] = (
         cuenta: cuenta,
+        departamento: '${f['departamento_entidad'] ?? ''}',
         norm: norm,
         variantes: {...?previo?.variantes, raw},
         n: (previo?.n ?? 0) + (int.tryParse('${f['n']}') ?? 0),
@@ -280,6 +314,7 @@ class PresupuestoDependenciasService {
           variantes: e.value.variantes.toList(),
           procesos: e.value.n,
           asignadoCop: e.value.asignado,
+          departamento: e.value.departamento,
         ),
     ]..sort((a, b) => b.asignadoCop.compareTo(a.asignadoCop));
   }
@@ -291,13 +326,41 @@ class PresupuestoDependenciasService {
     required String nit,
     int? anio,
   }) async {
+    if (d.partes.isNotEmpty) {
+      // Una tras otra: cada parte ya consulta en paralelo por lotes.
+      var total = const EjecucionDependencia(
+        contratos: 0,
+        contratadoCop: 0,
+        pagadoCop: 0,
+        facturadoCop: 0,
+        pendienteCop: 0,
+        procesosConsultados: 0,
+        procesosTotales: 0,
+      );
+      for (final p in d.partes) {
+        final e = await ejecucion(p, nit: nit, anio: anio);
+        total = EjecucionDependencia(
+          contratos: total.contratos + e.contratos,
+          contratadoCop: total.contratadoCop + e.contratadoCop,
+          pagadoCop: total.pagadoCop + e.pagadoCop,
+          facturadoCop: total.facturadoCop + e.facturadoCop,
+          pendienteCop: total.pendienteCop + e.pendienteCop,
+          procesosConsultados:
+              total.procesosConsultados + e.procesosConsultados,
+          procesosTotales: total.procesosTotales + e.procesosTotales,
+        );
+      }
+      return total;
+    }
     final unidades = d.variantes.map((v) => "'${_sql(v)}'").join(',');
     final filas = await _get(
       _procesos,
-      'SELECT id_del_portafolio '
+      // Un portafolio por fila (las filas repetidas no gastan el límite).
+      'SELECT id_del_portafolio, max(precio_base) AS pb '
       'WHERE ${_filtroBase(nit: nit, anio: anio, cuentaSecop: d.cuentaSecop)} '
       'AND nombre_de_la_unidad_de in ($unidades) '
-      'ORDER BY precio_base DESC LIMIT $_maxProcesosDetalle',
+      'GROUP BY id_del_portafolio '
+      'ORDER BY pb DESC LIMIT $_maxProcesosDetalle',
     );
     final portafolios = {
       for (final f in filas.cast<Map<String, dynamic>>())
@@ -339,7 +402,11 @@ class PresupuestoDependenciasService {
       pagadoCop: pagado,
       facturadoCop: facturado,
       pendienteCop: pendiente,
-      procesosConsultados: filas.length,
+      // Solo se recorta cuando se llega al límite; si hay menos portafolios
+      // que procesos es porque comparten portafolio o aún no lo tienen.
+      procesosConsultados: filas.length >= _maxProcesosDetalle
+          ? filas.length
+          : d.procesos,
       procesosTotales: d.procesos,
     );
   }

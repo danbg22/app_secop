@@ -10,6 +10,7 @@ import 'sections/contratos_section.dart';
 import 'sections/entidades_section.dart';
 import 'sections/equipo_juridico_section.dart';
 import 'sections/inicio_section.dart';
+import 'sections/oportunidades_paa_section.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.initialIndex = 0});
@@ -37,13 +38,13 @@ class _HomeScreenState extends State<HomeScreen> {
   List<int> _resolverMobileTabIndices() {
     final tienePersona = AuthService.hasActiveRole('persona');
     final tieneJuridico = AuthService.hasActiveRole('equipo_juridico');
-    if (tienePersona && tieneJuridico) {
-      return const <int>[0, 2, 3, 4, 7, 8];
-    }
-    if (tieneJuridico) {
-      return const <int>[8];
-    }
-    return const <int>[0, 2, 3, 4, 7];
+    final tieneLicitante = AuthService.hasActiveRole('empresa_licitante');
+    final tabs = <int>[
+      if (tienePersona || !tieneJuridico) ...const [0, 2, 3, 4, 7],
+      if (tieneJuridico) 8,
+      if (tieneLicitante) 9,
+    ];
+    return tabs;
   }
 
   int _effectiveSelectedIndex() {
@@ -125,9 +126,9 @@ class _HomeScreenState extends State<HomeScreen> {
       case 7:
         return Expanded(child: FavoritosScreen(onLogout: _cerrarSesion));
       case 8:
-        return Expanded(
-          child: EquipoJuridicoSection(onLogout: _cerrarSesion),
-        );
+        return Expanded(child: EquipoJuridicoSection(onLogout: _cerrarSesion));
+      case 9:
+        return const Expanded(child: OportunidadesPaaSection());
       default:
         return Expanded(
           child: Center(
@@ -176,6 +177,12 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: Icon(Icons.gavel_outlined),
           activeIcon: Icon(Icons.gavel_rounded, color: _dorado),
           label: 'Gestión',
+        );
+      case 9:
+        return const BottomNavigationBarItem(
+          icon: Icon(Icons.event_note_outlined),
+          activeIcon: Icon(Icons.event_note_rounded, color: _dorado),
+          label: 'Compras',
         );
       default:
         return const BottomNavigationBarItem(
@@ -240,15 +247,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
               bottom: PreferredSize(
                 preferredSize: const Size.fromHeight(1),
-                child: Container(
-                  height: 1,
-                  color: const Color(0xFFEDE6D6),
-                ),
+                child: Container(height: 1, color: const Color(0xFFEDE6D6)),
               ),
             ),
-            body: Column(
-              children: [_buildCurrentView(activeIndex)],
-            ),
+            body: Column(children: [_buildCurrentView(activeIndex)]),
             bottomNavigationBar: mobileTabs.length >= 2
                 ? BottomNavigationBar(
                     currentIndex: activeBottomIdx,
@@ -289,9 +291,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   onLogout: _cerrarSesion,
                 ),
                 Expanded(
-                  child: Column(
-                    children: [_buildCurrentView(activeIndex)],
-                  ),
+                  child: Column(children: [_buildCurrentView(activeIndex)]),
                 ),
               ],
             ),
