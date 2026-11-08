@@ -238,4 +238,37 @@ void main() {
       '8 de noviembre de 2026, 11:05 p. m. (hora de Colombia)',
     );
   });
+
+  test(
+    'sin fecha de inicio en SECOP II se estima: terminación menos plazo',
+    () {
+      // CO1.PCCNTR.10126814: termina el 16/12/2026, 44 días, sin inicio.
+      final c = ContratoReporte.fromSecop({
+        'id_contrato': 'CO1.PCCNTR.10126814',
+        'fecha_de_firma': '2026-10-30T09:02:58.462',
+        'fecha_de_fin_del_contrato': '2026-12-16T23:59:00.000',
+        'duraci_n_del_contrato': '44 Dia(s)',
+      });
+      expect(c.inicio, isNull);
+      expect(c.inicioEstimado, isTrue);
+      expect(c.inicioEfectivo, DateTime(2026, 11, 3));
+      expect(
+        textoColumna(ColumnaReporte.inicio, c, 0),
+        '03/11/2026 (estimada)',
+      );
+      // Con prórroga de 10 días y plazo en meses.
+      expect(
+        ContratoReporte.estimarInicio(DateTime(2026, 12, 25), '2 Mes(es)', 10),
+        DateTime(2026, 10, 16),
+      );
+      // Con fecha registrada no se estima nada.
+      final r = ContratoReporte.fromSecop({
+        'fecha_de_inicio_del_contrato': '2026-03-12T00:00:00.000',
+        'fecha_de_fin_del_contrato': '2026-06-11T00:00:00.000',
+        'duraci_n_del_contrato': '3 Mes(es)',
+      });
+      expect(r.inicioEstimado, isFalse);
+      expect(textoColumna(ColumnaReporte.inicio, r, 0), '12/03/2026');
+    },
+  );
 }

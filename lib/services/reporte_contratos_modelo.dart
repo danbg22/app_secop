@@ -134,6 +134,35 @@ class ContratoReporte {
   DateTime? get fin => DateTime.tryParse(finIso);
   int? get anioFirma => firma?.year;
 
+  /// Inicio que se deduce cuando SECOP II no lo registra (contratos recién
+  /// firmados, sin acta de inicio): la terminación menos los días
+  /// prorrogados y el plazo pactado.
+  static DateTime? estimarInicio(
+    DateTime? fin,
+    String duracion,
+    int diasAdicionados,
+  ) {
+    if (fin == null) return null;
+    final m = RegExp(r'(\d+)\s*([A-Za-zñÑ]+)').firstMatch(duracion);
+    if (m == null) return null;
+    final n = int.parse(m.group(1)!);
+    if (n <= 0) return null;
+    final unidad = m.group(2)!.toLowerCase();
+    final f = DateTime(fin.year, fin.month, fin.day - diasAdicionados);
+    if (unidad.startsWith('d')) {
+      return DateTime(f.year, f.month, f.day - (n - 1));
+    }
+    if (unidad.startsWith('m')) return DateTime(f.year, f.month - n, f.day + 1);
+    if (unidad.startsWith('a')) return DateTime(f.year - n, f.month, f.day + 1);
+    return null;
+  }
+
+  /// La de SECOP II o, si falta, la deducida.
+  DateTime? get inicioEfectivo =>
+      inicio ?? estimarInicio(fin, duracion, diasAdicionados);
+
+  bool get inicioEstimado => inicio == null && inicioEfectivo != null;
+
   /// Plazo pactado en días calendario: el que publica SECOP II en días o,
   /// si viene en meses o años, contado desde la fecha de inicio.
   int? get plazoDias {
@@ -142,7 +171,7 @@ class ContratoReporte {
       final n = int.parse(m.group(1)!);
       final unidad = m.group(2)!.toLowerCase();
       if (unidad.startsWith('d')) return n;
-      final i = inicio;
+      final i = inicioEfectivo;
       if (i != null && unidad.startsWith('m')) {
         return DateTime(i.year, i.month + n, i.day).difference(i).inDays;
       }
@@ -348,7 +377,10 @@ String textoColumna(ColumnaReporte col, ContratoReporte c, int i) =>
       ColumnaReporte.enlace => c.url.isEmpty ? '' : c.numero,
       ColumnaReporte.dependencia => c.dependencia,
       ColumnaReporte.fuente => c.fuente,
-      ColumnaReporte.inicio => fechaCorta(c.inicioIso),
+      ColumnaReporte.inicio =>
+        c.inicioEstimado
+            ? '${fechaDia(c.inicioEfectivo!)} (estimada)'
+            : fechaCorta(c.inicioIso),
       ColumnaReporte.terminacion => fechaCorta(c.finIso),
       ColumnaReporte.interrupcion => [
         if (c.interrupcionHabiles != null) '${c.interrupcionHabiles}',

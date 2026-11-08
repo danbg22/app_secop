@@ -354,7 +354,8 @@ class ReporteContratosService {
           _get(
             _contratos,
             'SELECT documento_proveedor, id_contrato, fecha_de_firma, '
-            'fecha_de_inicio_del_contrato, fecha_de_fin_del_contrato '
+            'fecha_de_inicio_del_contrato, fecha_de_fin_del_contrato, '
+            'duraci_n_del_contrato, dias_adicionados '
             "WHERE nit_entidad='${_sql(base)}' "
             'AND documento_proveedor in (${lote.map((d) => "'${_sql(d)}'").join(',')}) '
             "AND fecha_de_firma >= '${desde - 1}-01-01T00:00:00' "
@@ -388,9 +389,18 @@ class ReporteContratosService {
               .add((
                 id: id,
                 firma: DateTime.tryParse('${m['fecha_de_firma'] ?? ''}'),
-                inicio: DateTime.tryParse(
-                  '${m['fecha_de_inicio_del_contrato'] ?? ''}',
-                ),
+                inicio:
+                    DateTime.tryParse(
+                      '${m['fecha_de_inicio_del_contrato'] ?? ''}',
+                    ) ??
+                    ContratoReporte.estimarInicio(
+                      DateTime.tryParse(
+                        '${m['fecha_de_fin_del_contrato'] ?? ''}',
+                      ),
+                      '${m['duraci_n_del_contrato'] ?? ''}',
+                      (double.tryParse('${m['dias_adicionados'] ?? ''}') ?? 0)
+                          .round(),
+                    ),
                 fin: DateTime.tryParse(
                   '${m['fecha_de_fin_del_contrato'] ?? ''}',
                 ),
@@ -423,7 +433,7 @@ class ReporteContratosService {
                 .length;
       // Contrato anterior: el que terminó más tarde antes de que este
       // iniciara (otro contrato, de cualquier cuenta de la entidad).
-      final inicio = c.inicio;
+      final inicio = c.inicioEfectivo;
       if (inicio != null && doc.isNotEmpty) {
         DateTime? finAnterior;
         var simultaneo = false;
@@ -447,6 +457,9 @@ class ReporteContratosService {
               DiasHabilesColombia.entre(finAnterior, inicio) -
               (DiasHabilesColombia.esHabil(inicio) ? 1 : 0);
           c.interrupcionHabiles = entre < 0 ? 0 : entre;
+          if (c.inicioEstimado) {
+            c.interrupcionNota = 'Con fecha de inicio estimada';
+          }
         } else {
           c.interrupcionNota = 'Sin contrato anterior desde ${desde - 1}';
         }

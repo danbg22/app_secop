@@ -696,6 +696,17 @@ Future<void> generarReporteContratos(
         progreso: (t) => estado.value = t,
       );
     }
+    if (contratos.any((c) => c.inicioEstimado) &&
+        (opciones.columnas.contains(ColumnaReporte.inicio) ||
+            opciones.columnas.contains(ColumnaReporte.interrupcion))) {
+      final n = contratos.where((c) => c.inicioEstimado).length;
+      notas = [
+        ...notas,
+        'Fecha de inicio "(estimada)": SECOP II aún no registra la fecha de inicio de $n contrato${n == 1 ? '' : 's'} '
+            '(por lo general recién firmados, sin acta de inicio). Se calcula como la fecha de terminación '
+            'menos los días prorrogados y el plazo pactado.',
+      ];
+    }
     estado.value =
         'Generando documento oficial… (${_miles(contratos.length)} contratos)';
     // Deja pintar el mensaje antes del trabajo pesado.
