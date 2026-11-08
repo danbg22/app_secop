@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/paa_service.dart';
+import '../../services/verificacion_paa_service.dart';
 import '../gestion_contractual/estilo_contractual.dart';
+import '../../utils/texto_profesional.dart';
+import 'verificacion_widgets.dart';
 
 /// Predicción de licitaciones de una cuenta de la entidad, a partir de su
 /// Plan Anual de Adquisiciones: qué piensa contratar, cuándo y por cuánto.
@@ -26,7 +29,8 @@ class PrediccionPaaScreen extends StatefulWidget {
   State<PrediccionPaaScreen> createState() => _PrediccionPaaScreenState();
 }
 
-enum _Estado { proximas, pasadas, publicadas, todas }
+/// Situación real de una compra del plan, verificada en SECOP II.
+enum _Estado { abiertas, porIniciar, enCurso, adjudicadas, vencidas, todas }
 
 class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
   static const _mesesCortos = [
@@ -65,7 +69,13 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
   String? _errorItems;
 
   bool _soloCompetitivas = true;
-  _Estado _estado = _Estado.proximas;
+  _Estado _estado = _Estado.porIniciar;
+
+  // Verificación en SECOP II.
+  List<ProcesoSecop>? _procesos;
+  String? _errorProcesos;
+  Map<String, Cruce> _cruces = const {};
+  Future<EjecucionPlan>? _ejecucion;
   int? _mes;
   String? _sector;
   int _mostrar = 30;
@@ -94,17 +104,71 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
       _mostrar = 30;
       _abierto = null;
       // De un año ya cerrado no quedan compras por venir.
-      _estado = p.anio < DateTime.now().year ? _Estado.todas : _Estado.proximas;
+      _estado = p.anio < DateTime.now().year
+          ? _Estado.todas
+          : _Estado.porIniciar;
       _referencias.clear();
       _filtroTexto.clear();
+      _procesos = null;
+      _errorProcesos = null;
+      _cruces = const {};
+      _ejecucion = VerificacionPaaService.ejecucion(
+        p.codigoEntidad,
+        p.anio,
+        contarSinValor: true,
+      );
     });
+    final procesos = VerificacionPaaService.procesosDeCuenta(
+      p.codigoEntidad,
+      p.anio,
+    );
     try {
       final items = await PaaService.items(p);
       if (!mounted || _plan != p) return;
       setState(() => _items = items);
     } on PaaException catch (e) {
       if (mounted) setState(() => _errorItems = e.message);
+      return;
     }
+    try {
+      final lista = await procesos;
+      if (!mounted || _plan != p) return;
+      final cruces = VerificacionPaaService.cruzar(_items!, lista);
+      setState(() {
+        _procesos = lista;
+        _cruces = cruces;
+        // Se abre en la primera situación con compras: abiertas hoy, por
+        // iniciar o, si no queda nada de eso, todas.
+        if (p.anio >= DateTime.now().year) {
+          final comp = _items!.where((i) => i.esCompetitiva).map(_situacion);
+          _estado = comp.contains(_Estado.abiertas)
+              ? _Estado.abiertas
+              : comp.contains(_Estado.porIniciar)
+              ? _Estado.porIniciar
+              : _Estado.todas;
+        }
+      });
+    } on PaaException catch (e) {
+      if (mounted) setState(() => _errorProcesos = e.message);
+    }
+  }
+
+  /// Situación real de la compra: la de su proceso en SECOP II si lo hay;
+  /// si no, por iniciar o con la fecha prevista vencida.
+  _Estado _situacion(ItemPaa i) {
+    final c = _cruces[i.id];
+    if (c != null) {
+      return switch (c.proceso.estado) {
+        EstadoProceso.abierto => _Estado.abiertas,
+        EstadoProceso.enCurso ||
+        EstadoProceso.estudioMercado => _Estado.enCurso,
+        EstadoProceso.adjudicado => _Estado.adjudicadas,
+        EstadoProceso.desierto || EstadoProceso.cancelado => _Estado.vencidas,
+      };
+    }
+    // Vinculado por la entidad pero sin datos del proceso: en curso.
+    if (i.yaTieneProceso) return _Estado.enCurso;
+    return _esProxima(i) ? _Estado.porIniciar : _Estado.vencidas;
   }
 
   static String _cop(double v) {
@@ -157,13 +221,8 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
     final q = _norm(_filtroTexto.text.trim());
     return items.where((i) {
       if (_soloCompetitivas && !i.esCompetitiva) return false;
-      final proxima = _esProxima(i);
-      if (conEstado) {
-        if (_estado == _Estado.proximas && !proxima) return false;
-        if (_estado == _Estado.pasadas && (proxima || i.yaTieneProceso)) {
-          return false;
-        }
-        if (_estado == _Estado.publicadas && !i.yaTieneProceso) return false;
+      if (conEstado && _estado != _Estado.todas && _situacion(i) != _estado) {
+        return false;
       }
       if (conMes && _mes != null && i.mes != _mes) return false;
       if (_sector != null &&
@@ -194,13 +253,13 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
         ),
         const SizedBox(height: 18),
         const Text(
-          'Predicción de licitaciones',
+          'Proyección de contratación',
           style: EstiloContractual.titulo,
         ),
         const SizedBox(height: 6),
         Text(
-          '${widget.entidad} · ${widget.titulo}. Lo que se prevé contratar, en qué mes y por cuánto, '
-          'según el Plan Anual de Adquisiciones que publicó en SECOP II.',
+          '${widget.entidad} · ${widget.titulo}. Lo que proyecta contratar según su Plan Anual de '
+          'Adquisiciones, verificado contra los procesos y contratos reales de SECOP II.',
           style: EstiloContractual.subtitulo,
         ),
         const SizedBox(height: 16),
@@ -209,8 +268,9 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
         ..._vistaPlan(mobile),
         const SizedBox(height: 18),
         const Text(
-          'Fuente: SECOP II, Datos Abiertos (PAA encabezado y detalle; contratos). '
-          'Cada compra del plan se cuenta una sola vez, en su versión más reciente.',
+          'Fuente: SECOP II, Datos Abiertos: PAA (encabezado y detalle), procesos, contratos y '
+          'modificaciones a contratos. Cada compra del plan se cuenta una sola vez, en su versión más '
+          'reciente. Cuando la entidad no vinculó el proceso, se busca por el parecido del objeto y del valor.',
           style: TextStyle(
             color: EstiloContractual.gris,
             fontSize: 11.5,
@@ -307,6 +367,37 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
       ),
       if (items != null && items.isNotEmpty) ...[
         const SizedBox(height: 14),
+        if (p.anio >= DateTime.now().year) ...[
+          PanelProcesosAbiertos(
+            procesos: _procesos,
+            enPlan: {for (final c in _cruces.values) c.proceso.referencia},
+            entidad: widget.entidad,
+            error: _errorProcesos,
+          ),
+          const SizedBox(height: 14),
+        ],
+        TarjetaEjecucion(
+          anio: p.anio,
+          proyectadoCop: items.fold<double>(0, (s, i) => s + i.valorCop),
+          ejecucion: _ejecucion,
+          enProcesoCop: _procesos
+              ?.where(
+                (x) =>
+                    x.estado == EstadoProceso.abierto ||
+                    x.estado == EstadoProceso.enCurso,
+              )
+              .fold<double>(0, (s, x) => s + x.precioBaseCop),
+          procesosEnCurso:
+              _procesos
+                  ?.where(
+                    (x) =>
+                        x.estado == EstadoProceso.abierto ||
+                        x.estado == EstadoProceso.enCurso,
+                  )
+                  .length ??
+              0,
+        ),
+        const SizedBox(height: 14),
         _calendario(mobile),
         const SizedBox(height: 14),
         _filtros(mobile),
@@ -319,8 +410,14 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
   Widget _cifras(PlanPaa p, List<ItemPaa> items, bool mobile) {
     final total = items.fold<double>(0, (s, i) => s + i.valorCop);
     final comp = items.where((i) => i.esCompetitiva).toList();
-    final porSalir = comp.where(_esProxima).toList();
-    final valorPorSalir = porSalir.fold<double>(0, (s, i) => s + i.valorCop);
+    final verificado = _procesos != null;
+    final abiertas = comp
+        .where((i) => _situacion(i) == _Estado.abiertas)
+        .toList();
+    final porIniciar = comp
+        .where((i) => _situacion(i) == _Estado.porIniciar)
+        .toList();
+    double suma(List<ItemPaa> l) => l.fold<double>(0, (s, i) => s + i.valorCop);
     final valorComp = comp.fold<double>(0, (s, i) => s + i.valorCop);
 
     Widget cifra(String clave, String valor, String nota) => Container(
@@ -364,19 +461,28 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
           runSpacing: 12,
           children: [
             cifra(
-              'Valor previsto',
+              'Valor proyectado',
               _millones(total),
-              '${items.length} contrataciones previstas en el PAA',
+              '${items.length} contrataciones en el PAA',
             ),
             cifra(
-              'Licitaciones previstas',
+              'Procesos competitivos',
               _millones(valorComp),
               '${comp.length} por licitación, selección abreviada, concurso o mínima cuantía',
             ),
             cifra(
-              'Próximas',
-              _millones(valorPorSalir),
-              '${porSalir.length} de esas compras son de este mes en adelante y aún no tienen proceso vinculado',
+              'Abiertas hoy',
+              verificado ? _millones(suma(abiertas)) : '…',
+              verificado
+                  ? '${abiertas.length} de esas compras reciben ofertas hoy en SECOP II'
+                  : 'Verificando en SECOP II…',
+            ),
+            cifra(
+              'Por iniciar',
+              verificado ? _millones(suma(porIniciar)) : '…',
+              verificado
+                  ? '${porIniciar.length} sin proceso en SECOP II, con fecha prevista de este mes en adelante'
+                  : 'Verificando en SECOP II…',
             ),
           ],
         ),
@@ -418,7 +524,7 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const Text(
-            '¿Cuándo se prevé que licite?',
+            '¿Cuándo proyecta contratar?',
             style: EstiloContractual.tituloGrupo,
           ),
           const SizedBox(height: 4),
@@ -537,9 +643,11 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
               runSpacing: 8,
               children: [
                 for (final (e, t) in [
-                  (_Estado.proximas, 'Próximas'),
-                  (_Estado.pasadas, 'Su mes ya pasó'),
-                  (_Estado.publicadas, 'Con proceso en SECOP II'),
+                  (_Estado.abiertas, 'Abiertas para ofertas'),
+                  (_Estado.porIniciar, 'Por iniciar'),
+                  (_Estado.enCurso, 'En evaluación'),
+                  (_Estado.adjudicadas, 'Adjudicadas'),
+                  (_Estado.vencidas, 'Fecha vencida sin proceso'),
                   (_Estado.todas, 'Todas'),
                 ])
                   ChoiceChip(
@@ -561,9 +669,12 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
               ],
             ),
             const SizedBox(height: 8),
-            const Text(
-              '"Con proceso" significa que la entidad vinculó la compra a un proceso de SECOP II. '
-              'Si no la vinculó, el proceso puede existir igual: búscalo por el objeto.',
+            Text(
+              _procesos == null
+                  ? 'Verificando cada compra contra los procesos de SECOP II…'
+                  : 'Cada compra se verificó contra los ${_procesos!.length} procesos que la cuenta '
+                        'publicó en SECOP II desde enero: por la referencia que vinculó la entidad o, si no '
+                        'la vinculó, por el parecido del objeto y del valor.',
               style: TextStyle(
                 color: EstiloContractual.gris,
                 fontSize: 12.3,
@@ -678,10 +789,10 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
           padding: const EdgeInsets.all(20),
           decoration: EstiloContractual.tarjeta(),
           child: Text(
-            _estado == _Estado.proximas && p.anio == ahora.year
-                ? 'No quedan compras por venir en lo que resta de ${p.anio} con estos filtros. '
-                      'Revisa "Su mes ya pasó" o espera el PAA ${p.anio + 1}, que las entidades '
-                      'publican a más tardar el 31 de enero.'
+            _estado == _Estado.porIniciar && p.anio == ahora.year
+                ? 'No quedan compras sin iniciar en lo que resta de ${p.anio} con estos filtros. '
+                      'Revisa "Abiertas para ofertas" y los procesos abiertos hoy, o espera el PAA '
+                      '${p.anio + 1}, que las entidades publican a más tardar el 31 de enero.'
                 : 'Ninguna compra del plan coincide con los filtros.',
             style: const TextStyle(
               color: EstiloContractual.gris,
@@ -696,11 +807,10 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
           mesTexto: i.mes == 0
               ? 'Mes sin definir'
               : 'Inicio esperado: ${_meses[i.mes - 1]}',
-          mesPasado:
-              !i.yaTieneProceso &&
-              p.anio == ahora.year &&
-              i.mes > 0 &&
-              i.mes < ahora.month,
+          situacion: _situacion(i),
+          verificando: _procesos == null && _errorProcesos == null,
+          cruce: _cruces[i.id],
+          anio: p.anio,
           valor: _cop(i.valorCop),
           abierta: _abierto == i.id,
           onTap: () =>
@@ -754,9 +864,10 @@ class AvisoPrediccionPaa extends StatelessWidget {
           SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Esto es una predicción, no un compromiso. El PAA es la planeación de la entidad: '
-              'durante el año puede cambiar fechas, valores o quitar compras. Los requisitos exactos '
-              '(experiencia, capacidad financiera) solo se conocen cuando la entidad publica el proceso en SECOP II.',
+              'Es una proyección, no un compromiso: el PAA es la planeación de la entidad y durante el año '
+              'puede cambiar fechas, valores o quitar compras. El estado de cada compra se verifica contra '
+              'SECOP II, pero los requisitos exactos (experiencia, capacidad financiera) solo se conocen en '
+              'el pliego del proceso.',
               style: TextStyle(
                 color: Color(0xFF78350F),
                 fontSize: 13,
@@ -774,7 +885,10 @@ class _TarjetaCompra extends StatelessWidget {
   const _TarjetaCompra({
     required this.item,
     required this.mesTexto,
-    required this.mesPasado,
+    required this.situacion,
+    required this.verificando,
+    required this.cruce,
+    required this.anio,
     required this.valor,
     required this.abierta,
     required this.onTap,
@@ -786,7 +900,10 @@ class _TarjetaCompra extends StatelessWidget {
 
   final ItemPaa item;
   final String mesTexto;
-  final bool mesPasado;
+  final _Estado situacion;
+  final bool verificando;
+  final Cruce? cruce;
+  final int anio;
   final String valor;
   final bool abierta;
   final VoidCallback onTap;
@@ -801,23 +918,35 @@ class _TarjetaCompra extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final i = item;
-    final estado = i.yaTieneProceso
+    final estado = verificando
         ? const EtiquetaColor(
-            texto: 'Con proceso en SECOP II',
-            color: Color(0xFF15803D),
-            fondo: Color(0xFFDCFCE7),
-          )
-        : mesPasado
-        ? const EtiquetaColor(
-            texto: 'Su mes ya pasó, sin proceso vinculado',
+            texto: 'Verificando en SECOP II…',
             color: Color(0xFF64748B),
             fondo: Color(0xFFF1F5F9),
           )
-        : const EtiquetaColor(
-            texto: 'Próxima',
-            color: Color(0xFFB45309),
-            fondo: Color(0xFFFEF3C7),
-          );
+        : cruce != null
+        ? EtiquetaColor(
+            texto: cruce!.proceso.estado.etiqueta,
+            color: coloresEstado(cruce!.proceso.estado).$1,
+            fondo: coloresEstado(cruce!.proceso.estado).$2,
+          )
+        : switch (situacion) {
+            _Estado.porIniciar => const EtiquetaColor(
+              texto: 'Por iniciar',
+              color: Color(0xFFB45309),
+              fondo: Color(0xFFFEF3C7),
+            ),
+            _Estado.enCurso => const EtiquetaColor(
+              texto: 'Proceso vinculado',
+              color: Color(0xFF1D4ED8),
+              fondo: Color(0xFFDBEAFE),
+            ),
+            _ => const EtiquetaColor(
+              texto: 'Fecha vencida, sin proceso en SECOP II',
+              color: Color(0xFF64748B),
+              fondo: Color(0xFFF1F5F9),
+            ),
+          };
 
     Widget dato(String clave, String valor) => Padding(
       padding: const EdgeInsets.only(top: 8),
@@ -859,9 +988,7 @@ class _TarjetaCompra extends StatelessWidget {
                     ),
                     if (i.modalidad.isNotEmpty)
                       EtiquetaColor(
-                        texto:
-                            i.modalidad[0] +
-                            i.modalidad.substring(1).toLowerCase(),
+                        texto: TextoProfesional.etiqueta(i.modalidad),
                         color: const Color(0xFF1D4ED8),
                         fondo: const Color(0xFFEFF6FF),
                       ),
@@ -938,18 +1065,22 @@ class _TarjetaCompra extends StatelessWidget {
                     dato(
                       'Contacto en la entidad',
                       [
-                        i.contactoNombre,
+                        TextoProfesional.titulo(i.contactoNombre),
                         i.contactoCorreo,
                       ].where((t) => t.isNotEmpty).join(' · '),
                     ),
-                  if (i.yaTieneProceso)
-                    dato('Proceso en SECOP II', i.procesoRelacionado),
+                  DetalleVerificacion(
+                    item: i,
+                    cruce: cruce,
+                    verificando: verificando,
+                    anio: anio,
+                  ),
                   const SizedBox(height: 10),
                   Wrap(
                     spacing: 10,
                     runSpacing: 8,
                     children: [
-                      if (i.urlProceso.startsWith('http'))
+                      if (cruce == null && i.urlProceso.startsWith('http'))
                         OutlinedButton.icon(
                           onPressed: () => launchUrl(Uri.parse(i.urlProceso)),
                           style: EstiloContractual.botonSecundario(),

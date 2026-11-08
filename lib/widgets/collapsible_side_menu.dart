@@ -42,7 +42,7 @@ class CollapsibleSideMenu extends StatelessWidget {
     MenuOptionItem(titulo: 'Favoritos', icono: Icons.bookmark_border),
     MenuOptionItem(titulo: 'Gestión contractual', icono: Icons.gavel_outlined),
     MenuOptionItem(
-      titulo: 'Predicción de licitaciones',
+      titulo: 'Proyección de contratación',
       icono: Icons.event_note_outlined,
     ),
   ];

@@ -88,8 +88,8 @@ void main() {
     );
     expect(antioquia.nodos.map((n) => n.nombre), [
       'Centro de Formación Minero Ambiental',
-      'Grupo administrativo Intercentros Medellin',
-      'Grupo de apoyo administrativo mixto',
+      'Grupo Administrativo Intercentros Medellín',
+      'Grupo de Apoyo Administrativo Mixto',
     ]);
     expect(grupos.any((g) => g.titulo == 'Regional Cesar'), isTrue);
   });

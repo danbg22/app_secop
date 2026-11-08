@@ -1,5 +1,5 @@
 import '../services/paa_service.dart';
-import '../services/presupuesto_dependencias_service.dart';
+import '../utils/texto_profesional.dart';
 import 'colombia_entities_database.dart';
 import 'estructura_sena.dart';
 
@@ -107,15 +107,7 @@ class EstructuraPaa {
   }
 
   /// "MINTRABAJO NIVEL CENTRAL*/" → "Mintrabajo Nivel Central".
-  static String nombreCuenta(String raw) {
-    var t = raw
-        .replaceAll(RegExp(r'[*/?+]+'), ' ')
-        .replaceAll(RegExp(r'(?<=[A-Za-zÁÉÍÓÚÑ])\d+$'), '')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-    t = t.replaceAll(RegExp(r'[\s.\-]+$'), '');
-    return PresupuestoDependenciasService.nombreVisible(t.toUpperCase());
-  }
+  static String nombreCuenta(String raw) => TextoProfesional.titulo(raw);
 
   static final RegExp _central = RegExp(
     r'\bNIVEL CENTRAL\b|\bSEDE CENTRAL\b|\bDIRECCION GENERAL\b|'
@@ -197,8 +189,8 @@ class EstructuraPaa {
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
     return resto.isEmpty
-        ? 'Grupo de apoyo administrativo mixto'
-        : 'Grupo administrativo $resto';
+        ? 'Grupo de Apoyo Administrativo Mixto'
+        : 'Grupo Administrativo ${TextoProfesional.titulo(resto)}';
   }
 
   static List<GrupoPaa> _sena(List<CuentaPaa> cuentas) {
@@ -227,7 +219,7 @@ class EstructuraPaa {
               .putIfAbsent(u.regional!, () => [])
               .add(
                 NodoPaa(
-                  nombre: 'Grupo administrativo de la regional (despacho y centros)',
+                  nombre: 'Grupo de Apoyo Administrativo Mixto (despacho y centros)',
                   cuenta: c,
                 ),
               );
@@ -238,7 +230,7 @@ class EstructuraPaa {
     for (final nodos in porRegional.values) {
       final genericos = nodos
           .where(
-            (n) => n.nombre.startsWith('Grupo administrativo de la regional'),
+            (n) => n.nombre.startsWith('Grupo de Apoyo Administrativo Mixto'),
           )
           .toList();
       if (genericos.length > 1) {

@@ -16,7 +16,7 @@ void main() {
       'procesos_relacionados': 'No Definido',
       'url_proceso': {'url': 'https://community.secop.gov.co/'},
     });
-    expect(i.descripcion, 'COMPRA DE MATERIALES DE FORMACION');
+    expect(i.descripcion, 'Compra de materiales de formación');
     expect(i.mes, 10);
     expect(i.duracion, '2 meses');
     expect(i.codigosUnspsc, ['27111910', '23242105', '23241624']);

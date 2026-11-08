@@ -6,7 +6,7 @@ import '../gestion_contractual/estilo_contractual.dart';
 import '../licitaciones/entidad_paa_screen.dart';
 import '../licitaciones/prediccion_paa_screen.dart';
 
-/// Empresa licitante: predicción de lo que cada entidad va a licitar, a
+/// Empresa licitante: proyección de lo que cada entidad va a contratar, a
 /// partir de su Plan Anual de Adquisiciones. Se busca la entidad cabeza
 /// (SENA, Ministerio del Trabajo) y desde ahí sus regionales.
 class OportunidadesPaaSection extends StatefulWidget {
@@ -162,13 +162,13 @@ class _OportunidadesPaaSectionState extends State<OportunidadesPaaSection> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text(
-                  'Predicción de licitaciones',
+                  'Proyección de contratación',
                   style: EstiloContractual.titulo,
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  'Qué se prevé que licite cada entidad durante el año, en qué mes y por cuánto, según el '
-                  'Plan Anual de Adquisiciones que publica en SECOP II. Prepárate antes de que salga el proceso.',
+                  'Qué proyecta contratar cada entidad, en qué mes y por cuánto, según su '
+                  'Plan Anual de Adquisiciones, verificado contra los procesos y contratos reales de SECOP II.',
                   style: EstiloContractual.subtitulo,
                 ),
                 const SizedBox(height: 16),
@@ -295,7 +295,7 @@ class _OportunidadesPaaSectionState extends State<OportunidadesPaaSection> {
                                             const SizedBox(height: 2),
                                             Text(
                                               e.cuentas.length == 1
-                                                  ? 'Ver su predicción de licitaciones'
+                                                  ? 'Ver su proyección de contratación'
                                                   : '${e.cuentas.length} cuentas coinciden con la búsqueda · ver su estructura',
                                               style: const TextStyle(
                                                 color: EstiloContractual.gris,

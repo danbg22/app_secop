@@ -3,6 +3,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../utils/texto_profesional.dart';
+
 /// Plan Anual de Adquisiciones (PAA) publicado en SECOP II, para que una
 /// empresa vea qué piensa contratar cada entidad durante el año.
 ///
@@ -149,10 +151,7 @@ class ItemPaa {
     return ItemPaa(
       id: '${m['id'] ?? ''}',
       // Las entidades anteponen su código interno ("20_9521_451 COMPRA…").
-      descripcion: '${m['descripcion'] ?? ''}'.trim().replaceFirst(
-        RegExp(r'^[0-9_\-]+\s+'),
-        '',
-      ),
+      descripcion: TextoProfesional.oracion('${m['descripcion'] ?? ''}'),
       mes: mesDe('${m['fecha_esperada_de_inicio'] ?? ''}'),
       duracion: _duracion(
         '${m['duracion_esperada'] ?? ''}',
