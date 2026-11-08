@@ -66,10 +66,18 @@ class ReporteContratosPdfService {
 
   static String cop(double v) => pesos(v);
 
+  /// Hora de Colombia (UTC-5, sin horario de verano), sin depender de la
+  /// zona horaria del equipo que genera el reporte.
+  static DateTime horaColombia([DateTime? d]) =>
+      (d ?? DateTime.now()).toUtc().subtract(const Duration(hours: 5));
+
+  /// "8 de noviembre de 2026, 5:29 p. m. (hora de Colombia)". [d] debe
+  /// venir de [horaColombia].
   static String fechaLarga(DateTime d) {
-    String dos(int n) => n.toString().padLeft(2, '0');
+    final h = d.hour % 12 == 0 ? 12 : d.hour % 12;
+    final m = d.minute.toString().padLeft(2, '0');
     return '${d.day} de ${_meses[d.month - 1]} de ${d.year}, '
-        '${dos(d.hour)}:${dos(d.minute)}';
+        '$h:$m ${d.hour < 12 ? 'a. m.' : 'p. m.'} (hora de Colombia)';
   }
 
   static String _recortar(String t, int max) {
@@ -501,7 +509,10 @@ class ReporteContratosPdfService {
                 pw.SizedBox(width: 7),
                 cifra('Contratistas recurrentes', '$recurrentes'),
                 pw.SizedBox(width: 7),
-                cifra('Interrupción de 30 días hábiles o menos', '$continuidad'),
+                cifra(
+                  'Interrupción de 30 días hábiles o menos',
+                  '$continuidad',
+                ),
               ],
             ],
           ),

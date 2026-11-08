@@ -221,4 +221,21 @@ void main() {
       'Reporte_contratos_Servicio_Nacional_de_Aprendizaje_SENA_Anexo_1_Regional_Cesar_2023_2026_20261108.xlsx',
     );
   });
+
+  test('la hora del reporte es la de Colombia, sin importar el equipo', () {
+    final utc = DateTime.utc(2026, 11, 8, 22, 29);
+    final co = ReporteContratosPdfService.horaColombia(utc);
+    expect(
+      ReporteContratosPdfService.fechaLarga(co),
+      '8 de noviembre de 2026, 5:29 p. m. (hora de Colombia)',
+    );
+    expect(
+      ReporteContratosPdfService.fechaLarga(
+        ReporteContratosPdfService.horaColombia(
+          DateTime.utc(2026, 11, 9, 4, 5),
+        ),
+      ),
+      '8 de noviembre de 2026, 11:05 p. m. (hora de Colombia)',
+    );
+  });
 }

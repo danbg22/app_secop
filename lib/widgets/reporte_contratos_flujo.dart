@@ -700,7 +700,7 @@ Future<void> generarReporteContratos(
         'Generando documento oficial… (${_miles(contratos.length)} contratos)';
     // Deja pintar el mensaje antes del trabajo pesado.
     await Future<void>.delayed(const Duration(milliseconds: 60));
-    final ahora = DateTime.now();
+    final ahora = ReporteContratosPdfService.horaColombia();
     final usuario = AuthService.getActiveUserDisplayName();
     final correo = AuthService.getActiveUserEmail();
     final generadoPor = [
