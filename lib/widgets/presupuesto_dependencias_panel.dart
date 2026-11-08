@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../data/estructura_sena.dart';
 import '../services/presupuesto_dependencias_service.dart';
+import '../services/reporte_contratos_service.dart';
+import 'reporte_contratos_flujo.dart';
 
 /// Presupuesto asignado y ejecutado por cada dependencia (unidad de
 /// contratación de SECOP II) de una entidad. Al tocar una dependencia se
@@ -14,9 +16,13 @@ class PresupuestoDependenciasPanel extends StatefulWidget {
     this.anio,
     this.departamento,
     this.cuentaSecop,
+    this.entidad,
   });
 
   final String nit;
+
+  /// Nombre de la entidad, para el reporte de contratos en PDF.
+  final String? entidad;
   final int? anio;
   final String? departamento;
   final String? cuentaSecop;
@@ -237,6 +243,7 @@ class _PresupuestoDependenciasPanelState
       ejecucion: _ejecuciones[d.clave],
       mostrarCuenta: false,
       onTap: () => _alternar(d),
+      onReporte: () => _reporte(d),
       onReintentar: () => setState(
         () => _ejecuciones[d.clave] = PresupuestoDependenciasService.ejecucion(
           d,
@@ -372,6 +379,38 @@ class _PresupuestoDependenciasPanelState
     ];
   }
 
+  /// Reporte exacto en PDF de los contratos de una unidad (despacho, centro).
+  void _reporte(DependenciaPresupuesto d) {
+    String? regional;
+    var etiqueta = d.nombre;
+    if (_esSena) {
+      if (d.clave.startsWith('nac|')) {
+        etiqueta = 'Dirección General · ${d.nombre}';
+      } else {
+        final nombre = d.clave.split('|').first;
+        // Las "otras cuentas" conservan su clave de SECOP: sin regional.
+        if (regionalesSena.any((r) => r.nombre == nombre)) {
+          regional = 'Regional $nombre';
+          etiqueta = '$regional · ${d.nombre}';
+        }
+      }
+    } else if (widget.departamento != null) {
+      regional = widget.departamento;
+    }
+    exportarReporteUnidad(
+      context,
+      entidad: widget.entidad ?? 'Entidad',
+      nit: widget.nit,
+      unidad: UnidadContratacion(
+        etiqueta: etiqueta,
+        partes: d.partes.isEmpty ? [d] : d.partes,
+        regional: regional,
+      ),
+      regional: regional,
+      vigencia: widget.anio,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final deps = _dependencias;
@@ -502,6 +541,7 @@ class _PresupuestoDependenciasPanelState
                 ejecucion: _ejecuciones[d.clave],
                 mostrarCuenta: variasCuentas,
                 onTap: () => _alternar(d),
+                onReporte: () => _reporte(d),
                 onReintentar: () => setState(
                   () => _ejecuciones[d.clave] =
                       PresupuestoDependenciasService.ejecucion(
@@ -544,9 +584,11 @@ class _FilaDependencia extends StatelessWidget {
     required this.onTap,
     required this.onReintentar,
     required this.millones,
+    this.onReporte,
   });
 
   final DependenciaPresupuesto dependencia;
+  final VoidCallback? onReporte;
   final double proporcion;
   final bool abierta;
   final Future<EjecucionDependencia>? ejecucion;
@@ -735,10 +777,36 @@ class _FilaDependencia extends StatelessWidget {
                           ),
                         );
                       }
-                      return _DetalleEjecucion(
-                        asignado: d.asignadoCop,
-                        e: snap.data!,
-                        millones: millones,
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _DetalleEjecucion(
+                            asignado: d.asignadoCop,
+                            e: snap.data!,
+                            millones: millones,
+                          ),
+                          if (onReporte != null) ...[
+                            const SizedBox(height: 10),
+                            OutlinedButton.icon(
+                              onPressed: onReporte,
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: _navy,
+                                side: const BorderSide(
+                                  color: Color(0xFFCBD5E1),
+                                ),
+                                shape: const StadiumBorder(),
+                              ),
+                              icon: const Icon(
+                                Icons.picture_as_pdf_outlined,
+                                size: 18,
+                              ),
+                              label: const Text(
+                                'Reporte de sus contratos (Excel o PDF)',
+                                style: TextStyle(fontWeight: FontWeight.w800),
+                              ),
+                            ),
+                          ],
+                        ],
                       );
                     },
                   ),
