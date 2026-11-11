@@ -61,6 +61,20 @@ List<String> notasReporte({
     'Supervisión u ordenación del gasto: si el documento del contratista figura en SECOP II como supervisor '
         'u ordenador del gasto de contratos de la entidad. El manejo de bienes no se registra en SECOP II: '
         'la entidad debe completarlo.',
+  if (o.columnas.contains(ColumnaReporte.meses) ||
+      o.columnas.contains(ColumnaReporte.mensual))
+    'Plazo en meses: la duración que publica SECOP II (con prórrogas), con meses de 30 días. Valor mensual: '
+        'valor del contrato entre el plazo en meses; en el SENA coincide con la tabla de honorarios, con '
+        'diferencias de algunos pesos cuando el plazo incluye días sueltos.',
+  if (o.columnas.contains(ColumnaReporte.cargo))
+    'Cargo o rol: SECOP II no lo publica (los contratistas de prestación de servicios no ocupan cargos de '
+        'planta); se deduce del objeto del contrato. En documentos oficiales conviene llamarlo "rol" u "objeto".',
+  if (o.columnas.contains(ColumnaReporte.perfil))
+    'Perfil: SECOP II no lo publica como dato. Está en el estudio previo de cada proceso (enlace a SECOP II) '
+        'y, para instructores del SENA, en el Anexo 2 Plan de Contratación de Instructores del centro.',
+  if (o.formato == FormatoReporte.contratistasOps)
+    'El objeto del contrato puede venir recortado en Datos Abiertos (500 caracteres); el texto completo está '
+        'en el enlace a SECOP II.',
   if (o.columnas.contains(ColumnaReporte.fuente)) 'Fuente de financiación: según los valores por fuente y el destino del gasto que registra SECOP II.',
 ];
 
@@ -149,6 +163,15 @@ class _DialogoReporteState extends State<DialogoReporte> {
             setState(() => _unidad = consolidado.first);
           }
         });
+      } else if (f == FormatoReporte.contratistasOps) {
+        // Los OPS de la vigencia en curso, en hoja de cálculo para
+        // diligenciar el perfil; con el consolidado, una hoja por
+        // dependencia.
+        _soloPs = true;
+        _desde = _hoy.year;
+        _corte = _hoy;
+        _xlsx = true;
+        _pdf = false;
       } else {
         _soloPs = false;
         _pdf = true;
@@ -719,9 +742,22 @@ Future<void> generarReporteContratos(
       if (correo.isNotEmpty) correo,
     ].join(' · ');
     final anexo = opciones.formato == FormatoReporte.anexoDirectiva018;
+    final ops = opciones.formato == FormatoReporte.contratistasOps;
+    if (ops) {
+      // Por dependencia y en orden alfabético del contratista.
+      contratos.sort((a, b) {
+        final d = a.dependencia.compareTo(b.dependencia);
+        return d != 0
+            ? d
+            : a.contratista.toLowerCase().compareTo(
+                b.contratista.toLowerCase(),
+              );
+      });
+    }
     if (opciones.xlsx) {
       final bytes = ReporteXlsxService.generar(
-        hoja: anexo ? 'Anexo 1' : 'Contratos',
+        hoja: anexo ? 'Anexo 1' : (ops ? 'Contratistas OPS' : 'Contratos'),
+        porDependencia: ops,
         encabezado: [
           '$entidad${nit.isEmpty ? '' : ' · NIT $nit'}',
           titulo,
@@ -836,11 +872,13 @@ Future<void> exportarReporteUnidad(
     ),
     entidad: entidad,
     nit: nit,
-    titulo: o.formato == FormatoReporte.anexoDirectiva018
-        ? 'Anexo 1 · Relación de contratos de prestación de servicios · ${unidad.etiqueta}'
-        : 'Relación de contratos · ${unidad.etiqueta}',
+    titulo: '${o.formato.tituloDocumento} · ${unidad.etiqueta}',
     criterios: criterios(o, unidad),
     notas: notasReporte(o: o, unidad: unidad),
-    alcanceArchivo: '${unidad.etiqueta} ${o.desde}-${o.corte.year}',
+    alcanceArchivo: [
+      ?o.formato.prefijoArchivo,
+      unidad.etiqueta,
+      '${o.desde}-${o.corte.year}',
+    ].join(' '),
   );
 }

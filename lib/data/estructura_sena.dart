@@ -369,11 +369,13 @@ const List<RegionalSena> regionalesSena = [
         siglas: ['CAE'],
         frases: ['AGUACHICA'],
       ),
-      // En SECOP II figura como COMM hasta 2024 y como CIGEC desde 2025.
+      // En SECOP II figura como COMM (Centro de Operación y Mantenimiento
+      // Minero) hasta 2024 y como CIGEC desde 2025, con subsede en La Jagua
+      // de Ibirico; se muestra con su nombre actual.
       CentroSena(
-        'Centro de Operación y Mantenimiento Minero',
+        'Centro de Innovación y de Gestión Empresarial y Cultural',
         siglas: ['COMM', 'CIGEC'],
-        frases: ['MANTENIMIENTO MINERO'],
+        frases: ['MANTENIMIENTO MINERO', 'GESTION EMPRESARIAL Y CULTURAL'],
       ),
     ],
   ),

@@ -185,21 +185,61 @@ class ContratoReporte {
     }
     return null;
   }
+
+  /// Plazo en meses según la duración que publica SECOP II (que ya incluye
+  /// las prórrogas): los días se cuentan de a 30. Si falta, de la fecha de
+  /// inicio a la de terminación.
+  double? get plazoMeses {
+    final m = RegExp(r'(\d+)\s*([A-Za-zñÑ]+)').firstMatch(duracion);
+    if (m != null) {
+      final n = int.parse(m.group(1)!);
+      final unidad = m.group(2)!.toLowerCase();
+      if (n > 0 && unidad.startsWith('d')) return n / 30;
+      if (n > 0 && unidad.startsWith('m')) return n.toDouble();
+      if (n > 0 && unidad.startsWith('a')) return n * 12.0;
+    }
+    final i = inicio, f = fin;
+    if (i != null && f != null && !f.isBefore(i)) {
+      return (f.difference(i).inDays + 1) / 30;
+    }
+    return null;
+  }
+
+  /// Cargo o rol que se deduce del objeto (ver [cargoSegunObjeto]).
+  String get cargo => cargoSegunObjeto(objeto);
+
+  /// Valor mensual (honorarios): el valor del contrato entre el plazo en
+  /// meses. En el SENA coincide con la tabla de honorarios.
+  double? get valorMensual {
+    final m = plazoMeses;
+    return m == null || m <= 0 ? null : valorCop / m;
+  }
 }
 
 /// Columnas que se pueden incluir en el reporte (PDF y hoja de cálculo).
 enum ColumnaReporte {
   fila('No.', 22),
   numero('N.º contrato', 80),
+  documento('Cédula / NIT', 58),
+  nombre('Nombre del contratista', 0, flex: 1.6),
+  cargo('Cargo o rol (según el objeto)', 0, flex: 1.2),
   contratista('Contratista (nombre e identificación)', 0, flex: 2),
+  perfil(
+    'Perfil (formación y experiencia exigidas)',
+    0,
+    flex: 1.6,
+    porDiligenciar: true,
+  ),
   objeto('Objeto del contrato', 0, flex: 4),
   vigencia('Vigencia', 34),
   firma('Fecha de firma', 46),
   modalidad('Modalidad', 66),
   tipo('Tipo de contrato', 62),
+  mensual('Valor mensual (\$)', 64, numerica: true),
   valor('Valor (\$)', 68, numerica: true),
   pagado('Valor pagado (\$)', 64, numerica: true),
   plazo('Plazo (días)', 34, numerica: true),
+  meses('Plazo (meses)', 34, numerica: true),
   sucesivos('No. de contratos sucesivos con la entidad', 46, numerica: true),
   manual(
     '¿El objeto coincide con funciones del manual? (Sí/No)',
@@ -253,6 +293,11 @@ enum FormatoReporte {
     'Relación de contratos de prestación de servicios, vigencias 2023–2026, con las columnas del '
         'Anexo 1 y las adicionales que pide el oficio.',
   ),
+  contratistasOps(
+    'Contratistas OPS: cédula, perfil y honorarios',
+    'Por dependencia: cédula, nombre, perfil, objeto, plazo, valor mensual y valor total de los contratos de '
+        'prestación de servicios del año. Con el consolidado, una hoja por dependencia.',
+  ),
   general(
     'Relación general de contratos',
     'Número, firma, objeto, modalidad, contratista, valor y estado.',
@@ -262,6 +307,21 @@ enum FormatoReporte {
   const FormatoReporte(this.titulo, this.descripcion);
   final String titulo;
   final String descripcion;
+
+  /// Título del documento generado.
+  String get tituloDocumento => switch (this) {
+    anexoDirectiva018 =>
+      'Anexo 1 · Relación de contratos de prestación de servicios',
+    contratistasOps => 'Contratistas de prestación de servicios (OPS)',
+    general || personalizado => 'Relación de contratos',
+  };
+
+  /// Prefijo del nombre del archivo (null: sin prefijo).
+  String? get prefijoArchivo => switch (this) {
+    anexoDirectiva018 => 'Anexo 1',
+    contratistasOps => 'Contratistas OPS',
+    general || personalizado => null,
+  };
 
   List<ColumnaReporte> get columnas => switch (this) {
     anexoDirectiva018 => const [
@@ -281,6 +341,18 @@ enum FormatoReporte {
       ColumnaReporte.interrupcion,
       ColumnaReporte.sigep,
       ColumnaReporte.supervision,
+    ],
+    contratistasOps => const [
+      ColumnaReporte.fila,
+      ColumnaReporte.documento,
+      ColumnaReporte.nombre,
+      ColumnaReporte.cargo,
+      ColumnaReporte.perfil,
+      ColumnaReporte.objeto,
+      ColumnaReporte.meses,
+      ColumnaReporte.mensual,
+      ColumnaReporte.valor,
+      ColumnaReporte.enlace,
     ],
     general || personalizado => const [
       ColumnaReporte.fila,
@@ -350,11 +422,111 @@ String pesos(double v) {
   return '\$ $t';
 }
 
+/// Mayúsculas sin tildes (también las que llegan como marcas combinadas).
+String _plano(String t) {
+  const tildes = {
+    'Á': 'A',
+    'É': 'E',
+    'Í': 'I',
+    'Ó': 'O',
+    'Ú': 'U',
+    'Ü': 'U',
+    'Ñ': 'N',
+  };
+  return t
+      .toUpperCase()
+      .replaceAll(RegExp('[\u0300-\u036f]'), '')
+      .split('')
+      .map((c) => tildes[c] ?? c)
+      .join();
+}
+
+/// Cargo o rol del contratista según el objeto del contrato. SECOP II no
+/// publica un campo de cargo (los contratistas de prestación de servicios
+/// no ocupan cargos de planta): se deduce de las palabras del objeto.
+String cargoSegunObjeto(String objeto) {
+  final o = _plano(objeto);
+  bool r(String p) => RegExp(p).hasMatch(o);
+  if (o.trim().isEmpty) return '';
+  if (r('ETAPA PRODUCTIVA') && !r('IMPARTIR')) {
+    return 'Instructor(a) de seguimiento a etapa productiva';
+  }
+  if (r(
+    r'INSTRUCT|IMPARTIR FORMACI|ORIENTAR (LA )?FORMACI|FORMACION PROFESIONAL INTEGRAL COMO',
+  )) {
+    return 'Instructor(a)';
+  }
+  const reglas = <(String, String)>[
+    ('ORIENTACION OCUPACIONAL', 'Orientador(a) ocupacional'),
+    ('ORIENTACION VOCACIONAL', 'Orientador(a) vocacional'),
+    ('CONDUCCION|CONDUCTOR', 'Conductor(a)'),
+    ('INTERPRETE', 'Guía intérprete de lengua de señas'),
+    ('TECNOACADEMIA', 'Profesional de Tecnoacademia'),
+    ('TECNOPARQUE', 'Experto(a) de Tecnoparque'),
+    ('ABOGAD|JURIDIC|EN DERECHO|SUSTANCIACI', 'Abogado(a)'),
+    (
+      'EVALUACION.{0,40}COMPETENCIAS|EVALUADOR',
+      'Evaluador(a) de competencias laborales',
+    ),
+    ('DINAMIZADOR', 'Dinamizador(a)'),
+    ('AUXILIAR DE ENFERMER', 'Auxiliar de enfermería'),
+    ('CONSULTA MEDICA', 'Médico(a) general'),
+    ('ODONTOL', 'Odontólogo(a)'),
+    ('PSICOLOG', 'Psicólogo(a)'),
+    (
+      'COMUNICADOR|PERIODIST|AUDIOVISUAL|GRAFIC',
+      'Profesional de comunicaciones',
+    ),
+    ('ARQUITECT', 'Profesional de infraestructura'),
+    ('SABEDOR', 'Sabedor(a)'),
+    (
+      'DEPORTE|ACTIVIDAD FISICA|ENTRENAMIENTO',
+      'Profesional de deporte y actividad física',
+    ),
+    ('EMPRENDIMIENTO', 'Gestor(a) de emprendimiento'),
+    (
+      'GESTION DOCUMENTAL|CORRESPONDENCIA|ARCHIV',
+      'Apoyo en gestión documental',
+    ),
+    ('CONTRACTUAL', 'Apoyo a la gestión contractual'),
+    ('FINANCIER|PRESUPUEST', 'Apoyo financiero'),
+    ('SOPORTE TECNICO', 'Técnico(a) de soporte'),
+    (
+      r'SERVICIOS? PROFESIONAL|COMO PROFESIONAL|PROFESIONAL(ES)? (DE APOYO|ESPECIALIZAD)|PERSONALES PROFESIONAL',
+      'Profesional de apoyo',
+    ),
+  ];
+  for (final (patron, cargo) in reglas) {
+    if (r(patron)) return cargo;
+  }
+  final cabeza = o.length > 110 ? o.substring(0, 110) : o;
+  if (cabeza.contains('TECNIC') || cabeza.contains('TECNOLOG')) {
+    return 'Técnico(a) de apoyo';
+  }
+  return 'Apoyo a la gestión';
+}
+
+/// Meses con un decimal (coma decimal), sin ",0" cuando es exacto.
+String mesesTexto(double? m) {
+  if (m == null) return '';
+  final r = (m * 10).round() / 10;
+  return r == r.roundToDouble()
+      ? '${r.round()}'
+      : r.toStringAsFixed(1).replaceAll('.', ',');
+}
+
 /// Texto de una celda (PDF). La hoja de cálculo usa números donde aplica.
 String textoColumna(ColumnaReporte col, ContratoReporte c, int i) =>
     switch (col) {
       ColumnaReporte.fila => '${i + 1}',
       ColumnaReporte.numero => c.numero,
+      ColumnaReporte.documento => c.documentoContratista,
+      ColumnaReporte.nombre => TextoProfesional.titulo(c.contratista),
+      ColumnaReporte.perfil => '',
+      ColumnaReporte.cargo => c.cargo,
+      ColumnaReporte.meses => mesesTexto(c.plazoMeses),
+      ColumnaReporte.mensual =>
+        c.valorMensual == null ? '' : pesos(c.valorMensual!),
       ColumnaReporte.contratista => [
         TextoProfesional.titulo(c.contratista),
         if (c.documentoContratista.isNotEmpty) 'Doc. ${c.documentoContratista}',

@@ -144,6 +144,137 @@ void main() {
     expect(hoja, contains('state="frozen"'));
   });
 
+  test(
+    'valor mensual: el valor entre el plazo en meses (tabla de honorarios)',
+    () {
+      final c = ContratoReporte.fromSecop({
+        'duraci_n_del_contrato': '210 Dia(s)',
+        'valor_del_contrato': '33162479',
+        'documento_proveedor': '1065572243',
+        'proveedor_adjudicado': 'CARLOS MARIO VANEGAS ARIAS',
+      });
+      expect(c.plazoMeses, 7);
+      expect(c.valorMensual!.round(), 4737497);
+      expect(textoColumna(ColumnaReporte.meses, c, 0), '7');
+      expect(textoColumna(ColumnaReporte.mensual, c, 0), '\$ 4.737.497');
+      expect(textoColumna(ColumnaReporte.documento, c, 0), '1065572243');
+      expect(
+        textoColumna(ColumnaReporte.nombre, c, 0),
+        'Carlos Mario Vanegas Arias',
+      );
+      expect(
+        ContratoReporte.fromSecop({'duraci_n_del_contrato': '304 Dia(s)'})
+            .plazoMeses,
+        closeTo(10.13, 0.01),
+      );
+      expect(mesesTexto(304 / 30), '10,1');
+      expect(ContratoReporte.fromSecop({}).valorMensual, isNull);
+    },
+  );
+
+  test('cargo o rol según el objeto del contrato', () {
+    expect(
+      cargoSegunObjeto(
+        'Prestar servicios personales para impartir formación, así como la planeación',
+      ),
+      'Instructor(a)',
+    );
+    expect(
+      cargoSegunObjeto(
+        'PRESTACIÓN DE SERVICIOS PROFESIONALES DE CARÁCTER TEMPORAL COMO ABOGADO PARA APOYAR',
+      ),
+      'Abogado(a)',
+    );
+    // Tildes como marca combinada (así llegan algunos objetos).
+    expect(
+      cargoSegunObjeto(
+        'Prestar los servicios personales para fomentar la actividad fi\u0301sica',
+      ),
+      'Profesional de deporte y actividad física',
+    );
+    expect(
+      cargoSegunObjeto(
+        'Prestar los servicios de conducción del aula móvil y demás vehículos',
+      ),
+      'Conductor(a)',
+    );
+    expect(
+      cargoSegunObjeto(
+        'Prestación de servicios de apoyo a la gestión en la coordinación',
+      ),
+      'Apoyo a la gestión',
+    );
+    expect(cargoSegunObjeto(''), '');
+  });
+
+  test(
+    'formato Contratistas OPS: cédula, nombre, perfil, objeto y valores',
+    () {
+      final cols = FormatoReporte.contratistasOps.columnas;
+      expect(cols.map((c) => c.titulo).toList(), [
+        'No.',
+        'Cédula / NIT',
+        'Nombre del contratista',
+        'Cargo o rol (según el objeto)',
+        'Perfil (formación y experiencia exigidas)',
+        'Objeto del contrato',
+        'Plazo (meses)',
+        'Valor mensual (\$)',
+        'Valor (\$)',
+        'Enlace SECOP II',
+      ]);
+      expect(cols.where((c) => c.porDiligenciar), [ColumnaReporte.perfil]);
+      expect(
+        FormatoReporte.contratistasOps.tituloDocumento,
+        'Contratistas de prestación de servicios (OPS)',
+      );
+      expect(FormatoReporte.contratistasOps.prefijoArchivo, 'Contratistas OPS');
+      expect(FormatoReporte.general.prefijoArchivo, isNull);
+    },
+  );
+
+  test('hoja de cálculo con una hoja por dependencia y resumen', () {
+    final bytes = ReporteXlsxService.generar(
+      hoja: 'Contratistas OPS',
+      porDependencia: true,
+      encabezado: const ['SENA · NIT 899999034', 'Contratistas OPS'],
+      columnas: FormatoReporte.contratistasOps.columnas,
+      contratos: [for (var i = 0; i < 12; i++) contrato(i)],
+    );
+    final zip = ZipDecoder().decodeBytes(bytes);
+    String leer(String n) => utf8.decode(zip.findFile(n)!.content);
+    final libro = leer('xl/workbook.xml');
+    expect(libro, contains('name="Resumen"'));
+    expect(libro, contains('name="Despacho Dirección Regional"'));
+    expect(libro, contains('name="Centro Biotecnológico Caribe"'));
+    expect(zip.findFile('xl/worksheets/sheet3.xml'), isNotNull);
+    expect(leer('[Content_Types].xml'), contains('sheet3.xml'));
+    expect(leer('xl/_rels/workbook.xml.rels'), contains('Target="styles.xml"'));
+    final resumen = leer('xl/worksheets/sheet1.xml');
+    expect(resumen, contains('Despacho de la Dirección Regional'));
+    expect(resumen, contains('<f>SUM('));
+    final despacho = leer('xl/worksheets/sheet2.xml');
+    expect(
+      despacho,
+      contains('Dependencia: Despacho de la Dirección Regional'),
+    );
+    // Seis contratos (los pares) y la columna de perfil por diligenciar.
+    expect(despacho, contains('TOTAL (6 contratos)'));
+    expect(despacho, contains('Perfil (formación y experiencia exigidas)'));
+
+    // Con una sola dependencia, una sola hoja.
+    final una = ZipDecoder().decodeBytes(
+      ReporteXlsxService.generar(
+        hoja: 'Contratistas OPS',
+        porDependencia: true,
+        encabezado: const ['SENA'],
+        columnas: FormatoReporte.contratistasOps.columnas,
+        contratos: [contrato(0), contrato(2)],
+      ),
+    );
+    expect(una.findFile('xl/worksheets/sheet2.xml'), isNull);
+  });
+
   test('criterio exacto y consolidado: notas con los nombres registrados', () {
     const despacho = UnidadContratacion(
       etiqueta: 'Regional Cesar · Despacho de la Dirección Regional',

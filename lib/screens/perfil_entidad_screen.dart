@@ -3028,7 +3028,6 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     if (o == null || !mounted) return;
     final unidad = o.unidad as UnidadContratacion?;
     final nit = _nitEntidad.replaceAll(RegExp(r'[^0-9]'), '');
-    final anexo = o.formato == FormatoReporte.anexoDirectiva018;
     final nombre = unidad?.etiqueta ??
         (porPalabras ? _nombreDependencia(_dependenciaSeleccionada!) : '');
     setState(() => _generandoReporte = true);
@@ -3048,9 +3047,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       entidad: widget.entity.name,
       nit: nit,
       titulo: [
-        anexo
-            ? 'Anexo 1 · Relación de contratos de prestación de servicios'
-            : 'Relación de contratos',
+        o.formato.tituloDocumento,
         if (nombre.isNotEmpty) nombre,
       ].join(' · '),
       criterios: _criteriosReporte(o, unidad),
@@ -3060,7 +3057,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         dependenciaPorPalabras: unidad == null && porPalabras,
       ),
       alcanceArchivo: [
-        if (anexo) 'Anexo 1',
+        ?o.formato.prefijoArchivo,
         if (nombre.isNotEmpty) nombre else ?_selectedRegionalDept,
         '${o.desde}-${o.corte.year}',
       ].join(' '),

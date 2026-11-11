@@ -26,6 +26,7 @@ class ReporteXlsxService {
   static const _sDiligenciar = 6;
   static const _sNota = 7;
   static const _sEntero = 8;
+  static const _sDecimal = 9;
 
   static String _xml(String t) => t
       .replaceAll('&', '&amp;')
@@ -62,6 +63,12 @@ class ReporteXlsxService {
     ColumnaReporte.fila => 6,
     ColumnaReporte.objeto => 60,
     ColumnaReporte.contratista => 34,
+    ColumnaReporte.nombre => 30,
+    ColumnaReporte.cargo => 26,
+    ColumnaReporte.perfil => 40,
+    ColumnaReporte.documento => 14,
+    ColumnaReporte.mensual => 16,
+    ColumnaReporte.meses => 10,
     ColumnaReporte.numero => 22,
     ColumnaReporte.enlace => 22,
     ColumnaReporte.dependencia => 34,
@@ -109,8 +116,23 @@ class ReporteXlsxService {
         return c.interrupcionHabiles == null
             ? _texto(ref, c.interrupcionNota, _sTexto)
             : _numero(ref, c.interrupcionHabiles!, _sEntero);
-      case ColumnaReporte.manual || ColumnaReporte.sigep:
+      case ColumnaReporte.manual ||
+          ColumnaReporte.sigep ||
+          ColumnaReporte.perfil:
         return _texto(ref, '', _sDiligenciar);
+      case ColumnaReporte.documento:
+        // Como texto, para que no se vea en notación científica.
+        return _texto(ref, c.documentoContratista, _sEntero);
+      case ColumnaReporte.meses:
+        final m = c.plazoMeses;
+        return m == null
+            ? _texto(ref, '', _sTexto)
+            : _numero(ref, (m * 10).round() / 10, _sDecimal);
+      case ColumnaReporte.mensual:
+        final v = c.valorMensual;
+        return v == null
+            ? _texto(ref, '', _sTexto)
+            : _numero(ref, v.round(), _sNumero);
       case ColumnaReporte.contratista:
         return _texto(
           ref,
@@ -128,7 +150,7 @@ class ReporteXlsxService {
   static const _estilos =
       '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<numFmts count="1"><numFmt numFmtId="164" formatCode="&quot;\$&quot; #,##0"/></numFmts>
+<numFmts count="2"><numFmt numFmtId="164" formatCode="&quot;\$&quot; #,##0"/><numFmt numFmtId="165" formatCode="0.0"/></numFmts>
 <fonts count="5">
 <font><sz val="10"/><name val="Calibri"/></font>
 <font><b/><sz val="13"/><color rgb="FF0E2646"/><name val="Calibri"/></font>
@@ -147,7 +169,7 @@ class ReporteXlsxService {
 <border><left style="thin"><color rgb="FFB8C4D6"/></left><right style="thin"><color rgb="FFB8C4D6"/></right><top style="thin"><color rgb="FFB8C4D6"/></top><bottom style="thin"><color rgb="FFB8C4D6"/></bottom><diagonal/></border>
 </borders>
 <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-<cellXfs count="9">
+<cellXfs count="10">
 <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
 <xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>
 <xf numFmtId="0" fontId="2" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
@@ -157,11 +179,13 @@ class ReporteXlsxService {
 <xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1"/>
 <xf numFmtId="0" fontId="4" fillId="0" borderId="0" xfId="0" applyFont="1"/>
 <xf numFmtId="1" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="top"/></xf>
+<xf numFmtId="165" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="top"/></xf>
 </cellXfs>
 </styleSheet>''';
 
   /// Genera el .xlsx. [encabezado] son las líneas sobre la tabla (entidad,
-  /// título, criterios); [notas] van debajo.
+  /// título, criterios); [notas] van debajo. Con [porDependencia] y varias
+  /// dependencias, una hoja de resumen y una hoja por dependencia.
   static Uint8List generar({
     required String hoja,
     required List<String> encabezado,
@@ -169,6 +193,198 @@ class ReporteXlsxService {
     required List<ContratoReporte> contratos,
     List<String> notas = const [],
     bool firmaResponsable = false,
+    bool porDependencia = false,
+  }) {
+    final grupos = <String, List<ContratoReporte>>{};
+    if (porDependencia) {
+      for (final c in contratos) {
+        (grupos[c.dependencia] ??= []).add(c);
+      }
+    }
+    final hojas = <(String, String, String)>[];
+    final usados = <String>{};
+    String nombreHoja(String n) {
+      var s = n.replaceAll(RegExp(r'[\\/?*\[\]:]'), ' ').trim();
+      // "Regional Cesar · Despacho…" → "Despacho…".
+      if (s.contains(' · ')) s = s.substring(s.lastIndexOf(' · ') + 3);
+      if (s.isEmpty) s = 'Hoja';
+      // Excel admite 31 caracteres: primero sin conectores y luego
+      // cortando en un espacio (el nombre completo va dentro de la hoja).
+      if (s.length > 31) {
+        s = s
+            .split(RegExp(r'\s+'))
+            .where(
+              (p) => !{
+                'de',
+                'del',
+                'la',
+                'las',
+                'los',
+                'y',
+                'e',
+                'el',
+              }.contains(p.toLowerCase()),
+            )
+            .join(' ');
+      }
+      if (s.length > 31) {
+        final corte = s.substring(0, 32).lastIndexOf(' ');
+        s = s.substring(0, corte > 0 ? corte : 31).trim();
+      }
+      final base = s;
+      var k = base;
+      for (var i = 2; !usados.add(k.toLowerCase()); i++) {
+        final sufijo = ' ($i)';
+        k = '${base.length + sufijo.length > 31 ? base.substring(0, 31 - sufijo.length).trim() : base}$sufijo';
+      }
+      return k;
+    }
+
+    if (grupos.length > 1) {
+      final resumen = nombreHoja('Resumen');
+      hojas.add((resumen, _hojaResumen(encabezado, grupos), ''));
+      for (final e in grupos.entries) {
+        final n = nombreHoja(e.key);
+        final (xml, filtro) = _hoja(
+          encabezado: [
+            ...encabezado.take(2),
+            'Dependencia: ${e.key}',
+            ...encabezado.skip(2),
+          ],
+          columnas: columnas,
+          contratos: e.value,
+          notas: notas,
+          firmaResponsable: firmaResponsable,
+        );
+        hojas.add((n, xml, filtro));
+      }
+    } else {
+      final (xml, filtro) = _hoja(
+        encabezado: encabezado,
+        columnas: columnas,
+        contratos: contratos,
+        notas: notas,
+        firmaResponsable: firmaResponsable,
+      );
+      hojas.add((nombreHoja(hoja), xml, filtro));
+    }
+
+    final libro =
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'
+        '${[for (final (i, h) in hojas.indexed) '<sheet name="${_xml(h.$1)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>'].join()}'
+        '</sheets><definedNames>'
+        '${[for (final (i, h) in hojas.indexed)
+          if (h.$3.isNotEmpty) '<definedName name="_xlnm._FilterDatabase" localSheetId="$i" hidden="1">\'${_xml(h.$1)}\'!${h.$3}</definedName>'].join()}'
+        '</definedNames></workbook>';
+    final tipos =
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        '<Default Extension="xml" ContentType="application/xml"/>'
+        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+        '${[for (var i = 1; i <= hojas.length; i++) '<Override PartName="/xl/worksheets/sheet$i.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'].join()}'
+        '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+        '</Types>';
+    const relaciones =
+        '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>''';
+    final relacionesLibro =
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '${[for (var i = 1; i <= hojas.length; i++) '<Relationship Id="rId$i" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet$i.xml"/>'].join()}'
+        '<Relationship Id="rId${hojas.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+        '</Relationships>';
+
+    ArchiveFile archivo(String nombre, String contenido) =>
+        ArchiveFile.bytes(nombre, utf8.encode(contenido));
+    final zip = Archive()
+      ..addFile(archivo('[Content_Types].xml', tipos))
+      ..addFile(archivo('_rels/.rels', relaciones))
+      ..addFile(archivo('xl/workbook.xml', libro))
+      ..addFile(archivo('xl/_rels/workbook.xml.rels', relacionesLibro))
+      ..addFile(archivo('xl/styles.xml', _estilos));
+    for (final (i, h) in hojas.indexed) {
+      zip.addFile(archivo('xl/worksheets/sheet${i + 1}.xml', h.$2));
+    }
+    return ZipEncoder().encodeBytes(zip);
+  }
+
+  /// Hoja de resumen: contratos y valor por dependencia.
+  static String _hojaResumen(
+    List<String> encabezado,
+    Map<String, List<ContratoReporte>> grupos,
+  ) {
+    final filas = StringBuffer();
+    var r = 0;
+    void fila(String celdas, {double? alto}) {
+      r++;
+      filas.write(
+        '<row r="$r"${alto == null ? '' : ' ht="$alto" customHeight="1"'}>$celdas</row>',
+      );
+    }
+
+    for (final (i, linea) in encabezado.indexed) {
+      fila(_texto('A${r + 1}', linea, i == 0 ? _sTitulo : _sNota));
+    }
+    fila('');
+    final cab = r + 1;
+    fila(
+      [
+        _texto('A$cab', 'Dependencia', _sCabecera),
+        _texto('B$cab', 'Contratos', _sCabecera),
+        _texto('C$cab', 'Valor total (\$)', _sCabecera),
+      ].join(),
+      alto: 30,
+    );
+    for (final e in grupos.entries) {
+      final n = r + 1;
+      fila(
+        [
+          _texto('A$n', e.key, _sTexto),
+          _numero('B$n', e.value.length, _sEntero),
+          _numero(
+            'C$n',
+            e.value.fold<double>(0, (s, c) => s + c.valorCop).round(),
+            _sNumero,
+          ),
+        ].join(),
+      );
+    }
+    final n = r + 1;
+    fila(
+      [
+        _texto('A$n', 'TOTAL', _sCabecera),
+        '<c r="B$n" s="$_sEntero"><f>SUM(B${cab + 1}:B${n - 1})</f><v>${grupos.values.fold<int>(0, (s, l) => s + l.length)}</v></c>',
+        '<c r="C$n" s="$_sNumero"><f>SUM(C${cab + 1}:C${n - 1})</f><v>${grupos.values.expand((l) => l).fold<double>(0, (s, c) => s + c.valorCop).round()}</v></c>',
+      ].join(),
+    );
+    fila('');
+    fila(
+      _texto(
+        'A${r + 1}',
+        'Cada dependencia tiene su hoja con el detalle de los contratos.',
+        _sNota,
+      ),
+    );
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        '<cols><col min="1" max="1" width="60" customWidth="1"/><col min="2" max="2" width="14" customWidth="1"/>'
+        '<col min="3" max="3" width="20" customWidth="1"/></cols>'
+        '<sheetData>$filas</sheetData></worksheet>';
+  }
+
+  /// Una hoja con la tabla de contratos. Devuelve el XML y el rango del
+  /// filtro automático.
+  static (String, String) _hoja({
+    required List<String> encabezado,
+    required List<ColumnaReporte> columnas,
+    required List<ContratoReporte> contratos,
+    required List<String> notas,
+    required bool firmaResponsable,
   }) {
     final filas = StringBuffer();
     var r = 0;
@@ -239,6 +455,8 @@ class ReporteXlsxService {
     }
 
     final ultima = _col(columnas.length - 1);
+    final filtro =
+        '\$A\$$filaCabecera:\$$ultima\$${filaCabecera + contratos.length}';
     final hojaXml =
         '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
@@ -249,47 +467,7 @@ class ReporteXlsxService {
 <autoFilter ref="A$filaCabecera:$ultima${filaCabecera + contratos.length}"/>
 <pageSetup orientation="landscape" paperSize="5" fitToWidth="1" fitToHeight="0"/>
 </worksheet>''';
-
-    final nombreHoja = _xml(
-      hoja.replaceAll(RegExp(r'[\\/?*\[\]:]'), ' ').trim(),
-    );
-    final libro =
-        '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-<sheets><sheet name="${nombreHoja.length > 31 ? nombreHoja.substring(0, 31) : nombreHoja}" sheetId="1" r:id="rId1"/></sheets>
-<definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">'${nombreHoja.length > 31 ? nombreHoja.substring(0, 31) : nombreHoja}'!\$A\$$filaCabecera:\$$ultima\$${filaCabecera + contratos.length}</definedName></definedNames>
-</workbook>''';
-
-    const tipos = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-<Default Extension="xml" ContentType="application/xml"/>
-<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
-<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
-<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
-</Types>''';
-    const relaciones =
-        '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
-</Relationships>''';
-    const relacionesLibro =
-        '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
-<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
-</Relationships>''';
-
-    ArchiveFile archivo(String nombre, String contenido) =>
-        ArchiveFile.bytes(nombre, utf8.encode(contenido));
-    final zip = Archive()
-      ..addFile(archivo('[Content_Types].xml', tipos))
-      ..addFile(archivo('_rels/.rels', relaciones))
-      ..addFile(archivo('xl/workbook.xml', libro))
-      ..addFile(archivo('xl/_rels/workbook.xml.rels', relacionesLibro))
-      ..addFile(archivo('xl/styles.xml', _estilos))
-      ..addFile(archivo('xl/worksheets/sheet1.xml', hojaXml));
-    return ZipEncoder().encodeBytes(zip);
+    return (hojaXml, filtro);
   }
 
   static bool descargar(Uint8List bytes, String nombre) => downloadBinaryBytes(
