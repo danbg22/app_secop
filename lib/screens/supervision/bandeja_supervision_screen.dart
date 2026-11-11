@@ -7,6 +7,7 @@ import 'componentes_supervision.dart';
 import 'plantilla_informe_screen.dart';
 import 'revision_supervisor_screen.dart';
 import 'supervision_contrato_screen.dart';
+import '../../tema/cristal.dart';
 
 /// Bandeja de supervisión del equipo: informes de todos los contratos
 /// agrupados por paso, con lo que le toca al usuario primero.
@@ -171,22 +172,22 @@ class _BandejaSupervisionScreenState extends State<BandejaSupervisionScreen> {
                     contador(
                       _Filtro.meToca,
                       Icons.notifications_active_outlined,
-                      const Color(0xFFDC2626),
+                      Cristal.rojo,
                     ),
                     contador(
                       _Filtro.porRevisar,
                       Icons.fact_check_outlined,
-                      const Color(0xFF1D4ED8),
+                      Cristal.acentoClaro,
                     ),
                     contador(
                       _Filtro.porAprobar,
                       Icons.verified_user_outlined,
-                      const Color(0xFF7C3AED),
+                      const Color(0xFFA78BFA),
                     ),
                     contador(
                       _Filtro.devueltos,
                       Icons.undo_rounded,
-                      const Color(0xFFB45309),
+                      Cristal.ambar,
                     ),
                   ],
                 );
@@ -217,15 +218,13 @@ class _BandejaSupervisionScreenState extends State<BandejaSupervisionScreen> {
                                 selected: _filtro == f,
                                 showCheckmark: false,
                                 onSelected: (_) => setState(() => _filtro = f),
-                                selectedColor: EstiloContractual.navy,
-                                backgroundColor: Colors.white,
-                                side: const BorderSide(
-                                  color: Color(0xFFD8DEE8),
-                                ),
+                                selectedColor: Cristal.acento,
+                                backgroundColor: Cristal.vidrio,
+                                side: const BorderSide(color: Cristal.borde),
                                 labelStyle: TextStyle(
                                   color: _filtro == f
-                                      ? Colors.white
-                                      : EstiloContractual.navy,
+                                      ? Cristal.texto
+                                      : Cristal.texto,
                                   fontWeight: FontWeight.w700,
                                   fontSize: 12.5,
                                 ),
@@ -268,16 +267,14 @@ class _BandejaSupervisionScreenState extends State<BandejaSupervisionScreen> {
                           const Icon(
                             Icons.inbox_outlined,
                             size: 36,
-                            color: Color(0xFF94A3B8),
+                            color: Cristal.textoTenue,
                           ),
                           const SizedBox(height: 8),
                           Text(
                             _filtro == _Filtro.meToca
                                 ? 'No tienes informes pendientes. ¡Al día!'
                                 : 'No hay informes en "${_filtro.etiqueta}".',
-                            style: const TextStyle(
-                              color: EstiloContractual.gris,
-                            ),
+                            style: const TextStyle(color: Cristal.textoSuave),
                           ),
                         ],
                       ),
@@ -331,9 +328,10 @@ class _Contador extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: Cristal.vidrio,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
+        hoverDuration: Cristal.micro,
         onTap: onTap,
         borderRadius: BorderRadius.circular(18),
         child: Container(
@@ -341,7 +339,7 @@ class _Contador extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: activo ? color : EstiloContractual.borde,
+              color: activo ? color : Cristal.borde,
               width: activo ? 1.8 : 1.3,
             ),
           ),
@@ -363,7 +361,7 @@ class _Contador extends StatelessWidget {
                     Text(
                       '$valor',
                       style: const TextStyle(
-                        color: EstiloContractual.navy,
+                        color: Cristal.texto,
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
                       ),
@@ -371,7 +369,7 @@ class _Contador extends StatelessWidget {
                     Text(
                       titulo,
                       style: const TextStyle(
-                        color: EstiloContractual.gris,
+                        color: Cristal.textoSuave,
                         fontSize: 12.3,
                         fontWeight: FontWeight.w600,
                       ),
@@ -427,7 +425,7 @@ class _FilaInforme extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
-            color: EstiloContractual.navy,
+            color: Cristal.texto,
             fontSize: 14,
             fontWeight: FontWeight.w800,
           ),
@@ -437,7 +435,7 @@ class _FilaInforme extends StatelessWidget {
           '${item.etapa == null ? '' : ' · ${item.etapa!.nombre}'}',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: EstiloContractual.gris, fontSize: 12.3),
+          style: const TextStyle(color: Cristal.textoSuave, fontSize: 12.3),
         ),
       ],
     );
@@ -445,15 +443,16 @@ class _FilaInforme extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: meToca ? const Color(0xFFFFFBF2) : Colors.white,
+        color: meToca ? Cristal.vidrioSuave : Cristal.vidrio,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: meToca ? const Color(0xFFF5C77E) : const Color(0xFFEEF2F6),
+          color: meToca ? const Color(0xFFF5C77E) : Cristal.borde,
         ),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
+          hoverDuration: Cristal.micro,
           onTap: onTap,
           borderRadius: BorderRadius.circular(14),
           child: Padding(
@@ -462,11 +461,11 @@ class _FilaInforme extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: const Color(0xFFE0E7FF),
+                  backgroundColor: Cristal.azulVidrio,
                   child: Text(
                     iniciales.isEmpty ? '?' : iniciales,
                     style: const TextStyle(
-                      color: EstiloContractual.navy,
+                      color: Cristal.texto,
                       fontWeight: FontWeight.w800,
                       fontSize: 13,
                     ),
@@ -489,7 +488,7 @@ class _FilaInforme extends StatelessWidget {
                                 Text(
                                   formatoCop(inf.valorCobradoCop),
                                   style: const TextStyle(
-                                    color: EstiloContractual.texto,
+                                    color: Cristal.textoMedio,
                                     fontSize: 12,
                                   ),
                                 ),
@@ -505,7 +504,7 @@ class _FilaInforme extends StatelessWidget {
                               child: Text(
                                 formatoCop(inf.valorCobradoCop),
                                 style: const TextStyle(
-                                  color: EstiloContractual.navy,
+                                  color: Cristal.texto,
                                   fontSize: 13.5,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -526,8 +525,8 @@ class _FilaInforme extends StatelessWidget {
                                             : 'Enviado hace $dias día${dias == 1 ? '' : 's'}',
                                         style: TextStyle(
                                           color: (dias ?? 0) > 5
-                                              ? const Color(0xFFB91C1C)
-                                              : EstiloContractual.gris,
+                                              ? Cristal.rojo
+                                              : Cristal.textoSuave,
                                           fontSize: 11.5,
                                         ),
                                       ),
@@ -547,13 +546,13 @@ class _FilaInforme extends StatelessWidget {
                               inf.estado == EstadoInforme.enRevision
                           ? 'Tu aprobación'
                           : 'Te toca',
-                      color: const Color(0xFFB45309),
-                      fondo: const Color(0xFFFEF3C7),
+                      color: Cristal.ambar,
+                      fondo: Cristal.ambarVidrio,
                     ),
                   ),
                 const Icon(
                   Icons.chevron_right_rounded,
-                  color: EstiloContractual.gris,
+                  color: Cristal.textoSuave,
                 ),
               ],
             ),
@@ -591,7 +590,7 @@ class _ContratosState extends State<_Contratos> {
             'Cuando el expediente exista, ábrelo aquí para configurar su supervisión: periodos, obligaciones y quién aprueba. '
             'Después invita al contratista, que llena cada informe desde su portal.',
             style: TextStyle(
-              color: EstiloContractual.texto,
+              color: Cristal.textoMedio,
               fontSize: 13.5,
               height: 1.5,
             ),
@@ -605,7 +604,7 @@ class _ContratosState extends State<_Contratos> {
       icono: Icons.folder_shared_outlined,
       accion: TextButton(
         onPressed: () => setState(() => _abierto = !_abierto),
-        style: TextButton.styleFrom(foregroundColor: EstiloContractual.navy),
+        style: TextButton.styleFrom(foregroundColor: Cristal.texto),
         child: Text(_abierto ? 'Ocultar' : 'Ver ${widget.expedientes.length}'),
       ),
       children: [
@@ -615,14 +614,14 @@ class _ContratosState extends State<_Contratos> {
               contentPadding: EdgeInsets.zero,
               leading: const Icon(
                 Icons.description_outlined,
-                color: EstiloContractual.navy,
+                color: Cristal.texto,
               ),
               title: Text(
                 e.contratistaNombreEsperado.isEmpty
                     ? 'Contrato ${e.numeroContrato}'
                     : e.contratistaNombreEsperado,
                 style: const TextStyle(
-                  color: EstiloContractual.navy,
+                  color: Cristal.texto,
                   fontWeight: FontWeight.w700,
                   fontSize: 13.5,
                 ),

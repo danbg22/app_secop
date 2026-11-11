@@ -17,6 +17,7 @@ import '../../utils/secop_i.dart';
 import '../../widgets/user_profile_header_action.dart';
 import '../detalle_screen.dart';
 import '../perfil_contratista_screen.dart';
+import '../../tema/cristal.dart';
 
 class ContractRecord {
   const ContractRecord({
@@ -81,12 +82,6 @@ class ContratosSection extends StatefulWidget {
 }
 
 class _ContratosSectionState extends State<ContratosSection> {
-  static const Color _azulOscuro = Color(0xFF1A2B4C);
-  static const Color _azulPrimario = Color(0xFF1D4ED8);
-  static const Color _doradoPlataforma = Color(0xFFF5B82E);
-  static const Color _cremaFondo = Color(0xFFFAF5EA);
-  static const Color _cremaTarjeta = Color(0xFFFFFDF8);
-  static const Color _bordeCalido = Color(0xFFE6DEC8);
   static const int _pageSize = 10;
   static const int _initialResultsLimit = 250;
   static const int _searchResultsLimit = 600;
@@ -128,22 +123,24 @@ class _ContratosSectionState extends State<ContratosSection> {
   Set<String> _favoriteIds = {};
 
   static const List<
-      ({
-        String id,
-        String label,
-        String subtitle,
-        IconData icon,
-        Color accentColor,
-        Color softBg,
-        List<String> soqlKeywords,
-      })> _sectorMacroOptions = [
+    ({
+      String id,
+      String label,
+      String subtitle,
+      IconData icon,
+      Color accentColor,
+      Color softBg,
+      List<String> soqlKeywords,
+    })
+  >
+  _sectorMacroOptions = [
     (
       id: '',
       label: 'Todos',
       subtitle: 'Todos los sectores',
       icon: Icons.apps_rounded,
-      accentColor: Color(0xFFF5B82E),
-      softBg: Color(0xFFFFF4D6),
+      accentColor: Cristal.dorado,
+      softBg: Cristal.doradoVidrio,
       soqlKeywords: [],
     ),
     (
@@ -151,8 +148,8 @@ class _ContratosSectionState extends State<ContratosSection> {
       label: 'Salud',
       subtitle: 'Hospitales y salud pública',
       icon: Icons.local_hospital_outlined,
-      accentColor: Color(0xFFDC2626),
-      softBg: Color(0xFFFEE2E2),
+      accentColor: Cristal.rojo,
+      softBg: Cristal.rojoVidrio,
       soqlKeywords: [
         'SALUD',
         'HOSPITAL',
@@ -170,8 +167,8 @@ class _ContratosSectionState extends State<ContratosSection> {
       label: 'Educación',
       subtitle: 'Colegios, PAE y universidades',
       icon: Icons.school_outlined,
-      accentColor: Color(0xFF2563EB),
-      softBg: Color(0xFFDBEAFE),
+      accentColor: Cristal.acentoClaro,
+      softBg: Cristal.azulVidrio,
       soqlKeywords: [
         'EDUCACION',
         'EDUCACIÓN',
@@ -190,8 +187,8 @@ class _ContratosSectionState extends State<ContratosSection> {
       label: 'Obras',
       subtitle: 'Infraestructura y vías',
       icon: Icons.construction_rounded,
-      accentColor: Color(0xFFD97706),
-      softBg: Color(0xFFFEF3C7),
+      accentColor: Cristal.ambar,
+      softBg: Cristal.ambarVidrio,
       soqlKeywords: [
         'OBRA',
         'INFRAESTRUCTURA',
@@ -212,8 +209,8 @@ class _ContratosSectionState extends State<ContratosSection> {
       label: 'Seguridad',
       subtitle: 'Defensa, policía y convivencia',
       icon: Icons.shield_outlined,
-      accentColor: Color(0xFF1E3A8A),
-      softBg: Color(0xFFE0E7FF),
+      accentColor: Cristal.acentoClaro,
+      softBg: Cristal.azulVidrio,
       soqlKeywords: [
         'SEGURIDAD',
         'DEFENSA',
@@ -235,8 +232,8 @@ class _ContratosSectionState extends State<ContratosSection> {
       label: 'Tecnología',
       subtitle: 'TIC, software y sistemas',
       icon: Icons.computer_rounded,
-      accentColor: Color(0xFF7C3AED),
-      softBg: Color(0xFFF3E8FF),
+      accentColor: Color(0xFFA78BFA),
+      softBg: Color(0x24A855F7),
       soqlKeywords: [
         'TECNOLOG',
         'SISTEMAS',
@@ -255,8 +252,8 @@ class _ContratosSectionState extends State<ContratosSection> {
       label: 'Ambiente',
       subtitle: 'Sostenibilidad y agro',
       icon: Icons.eco_outlined,
-      accentColor: Color(0xFF16A34A),
-      softBg: Color(0xFFDCFCE7),
+      accentColor: Cristal.verde,
+      softBg: Cristal.verdeVidrio,
       soqlKeywords: [
         'AMBIENT',
         'SOSTENIBLE',
@@ -276,8 +273,8 @@ class _ContratosSectionState extends State<ContratosSection> {
       label: 'Social y Cultura',
       subtitle: 'Deporte, cultura y bienestar',
       icon: Icons.diversity_3_rounded,
-      accentColor: Color(0xFFDB2777),
-      softBg: Color(0xFFFCE7F3),
+      accentColor: Color(0xFFF472B6),
+      softBg: Color(0x24EC4899),
       soqlKeywords: [
         'SOCIAL',
         'CULTUR',
@@ -334,8 +331,9 @@ class _ContratosSectionState extends State<ContratosSection> {
     'Liquidado',
   ];
 
-  static List<String> get _anioOptions =>
-      [for (final a in AniosSecop.disponibles) '$a'];
+  static List<String> get _anioOptions => [
+    for (final a in AniosSecop.disponibles) '$a',
+  ];
 
   // Semilla inicial con contratos reales de SECOP II de distintos órdenes y regiones del país
   static final List<Map<String, dynamic>> _verifiedInitialSecopRaw = [
@@ -359,13 +357,10 @@ class _ContratosSectionState extends State<ContratosSection> {
       'fecha_de_firma': '2026-10-17T00:00:00.000',
       'fecha_de_inicio_del_contrato': '2026-10-17T00:00:00.000',
       'fecha_de_fin_del_contrato': '2026-12-31T00:00:00.000',
-      'objeto_del_contrato':
-          'PRESTAR LOS SERVICIOS PROFESIONALES ESPECIALIZADOS CON EL FIN DE BRINDAR SOPORTE A LAS ACTIVIDADES ADELANTADAS EN EL DEPARTAMENTO ADMINISTRATIVO DE GESTIÓN DEL MEDIO AMBIENTE - DAGMA EN LA EJECUCIÓN DEL PROYECTO FORTALECIMIENTO INSTITUCIONAL DE SANTIAGO DE CALI.',
-      'descripcion_del_proceso':
-          'PRESTAR LOS SERVICIOS PROFESIONALES ESPECIALIZADOS CON EL FIN DE BRINDAR SOPORTE A LAS ACTIVIDADES ADELANTADAS EN EL DEPARTAMENTO ADMINISTRATIVO DE GESTIÓN DEL MEDIO AMBIENTE - DAGMA EN LA EJECUCIÓN DEL PROYECTO FORTALECIMIENTO INSTITUCIONAL DE SANTIAGO DE CALI.',
+      'objeto_del_contrato': 'PRESTAR LOS SERVICIOS PROFESIONALES ESPECIALIZADOS CON EL FIN DE BRINDAR SOPORTE A LAS ACTIVIDADES ADELANTADAS EN EL DEPARTAMENTO ADMINISTRATIVO DE GESTIÓN DEL MEDIO AMBIENTE - DAGMA EN LA EJECUCIÓN DEL PROYECTO FORTALECIMIENTO INSTITUCIONAL DE SANTIAGO DE CALI.',
+      'descripcion_del_proceso': 'PRESTAR LOS SERVICIOS PROFESIONALES ESPECIALIZADOS CON EL FIN DE BRINDAR SOPORTE A LAS ACTIVIDADES ADELANTADAS EN EL DEPARTAMENTO ADMINISTRATIVO DE GESTIÓN DEL MEDIO AMBIENTE - DAGMA EN LA EJECUCIÓN DEL PROYECTO FORTALECIMIENTO INSTITUCIONAL DE SANTIAGO DE CALI.',
       'urlproceso': {
-        'url':
-            'https://community.secop.gov.co/Public/Tendering/OpportunityDetail/Index?noticeUID=CO1.NTC.11079240&isFromPublicArea=True&isModal=true&asPopupView=true',
+        'url': 'https://community.secop.gov.co/Public/Tendering/OpportunityDetail/Index?noticeUID=CO1.NTC.11079240&isFromPublicArea=True&isModal=true&asPopupView=true',
       },
     },
     {
@@ -387,13 +382,10 @@ class _ContratosSectionState extends State<ContratosSection> {
       'fecha_de_firma': '2026-10-17T00:00:00.000',
       'fecha_de_inicio_del_contrato': '2026-10-17T00:00:00.000',
       'fecha_de_fin_del_contrato': '2026-12-31T00:00:00.000',
-      'objeto_del_contrato':
-          'APOYO A LA GESTIÓN ADMINISTRATIVA EN LA EJECUCIÓN DE ACTIVIDADES TÉCNICAS Y OPERATIVAS EN EL ÁREA DE PAGOS EN LA TESORERÍA DEL MUNICIPIO DE GUADALUPE, ANTIOQUIA',
-      'descripcion_del_proceso':
-          'APOYO A LA GESTIÓN ADMINISTRATIVA EN LA EJECUCIÓN DE ACTIVIDADES TÉCNICAS Y OPERATIVAS EN EL ÁREA DE PAGOS EN LA TESORERÍA DEL MUNICIPIO DE GUADALUPE, ANTIOQUIA',
+      'objeto_del_contrato': 'APOYO A LA GESTIÓN ADMINISTRATIVA EN LA EJECUCIÓN DE ACTIVIDADES TÉCNICAS Y OPERATIVAS EN EL ÁREA DE PAGOS EN LA TESORERÍA DEL MUNICIPIO DE GUADALUPE, ANTIOQUIA',
+      'descripcion_del_proceso': 'APOYO A LA GESTIÓN ADMINISTRATIVA EN LA EJECUCIÓN DE ACTIVIDADES TÉCNICAS Y OPERATIVAS EN EL ÁREA DE PAGOS EN LA TESORERÍA DEL MUNICIPIO DE GUADALUPE, ANTIOQUIA',
       'urlproceso': {
-        'url':
-            'https://community.secop.gov.co/Public/Tendering/OpportunityDetail/Index?noticeUID=CO1.NTC.11079312&isFromPublicArea=True&isModal=true&asPopupView=true',
+        'url': 'https://community.secop.gov.co/Public/Tendering/OpportunityDetail/Index?noticeUID=CO1.NTC.11079312&isFromPublicArea=True&isModal=true&asPopupView=true',
       },
     },
     {
@@ -415,13 +407,10 @@ class _ContratosSectionState extends State<ContratosSection> {
       'fecha_de_firma': '2026-10-17T00:00:00.000',
       'fecha_de_inicio_del_contrato': '2026-10-17T00:00:00.000',
       'fecha_de_fin_del_contrato': '2026-12-18T00:00:00.000',
-      'objeto_del_contrato':
-          'PRESTACIÓN DE SERVICIOS PROFESIONALES COMO ABOGADO ESPECIALIZADO PARA APOYAR LOS PROCESOS JURÍDICOS Y ADMINISTRATIVOS EN LA DIRECCIÓN DE JUVENTUDES DEL DISTRITO DE BARRANCABERMEJA, SANTANDER.',
-      'descripcion_del_proceso':
-          'PRESTACIÓN DE SERVICIOS PROFESIONALES COMO ABOGADO ESPECIALIZADO PARA APOYAR LOS PROCESOS JURÍDICOS Y ADMINISTRATIVOS EN LA DIRECCIÓN DE JUVENTUDES DEL DISTRITO DE BARRANCABERMEJA, SANTANDER.',
+      'objeto_del_contrato': 'PRESTACIÓN DE SERVICIOS PROFESIONALES COMO ABOGADO ESPECIALIZADO PARA APOYAR LOS PROCESOS JURÍDICOS Y ADMINISTRATIVOS EN LA DIRECCIÓN DE JUVENTUDES DEL DISTRITO DE BARRANCABERMEJA, SANTANDER.',
+      'descripcion_del_proceso': 'PRESTACIÓN DE SERVICIOS PROFESIONALES COMO ABOGADO ESPECIALIZADO PARA APOYAR LOS PROCESOS JURÍDICOS Y ADMINISTRATIVOS EN LA DIRECCIÓN DE JUVENTUDES DEL DISTRITO DE BARRANCABERMEJA, SANTANDER.',
       'urlproceso': {
-        'url':
-            'https://community.secop.gov.co/Public/Tendering/OpportunityDetail/Index?noticeUID=CO1.NTC.11077424&isFromPublicArea=True&isModal=true&asPopupView=true',
+        'url': 'https://community.secop.gov.co/Public/Tendering/OpportunityDetail/Index?noticeUID=CO1.NTC.11077424&isFromPublicArea=True&isModal=true&asPopupView=true',
       },
     },
     {
@@ -443,13 +432,10 @@ class _ContratosSectionState extends State<ContratosSection> {
       'fecha_de_firma': '2026-10-17T00:00:00.000',
       'fecha_de_inicio_del_contrato': '2026-10-17T00:00:00.000',
       'fecha_de_fin_del_contrato': '2026-12-30T00:00:00.000',
-      'objeto_del_contrato':
-          'PRESTAR LOS SERVICIOS COMO AGENTE DE TRÁNSITO EN EL MUNICIPIO DE VITERBO, CALDAS, PARA REGULAR LA CIRCULACIÓN VEHICULAR Y PEATONAL Y REALIZAR ACTIVIDADES DE PREVENCIÓN, SEGURIDAD Y EDUCACIÓN VIAL.',
-      'descripcion_del_proceso':
-          'PRESTAR LOS SERVICIOS COMO AGENTE DE TRÁNSITO EN EL MUNICIPIO DE VITERBO, CALDAS, PARA REGULAR LA CIRCULACIÓN VEHICULAR Y PEATONAL Y REALIZAR ACTIVIDADES DE PREVENCIÓN, SEGURIDAD Y EDUCACIÓN VIAL.',
+      'objeto_del_contrato': 'PRESTAR LOS SERVICIOS COMO AGENTE DE TRÁNSITO EN EL MUNICIPIO DE VITERBO, CALDAS, PARA REGULAR LA CIRCULACIÓN VEHICULAR Y PEATONAL Y REALIZAR ACTIVIDADES DE PREVENCIÓN, SEGURIDAD Y EDUCACIÓN VIAL.',
+      'descripcion_del_proceso': 'PRESTAR LOS SERVICIOS COMO AGENTE DE TRÁNSITO EN EL MUNICIPIO DE VITERBO, CALDAS, PARA REGULAR LA CIRCULACIÓN VEHICULAR Y PEATONAL Y REALIZAR ACTIVIDADES DE PREVENCIÓN, SEGURIDAD Y EDUCACIÓN VIAL.',
       'urlproceso': {
-        'url':
-            'https://community.secop.gov.co/Public/Tendering/OpportunityDetail/Index?noticeUID=CO1.NTC.11076238&isFromPublicArea=True&isModal=true&asPopupView=true',
+        'url': 'https://community.secop.gov.co/Public/Tendering/OpportunityDetail/Index?noticeUID=CO1.NTC.11076238&isFromPublicArea=True&isModal=true&asPopupView=true',
       },
     },
     {
@@ -471,13 +457,10 @@ class _ContratosSectionState extends State<ContratosSection> {
       'fecha_de_firma': '2026-10-06T00:00:00.000',
       'fecha_de_inicio_del_contrato': '2026-10-08T00:00:00.000',
       'fecha_de_fin_del_contrato': '2026-12-31T00:00:00.000',
-      'objeto_del_contrato':
-          'PRESTACIÓN DE SERVICIOS PARA EL APOYO A LOS PROCESOS DE DESARROLLO DE CAPACIDADES Y PARTICIPACIÓN SOCIAL EN EL MARCO DEL PAS 2026 DE LA SECRETARÍA LOCAL DE SALUD DEL MUNICIPIO DE VALLEDUPAR CESAR',
-      'descripcion_del_proceso':
-          'PRESTACIÓN DE SERVICIOS PARA EL APOYO A LOS PROCESOS DE DESARROLLO DE CAPACIDADES Y PARTICIPACIÓN SOCIAL EN EL MARCO DEL PAS 2026 DE LA SECRETARÍA LOCAL DE SALUD DEL MUNICIPIO DE VALLEDUPAR CESAR',
+      'objeto_del_contrato': 'PRESTACIÓN DE SERVICIOS PARA EL APOYO A LOS PROCESOS DE DESARROLLO DE CAPACIDADES Y PARTICIPACIÓN SOCIAL EN EL MARCO DEL PAS 2026 DE LA SECRETARÍA LOCAL DE SALUD DEL MUNICIPIO DE VALLEDUPAR CESAR',
+      'descripcion_del_proceso': 'PRESTACIÓN DE SERVICIOS PARA EL APOYO A LOS PROCESOS DE DESARROLLO DE CAPACIDADES Y PARTICIPACIÓN SOCIAL EN EL MARCO DEL PAS 2026 DE LA SECRETARÍA LOCAL DE SALUD DEL MUNICIPIO DE VALLEDUPAR CESAR',
       'urlproceso': {
-        'url':
-            'https://community.secop.gov.co/Public/Tendering/OpportunityDetail/Index?noticeUID=CO1.NTC.10942578&isFromPublicArea=True&isModal=true&asPopupView=true',
+        'url': 'https://community.secop.gov.co/Public/Tendering/OpportunityDetail/Index?noticeUID=CO1.NTC.10942578&isFromPublicArea=True&isModal=true&asPopupView=true',
       },
     },
     {
@@ -494,20 +477,16 @@ class _ContratosSectionState extends State<ContratosSection> {
           'Contratación régimen especial (con ofertas)',
       'tipo_de_contrato': 'Decreto 092 de 2017',
       'valor_del_contrato': '2869923407',
-      'proveedor_adjudicado':
-          'ASOCIACION COLOMBIANA DE LA MICRO PEQUEÑA Y MEDIANA EMPRESA REGIONAL NDS',
+      'proveedor_adjudicado': 'ASOCIACION COLOMBIANA DE LA MICRO PEQUEÑA Y MEDIANA EMPRESA REGIONAL NDS',
       'tipodocproveedor': 'NIT',
       'documento_proveedor': '890506617',
       'fecha_de_firma': '2026-10-09T00:00:00.000',
       'fecha_de_inicio_del_contrato': '2026-10-09T00:00:00.000',
       'fecha_de_fin_del_contrato': '2027-02-07T00:00:00.000',
-      'objeto_del_contrato':
-          'AUNAR ESFUERZOS PARA EL FORTALECIMIENTO DE LAS CAPACIDADES SOCIOEMPRESARIALES COMO ALTERNATIVA DE RECONVERSIÓN LABORAL POST-MINERÍA EN EL DEPARTAMENTO DEL CESAR',
-      'descripcion_del_proceso':
-          'AUNAR ESFUERZOS PARA EL FORTALECIMIENTO DE LAS CAPACIDADES SOCIOEMPRESARIALES COMO ALTERNATIVA DE RECONVERSIÓN LABORAL POST-MINERÍA EN EL DEPARTAMENTO DEL CESAR',
+      'objeto_del_contrato': 'AUNAR ESFUERZOS PARA EL FORTALECIMIENTO DE LAS CAPACIDADES SOCIOEMPRESARIALES COMO ALTERNATIVA DE RECONVERSIÓN LABORAL POST-MINERÍA EN EL DEPARTAMENTO DEL CESAR',
+      'descripcion_del_proceso': 'AUNAR ESFUERZOS PARA EL FORTALECIMIENTO DE LAS CAPACIDADES SOCIOEMPRESARIALES COMO ALTERNATIVA DE RECONVERSIÓN LABORAL POST-MINERÍA EN EL DEPARTAMENTO DEL CESAR',
       'urlproceso': {
-        'url':
-            'https://community.secop.gov.co/Public/Tendering/OpportunityDetail/Index?noticeUID=CO1.NTC.10969795&isFromPublicArea=True&isModal=true&asPopupView=true',
+        'url': 'https://community.secop.gov.co/Public/Tendering/OpportunityDetail/Index?noticeUID=CO1.NTC.10969795&isFromPublicArea=True&isModal=true&asPopupView=true',
       },
     },
     {
@@ -529,21 +508,17 @@ class _ContratosSectionState extends State<ContratosSection> {
       'fecha_de_firma': '2026-10-09T00:00:00.000',
       'fecha_de_inicio_del_contrato': '2026-10-09T00:00:00.000',
       'fecha_de_fin_del_contrato': '2026-12-31T00:00:00.000',
-      'objeto_del_contrato':
-          'MANTENIMIENTO Y ADECUACIÓN DE LA CAPA DE RODADURA PISTA BMX, BARRIO VILLA DARIANA MUNICIPIO DE VALLEDUPAR.',
-      'descripcion_del_proceso':
-          'MANTENIMIENTO Y ADECUACIÓN DE LA CAPA DE RODADURA PISTA BMX, BARRIO VILLA DARIANA MUNICIPIO DE VALLEDUPAR.',
+      'objeto_del_contrato': 'MANTENIMIENTO Y ADECUACIÓN DE LA CAPA DE RODADURA PISTA BMX, BARRIO VILLA DARIANA MUNICIPIO DE VALLEDUPAR.',
+      'descripcion_del_proceso': 'MANTENIMIENTO Y ADECUACIÓN DE LA CAPA DE RODADURA PISTA BMX, BARRIO VILLA DARIANA MUNICIPIO DE VALLEDUPAR.',
       'urlproceso': {
-        'url':
-            'https://community.secop.gov.co/Public/Tendering/OpportunityDetail/Index?noticeUID=CO1.NTC.10954195&isFromPublicArea=True&isModal=true&asPopupView=true',
+        'url': 'https://community.secop.gov.co/Public/Tendering/OpportunityDetail/Index?noticeUID=CO1.NTC.10954195&isFromPublicArea=True&isModal=true&asPopupView=true',
       },
     },
     {
       'id_contrato': 'CO1.PCCNTR.10027994',
       'referencia_del_contrato': 'CMA-001-2026 EICE AMV',
       'proceso_de_compra': 'CO1.BDOS.10844433',
-      'nombre_entidad':
-          'EMPRESA INDUSTRIAL Y COMERCIAL DEL ESTADO AREA METROPOLITANA DE VALLEDUPAR E.I.C.E. AMV',
+      'nombre_entidad': 'EMPRESA INDUSTRIAL Y COMERCIAL DEL ESTADO AREA METROPOLITANA DE VALLEDUPAR E.I.C.E. AMV',
       'orden': 'Territorial',
       'departamento': 'Cesar',
       'ciudad': 'Valledupar',
@@ -558,13 +533,10 @@ class _ContratosSectionState extends State<ContratosSection> {
       'fecha_de_firma': '2026-10-09T00:00:00.000',
       'fecha_de_inicio_del_contrato': '2026-10-09T00:00:00.000',
       'fecha_de_fin_del_contrato': '2027-03-19T00:00:00.000',
-      'objeto_del_contrato':
-          'INTERVENTORÍA TÉCNICA, ADMINISTRATIVA, FINANCIERA Y JURÍDICA AL FORTALECIMIENTO DEL SECTOR DE LA GANADERÍA BOVINA MEDIANTE LA IMPLEMENTACIÓN DE UN SISTEMA INTEGRAL DE PRODUCCIÓN DE SILO DE MAÍZ',
-      'descripcion_del_proceso':
-          'INTERVENTORÍA TÉCNICA, ADMINISTRATIVA, FINANCIERA Y JURÍDICA AL FORTALECIMIENTO DEL SECTOR DE LA GANADERÍA BOVINA MEDIANTE LA IMPLEMENTACIÓN DE UN SISTEMA INTEGRAL DE PRODUCCIÓN DE SILO DE MAÍZ',
+      'objeto_del_contrato': 'INTERVENTORÍA TÉCNICA, ADMINISTRATIVA, FINANCIERA Y JURÍDICA AL FORTALECIMIENTO DEL SECTOR DE LA GANADERÍA BOVINA MEDIANTE LA IMPLEMENTACIÓN DE UN SISTEMA INTEGRAL DE PRODUCCIÓN DE SILO DE MAÍZ',
+      'descripcion_del_proceso': 'INTERVENTORÍA TÉCNICA, ADMINISTRATIVA, FINANCIERA Y JURÍDICA AL FORTALECIMIENTO DEL SECTOR DE LA GANADERÍA BOVINA MEDIANTE LA IMPLEMENTACIÓN DE UN SISTEMA INTEGRAL DE PRODUCCIÓN DE SILO DE MAÍZ',
       'urlproceso': {
-        'url':
-            'https://community.secop.gov.co/Public/Tendering/OpportunityDetail/Index?noticeUID=CO1.NTC.10934269&isFromPublicArea=True&isModal=true&asPopupView=true',
+        'url': 'https://community.secop.gov.co/Public/Tendering/OpportunityDetail/Index?noticeUID=CO1.NTC.10934269&isFromPublicArea=True&isModal=true&asPopupView=true',
       },
     },
   ];
@@ -602,8 +574,9 @@ class _ContratosSectionState extends State<ContratosSection> {
 
   String? _buildSectorSoqlClause(String sectorId) {
     if (sectorId.isEmpty) return null;
-    final match =
-        _sectorMacroOptions.where((s) => s.id == sectorId).firstOrNull;
+    final match = _sectorMacroOptions
+        .where((s) => s.id == sectorId)
+        .firstOrNull;
     if (match == null || match.soqlKeywords.isEmpty) return null;
 
     final conditions = <String>[];
@@ -620,8 +593,9 @@ class _ContratosSectionState extends State<ContratosSection> {
 
   bool _matchesSectorMacroFilter(ContractRecord contract, String sectorId) {
     if (sectorId.isEmpty) return true;
-    final match =
-        _sectorMacroOptions.where((s) => s.id == sectorId).firstOrNull;
+    final match = _sectorMacroOptions
+        .where((s) => s.id == sectorId)
+        .firstOrNull;
     if (match == null || match.soqlKeywords.isEmpty) return true;
 
     final raw = contract.rawSecopJson;
@@ -654,25 +628,23 @@ class _ContratosSectionState extends State<ContratosSection> {
   static Map<String, dynamic> _normalizarSecopIRaw(Map<String, dynamic> c) {
     final m = SecopI.normalizar(c);
     final rawVal = (m['valor_del_contrato'] ?? '').toString();
-    final cleanVal = rawVal.replaceAll(r'$', '').replaceAll(' ', '').replaceAll(',', '');
+    final cleanVal = rawVal
+        .replaceAll(r'$', '')
+        .replaceAll(' ', '')
+        .replaceAll(',', '');
     m['valor_del_contrato'] = cleanVal.isNotEmpty ? cleanVal : rawVal;
     m['estado_contrato'] ??= 'Celebrado';
     m['orden'] ??= 'Territorial';
     return m;
   }
 
-  ContractRecord? _parseSecopJsonToRecord(
-    Map<String, dynamic> raw,
-    int index,
-  ) {
+  ContractRecord? _parseSecopJsonToRecord(Map<String, dynamic> raw, int index) {
     final double val =
         double.tryParse(raw['valor_del_contrato']?.toString() ?? '0') ?? 0;
     if (val <= 0) return null;
 
-    final rawContractor =
-        (raw['proveedor_adjudicado'] ?? '').toString().trim();
-    if (rawContractor.isEmpty ||
-        rawContractor.toUpperCase() == 'NO DEFINIDO') {
+    final rawContractor = (raw['proveedor_adjudicado'] ?? '').toString().trim();
+    if (rawContractor.isEmpty || rawContractor.toUpperCase() == 'NO DEFINIDO') {
       return null;
     }
 
@@ -683,24 +655,25 @@ class _ContratosSectionState extends State<ContratosSection> {
     final rawStatus = (raw['estado_contrato'] ?? 'En ejecución').toString();
     final normalizedStatus = _mapSecopStatus(rawStatus);
 
-    final rawSignDate = raw['fecha_de_firma']?.toString() ??
+    final rawSignDate =
+        raw['fecha_de_firma']?.toString() ??
         raw['fecha_de_inicio_del_contrato']?.toString() ??
         '';
     final rawStartDate =
         raw['fecha_de_inicio_del_contrato']?.toString() ?? rawSignDate;
     final rawEndDate =
         raw['fecha_de_fin_del_contrato']?.toString() ?? rawSignDate;
-    final year =
-        rawSignDate.length >= 4 ? rawSignDate.substring(0, 4) : '';
+    final year = rawSignDate.length >= 4 ? rawSignDate.substring(0, 4) : '';
 
     final rawEntity = (raw['nombre_entidad'] ?? 'Entidad Pública').toString();
     final displayEntity = _beautifyEntityName(rawEntity);
 
-    final rawObjeto = (raw['objeto_del_contrato'] ??
-            raw['descripcion_del_proceso'] ??
-            'Contrato estatal SECOP II')
-        .toString()
-        .trim();
+    final rawObjeto =
+        (raw['objeto_del_contrato'] ??
+                raw['descripcion_del_proceso'] ??
+                'Contrato estatal SECOP II')
+            .toString()
+            .trim();
     final displayTitle = _beautifyContractTitle(rawObjeto);
 
     final inferredDepartment = _inferDependency(
@@ -711,26 +684,28 @@ class _ContratosSectionState extends State<ContratosSection> {
 
     final rawDepto = (raw['departamento'] ?? '').toString().trim();
     final rawCiudad = (raw['ciudad'] ?? '').toString().trim();
-    final cleanDepto =
-        rawDepto.toUpperCase() == 'NO DEFINIDO' ? '' : rawDepto;
-    final cleanCiudad =
-        rawCiudad.toUpperCase() == 'NO DEFINIDO' ? '' : rawCiudad;
-    final locationLabel = cleanDepto.isNotEmpty &&
+    final cleanDepto = rawDepto.toUpperCase() == 'NO DEFINIDO' ? '' : rawDepto;
+    final cleanCiudad = rawCiudad.toUpperCase() == 'NO DEFINIDO'
+        ? ''
+        : rawCiudad;
+    final locationLabel =
+        cleanDepto.isNotEmpty &&
             cleanCiudad.isNotEmpty &&
             cleanDepto != cleanCiudad
         ? '$cleanDepto · $cleanCiudad'
         : (cleanCiudad.isNotEmpty
-            ? cleanCiudad
-            : (cleanDepto.isNotEmpty ? cleanDepto : 'Colombia'));
+              ? cleanCiudad
+              : (cleanDepto.isNotEmpty ? cleanDepto : 'Colombia'));
 
     final rawOrden = (raw['orden'] ?? 'Territorial').toString().trim();
 
-    final refCode = (raw['referencia_del_contrato'] ??
-            raw['proceso_de_compra'] ??
-            raw['id_contrato'] ??
-            'SECOP-${index + 1}')
-        .toString()
-        .trim();
+    final refCode =
+        (raw['referencia_del_contrato'] ??
+                raw['proceso_de_compra'] ??
+                raw['id_contrato'] ??
+                'SECOP-${index + 1}')
+            .toString()
+            .trim();
 
     final style = _pickVisualStyle(
       inferredDepartment,
@@ -772,7 +747,8 @@ class _ContratosSectionState extends State<ContratosSection> {
     if (cleanDigits.isEmpty) {
       return rawDoc.isNotEmpty ? rawDoc : 'Registrado en SECOP II';
     }
-    final isNit = tipoDoc.toUpperCase().contains('NIT') ||
+    final isNit =
+        tipoDoc.toUpperCase().contains('NIT') ||
         (cleanDigits.length >= 9 &&
             (cleanDigits.startsWith('8') || cleanDigits.startsWith('9')));
 
@@ -989,48 +965,40 @@ class _ContratosSectionState extends State<ContratosSection> {
   ) {
     if (department.contains('Obras') || tipoContrato.contains('Obra')) {
       return (
-        color: const Color(0xFF2563EB),
-        bg: const Color(0xFFDBEAFE),
+        color: Cristal.acentoClaro,
+        bg: Cristal.azulVidrio,
         icon: Icons.add_road,
       );
     }
     if (department.contains('TIC') || department.contains('Educación')) {
       return (
-        color: const Color(0xFF7C3AED),
-        bg: const Color(0xFFF3E8FF),
+        color: const Color(0xFFA78BFA),
+        bg: const Color(0x24A855F7),
         icon: Icons.desktop_windows_outlined,
       );
     }
     if (department.contains('Ambiente') || department.contains('Salud')) {
       return (
-        color: const Color(0xFF16A34A),
-        bg: const Color(0xFFDCFCE7),
+        color: Cristal.verde,
+        bg: Cristal.verdeVidrio,
         icon: department.contains('Ambiente')
             ? Icons.eco
             : Icons.medical_services_outlined,
       );
     }
     final fallbackPalette = [
+      (color: Cristal.ambar, bg: Cristal.ambarVidrio, icon: Icons.description),
       (
-        color: const Color(0xFFD97706),
-        bg: const Color(0xFFFEF3C7),
-        icon: Icons.description,
-      ),
-      (
-        color: const Color(0xFF2563EB),
-        bg: const Color(0xFFDBEAFE),
+        color: Cristal.acentoClaro,
+        bg: Cristal.azulVidrio,
         icon: Icons.add_road,
       ),
       (
-        color: const Color(0xFF7C3AED),
-        bg: const Color(0xFFF3E8FF),
+        color: const Color(0xFFA78BFA),
+        bg: const Color(0x24A855F7),
         icon: Icons.desktop_windows_outlined,
       ),
-      (
-        color: const Color(0xFF16A34A),
-        bg: const Color(0xFFDCFCE7),
-        icon: Icons.eco,
-      ),
+      (color: Cristal.verde, bg: Cristal.verdeVidrio, icon: Icons.eco),
     ];
     return fallbackPalette[index % fallbackPalette.length];
   }
@@ -1122,9 +1090,9 @@ class _ContratosSectionState extends State<ContratosSection> {
   String _formatCop(double val) {
     final intVal = val.round();
     final str = intVal.toString().replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]}.',
-        );
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]}.',
+    );
     return '\$ $str';
   }
 
@@ -1142,8 +1110,15 @@ class _ContratosSectionState extends State<ContratosSection> {
         .where(
           (w) =>
               w.length > 2 &&
-              !{'DEL', 'LAS', 'LOS', 'PARA', 'POR', 'CON', 'E.S.E.'}
-                  .contains(w),
+              !{
+                'DEL',
+                'LAS',
+                'LOS',
+                'PARA',
+                'POR',
+                'CON',
+                'E.S.E.',
+              }.contains(w),
         )
         .take(10)
         .toList();
@@ -1151,13 +1126,15 @@ class _ContratosSectionState extends State<ContratosSection> {
     if (words.isEmpty) {
       return "upper(nombre_entidad) LIKE '%$norm%'";
     }
-    return words.map((w) {
-      final wTilde = _conTildeComun(w);
-      if (wTilde != w) {
-        return "(upper(nombre_entidad) LIKE '%$w%' OR upper(nombre_entidad) LIKE '%$wTilde%')";
-      }
-      return "upper(nombre_entidad) LIKE '%$w%'";
-    }).join(' AND ');
+    return words
+        .map((w) {
+          final wTilde = _conTildeComun(w);
+          if (wTilde != w) {
+            return "(upper(nombre_entidad) LIKE '%$w%' OR upper(nombre_entidad) LIKE '%$wTilde%')";
+          }
+          return "upper(nombre_entidad) LIKE '%$w%'";
+        })
+        .join(' AND ');
   }
 
   List<String> _extractCommaGroups(String rawQuery) {
@@ -1221,20 +1198,30 @@ class _ContratosSectionState extends State<ContratosSection> {
       }
 
       // Siglas de entidades nacionales con NIT indexado en SECOP II (respuesta en <200ms)
-      if (normGroup == 'SENA' || normGroup.contains('SERVICIO NACIONAL DE APRENDIZAJE')) {
-        groupClauses.add("(nit_entidad = '899999034' OR starts_with(nit_entidad, '899999034'))");
+      if (normGroup == 'SENA' ||
+          normGroup.contains('SERVICIO NACIONAL DE APRENDIZAJE')) {
+        groupClauses.add(
+          "(nit_entidad = '899999034' OR starts_with(nit_entidad, '899999034'))",
+        );
         continue;
       }
       if (normGroup == 'ICBF' || normGroup.contains('BIENESTAR FAMILIAR')) {
-        groupClauses.add("(nit_entidad = '899999239' OR starts_with(nit_entidad, '899999239'))");
+        groupClauses.add(
+          "(nit_entidad = '899999239' OR starts_with(nit_entidad, '899999239'))",
+        );
         continue;
       }
-      if (normGroup == 'INVIAS' || normGroup.contains('INSTITUTO NACIONAL DE VIAS')) {
-        groupClauses.add("(nit_entidad = '800215807' OR starts_with(nit_entidad, '800215807'))");
+      if (normGroup == 'INVIAS' ||
+          normGroup.contains('INSTITUTO NACIONAL DE VIAS')) {
+        groupClauses.add(
+          "(nit_entidad = '800215807' OR starts_with(nit_entidad, '800215807'))",
+        );
         continue;
       }
       if (normGroup == 'UNGRD') {
-        groupClauses.add("(nit_entidad = '900476364' OR starts_with(nit_entidad, '900476364'))");
+        groupClauses.add(
+          "(nit_entidad = '900476364' OR starts_with(nit_entidad, '900476364'))",
+        );
         continue;
       }
     }
@@ -1338,9 +1325,10 @@ class _ContratosSectionState extends State<ContratosSection> {
     final rawDocDigits = (raw['documento_proveedor'] ?? '')
         .toString()
         .replaceAll(RegExp(r'[^0-9]'), '');
-    final rawEntityNitDigits = (raw['nit_entidad'] ?? '')
-        .toString()
-        .replaceAll(RegExp(r'[^0-9]'), '');
+    final rawEntityNitDigits = (raw['nit_entidad'] ?? '').toString().replaceAll(
+      RegExp(r'[^0-9]'),
+      '',
+    );
 
     for (final group in groups) {
       final tokens = _extractSearchTokens(group);
@@ -1380,9 +1368,7 @@ class _ContratosSectionState extends State<ContratosSection> {
 
   String _contractRawIsoDate(ContractRecord record) {
     final raw = record.rawSecopJson;
-    return (raw['fecha_de_firma'] ??
-            raw['fecha_de_inicio_del_contrato'] ??
-            '')
+    return (raw['fecha_de_firma'] ?? raw['fecha_de_inicio_del_contrato'] ?? '')
         .toString();
   }
 
@@ -1455,8 +1441,9 @@ class _ContratosSectionState extends State<ContratosSection> {
     try {
       final bool hasSearchOrFilter =
           queryText.isNotEmpty || _activeFiltersCount > 0;
-      final int queryLimit =
-          hasSearchOrFilter ? _searchResultsLimit : _initialResultsLimit;
+      final int queryLimit = hasSearchOrFilter
+          ? _searchResultsLimit
+          : _initialResultsLimit;
 
       List<String> buildBaseWhereClauses({
         required bool applyYearFilter,
@@ -1659,8 +1646,9 @@ class _ContratosSectionState extends State<ContratosSection> {
               r'$where': baseClauses.join(' AND '),
             },
           );
-          final response =
-              await http.get(uri).timeout(const Duration(seconds: 10));
+          final response = await http
+              .get(uri)
+              .timeout(const Duration(seconds: 10));
           if (response.statusCode != 200) return [];
           return parseJsonResponse(response.body);
         }
@@ -1689,8 +1677,9 @@ class _ContratosSectionState extends State<ContratosSection> {
               ].join(' AND '),
             },
           );
-          final response =
-              await http.get(uri).timeout(const Duration(seconds: 15));
+          final response = await http
+              .get(uri)
+              .timeout(const Duration(seconds: 15));
           if (response.statusCode != 200) return [];
           return parseJsonResponse(response.body);
         }
@@ -1710,8 +1699,9 @@ class _ContratosSectionState extends State<ContratosSection> {
                 r'$where': indexedWhere.join(' AND '),
               },
             );
-            final response =
-                await http.get(uri).timeout(const Duration(seconds: 8));
+            final response = await http
+                .get(uri)
+                .timeout(const Duration(seconds: 8));
             if (response.statusCode == 200) {
               final indexedParsed = parseJsonResponse(response.body);
               if (indexedParsed.isNotEmpty) {
@@ -1732,19 +1722,18 @@ class _ContratosSectionState extends State<ContratosSection> {
               '/resource/jbjy-vk9h.json',
               <String, String>{
                 r'$select': _secopSelectFields,
-                r'$limit': '${(queryLimit / commaGroups.length.clamp(1, 5)).ceil().clamp(50, 160)}',
+                r'$limit':
+                    '${(queryLimit / commaGroups.length.clamp(1, 5)).ceil().clamp(50, 160)}',
                 r'$order': 'fecha_de_firma DESC',
                 r'$q': cleanQ.isNotEmpty ? cleanQ : groupText,
                 r'$where': baseClauses.join(' AND '),
               },
             );
-            final response =
-                await http.get(uri).timeout(const Duration(seconds: 8));
+            final response = await http
+                .get(uri)
+                .timeout(const Duration(seconds: 8));
             if (response.statusCode != 200) return [];
-            return parseJsonResponse(
-              response.body,
-              verifyQueryTokens: true,
-            );
+            return parseJsonResponse(response.body, verifyQueryTokens: true);
           } catch (_) {
             return [];
           }
@@ -1778,8 +1767,9 @@ class _ContratosSectionState extends State<ContratosSection> {
                 r'$where': likeClauses.join(' AND '),
               },
             );
-            final response =
-                await http.get(uri).timeout(const Duration(seconds: 10));
+            final response = await http
+                .get(uri)
+                .timeout(const Duration(seconds: 10));
             if (response.statusCode == 200) {
               return parseJsonResponse(response.body);
             }
@@ -1799,7 +1789,10 @@ class _ContratosSectionState extends State<ContratosSection> {
           );
 
           if (_selectedDepartamento.isNotEmpty) {
-            final safeDep = SecurityService.sanitizeSoqlToken(_selectedDepartamento, maxLength: 60);
+            final safeDep = SecurityService.sanitizeSoqlToken(
+              _selectedDepartamento,
+              maxLength: 60,
+            );
             final dNorm = _normalizar(safeDep);
             if (dNorm.isNotEmpty) {
               whereClauses.add("upper(departamento_entidad) LIKE '%$dNorm%'");
@@ -1807,7 +1800,10 @@ class _ContratosSectionState extends State<ContratosSection> {
           }
 
           if (_selectedMunicipio.isNotEmpty) {
-            final safeMun = SecurityService.sanitizeSoqlToken(_selectedMunicipio, maxLength: 60);
+            final safeMun = SecurityService.sanitizeSoqlToken(
+              _selectedMunicipio,
+              maxLength: 60,
+            );
             final mNorm = _normalizar(safeMun);
             if (mNorm.isNotEmpty) {
               whereClauses.add("upper(municipio_entidad) LIKE '%$mNorm%'");
@@ -1815,7 +1811,10 @@ class _ContratosSectionState extends State<ContratosSection> {
           }
 
           if (_selectedEntidad.isNotEmpty) {
-            final safeEnt = SecurityService.sanitizeSoqlToken(_selectedEntidad, maxLength: 60);
+            final safeEnt = SecurityService.sanitizeSoqlToken(
+              _selectedEntidad,
+              maxLength: 60,
+            );
             final eNorm = _normalizar(safeEnt);
             if (eNorm.isNotEmpty) {
               whereClauses.add("upper(nombre_entidad) LIKE '%$eNorm%'");
@@ -1823,13 +1822,20 @@ class _ContratosSectionState extends State<ContratosSection> {
           }
 
           if (queryText.isNotEmpty) {
-            final cleanQ = SecurityService.sanitizeSoqlToken(queryText, maxLength: 80);
+            final cleanQ = SecurityService.sanitizeSoqlToken(
+              queryText,
+              maxLength: 80,
+            );
             final digits = cleanQ.replaceAll(RegExp(r'[^0-9]'), '');
             final qNorm = _normalizar(cleanQ);
             if (digits.length >= 4) {
-              whereClauses.add("(starts_with(identificacion_del_contratista, '$digits') OR upper(numero_de_contrato) LIKE '%$digits%')");
+              whereClauses.add(
+                "(starts_with(identificacion_del_contratista, '$digits') OR upper(numero_de_contrato) LIKE '%$digits%')",
+              );
             } else if (qNorm.isNotEmpty) {
-              whereClauses.add("(upper(nom_razon_social_contratista) LIKE '%$qNorm%' OR upper(detalle_del_objeto_a_contratar) LIKE '%$qNorm%')");
+              whereClauses.add(
+                "(upper(nom_razon_social_contratista) LIKE '%$qNorm%' OR upper(detalle_del_objeto_a_contratar) LIKE '%$qNorm%')",
+              );
             }
           }
 
@@ -1843,7 +1849,9 @@ class _ContratosSectionState extends State<ContratosSection> {
             },
           );
 
-          final response = await http.get(uri).timeout(const Duration(seconds: 10));
+          final response = await http
+              .get(uri)
+              .timeout(const Duration(seconds: 10));
           if (response.statusCode == 200) {
             final decoded = json.decode(utf8.decode(response.bodyBytes));
             if (decoded is List) {
@@ -1869,9 +1877,13 @@ class _ContratosSectionState extends State<ContratosSection> {
 
       final anioNum = int.tryParse(_selectedAnio);
       final esAnioHistoricoSecop1 = anioNum != null && anioNum <= 2019;
-      final necesitaSecop1 = interpretacion == null && (esAnioHistoricoSecop1 ||
-          (_selectedAnio.isNotEmpty && results.length < 20) ||
-          (_selectedAnio.isEmpty && results.length < 60 && queryText.isNotEmpty));
+      final necesitaSecop1 =
+          interpretacion == null &&
+          (esAnioHistoricoSecop1 ||
+              (_selectedAnio.isNotEmpty && results.length < 20) ||
+              (_selectedAnio.isEmpty &&
+                  results.length < 60 &&
+                  queryText.isNotEmpty));
 
       if (necesitaSecop1) {
         final secop1Results = await fetchSecopIContracts();
@@ -1958,7 +1970,8 @@ class _ContratosSectionState extends State<ContratosSection> {
   String _filteredCacheKey = '';
 
   List<ContractRecord> get _filteredContracts {
-    final key = '${identityHashCode(_secopContracts)}|${_secopContracts.length}|'
+    final key =
+        '${identityHashCode(_secopContracts)}|${_secopContracts.length}|'
         '$_selectedSector|$_selectedDependencia|$_selectedEstado|$_selectedAnio|'
         '$_minValueFilter|$_maxValueFilter|$_sortBy';
     if (_filteredCache != null && key == _filteredCacheKey) {
@@ -1975,7 +1988,8 @@ class _ContratosSectionState extends State<ContratosSection> {
         return false;
       }
       if (_selectedDependencia.isNotEmpty &&
-          !_normalizar(c.department).contains(_normalizar(_selectedDependencia))) {
+          !_normalizar(c.department)
+              .contains(_normalizar(_selectedDependencia))) {
         return false;
       }
       if (_selectedEstado.isNotEmpty && c.status != _selectedEstado) {
@@ -2069,7 +2083,9 @@ class _ContratosSectionState extends State<ContratosSection> {
       ],
       for (final contract in list)
         () {
-          final an = ContractFinancialAnalysis.fromContract(contract.rawSecopJson);
+          final an = ContractFinancialAnalysis.fromContract(
+            contract.rawSecopJson,
+          );
           return [
             contract.processCode,
             contract.orden,
@@ -2112,9 +2128,10 @@ class _ContratosSectionState extends State<ContratosSection> {
   void _openContractorProfile(ContractRecord contract) {
     final rawContractorName =
         contract.rawSecopJson['proveedor_adjudicado']?.toString().trim() ??
-            contract.contractor;
-    final docProveedor =
-        contract.rawSecopJson['documento_proveedor']?.toString().trim();
+        contract.contractor;
+    final docProveedor = contract.rawSecopJson['documento_proveedor']
+        ?.toString()
+        .trim();
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -2132,16 +2149,22 @@ class _ContratosSectionState extends State<ContratosSection> {
     final map = contract.toSecopMap();
     final contractId = FavoritesService.idContrato(map);
     final isFav = _favoriteIds.contains(contractId);
-    final secopUrl = (map['urlproceso'] is Map
+    final secopUrl =
+        (map['urlproceso'] is Map
             ? map['urlproceso']['url']?.toString()
             : null) ??
         'https://community.secop.gov.co/Public/Tendering/ContractNoticeManagement/Index';
-    final analisis = ContractFinancialAnalysis.fromContract(contract.rawSecopJson);
+    final analisis = ContractFinancialAnalysis.fromContract(
+      contract.rawSecopJson,
+    );
 
-    showDialog<void>(
+    mostrarDialogoCristal<void>(
       context: context,
       builder: (dialogContext) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: Cristal.bordeFuerte),
+        ),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 560),
           child: Padding(
@@ -2169,7 +2192,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                           Text(
                             '${contract.processCode} · ${contract.location}',
                             style: const TextStyle(
-                              color: Color(0xFF64748B),
+                              color: Cristal.textoSuave,
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
@@ -2178,7 +2201,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                           Text(
                             contract.entity,
                             style: const TextStyle(
-                              color: _azulOscuro,
+                              color: Cristal.texto,
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
                             ),
@@ -2196,7 +2219,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                       },
                       icon: Icon(
                         isFav ? Icons.star_rounded : Icons.star_border_rounded,
-                        color: isFav ? Colors.amber.shade700 : _azulOscuro,
+                        color: isFav ? Cristal.ambar : Cristal.texto,
                         size: 26,
                       ),
                     ),
@@ -2210,7 +2233,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                 Text(
                   contract.title.replaceAll('\n', ' '),
                   style: const TextStyle(
-                    color: _azulOscuro,
+                    color: Cristal.texto,
                     fontSize: 14.5,
                     fontWeight: FontWeight.w700,
                     height: 1.35,
@@ -2231,9 +2254,12 @@ class _ContratosSectionState extends State<ContratosSection> {
                             ? 'Pago por ${analisis.plazoDias} días'
                             : 'Valor mensual estimado a recibir',
                         analisis.esMenorAUnMes
-                            ? ContractFinancialAnalysis.formatCop(analisis.valorTotal)
+                            ? ContractFinancialAnalysis.formatCop(
+                                analisis.valorTotal,
+                              )
                             : '${ContractFinancialAnalysis.formatCop(analisis.valorMensualEstimado)} / mes',
-                        caption: '(Valor total ÷ ${analisis.plazoDias} días) × 30 días',
+                        caption:
+                            '(Valor total ÷ ${analisis.plazoDias} días) × 30 días',
                         highlight: true,
                       ),
                     if (analisis.tienePlazo)
@@ -2254,6 +2280,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                 ),
                 const SizedBox(height: 16),
                 InkWell(
+                  hoverDuration: Cristal.micro,
                   onTap: () {
                     Navigator.pop(dialogContext);
                     _openContractorProfile(contract);
@@ -2262,15 +2289,15 @@ class _ContratosSectionState extends State<ContratosSection> {
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
+                      color: Cristal.vidrioSuave,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      border: Border.all(color: Cristal.borde),
                     ),
                     child: Row(
                       children: [
                         const Icon(
                           Icons.person_search_outlined,
-                          color: _azulPrimario,
+                          color: Cristal.acentoClaro,
                           size: 20,
                         ),
                         const SizedBox(width: 10),
@@ -2281,7 +2308,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                               Text(
                                 contract.contractor,
                                 style: const TextStyle(
-                                  color: _azulOscuro,
+                                  color: Cristal.texto,
                                   fontWeight: FontWeight.w700,
                                   fontSize: 13,
                                 ),
@@ -2289,7 +2316,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                               Text(
                                 '${contract.contractorId} · Clic para auditar historial SECOP + SIGEP',
                                 style: const TextStyle(
-                                  color: _azulPrimario,
+                                  color: Cristal.acentoClaro,
                                   fontSize: 11.5,
                                 ),
                               ),
@@ -2299,7 +2326,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                         const Icon(
                           Icons.open_in_new,
                           size: 16,
-                          color: _azulPrimario,
+                          color: Cristal.acentoClaro,
                         ),
                       ],
                     ),
@@ -2327,8 +2354,8 @@ class _ContratosSectionState extends State<ContratosSection> {
                         _openContractDetail(contract);
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _azulOscuro,
-                        foregroundColor: Colors.white,
+                        backgroundColor: Cristal.acento,
+                        foregroundColor: Cristal.texto,
                       ),
                       icon: const Icon(Icons.auto_awesome, size: 16),
                       label: const Text('Ver expediente y Copiloto IA ✨'),
@@ -2356,13 +2383,13 @@ class _ContratosSectionState extends State<ContratosSection> {
         children: [
           Text(
             label,
-            style: const TextStyle(color: Color(0xFF64748B), fontSize: 11),
+            style: const TextStyle(color: Cristal.textoSuave, fontSize: 11),
           ),
           const SizedBox(height: 2),
           Text(
             value,
             style: TextStyle(
-              color: highlight ? const Color(0xFF1D4ED8) : _azulOscuro,
+              color: highlight ? Cristal.acentoClaro : Cristal.texto,
               fontSize: highlight ? 14 : 13,
               fontWeight: FontWeight.w800,
             ),
@@ -2371,10 +2398,7 @@ class _ContratosSectionState extends State<ContratosSection> {
             const SizedBox(height: 2),
             Text(
               caption,
-              style: const TextStyle(
-                color: Color(0xFF94A3B8),
-                fontSize: 10.5,
-              ),
+              style: const TextStyle(color: Cristal.textoTenue, fontSize: 10.5),
             ),
           ],
         ],
@@ -2401,11 +2425,12 @@ class _ContratosSectionState extends State<ContratosSection> {
       text: _maxValueFilter?.toStringAsFixed(0) ?? '',
     );
 
-    List<String> dynamicEntities = ColombiaSecopCatalog.obtenerEntidadesSugeridas(
-      orden: tempOrden.isEmpty ? null : tempOrden,
-      departamento: tempDepto.isEmpty ? null : tempDepto,
-      municipio: tempMuni.isEmpty ? null : tempMuni,
-    );
+    List<String> dynamicEntities =
+        ColombiaSecopCatalog.obtenerEntidadesSugeridas(
+          orden: tempOrden.isEmpty ? null : tempOrden,
+          departamento: tempDepto.isEmpty ? null : tempDepto,
+          municipio: tempMuni.isEmpty ? null : tempMuni,
+        );
     bool isLoadingEntities = false;
     bool initializedLiveEntities = false;
 
@@ -2418,15 +2443,12 @@ class _ContratosSectionState extends State<ContratosSection> {
       );
       final remoteNames =
           await ColombiaSecopCatalog.consultarEntidadesRealesSecop(
-        orden: tempOrden.isEmpty ? null : tempOrden,
-        departamento: tempDepto.isEmpty ? null : tempDepto,
-        municipio: tempMuni.isEmpty ? null : tempMuni,
-        textoBusqueda: entitySearchCtrl.text.trim(),
-      );
-      final combined = <String>{
-        ...remoteNames,
-        ...localSuggested,
-      }.toList();
+            orden: tempOrden.isEmpty ? null : tempOrden,
+            departamento: tempDepto.isEmpty ? null : tempDepto,
+            municipio: tempMuni.isEmpty ? null : tempMuni,
+            textoBusqueda: entitySearchCtrl.text.trim(),
+          );
+      final combined = <String>{...remoteNames, ...localSuggested}.toList();
       setDialogState(() {
         dynamicEntities = combined;
         isLoadingEntities = false;
@@ -2444,16 +2466,9 @@ class _ContratosSectionState extends State<ContratosSection> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Cristal.vidrio,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: _bordeCalido),
-          boxShadow: [
-            BoxShadow(
-              color: _azulOscuro.withValues(alpha: 0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
-            ),
-          ],
+          border: Border.all(color: Cristal.borde),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2465,20 +2480,20 @@ class _ContratosSectionState extends State<ContratosSection> {
                   height: 26,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: _azulOscuro,
+                    color: Cristal.acento,
                     borderRadius: BorderRadius.circular(7),
                   ),
                   child: Text(
                     number,
                     style: const TextStyle(
-                      color: _doradoPlataforma,
+                      color: Cristal.dorado,
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
                 const SizedBox(width: 9),
-                Icon(icon, size: 17, color: _azulOscuro),
+                Icon(icon, size: 17, color: Cristal.texto),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Column(
@@ -2487,7 +2502,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                       Text(
                         title,
                         style: const TextStyle(
-                          color: _azulOscuro,
+                          color: Cristal.texto,
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
                         ),
@@ -2495,7 +2510,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                       Text(
                         subtitle,
                         style: const TextStyle(
-                          color: Color(0xFF64748B),
+                          color: Cristal.textoSuave,
                           fontSize: 11,
                         ),
                       ),
@@ -2506,7 +2521,7 @@ class _ContratosSectionState extends State<ContratosSection> {
             ),
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 10),
-              child: Divider(height: 1, color: Color(0xFFEDE6D6)),
+              child: Divider(height: 1, color: Cristal.borde),
             ),
             child,
           ],
@@ -2514,7 +2529,7 @@ class _ContratosSectionState extends State<ContratosSection> {
       );
     }
 
-    showDialog<void>(
+    mostrarDialogoCristal<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) {
@@ -2543,8 +2558,8 @@ class _ContratosSectionState extends State<ContratosSection> {
           final visibleEntities = filterQuery.isEmpty
               ? dynamicEntities
               : dynamicEntities
-                  .where((e) => _normalizar(e).contains(filterQuery))
-                  .toList();
+                    .where((e) => _normalizar(e).contains(filterQuery))
+                    .toList();
 
           final sectorNames = <String>[
             '',
@@ -2553,11 +2568,11 @@ class _ContratosSectionState extends State<ContratosSection> {
           ];
 
           return Dialog(
-            backgroundColor: _cremaFondo,
+            backgroundColor: Cristal.flotante,
             clipBehavior: Clip.antiAlias,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(18),
-              side: const BorderSide(color: _bordeCalido, width: 1.2),
+              side: const BorderSide(color: Cristal.borde, width: 1.2),
             ),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 680, maxHeight: 760),
@@ -2572,9 +2587,9 @@ class _ContratosSectionState extends State<ContratosSection> {
                       vertical: 15,
                     ),
                     decoration: const BoxDecoration(
-                      color: _azulOscuro,
+                      color: Cristal.acentoVidrio,
                       border: Border(
-                        bottom: BorderSide(color: _doradoPlataforma, width: 2.5),
+                        bottom: BorderSide(color: Cristal.dorado, width: 2.5),
                       ),
                     ),
                     child: Row(
@@ -2583,15 +2598,15 @@ class _ContratosSectionState extends State<ContratosSection> {
                           width: 36,
                           height: 36,
                           decoration: BoxDecoration(
-                            color: _doradoPlataforma.withValues(alpha: 0.18),
+                            color: Cristal.dorado.withValues(alpha: 0.18),
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                              color: _doradoPlataforma.withValues(alpha: 0.6),
+                              color: Cristal.dorado.withValues(alpha: 0.6),
                             ),
                           ),
                           child: const Icon(
                             Icons.tune_rounded,
-                            color: _doradoPlataforma,
+                            color: Cristal.dorado,
                             size: 20,
                           ),
                         ),
@@ -2603,7 +2618,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                               Text(
                                 'Filtros Avanzados · SECOP II',
                                 style: TextStyle(
-                                  color: Colors.white,
+                                  color: Cristal.texto,
                                   fontSize: 16,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -2612,7 +2627,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                               Text(
                                 'Organiza tu búsqueda por ubicación, entidad, sector o condiciones contractuales',
                                 style: TextStyle(
-                                  color: Color(0xFFCBD5E1),
+                                  color: Cristal.textoApagado,
                                   fontSize: 11.5,
                                 ),
                               ),
@@ -2638,9 +2653,10 @@ class _ContratosSectionState extends State<ContratosSection> {
                             refreshSecopEntities(setDialogState);
                           },
                           style: TextButton.styleFrom(
-                            foregroundColor: _doradoPlataforma,
-                            backgroundColor:
-                                Colors.white.withValues(alpha: 0.08),
+                            foregroundColor: Cristal.dorado,
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.08,
+                            ),
                             padding: const EdgeInsets.symmetric(
                               horizontal: 10,
                               vertical: 6,
@@ -2664,7 +2680,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                           icon: const Icon(
                             Icons.close,
                             size: 19,
-                            color: Colors.white,
+                            color: Cristal.texto,
                           ),
                           visualDensity: VisualDensity.compact,
                         ),
@@ -2681,8 +2697,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                           sectionCard(
                             number: '1',
                             title: 'Nivel Territorial y Ubicación Geográfica',
-                            subtitle:
-                                'Filtra por orden administrativo, departamento y municipio',
+                            subtitle: 'Filtra por orden administrativo, departamento y municipio',
                             icon: Icons.location_on_outlined,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2690,7 +2705,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                                 const Text(
                                   'Orden de la entidad',
                                   style: TextStyle(
-                                    color: _azulOscuro,
+                                    color: Cristal.texto,
                                     fontSize: 11.5,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -2705,8 +2720,11 @@ class _ContratosSectionState extends State<ContratosSection> {
                                       ...ColombiaSecopCatalog.ordenesEntidad,
                                     ])
                                       InkWell(
+                                        hoverDuration: Cristal.micro,
                                         onTap: () {
-                                          setDialogState(() => tempOrden = item);
+                                          setDialogState(
+                                            () => tempOrden = item,
+                                          );
                                           refreshSecopEntities(setDialogState);
                                         },
                                         borderRadius: BorderRadius.circular(9),
@@ -2717,15 +2735,18 @@ class _ContratosSectionState extends State<ContratosSection> {
                                           ),
                                           decoration: BoxDecoration(
                                             color: tempOrden == item
-                                                ? _azulOscuro
-                                                : _cremaFondo,
-                                            borderRadius:
-                                                BorderRadius.circular(9),
+                                                ? Cristal.acentoVidrio
+                                                : Cristal.vidrioSuave,
+                                            borderRadius: BorderRadius.circular(
+                                              9,
+                                            ),
                                             border: Border.all(
                                               color: tempOrden == item
-                                                  ? _doradoPlataforma
-                                                  : _bordeCalido,
-                                              width: tempOrden == item ? 1.4 : 1,
+                                                  ? Cristal.dorado
+                                                  : Cristal.borde,
+                                              width: tempOrden == item
+                                                  ? 1.4
+                                                  : 1,
                                             ),
                                           ),
                                           child: Row(
@@ -2735,7 +2756,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                                                 const Icon(
                                                   Icons.check_circle,
                                                   size: 13,
-                                                  color: _doradoPlataforma,
+                                                  color: Cristal.dorado,
                                                 ),
                                                 const SizedBox(width: 5),
                                               ],
@@ -2745,8 +2766,8 @@ class _ContratosSectionState extends State<ContratosSection> {
                                                     : 'Orden $item',
                                                 style: TextStyle(
                                                   color: tempOrden == item
-                                                      ? Colors.white
-                                                      : _azulOscuro,
+                                                      ? Cristal.texto
+                                                      : Cristal.texto,
                                                   fontSize: 11.5,
                                                   fontWeight: tempOrden == item
                                                       ? FontWeight.w700
@@ -2802,8 +2823,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                           sectionCard(
                             number: '2',
                             title: 'Entidad Pública, Sector y Dependencia',
-                            subtitle:
-                                'Selecciona una entidad oficial de SECOP II o segmenta por sector',
+                            subtitle: 'Selecciona una entidad oficial de SECOP II o segmenta por sector',
                             icon: Icons.account_balance_outlined,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2827,7 +2847,10 @@ class _ContratosSectionState extends State<ContratosSection> {
                                         label: 'Dependencia / Secretaría',
                                         placeholder: 'Todas las dependencias',
                                         value: tempDependencia,
-                                        items: const ['', ..._dependenciaOptions],
+                                        items: const [
+                                          '',
+                                          ..._dependenciaOptions,
+                                        ],
                                         onChanged: (v) => setDialogState(
                                           () => tempDependencia = v ?? '',
                                         ),
@@ -2841,7 +2864,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                                       child: Text(
                                         'Entidad compradora en SECOP II',
                                         style: TextStyle(
-                                          color: _azulOscuro,
+                                          color: Cristal.texto,
                                           fontSize: 11.5,
                                           fontWeight: FontWeight.w700,
                                         ),
@@ -2853,7 +2876,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                                         height: 14,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
-                                          color: _doradoPlataforma,
+                                          color: Cristal.dorado,
                                         ),
                                       ),
                                   ],
@@ -2870,68 +2893,72 @@ class _ContratosSectionState extends State<ContratosSection> {
                                           );
                                         },
                                         onSubmitted: (_) =>
-                                            refreshSecopEntities(setDialogState),
+                                            refreshSecopEntities(
+                                              setDialogState,
+                                            ),
                                         style: const TextStyle(
                                           fontSize: 12,
-                                          color: _azulOscuro,
+                                          color: Cristal.texto,
                                         ),
                                         decoration: InputDecoration(
-                                          hintText:
-                                              'Escribe el nombre de la alcaldía, gobernación, hospital o ministerio...',
+                                          hintText: 'Escribe el nombre de la alcaldía, gobernación, hospital o ministerio...',
                                           hintStyle: const TextStyle(
                                             fontSize: 11.5,
-                                            color: Color(0xFF94A3B8),
+                                            color: Cristal.textoTenue,
                                           ),
                                           isDense: true,
                                           filled: true,
-                                          fillColor: _cremaFondo,
+                                          fillColor: Cristal.campo,
                                           prefixIcon: const Icon(
                                             Icons.search,
                                             size: 17,
-                                            color: _azulOscuro,
+                                            color: Cristal.texto,
                                           ),
                                           suffixIcon:
                                               entitySearchCtrl.text.isNotEmpty
-                                                  ? IconButton(
-                                                      onPressed: () {
-                                                        entitySearchCtrl.clear();
-                                                        setDialogState(
-                                                          () => tempEntidad = '',
-                                                        );
-                                                        refreshSecopEntities(
-                                                          setDialogState,
-                                                        );
-                                                      },
-                                                      icon: const Icon(
-                                                        Icons.clear,
-                                                        size: 15,
-                                                      ),
-                                                    )
-                                                  : null,
+                                              ? IconButton(
+                                                  onPressed: () {
+                                                    entitySearchCtrl.clear();
+                                                    setDialogState(
+                                                      () => tempEntidad = '',
+                                                    );
+                                                    refreshSecopEntities(
+                                                      setDialogState,
+                                                    );
+                                                  },
+                                                  icon: const Icon(
+                                                    Icons.clear,
+                                                    size: 15,
+                                                  ),
+                                                )
+                                              : null,
                                           contentPadding:
                                               const EdgeInsets.symmetric(
-                                            horizontal: 11,
-                                            vertical: 9,
-                                          ),
+                                                horizontal: 11,
+                                                vertical: 9,
+                                              ),
                                           border: OutlineInputBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(9),
+                                            borderRadius: BorderRadius.circular(
+                                              9,
+                                            ),
                                             borderSide: const BorderSide(
-                                              color: _bordeCalido,
+                                              color: Cristal.borde,
                                             ),
                                           ),
                                           enabledBorder: OutlineInputBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(9),
+                                            borderRadius: BorderRadius.circular(
+                                              9,
+                                            ),
                                             borderSide: const BorderSide(
-                                              color: _bordeCalido,
+                                              color: Cristal.borde,
                                             ),
                                           ),
                                           focusedBorder: OutlineInputBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(9),
+                                            borderRadius: BorderRadius.circular(
+                                              9,
+                                            ),
                                             borderSide: const BorderSide(
-                                              color: _azulOscuro,
+                                              color: Cristal.acentoClaro,
                                               width: 1.3,
                                             ),
                                           ),
@@ -2942,28 +2969,29 @@ class _ContratosSectionState extends State<ContratosSection> {
                                     SizedBox(
                                       height: 36,
                                       child: ElevatedButton.icon(
-                                        onPressed: () =>
-                                            refreshSecopEntities(setDialogState),
+                                        onPressed: () => refreshSecopEntities(
+                                          setDialogState,
+                                        ),
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor:
-                                              const Color(0xFFFFF4D6),
-                                          foregroundColor: _azulOscuro,
+                                          backgroundColor: Cristal.doradoVidrio,
+                                          foregroundColor: Cristal.texto,
                                           elevation: 0,
                                           side: const BorderSide(
-                                            color: _doradoPlataforma,
+                                            color: Cristal.dorado,
                                           ),
                                           padding: const EdgeInsets.symmetric(
                                             horizontal: 12,
                                           ),
                                           shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(9),
+                                            borderRadius: BorderRadius.circular(
+                                              9,
+                                            ),
                                           ),
                                         ),
                                         icon: const Icon(
                                           Icons.cloud_sync_outlined,
                                           size: 15,
-                                          color: _azulOscuro,
+                                          color: Cristal.texto,
                                         ),
                                         label: const Text(
                                           'Buscar entidad',
@@ -2980,9 +3008,9 @@ class _ContratosSectionState extends State<ContratosSection> {
                                 Container(
                                   height: 115,
                                   decoration: BoxDecoration(
-                                    color: _cremaTarjeta,
+                                    color: Cristal.vidrioSuave,
                                     borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(color: _bordeCalido),
+                                    border: Border.all(color: Cristal.borde),
                                   ),
                                   child: visibleEntities.isEmpty
                                       ? const Center(
@@ -2992,7 +3020,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                                               'Pulsa "Buscar entidad" para consultar en SECOP II o escribe libremente el nombre.',
                                               textAlign: TextAlign.center,
                                               style: TextStyle(
-                                                color: Color(0xFF64748B),
+                                                color: Cristal.textoSuave,
                                                 fontSize: 11.5,
                                               ),
                                             ),
@@ -3005,15 +3033,17 @@ class _ContratosSectionState extends State<ContratosSection> {
                                           itemCount: visibleEntities.length,
                                           separatorBuilder: (_, _) =>
                                               const Divider(
-                                            height: 1,
-                                            color: Color(0xFFEDE6D6),
-                                          ),
+                                                height: 1,
+                                                color: Cristal.borde,
+                                              ),
                                           itemBuilder: (context, idx) {
-                                            final entName = visibleEntities[idx];
+                                            final entName =
+                                                visibleEntities[idx];
                                             final isSelected =
                                                 _normalizar(tempEntidad) ==
-                                                    _normalizar(entName);
+                                                _normalizar(entName);
                                             return InkWell(
+                                              hoverDuration: Cristal.micro,
                                               onTap: () {
                                                 setDialogState(() {
                                                   tempEntidad = entName;
@@ -3023,26 +3053,24 @@ class _ContratosSectionState extends State<ContratosSection> {
                                               },
                                               child: Container(
                                                 color: isSelected
-                                                    ? const Color(0xFFFFF4D6)
+                                                    ? Cristal.doradoVidrio
                                                     : Colors.transparent,
                                                 padding:
                                                     const EdgeInsets.symmetric(
-                                                  horizontal: 12,
-                                                  vertical: 6,
-                                                ),
+                                                      horizontal: 12,
+                                                      vertical: 6,
+                                                    ),
                                                 child: Row(
                                                   children: [
                                                     Icon(
                                                       isSelected
                                                           ? Icons.check_circle
                                                           : Icons
-                                                              .account_balance_outlined,
+                                                                .account_balance_outlined,
                                                       size: 14,
                                                       color: isSelected
-                                                          ? _azulOscuro
-                                                          : const Color(
-                                                              0xFF64748B,
-                                                            ),
+                                                          ? Cristal.texto
+                                                          : Cristal.textoSuave,
                                                     ),
                                                     const SizedBox(width: 8),
                                                     Expanded(
@@ -3052,7 +3080,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                                                         overflow: TextOverflow
                                                             .ellipsis,
                                                         style: TextStyle(
-                                                          color: _azulOscuro,
+                                                          color: Cristal.texto,
                                                           fontSize: 11.5,
                                                           fontWeight: isSelected
                                                               ? FontWeight.w800
@@ -3073,8 +3101,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                           sectionCard(
                             number: '3',
                             title: 'Condiciones Contractuales y Cuantía',
-                            subtitle:
-                                'Modalidad de selección, estado actual, vigencia y rango de valor',
+                            subtitle: 'Modalidad de selección, estado actual, vigencia y rango de valor',
                             icon: Icons.gavel_rounded,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -3122,7 +3149,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                                 const Text(
                                   'Rango de valor del contrato en COP (Opcional)',
                                   style: TextStyle(
-                                    color: _azulOscuro,
+                                    color: Cristal.texto,
                                     fontSize: 11.5,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -3136,39 +3163,42 @@ class _ContratosSectionState extends State<ContratosSection> {
                                         keyboardType: TextInputType.number,
                                         style: const TextStyle(
                                           fontSize: 12,
-                                          color: _azulOscuro,
+                                          color: Cristal.texto,
                                         ),
                                         decoration: InputDecoration(
-                                          hintText: 'Valor mínimo (ej. 10000000)',
+                                          hintText:
+                                              'Valor mínimo (ej. 10000000)',
                                           hintStyle: const TextStyle(
                                             fontSize: 11.5,
-                                            color: Color(0xFF94A3B8),
+                                            color: Cristal.textoTenue,
                                           ),
                                           prefixIcon: const Icon(
                                             Icons.attach_money,
                                             size: 16,
-                                            color: _azulOscuro,
+                                            color: Cristal.texto,
                                           ),
                                           isDense: true,
                                           filled: true,
-                                          fillColor: _cremaFondo,
+                                          fillColor: Cristal.campo,
                                           contentPadding:
                                               const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 9,
-                                          ),
+                                                horizontal: 10,
+                                                vertical: 9,
+                                              ),
                                           border: OutlineInputBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(9),
+                                            borderRadius: BorderRadius.circular(
+                                              9,
+                                            ),
                                             borderSide: const BorderSide(
-                                              color: _bordeCalido,
+                                              color: Cristal.borde,
                                             ),
                                           ),
                                           enabledBorder: OutlineInputBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(9),
+                                            borderRadius: BorderRadius.circular(
+                                              9,
+                                            ),
                                             borderSide: const BorderSide(
-                                              color: _bordeCalido,
+                                              color: Cristal.borde,
                                             ),
                                           ),
                                         ),
@@ -3181,40 +3211,42 @@ class _ContratosSectionState extends State<ContratosSection> {
                                         keyboardType: TextInputType.number,
                                         style: const TextStyle(
                                           fontSize: 12,
-                                          color: _azulOscuro,
+                                          color: Cristal.texto,
                                         ),
                                         decoration: InputDecoration(
                                           hintText:
                                               'Valor máximo (ej. 500000000)',
                                           hintStyle: const TextStyle(
                                             fontSize: 11.5,
-                                            color: Color(0xFF94A3B8),
+                                            color: Cristal.textoTenue,
                                           ),
                                           prefixIcon: const Icon(
                                             Icons.attach_money,
                                             size: 16,
-                                            color: _azulOscuro,
+                                            color: Cristal.texto,
                                           ),
                                           isDense: true,
                                           filled: true,
-                                          fillColor: _cremaFondo,
+                                          fillColor: Cristal.campo,
                                           contentPadding:
                                               const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 9,
-                                          ),
+                                                horizontal: 10,
+                                                vertical: 9,
+                                              ),
                                           border: OutlineInputBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(9),
+                                            borderRadius: BorderRadius.circular(
+                                              9,
+                                            ),
                                             borderSide: const BorderSide(
-                                              color: _bordeCalido,
+                                              color: Cristal.borde,
                                             ),
                                           ),
                                           enabledBorder: OutlineInputBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(9),
+                                            borderRadius: BorderRadius.circular(
+                                              9,
+                                            ),
                                             borderSide: const BorderSide(
-                                              color: _bordeCalido,
+                                              color: Cristal.borde,
                                             ),
                                           ),
                                         ),
@@ -3236,10 +3268,8 @@ class _ContratosSectionState extends State<ContratosSection> {
                       vertical: 12,
                     ),
                     decoration: const BoxDecoration(
-                      color: Colors.white,
-                      border: Border(
-                        top: BorderSide(color: _bordeCalido),
-                      ),
+                      color: Cristal.vidrio,
+                      border: Border(top: BorderSide(color: Cristal.borde)),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -3247,8 +3277,8 @@ class _ContratosSectionState extends State<ContratosSection> {
                         OutlinedButton(
                           onPressed: () => Navigator.pop(dialogContext),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: _azulOscuro,
-                            side: const BorderSide(color: _bordeCalido),
+                            foregroundColor: Cristal.texto,
+                            side: const BorderSide(color: Cristal.borde),
                             padding: const EdgeInsets.symmetric(
                               horizontal: 16,
                               vertical: 10,
@@ -3278,18 +3308,20 @@ class _ContratosSectionState extends State<ContratosSection> {
                               _selectedEstado = tempEstado;
                               _selectedModalidad = tempModalidad;
                               _selectedAnio = tempAnio;
-                              _minValueFilter =
-                                  double.tryParse(minCtrl.text.trim());
-                              _maxValueFilter =
-                                  double.tryParse(maxCtrl.text.trim());
+                              _minValueFilter = double.tryParse(
+                                minCtrl.text.trim(),
+                              );
+                              _maxValueFilter = double.tryParse(
+                                maxCtrl.text.trim(),
+                              );
                               _currentPage = 1;
                             });
                             Navigator.pop(dialogContext);
                             _fetchLiveSecopContracts();
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: _azulOscuro,
-                            foregroundColor: Colors.white,
+                            backgroundColor: Cristal.acento,
+                            foregroundColor: Cristal.texto,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 20,
                               vertical: 11,
@@ -3301,7 +3333,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                           icon: const Icon(
                             Icons.search,
                             size: 16,
-                            color: _doradoPlataforma,
+                            color: Cristal.dorado,
                           ),
                           label: const Text(
                             'Aplicar filtros y consultar SECOP II',
@@ -3339,7 +3371,7 @@ class _ContratosSectionState extends State<ContratosSection> {
           Text(
             label,
             style: const TextStyle(
-              color: _azulOscuro,
+              color: Cristal.texto,
               fontSize: 11.5,
               fontWeight: FontWeight.w700,
             ),
@@ -3350,25 +3382,28 @@ class _ContratosSectionState extends State<ContratosSection> {
             initialValue: safeValue,
             isDense: true,
             isExpanded: true,
-            style: const TextStyle(color: _azulOscuro, fontSize: 12),
+            style: const TextStyle(color: Cristal.texto, fontSize: 12),
             decoration: InputDecoration(
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 11,
                 vertical: 8,
               ),
               filled: true,
-              fillColor: _cremaFondo,
+              fillColor: Cristal.campo,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(9),
-                borderSide: const BorderSide(color: _bordeCalido),
+                borderSide: const BorderSide(color: Cristal.borde),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(9),
-                borderSide: const BorderSide(color: _bordeCalido),
+                borderSide: const BorderSide(color: Cristal.borde),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(9),
-                borderSide: const BorderSide(color: _azulOscuro, width: 1.3),
+                borderSide: const BorderSide(
+                  color: Cristal.acentoClaro,
+                  width: 1.3,
+                ),
               ),
             ),
             items: [
@@ -3379,9 +3414,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                     item.isEmpty ? placeholder : item,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: item.isEmpty
-                          ? const Color(0xFF94A3B8)
-                          : _azulOscuro,
+                      color: item.isEmpty ? Cristal.textoTenue : Cristal.texto,
                       fontSize: 12,
                       fontWeight: item.isEmpty
                           ? FontWeight.w400
@@ -3406,7 +3439,7 @@ class _ContratosSectionState extends State<ContratosSection> {
           width: 6,
           height: 32,
           decoration: BoxDecoration(
-            color: _doradoPlataforma,
+            color: Cristal.dorado,
             borderRadius: BorderRadius.circular(3),
           ),
         ),
@@ -3414,7 +3447,7 @@ class _ContratosSectionState extends State<ContratosSection> {
         Text(
           'Contratos',
           style: TextStyle(
-            color: _azulOscuro,
+            color: Cristal.texto,
             fontSize: isMobile ? 22 : 26,
             fontWeight: FontWeight.w800,
             height: 1.05,
@@ -3422,11 +3455,7 @@ class _ContratosSectionState extends State<ContratosSection> {
         ),
         if (!isMobile) ...[
           const SizedBox(width: 12),
-          Container(
-            width: 1.5,
-            height: 18,
-            color: _bordeCalido,
-          ),
+          Container(width: 1.5, height: 18, color: Cristal.vidrioFuerte),
           const SizedBox(width: 12),
           const Expanded(
             child: Text(
@@ -3434,7 +3463,7 @@ class _ContratosSectionState extends State<ContratosSection> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: Color(0xFF475569),
+                color: Cristal.textoMedio,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
@@ -3457,10 +3486,10 @@ class _ContratosSectionState extends State<ContratosSection> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFF4D6),
+                color: Cristal.doradoVidrio,
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
-                  color: _doradoPlataforma.withValues(alpha: 0.65),
+                  color: Cristal.dorado.withValues(alpha: 0.65),
                 ),
               ),
               child: const Row(
@@ -3469,13 +3498,13 @@ class _ContratosSectionState extends State<ContratosSection> {
                   Icon(
                     Icons.category_outlined,
                     size: 12.5,
-                    color: _azulOscuro,
+                    color: Cristal.texto,
                   ),
                   SizedBox(width: 4),
                   Text(
                     'Sectores',
                     style: TextStyle(
-                      color: _azulOscuro,
+                      color: Cristal.texto,
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
                     ),
@@ -3490,7 +3519,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: Color(0xFF64748B),
+                  color: Cristal.textoSuave,
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
                 ),
@@ -3498,6 +3527,7 @@ class _ContratosSectionState extends State<ContratosSection> {
             ),
             if (_selectedSector.isNotEmpty)
               InkWell(
+                hoverDuration: Cristal.micro,
                 onTap: () {
                   setState(() {
                     _selectedSector = '';
@@ -3511,7 +3541,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                   child: Text(
                     'Ver todos los sectores',
                     style: TextStyle(
-                      color: _azulPrimario,
+                      color: Cristal.acentoClaro,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
@@ -3530,6 +3560,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                     final sec = _sectorMacroOptions[i];
                     final bool isSelected = _selectedSector == sec.id;
                     return InkWell(
+                      hoverDuration: Cristal.micro,
                       onTap: () {
                         setState(() {
                           if (_selectedSector == sec.id && sec.id.isNotEmpty) {
@@ -3550,16 +3581,18 @@ class _ContratosSectionState extends State<ContratosSection> {
                           vertical: 8,
                         ),
                         decoration: BoxDecoration(
-                          color: isSelected ? _azulOscuro : _cremaTarjeta,
+                          color: isSelected
+                              ? Cristal.acentoVidrio
+                              : Cristal.vidrioSuave,
                           borderRadius: BorderRadius.circular(11),
                           border: Border.all(
-                            color: isSelected ? _doradoPlataforma : _bordeCalido,
+                            color: isSelected ? Cristal.dorado : Cristal.borde,
                             width: isSelected ? 1.5 : 1,
                           ),
                           boxShadow: isSelected
                               ? [
                                   BoxShadow(
-                                    color: _azulOscuro.withValues(alpha: 0.14),
+                                    color: Cristal.sombra,
                                     blurRadius: 8,
                                     offset: const Offset(0, 3),
                                   ),
@@ -3574,7 +3607,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                               height: 30,
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? _doradoPlataforma.withValues(alpha: 0.2)
+                                    ? Cristal.dorado.withValues(alpha: 0.2)
                                     : sec.softBg,
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -3582,7 +3615,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                                 sec.icon,
                                 size: 16,
                                 color: isSelected
-                                    ? _doradoPlataforma
+                                    ? Cristal.dorado
                                     : sec.accentColor,
                               ),
                             ),
@@ -3598,8 +3631,8 @@ class _ContratosSectionState extends State<ContratosSection> {
                                       sec.label,
                                       style: TextStyle(
                                         color: isSelected
-                                            ? Colors.white
-                                            : _azulOscuro,
+                                            ? Cristal.texto
+                                            : Cristal.texto,
                                         fontSize: 12,
                                         fontWeight: FontWeight.w800,
                                       ),
@@ -3609,7 +3642,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                                       const Icon(
                                         Icons.check_circle,
                                         size: 12,
-                                        color: _doradoPlataforma,
+                                        color: Cristal.dorado,
                                       ),
                                     ],
                                   ],
@@ -3619,8 +3652,8 @@ class _ContratosSectionState extends State<ContratosSection> {
                                   sec.subtitle,
                                   style: TextStyle(
                                     color: isSelected
-                                        ? const Color(0xFFCBD5E1)
-                                        : const Color(0xFF64748B),
+                                        ? Cristal.textoApagado
+                                        : Cristal.textoSuave,
                                     fontSize: 10,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -3652,11 +3685,9 @@ class _ContratosSectionState extends State<ContratosSection> {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF4D6),
+          color: Cristal.doradoVidrio,
           borderRadius: BorderRadius.circular(7),
-          border: Border.all(
-            color: _doradoPlataforma.withValues(alpha: 0.6),
-          ),
+          border: Border.all(color: Cristal.dorado.withValues(alpha: 0.6)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -3664,19 +3695,16 @@ class _ContratosSectionState extends State<ContratosSection> {
             Text(
               text,
               style: const TextStyle(
-                color: _azulOscuro,
+                color: Cristal.texto,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(width: 5),
             InkWell(
+              hoverDuration: Cristal.micro,
               onTap: onRemove,
-              child: const Icon(
-                Icons.close,
-                size: 13,
-                color: _azulOscuro,
-              ),
+              child: const Icon(Icons.close, size: 13, color: Cristal.texto),
             ),
           ],
         ),
@@ -3686,16 +3714,9 @@ class _ContratosSectionState extends State<ContratosSection> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Cristal.vidrio,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _bordeCalido.withValues(alpha: 0.7)),
-        boxShadow: [
-          BoxShadow(
-            color: _azulOscuro.withValues(alpha: 0.05),
-            blurRadius: 14,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        border: Border.all(color: Cristal.borde),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -3722,20 +3743,19 @@ class _ContratosSectionState extends State<ContratosSection> {
                       );
                     },
                     onSubmitted: (_) => _executeContractSearch(silent: false),
-                    style: const TextStyle(fontSize: 12, color: _azulOscuro),
+                    style: const TextStyle(fontSize: 12, color: Cristal.texto),
                     decoration: InputDecoration(
-                      hintText:
-                          'Pregunta como hablas: "alimentación en el Cesar", "obras de más de 500 millones en 2025"…',
+                      hintText: 'Pregunta como hablas: "alimentación en el Cesar", "obras de más de 500 millones en 2025"…',
                       hintStyle: TextStyle(
-                        color: Colors.blueGrey.shade400,
+                        color: Cristal.textoSuave,
                         fontSize: 12,
                       ),
                       isDense: true,
                       filled: true,
-                      fillColor: _cremaFondo,
+                      fillColor: Cristal.campo,
                       prefixIcon: const Icon(
                         Icons.search,
-                        color: _azulOscuro,
+                        color: Cristal.texto,
                         size: 18,
                       ),
                       suffixIcon: _contractsSearchController.text.isNotEmpty
@@ -3753,16 +3773,16 @@ class _ContratosSectionState extends State<ContratosSection> {
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(9),
-                        borderSide: const BorderSide(color: _bordeCalido),
+                        borderSide: const BorderSide(color: Cristal.borde),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(9),
-                        borderSide: const BorderSide(color: _bordeCalido),
+                        borderSide: const BorderSide(color: Cristal.borde),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(9),
                         borderSide: const BorderSide(
-                          color: _azulOscuro,
+                          color: Cristal.acentoClaro,
                           width: 1.3,
                         ),
                       ),
@@ -3780,13 +3800,13 @@ class _ContratosSectionState extends State<ContratosSection> {
                           height: 13,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: _doradoPlataforma,
+                            color: Cristal.dorado,
                           ),
                         )
                       : const Icon(
                           Icons.search,
                           size: 15,
-                          color: _doradoPlataforma,
+                          color: Cristal.dorado,
                         ),
                   label: const Text(
                     'Buscar',
@@ -3796,8 +3816,8 @@ class _ContratosSectionState extends State<ContratosSection> {
                     ),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _azulOscuro,
-                    foregroundColor: Colors.white,
+                    backgroundColor: Cristal.acento,
+                    foregroundColor: Cristal.texto,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(horizontal: 18),
                     shape: RoundedRectangleBorder(
@@ -3812,13 +3832,13 @@ class _ContratosSectionState extends State<ContratosSection> {
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 decoration: BoxDecoration(
                   color: _selectedAnio.isNotEmpty
-                      ? const Color(0xFFFFF4D6)
-                      : _cremaFondo,
+                      ? Cristal.doradoVidrio
+                      : Cristal.vidrioSuave,
                   borderRadius: BorderRadius.circular(9),
                   border: Border.all(
                     color: _selectedAnio.isNotEmpty
-                        ? _doradoPlataforma
-                        : _bordeCalido,
+                        ? Cristal.dorado
+                        : Cristal.borde,
                   ),
                 ),
                 child: DropdownButtonHideUnderline(
@@ -3827,11 +3847,11 @@ class _ContratosSectionState extends State<ContratosSection> {
                     icon: const Icon(
                       Icons.calendar_today_outlined,
                       size: 14,
-                      color: _azulOscuro,
+                      color: Cristal.texto,
                     ),
                     isDense: true,
                     style: const TextStyle(
-                      color: _azulOscuro,
+                      color: Cristal.texto,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
@@ -3841,10 +3861,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                         child: Text('Vigencia: Todas (2015–2026)'),
                       ),
                       for (final anio in _anioOptions)
-                        DropdownMenuItem(
-                          value: anio,
-                          child: Text('Año $anio'),
-                        ),
+                        DropdownMenuItem(value: anio, child: Text('Año $anio')),
                     ],
                     onChanged: (val) {
                       setState(() {
@@ -3861,12 +3878,12 @@ class _ContratosSectionState extends State<ContratosSection> {
                 child: OutlinedButton(
                   onPressed: _showAdvancedFiltersDialog,
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: _azulOscuro,
+                    foregroundColor: Cristal.texto,
                     backgroundColor: activeCount > 0
-                        ? const Color(0xFFFFF4D6)
-                        : _cremaFondo,
+                        ? Cristal.doradoVidrio
+                        : Cristal.vidrioSuave,
                     side: BorderSide(
-                      color: activeCount > 0 ? _doradoPlataforma : _bordeCalido,
+                      color: activeCount > 0 ? Cristal.dorado : Cristal.borde,
                       width: activeCount > 0 ? 1.4 : 1,
                     ),
                     padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -3880,7 +3897,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                       const Icon(
                         Icons.tune_rounded,
                         size: 15,
-                        color: _azulOscuro,
+                        color: Cristal.texto,
                       ),
                       const SizedBox(width: 6),
                       Text(
@@ -3888,7 +3905,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                             ? 'Filtros avanzados ($activeCount)'
                             : 'Filtros avanzados',
                         style: const TextStyle(
-                          color: _azulOscuro,
+                          color: Cristal.texto,
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                         ),
@@ -3897,7 +3914,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                       const Icon(
                         Icons.keyboard_arrow_down,
                         size: 16,
-                        color: _azulOscuro,
+                        color: Cristal.texto,
                       ),
                     ],
                   ),
@@ -3914,12 +3931,12 @@ class _ContratosSectionState extends State<ContratosSection> {
                   icon: const Icon(
                     Icons.refresh,
                     size: 14,
-                    color: _azulOscuro,
+                    color: Cristal.texto,
                   ),
                   label: const Text(
                     'Limpiar todo',
                     style: TextStyle(
-                      color: _azulOscuro,
+                      color: Cristal.texto,
                       fontSize: 11.5,
                       fontWeight: FontWeight.w700,
                     ),
@@ -3940,85 +3957,58 @@ class _ContratosSectionState extends State<ContratosSection> {
                 const Text(
                   'Activos:',
                   style: TextStyle(
-                    color: _azulOscuro,
+                    color: Cristal.texto,
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 if (_selectedSector.isNotEmpty)
-                  activeFilterChip(
-                    'Sector: $_selectedSector',
-                    () {
-                      setState(() => _selectedSector = '');
-                      _fetchLiveSecopContracts(silent: true);
-                    },
-                  ),
+                  activeFilterChip('Sector: $_selectedSector', () {
+                    setState(() => _selectedSector = '');
+                    _fetchLiveSecopContracts(silent: true);
+                  }),
                 if (_selectedOrden.isNotEmpty)
-                  activeFilterChip(
-                    'Orden: $_selectedOrden',
-                    () {
-                      setState(() => _selectedOrden = '');
-                      _fetchLiveSecopContracts(silent: true);
-                    },
-                  ),
+                  activeFilterChip('Orden: $_selectedOrden', () {
+                    setState(() => _selectedOrden = '');
+                    _fetchLiveSecopContracts(silent: true);
+                  }),
                 if (_selectedDepartamento.isNotEmpty)
-                  activeFilterChip(
-                    'Depto: $_selectedDepartamento',
-                    () {
-                      setState(() {
-                        _selectedDepartamento = '';
-                        _selectedMunicipio = '';
-                      });
-                      _fetchLiveSecopContracts(silent: true);
-                    },
-                  ),
+                  activeFilterChip('Depto: $_selectedDepartamento', () {
+                    setState(() {
+                      _selectedDepartamento = '';
+                      _selectedMunicipio = '';
+                    });
+                    _fetchLiveSecopContracts(silent: true);
+                  }),
                 if (_selectedMunicipio.isNotEmpty)
-                  activeFilterChip(
-                    'Municipio: $_selectedMunicipio',
-                    () {
-                      setState(() => _selectedMunicipio = '');
-                      _fetchLiveSecopContracts(silent: true);
-                    },
-                  ),
+                  activeFilterChip('Municipio: $_selectedMunicipio', () {
+                    setState(() => _selectedMunicipio = '');
+                    _fetchLiveSecopContracts(silent: true);
+                  }),
                 if (_selectedEntidad.isNotEmpty)
-                  activeFilterChip(
-                    'Entidad: $_selectedEntidad',
-                    () {
-                      setState(() => _selectedEntidad = '');
-                      _fetchLiveSecopContracts(silent: true);
-                    },
-                  ),
+                  activeFilterChip('Entidad: $_selectedEntidad', () {
+                    setState(() => _selectedEntidad = '');
+                    _fetchLiveSecopContracts(silent: true);
+                  }),
                 if (_selectedAnio.isNotEmpty)
-                  activeFilterChip(
-                    'Año: $_selectedAnio',
-                    () {
-                      setState(() => _selectedAnio = '');
-                      _fetchLiveSecopContracts(silent: true);
-                    },
-                  ),
+                  activeFilterChip('Año: $_selectedAnio', () {
+                    setState(() => _selectedAnio = '');
+                    _fetchLiveSecopContracts(silent: true);
+                  }),
                 if (_selectedModalidad.isNotEmpty)
-                  activeFilterChip(
-                    'Modalidad: $_selectedModalidad',
-                    () {
-                      setState(() => _selectedModalidad = '');
-                      _fetchLiveSecopContracts(silent: true);
-                    },
-                  ),
+                  activeFilterChip('Modalidad: $_selectedModalidad', () {
+                    setState(() => _selectedModalidad = '');
+                    _fetchLiveSecopContracts(silent: true);
+                  }),
                 if (_selectedEstado.isNotEmpty)
-                  activeFilterChip(
-                    'Estado: $_selectedEstado',
-                    () {
-                      setState(() => _selectedEstado = '');
-                      _fetchLiveSecopContracts(silent: true);
-                    },
-                  ),
+                  activeFilterChip('Estado: $_selectedEstado', () {
+                    setState(() => _selectedEstado = '');
+                    _fetchLiveSecopContracts(silent: true);
+                  }),
                 if (_selectedDependencia.isNotEmpty)
-                  activeFilterChip(
-                    'Dependencia: $_selectedDependencia',
-                    () {
-                      setState(() => _selectedDependencia = '');
-                    },
-                  ),
+                  activeFilterChip('Dependencia: $_selectedDependencia', () {
+                    setState(() => _selectedDependencia = '');
+                  }),
                 if (_contractsSearchController.text.trim().isNotEmpty)
                   activeFilterChip(
                     'Búsqueda: "${_contractsSearchController.text.trim()}"',
@@ -4050,12 +4040,12 @@ class _ContratosSectionState extends State<ContratosSection> {
         const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.auto_awesome, size: 13, color: Color(0xFF1D4ED8)),
+            Icon(Icons.auto_awesome, size: 13, color: Cristal.acentoClaro),
             SizedBox(width: 4),
             Text(
               'Interpretamos tu búsqueda como:',
               style: TextStyle(
-                color: _azulOscuro,
+                color: Cristal.texto,
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
               ),
@@ -4066,14 +4056,14 @@ class _ContratosSectionState extends State<ContratosSection> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
+              color: Cristal.azulVidrio,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFBFDBFE)),
+              border: Border.all(color: Cristal.acentoBorde),
             ),
             child: Text(
               etiqueta,
               style: const TextStyle(
-                color: Color(0xFF1E3A8A),
+                color: Cristal.acentoClaro,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -4089,10 +4079,14 @@ class _ContratosSectionState extends State<ContratosSection> {
       0,
       (sum, item) => sum + item.numericValue,
     );
-    final uniqueContractors =
-        filtered.map((e) => e.contractor.toUpperCase()).toSet().length;
-    final uniqueEntities =
-        filtered.map((e) => e.entity.toUpperCase()).toSet().length;
+    final uniqueContractors = filtered
+        .map((e) => e.contractor.toUpperCase())
+        .toSet()
+        .length;
+    final uniqueEntities = filtered
+        .map((e) => e.entity.toUpperCase())
+        .toSet()
+        .length;
 
     final String totalContractsText = '${filtered.length}';
     final String totalValueText = _formatShortMillions(totalSum);
@@ -4110,16 +4104,9 @@ class _ContratosSectionState extends State<ContratosSection> {
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 11),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Cristal.vidrio,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: _bordeCalido.withValues(alpha: 0.65)),
-          boxShadow: [
-            BoxShadow(
-              color: _azulOscuro.withValues(alpha: 0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          border: Border.all(color: Cristal.borde),
         ),
         child: Row(
           children: [
@@ -4143,7 +4130,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: Color(0xFF64748B),
+                      color: Cristal.textoSuave,
                       fontSize: 10.5,
                       fontWeight: FontWeight.w600,
                     ),
@@ -4160,7 +4147,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                             value,
                             maxLines: 1,
                             style: const TextStyle(
-                              color: _azulOscuro,
+                              color: Cristal.texto,
                               fontSize: 15.5,
                               fontWeight: FontWeight.w800,
                             ),
@@ -4175,7 +4162,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: Color(0xFF64748B),
+                              color: Cristal.textoSuave,
                               fontSize: 9.5,
                               fontWeight: FontWeight.w500,
                             ),
@@ -4195,32 +4182,32 @@ class _ContratosSectionState extends State<ContratosSection> {
     final kpiCardBoxes = [
       kpiCardBox(
         icon: Icons.description_outlined,
-        iconColor: const Color(0xFF2B7DE9),
-        iconBackground: const Color(0xFFEAF3FF),
+        iconColor: Cristal.acentoClaro,
+        iconBackground: Cristal.vidrioSuave,
         label: 'Total contratos',
         value: totalContractsText,
         subtitleText: 'SECOP II',
       ),
       kpiCardBox(
         icon: Icons.monetization_on_outlined,
-        iconColor: const Color(0xFF22A05B),
-        iconBackground: const Color(0xFFE6F6EC),
+        iconColor: Cristal.verde,
+        iconBackground: Cristal.verdeVidrio,
         label: 'Valor contratado',
         value: totalValueText,
         subtitleText: 'acumulado',
       ),
       kpiCardBox(
         icon: Icons.people_outline,
-        iconColor: const Color(0xFF2563EB),
-        iconBackground: const Color(0xFFEBF1FF),
+        iconColor: Cristal.acentoClaro,
+        iconBackground: Cristal.vidrioSuave,
         label: 'Contratistas',
         value: contractorsCountText,
         subtitleText: 'verificados',
       ),
       kpiCardBox(
         icon: Icons.account_balance_outlined,
-        iconColor: const Color(0xFFE5A024),
-        iconBackground: const Color(0xFFFFF6DA),
+        iconColor: Cristal.ambar,
+        iconBackground: Cristal.doradoVidrio,
         label: 'Entidades',
         value: entitiesCountText,
         subtitleText: 'en consulta',
@@ -4264,9 +4251,9 @@ class _ContratosSectionState extends State<ContratosSection> {
     if (value >= 1000000) {
       final millions = (value / 1000000).round();
       final formatted = millions.toString().replaceAllMapped(
-            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-            (Match m) => '${m[1]}.',
-          );
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (Match m) => '${m[1]}.',
+      );
       return '\$$formatted M';
     }
     return _formatCop(value);
@@ -4292,7 +4279,7 @@ class _ContratosSectionState extends State<ContratosSection> {
             const Text(
               'Resultados de búsqueda',
               style: TextStyle(
-                color: _azulOscuro,
+                color: Cristal.texto,
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
               ),
@@ -4300,16 +4287,16 @@ class _ContratosSectionState extends State<ContratosSection> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFF4D6),
+                color: Cristal.doradoVidrio,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: _doradoPlataforma.withValues(alpha: 0.65),
+                  color: Cristal.dorado.withValues(alpha: 0.65),
                 ),
               ),
               child: Text(
                 countText,
                 style: const TextStyle(
-                  color: _azulOscuro,
+                  color: Cristal.texto,
                   fontSize: 11.5,
                   fontWeight: FontWeight.w700,
                 ),
@@ -4325,7 +4312,7 @@ class _ContratosSectionState extends State<ContratosSection> {
             const Text(
               'Ordenar por:',
               style: TextStyle(
-                color: Color(0xFF475569),
+                color: Cristal.textoMedio,
                 fontSize: 11.5,
                 fontWeight: FontWeight.w600,
               ),
@@ -4334,9 +4321,9 @@ class _ContratosSectionState extends State<ContratosSection> {
               height: 32,
               padding: const EdgeInsets.symmetric(horizontal: 10),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Cristal.vidrio,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: _bordeCalido),
+                border: Border.all(color: Cristal.borde),
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
@@ -4347,11 +4334,11 @@ class _ContratosSectionState extends State<ContratosSection> {
                     child: Icon(
                       Icons.keyboard_arrow_down,
                       size: 16,
-                      color: _azulOscuro,
+                      color: Cristal.texto,
                     ),
                   ),
                   style: const TextStyle(
-                    color: _azulOscuro,
+                    color: Cristal.texto,
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -4387,20 +4374,20 @@ class _ContratosSectionState extends State<ContratosSection> {
                 icon: const Icon(
                   Icons.download_rounded,
                   size: 15,
-                  color: _azulOscuro,
+                  color: Cristal.texto,
                 ),
                 label: const Text(
                   'Exportar',
                   style: TextStyle(
-                    color: _azulOscuro,
+                    color: Cristal.texto,
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 style: OutlinedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: _azulOscuro,
-                  side: const BorderSide(color: _bordeCalido),
+                  backgroundColor: Cristal.vidrio,
+                  foregroundColor: Cristal.texto,
+                  side: const BorderSide(color: Cristal.borde),
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -4426,7 +4413,7 @@ class _ContratosSectionState extends State<ContratosSection> {
     const flexes = [3, 2, 2, 1, 1, 1];
 
     return Container(
-      color: const Color(0xFFEEF3F8),
+      color: Cristal.vidrioSuave,
       child: Row(
         children: [
           for (var index = 0; index < titles.length; index++)
@@ -4442,7 +4429,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: _azulOscuro,
+                    color: Cristal.texto,
                     fontSize: 11.5,
                     fontWeight: FontWeight.w800,
                   ),
@@ -4457,7 +4444,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                 'Acciones',
                 maxLines: 1,
                 style: TextStyle(
-                  color: _azulOscuro,
+                  color: Cristal.texto,
                   fontSize: 11.5,
                   fontWeight: FontWeight.w800,
                 ),
@@ -4470,31 +4457,33 @@ class _ContratosSectionState extends State<ContratosSection> {
   }
 
   Widget _buildTableRow(ContractRecord contract) {
-    final analisis = ContractFinancialAnalysis.fromContract(contract.rawSecopJson);
+    final analisis = ContractFinancialAnalysis.fromContract(
+      contract.rawSecopJson,
+    );
     final Color statusColor = switch (contract.status) {
-      'En ejecución' => const Color(0xFF15803D),
-      'Aprobado' || 'En aprobación' => const Color(0xFFB45309),
-      'Modificado' => const Color(0xFF6D28D9),
-      'Terminado' || 'Cerrado' => const Color(0xFF0369A1),
-      'Liquidado' => const Color(0xFFB91C1C),
-      _ => Colors.blueGrey,
+      'En ejecución' => Cristal.verde,
+      'Aprobado' || 'En aprobación' => Cristal.ambar,
+      'Modificado' => const Color(0xFFA78BFA),
+      'Terminado' || 'Cerrado' => const Color(0xFF38BDF8),
+      'Liquidado' => Cristal.rojo,
+      _ => Cristal.textoSuave,
     };
     final Color statusBackground = switch (contract.status) {
-      'En ejecución' => const Color(0xFFDCFCE7),
-      'Aprobado' || 'En aprobación' => const Color(0xFFFEF3C7),
-      'Modificado' => const Color(0xFFEDE9FE),
-      'Terminado' || 'Cerrado' => const Color(0xFFE0F2FE),
-      'Liquidado' => const Color(0xFFFEE2E2),
-      _ => const Color(0xFFF1F5F9),
+      'En ejecución' => Cristal.verdeVidrio,
+      'Aprobado' || 'En aprobación' => Cristal.ambarVidrio,
+      'Modificado' => const Color(0x248B5CF6),
+      'Terminado' || 'Cerrado' => Cristal.azulVidrio,
+      'Liquidado' => Cristal.rojoVidrio,
+      _ => Cristal.vidrioSuave,
     };
 
     Widget cell(int flex, Widget child) => Expanded(
-          flex: flex,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            child: child,
-          ),
-        );
+      flex: flex,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        child: child,
+      ),
+    );
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -4502,6 +4491,7 @@ class _ContratosSectionState extends State<ContratosSection> {
         cell(
           3,
           InkWell(
+            hoverDuration: Cristal.micro,
             onTap: () => _openContractDetail(contract),
             borderRadius: BorderRadius.circular(8),
             child: Row(
@@ -4513,11 +4503,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                     color: contract.iconBg,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(
-                    contract.icon,
-                    color: contract.color,
-                    size: 18,
-                  ),
+                  child: Icon(contract.icon, color: contract.color, size: 18),
                 ),
                 const SizedBox(width: 9),
                 Expanded(
@@ -4531,7 +4517,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: _azulOscuro,
+                          color: Cristal.texto,
                           fontWeight: FontWeight.w800,
                           fontSize: 12,
                           height: 1.15,
@@ -4544,7 +4530,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: Color(0xFF64748B),
+                          color: Cristal.textoSuave,
                           fontWeight: FontWeight.w400,
                           fontSize: 10.5,
                           height: 1.2,
@@ -4568,7 +4554,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: _azulOscuro,
+                  color: Cristal.texto,
                   fontSize: 11.5,
                   fontWeight: FontWeight.w700,
                 ),
@@ -4579,7 +4565,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: Color(0xFF64748B),
+                  color: Cristal.textoSuave,
                   fontSize: 10.5,
                 ),
               ),
@@ -4589,6 +4575,7 @@ class _ContratosSectionState extends State<ContratosSection> {
         cell(
           2,
           InkWell(
+            hoverDuration: Cristal.micro,
             onTap: () => _openContractorProfile(contract),
             borderRadius: BorderRadius.circular(6),
             child: Column(
@@ -4600,7 +4587,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: _azulOscuro,
+                    color: Cristal.texto,
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
                   ),
@@ -4611,7 +4598,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Color(0xFF64748B),
+                    color: Cristal.textoSuave,
                     fontSize: 10.5,
                   ),
                 ),
@@ -4630,7 +4617,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: _azulOscuro,
+                  color: Cristal.texto,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
@@ -4644,7 +4631,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Color(0xFF15803D),
+                    color: Cristal.verde,
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                   ),
@@ -4685,7 +4672,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                 '${contract.startDate}\n${contract.endDate}',
                 maxLines: 2,
                 style: const TextStyle(
-                  color: Color(0xFF475569),
+                  color: Cristal.textoMedio,
                   fontSize: 10.5,
                   height: 1.25,
                 ),
@@ -4697,7 +4684,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Color(0xFFB45309),
+                    color: Cristal.ambar,
                     fontSize: 9.5,
                     fontWeight: FontWeight.w600,
                   ),
@@ -4716,26 +4703,28 @@ class _ContratosSectionState extends State<ContratosSection> {
                 Tooltip(
                   message: 'Vista rápida del contrato',
                   child: InkWell(
+                    hoverDuration: Cristal.micro,
                     onTap: () => _showQuickViewModal(contract),
                     borderRadius: BorderRadius.circular(6),
                     child: Container(
                       width: 30,
                       height: 28,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
+                        color: Cristal.vidrioSuave,
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        border: Border.all(color: Cristal.borde),
                       ),
                       child: const Icon(
                         Icons.visibility_outlined,
                         size: 16,
-                        color: _azulOscuro,
+                        color: Cristal.texto,
                       ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 6),
                 InkWell(
+                  hoverDuration: Cristal.micro,
                   onTap: () => _openContractDetail(contract),
                   borderRadius: BorderRadius.circular(6),
                   child: Container(
@@ -4743,9 +4732,9 @@ class _ContratosSectionState extends State<ContratosSection> {
                     padding: const EdgeInsets.only(left: 10, right: 6),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
+                      color: Cristal.vidrioSuave,
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      border: Border.all(color: Cristal.borde),
                     ),
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
@@ -4753,7 +4742,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                         Text(
                           'Ver detalle',
                           style: TextStyle(
-                            color: _azulPrimario,
+                            color: Cristal.acentoClaro,
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
@@ -4762,7 +4751,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                         Icon(
                           Icons.chevron_right,
                           size: 15,
-                          color: _azulPrimario,
+                          color: Cristal.acentoClaro,
                         ),
                       ],
                     ),
@@ -4783,15 +4772,8 @@ class _ContratosSectionState extends State<ContratosSection> {
       width: double.infinity,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Cristal.vidrio,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: _azulOscuro.withValues(alpha: 0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: LayoutBuilder(
         builder: (context, tableConstraints) {
@@ -4803,11 +4785,11 @@ class _ContratosSectionState extends State<ContratosSection> {
               if (_isLoadingSecop)
                 const LinearProgressIndicator(
                   minHeight: 2.5,
-                  color: _azulPrimario,
-                  backgroundColor: Color(0xFFE2E8F0),
+                  color: Cristal.acentoClaro,
+                  backgroundColor: Cristal.vidrioFuerte,
                 )
               else
-                const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                const Divider(height: 1, color: Cristal.borde),
               if (rows.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(
@@ -4819,13 +4801,13 @@ class _ContratosSectionState extends State<ContratosSection> {
                       const Icon(
                         Icons.search_off_rounded,
                         size: 40,
-                        color: Color(0xFF94A3B8),
+                        color: Cristal.textoTenue,
                       ),
                       const SizedBox(height: 8),
                       const Text(
                         'No se encontraron contratos con los filtros seleccionados.',
                         style: TextStyle(
-                          color: _azulOscuro,
+                          color: Cristal.texto,
                           fontWeight: FontWeight.w700,
                           fontSize: 13.5,
                         ),
@@ -4845,7 +4827,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                 for (var index = 0; index < rows.length; index++) ...[
                   _buildTableRow(rows[index]),
                   if (index < rows.length - 1)
-                    const Divider(height: 1, color: Color(0xFFEFF3F8)),
+                    const Divider(height: 1, color: Cristal.borde),
                 ],
             ],
           );
@@ -4875,6 +4857,7 @@ class _ContratosSectionState extends State<ContratosSection> {
     Widget pageNumber(String label, {int? pageTarget}) {
       final bool selected = pageTarget != null && safePage == pageTarget;
       return InkWell(
+        hoverDuration: Cristal.micro,
         onTap: pageTarget == null
             ? null
             : () {
@@ -4890,13 +4873,13 @@ class _ContratosSectionState extends State<ContratosSection> {
           margin: const EdgeInsets.symmetric(horizontal: 2),
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: selected ? _azulOscuro : Colors.transparent,
+            color: selected ? Cristal.acento : Colors.transparent,
             borderRadius: BorderRadius.circular(6),
           ),
           child: Text(
             label,
             style: TextStyle(
-              color: selected ? Colors.white : _azulOscuro,
+              color: selected ? Cristal.texto : Cristal.texto,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -4907,6 +4890,7 @@ class _ContratosSectionState extends State<ContratosSection> {
 
     Widget arrowButton(IconData icon, VoidCallback? onTap) {
       return InkWell(
+        hoverDuration: Cristal.micro,
         onTap: onTap,
         borderRadius: BorderRadius.circular(6),
         child: Container(
@@ -4915,13 +4899,13 @@ class _ContratosSectionState extends State<ContratosSection> {
           margin: const EdgeInsets.symmetric(horizontal: 3),
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Cristal.vidrio,
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: Cristal.borde),
           ),
           child: Icon(
             icon,
-            color: onTap != null ? _azulOscuro : const Color(0xFFCBD5E1),
+            color: onTap != null ? Cristal.texto : Cristal.textoApagado,
             size: 17,
           ),
         ),
@@ -4959,7 +4943,7 @@ class _ContratosSectionState extends State<ContratosSection> {
         children: [
           Text(
             'Mostrando $startItem - $endItem de $totalCount resultados (Página $safePage de $totalPages)',
-            style: const TextStyle(color: Color(0xFF475569), fontSize: 12),
+            style: const TextStyle(color: Cristal.textoMedio, fontSize: 12),
           ),
           Row(
             mainAxisSize: MainAxisSize.min,
@@ -4987,94 +4971,48 @@ class _ContratosSectionState extends State<ContratosSection> {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Container(
-        color: _cremaFondo,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final double horizontalPad =
-                constraints.maxWidth > 1220 ? 24.0 : 18.0;
-            return SingleChildScrollView(
-              child: Stack(
-                children: [
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: 150,
-                    child: Image.asset(
-                      'assets/images/fondo_valledupar.jpg',
-                      fit: BoxFit.cover,
-                      alignment: const Alignment(0.0, -0.38),
-                      filterQuality: FilterQuality.high,
-                      errorBuilder: (context, error, stackTrace) => Container(),
-                    ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final double horizontalPad = constraints.maxWidth > 1220
+              ? 24.0
+              : 18.0;
+          return SingleChildScrollView(
+            child: Stack(
+              children: [
+                const Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: 150,
+                  child: FotoAmbiente.cabecera(),
+                ),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    horizontalPad,
+                    12,
+                    horizontalPad,
+                    14,
                   ),
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: 150,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: [
-                            _cremaFondo,
-                            _cremaFondo.withValues(alpha: 0.92),
-                            _cremaFondo.withValues(alpha: 0.0),
-                          ],
-                          stops: const [0.0, 0.36, 0.65],
-                        ),
-                      ),
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildHeaderSection(),
+                      const SizedBox(height: 8),
+                      _buildFiltersPanel(),
+                      const SizedBox(height: 8),
+                      _buildKPIsRow(),
+                      const SizedBox(height: 9),
+                      _buildTableHeader(),
+                      const SizedBox(height: 7),
+                      _buildContractsTable(),
+                      _buildPaginationRow(),
+                    ],
                   ),
-                  Positioned(
-                    top: 100,
-                    left: 0,
-                    right: 0,
-                    height: 50,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            _cremaFondo.withValues(alpha: 0.0),
-                            _cremaFondo,
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      horizontalPad,
-                      12,
-                      horizontalPad,
-                      14,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildHeaderSection(),
-                        const SizedBox(height: 8),
-                        _buildFiltersPanel(),
-                        const SizedBox(height: 8),
-                        _buildKPIsRow(),
-                        const SizedBox(height: 9),
-                        _buildTableHeader(),
-                        const SizedBox(height: 7),
-                        _buildContractsTable(),
-                        _buildPaginationRow(),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../data/auth_bg_asset_data.dart';
 import '../services/auth_service.dart';
 import '../services/security_service.dart';
 import '../utils/avatar_picker.dart';
@@ -8,6 +7,7 @@ import '../widgets/admin_verification_banner.dart';
 import '../widgets/collapsible_side_menu.dart';
 import '../widgets/route_security_guard.dart';
 import 'home_screen.dart';
+import '../tema/cristal.dart';
 
 class PerfilUsuarioScreen extends StatefulWidget {
   const PerfilUsuarioScreen({super.key});
@@ -17,16 +17,6 @@ class PerfilUsuarioScreen extends StatefulWidget {
 }
 
 class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
-  static const Color _navyDark = Color(0xFF0B224C);
-  static const Color _bgCrema = Color(0xFFFCF6E8);
-  static const Color _gold = Color(0xFFF5B82E);
-  static const Color _avatarCrimson = Color(0xFFB81D4E);
-  static const Color _iconCircleBg = Color(0xFFEBF2FF);
-  static const Color _iconBlue = Color(0xFF1D5CE5);
-  static const Color _inputBorder = Color(0xFFDCE3EC);
-  static const Color _lockedFill = Color(0xFFEDEFF3);
-  static const Color _lockedBorder = Color(0xFFDCE2EA);
-
   static const List<int> _mobileTabIndices = <int>[0, 2, 3, 4, 7];
 
   static const List<String> _paisesDisponibles = <String>[
@@ -97,12 +87,16 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
       setState(() {
         _nombresController.text = (data['nombres'] ?? '').toString();
         _apellidosController.text = (data['apellidos'] ?? '').toString();
-        _emailController.text =
-            emailRaw.isNotEmpty ? emailRaw : 'Sin correo registrado';
-        _documentoController.text =
-            documentoRaw.isNotEmpty ? documentoRaw : 'No registrado';
+        _emailController.text = emailRaw.isNotEmpty
+            ? emailRaw
+            : 'Sin correo registrado';
+        _documentoController.text = documentoRaw.isNotEmpty
+            ? documentoRaw
+            : 'No registrado';
         _telefonoController.text = (data['telefono'] ?? '').toString();
-        _pais = _paisesDisponibles.contains(loadedPais) ? loadedPais : 'Colombia';
+        _pais = _paisesDisponibles.contains(loadedPais)
+            ? loadedPais
+            : 'Colombia';
         _isLoadingProfile = false;
       });
     } catch (_) {
@@ -122,9 +116,8 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
   void _navegarASeccion(int sectionIndex) {
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute<void>(
-        builder: (_) => RouteSecurityGuard(
-          child: HomeScreen(initialIndex: sectionIndex),
-        ),
+        builder: (_) =>
+            RouteSecurityGuard(child: HomeScreen(initialIndex: sectionIndex)),
       ),
       (route) => false,
     );
@@ -146,13 +139,14 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
       ..showSnackBar(
         SnackBar(
           behavior: SnackBarBehavior.floating,
-          backgroundColor:
-              esError ? const Color(0xFFDC2626) : const Color(0xFF15803D),
+          backgroundColor: esError
+              ? const Color(0xFFDC2626)
+              : const Color(0xFF15803D),
           content: Row(
             children: [
               Icon(
                 esError ? Icons.error_outline : Icons.check_circle_outline,
-                color: Colors.white,
+                color: Cristal.texto,
                 size: 19,
               ),
               const SizedBox(width: 10),
@@ -175,9 +169,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
         pais: _pais,
       );
       _mostrarMensaje(
-        sincronizado
-            ? 'Información personal actualizada correctamente.'
-            : 'Los cambios se guardaron solo en este dispositivo: no fue posible sincronizarlos. Inténtalo de nuevo con conexión.',
+        sincronizado ? 'Información personal actualizada correctamente.' : 'Los cambios se guardaron solo en este dispositivo: no fue posible sincronizarlos. Inténtalo de nuevo con conexión.',
         esError: !sincronizado,
       );
       if (mounted) setState(() {});
@@ -215,7 +207,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
   }
 
   Future<void> _abrirDialogoEditarFoto() async {
-    final resultMessage = await showDialog<String>(
+    final resultMessage = await mostrarDialogoCristal<String>(
       context: context,
       builder: (_) => const _EditAvatarDialog(),
     );
@@ -226,82 +218,75 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
 
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
-      color: Colors.white,
+      color: Cristal.vidrio,
       borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: const Color(0xFFF2ECE0)),
-      boxShadow: [
-        BoxShadow(
-          color: _navyDark.withValues(alpha: 0.045),
-          blurRadius: 22,
-          offset: const Offset(0, 6),
-        ),
-      ],
+      border: Border.all(color: Cristal.borde),
     );
   }
 
   InputDecoration _editableDecoration({
     required String hint,
     required IconData icon,
-    Color iconColor = const Color(0xFF475569),
+    Color iconColor = Cristal.textoMedio,
     Widget? suffixIcon,
   }) {
     return InputDecoration(
       hintText: hint,
       hintStyle: const TextStyle(
-        color: Color(0xFF94A3B8),
+        color: Cristal.textoTenue,
         fontSize: 13.5,
         fontWeight: FontWeight.w400,
       ),
       prefixIcon: Icon(icon, size: 19, color: iconColor),
       suffixIcon: suffixIcon,
       filled: true,
-      fillColor: Colors.white,
+      fillColor: Cristal.campo,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: _inputBorder),
+        borderSide: const BorderSide(color: Cristal.borde),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: _inputBorder),
+        borderSide: const BorderSide(color: Cristal.borde),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: _navyDark, width: 1.4),
+        borderSide: const BorderSide(color: Cristal.acentoClaro, width: 1.4),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFDC2626)),
+        borderSide: const BorderSide(color: Cristal.rojo),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFDC2626), width: 1.4),
+        borderSide: const BorderSide(color: Cristal.rojo, width: 1.4),
       ),
     );
   }
 
   InputDecoration _lockedDecoration({required IconData icon}) {
     return InputDecoration(
-      prefixIcon: Icon(icon, size: 19, color: const Color(0xFF475569)),
+      prefixIcon: Icon(icon, size: 19, color: Cristal.textoMedio),
       suffixIcon: const Icon(
         Icons.lock_outline_rounded,
         size: 18,
-        color: Color(0xFF64748B),
+        color: Cristal.textoSuave,
       ),
       filled: true,
-      fillColor: _lockedFill,
+      fillColor: Cristal.campo,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: _lockedBorder),
+        borderSide: const BorderSide(color: Cristal.borde),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: _lockedBorder),
+        borderSide: const BorderSide(color: Cristal.borde),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: _lockedBorder),
+        borderSide: const BorderSide(color: Cristal.borde),
       ),
     );
   }
@@ -312,7 +297,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
       child: Text(
         label,
         style: const TextStyle(
-          color: _navyDark,
+          color: Cristal.texto,
           fontSize: 12.6,
           fontWeight: FontWeight.w700,
         ),
@@ -330,31 +315,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Image.memory(
-              AuthBgAssetData.bytes,
-              fit: BoxFit.cover,
-              alignment: const Alignment(0.32, -0.34),
-              gaplessPlayback: true,
-              filterQuality: FilterQuality.high,
-            ),
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  colors: [
-                    Color(0xFFFDF6E7),
-                    Color(0xE8FDF6E7),
-                    Color(0x4DFDF6E7),
-                    Color(0x00FDF6E7),
-                  ],
-                  stops: [0.0, 0.24, 0.44, 0.66],
-                ),
-              ),
-            ),
-            const CustomPaint(
-              painter: _ProfileBannerWavesPainter(),
-            ),
+            const FotoAmbiente.cabecera(),
             Positioned(
               top: isMobile ? 16 : 24,
               left: isMobile ? 14 : 24,
@@ -365,13 +326,14 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                     color: Colors.transparent,
                     borderRadius: BorderRadius.circular(10),
                     child: InkWell(
+                      hoverDuration: Cristal.micro,
                       onTap: _regresar,
                       borderRadius: BorderRadius.circular(10),
                       child: const Padding(
                         padding: EdgeInsets.all(6),
                         child: Icon(
                           Icons.arrow_back_rounded,
-                          color: _navyDark,
+                          color: Cristal.texto,
                           size: 22,
                         ),
                       ),
@@ -381,7 +343,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                   Text(
                     'Mi perfil',
                     style: TextStyle(
-                      color: _navyDark,
+                      color: Cristal.texto,
                       fontSize: isMobile ? 21 : 25,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.3,
@@ -409,9 +371,10 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
         final avatarProvider = AuthService.getActiveUserAvatarImageProvider();
 
         final editPhotoButton = Material(
-          color: const Color(0xFFEEF3FA),
+          color: Cristal.vidrioSuave,
           borderRadius: BorderRadius.circular(22),
           child: InkWell(
+            hoverDuration: Cristal.micro,
             onTap: _abrirDialogoEditarFoto,
             borderRadius: BorderRadius.circular(22),
             child: const Padding(
@@ -419,16 +382,12 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.edit_outlined,
-                    size: 15.5,
-                    color: _navyDark,
-                  ),
+                  Icon(Icons.edit_outlined, size: 15.5, color: Cristal.texto),
                   SizedBox(width: 7),
                   Text(
                     'Editar foto',
                     style: TextStyle(
-                      color: _navyDark,
+                      color: Cristal.texto,
                       fontSize: 12.8,
                       fontWeight: FontWeight.w700,
                     ),
@@ -445,14 +404,14 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
           children: [
             CircleAvatar(
               radius: isMobile ? 34 : 44,
-              backgroundColor: _avatarCrimson,
-              foregroundColor: Colors.white,
+              backgroundColor: Cristal.avatar,
+              foregroundColor: Cristal.texto,
               backgroundImage: avatarProvider,
               child: avatarProvider == null
                   ? Text(
                       initial,
                       style: TextStyle(
-                        color: Colors.white,
+                        color: Cristal.texto,
                         fontSize: isMobile ? 28 : 36,
                         fontWeight: FontWeight.w700,
                       ),
@@ -469,7 +428,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                     width: 22,
                     height: 3.5,
                     decoration: BoxDecoration(
-                      color: _gold,
+                      color: Cristal.dorado,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -479,7 +438,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: _navyDark,
+                      color: Cristal.texto,
                       fontSize: isMobile ? 21 : 25,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.3,
@@ -492,7 +451,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: Color(0xFF475569),
+                      color: Cristal.textoMedio,
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
                     ),
@@ -509,7 +468,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                           vertical: 5.5,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFDF0CE),
+                          color: Cristal.doradoVidrio,
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Row(
@@ -518,14 +477,14 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                             const Icon(
                               Icons.verified_user_outlined,
                               size: 15,
-                              color: _navyDark,
+                              color: Cristal.texto,
                             ),
                             const SizedBox(width: 6),
                             Flexible(
                               child: Text(
                                 'Roles activos: ${AuthService.getActiveUserRoleDisplayLabel()}',
                                 style: const TextStyle(
-                                  color: _navyDark,
+                                  color: Cristal.texto,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -535,6 +494,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                         ),
                       ),
                       InkWell(
+                        hoverDuration: Cristal.micro,
                         onTap: () => Navigator.of(context).pushNamed('/planes'),
                         borderRadius: BorderRadius.circular(20),
                         child: Container(
@@ -543,9 +503,9 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                             vertical: 5.5,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFEFF6FF),
+                            color: Cristal.azulVidrio,
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0xFFBFDBFE)),
+                            border: Border.all(color: Cristal.acentoBorde),
                           ),
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
@@ -553,13 +513,13 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                               Icon(
                                 Icons.add_moderator_outlined,
                                 size: 14,
-                                color: _iconBlue,
+                                color: Cristal.acentoClaro,
                               ),
                               SizedBox(width: 5),
                               Text(
                                 'Acumular rol (+)',
                                 style: TextStyle(
-                                  color: _iconBlue,
+                                  color: Cristal.acentoClaro,
                                   fontSize: 11.8,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -616,7 +576,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
           controller: _nombresController,
           textCapitalization: TextCapitalization.words,
           style: const TextStyle(
-            color: _navyDark,
+            color: Cristal.texto,
             fontSize: 14,
             fontWeight: FontWeight.w500,
           ),
@@ -624,8 +584,9 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
             hint: 'Nombres',
             icon: Icons.person_outline_rounded,
           ),
-          validator: (val) =>
-              (val == null || val.trim().isEmpty) ? 'Ingresa tus nombres.' : null,
+          validator: (val) => (val == null || val.trim().isEmpty)
+              ? 'Ingresa tus nombres.'
+              : null,
         ),
       ],
     );
@@ -638,7 +599,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
           controller: _apellidosController,
           textCapitalization: TextCapitalization.words,
           style: const TextStyle(
-            color: _navyDark,
+            color: Cristal.texto,
             fontSize: 14,
             fontWeight: FontWeight.w500,
           ),
@@ -659,25 +620,22 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
           initialValue: _pais,
           icon: const Icon(
             Icons.keyboard_arrow_down_rounded,
-            color: _navyDark,
+            color: Cristal.texto,
             size: 20,
           ),
           style: const TextStyle(
-            color: _navyDark,
+            color: Cristal.texto,
             fontSize: 14,
             fontWeight: FontWeight.w500,
           ),
           decoration: _editableDecoration(
             hint: 'País de residencia',
             icon: Icons.public_rounded,
-            iconColor: _navyDark,
+            iconColor: Cristal.texto,
           ),
           items: [
             for (final p in _paisesDisponibles)
-              DropdownMenuItem<String>(
-                value: p,
-                child: Text(p),
-              ),
+              DropdownMenuItem<String>(value: p, child: Text(p)),
           ],
           onChanged: (val) {
             if (val != null) setState(() => _pais = val);
@@ -694,7 +652,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
           controller: _telefonoController,
           keyboardType: TextInputType.phone,
           style: const TextStyle(
-            color: _navyDark,
+            color: Cristal.texto,
             fontSize: 14,
             fontWeight: FontWeight.w500,
           ),
@@ -720,12 +678,12 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                   width: 44,
                   height: 44,
                   decoration: const BoxDecoration(
-                    color: _iconCircleBg,
+                    color: Cristal.vidrioSuave,
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
                     Icons.person_outline_rounded,
-                    color: _iconBlue,
+                    color: Cristal.acentoClaro,
                     size: 22,
                   ),
                 ),
@@ -737,7 +695,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                       Text(
                         'Información personal',
                         style: TextStyle(
-                          color: _navyDark,
+                          color: Cristal.texto,
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
                         ),
@@ -746,7 +704,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                       Text(
                         'Gestiona tu información básica.',
                         style: TextStyle(
-                          color: Color(0xFF64748B),
+                          color: Cristal.textoSuave,
                           fontSize: 13,
                         ),
                       ),
@@ -780,7 +738,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
               readOnly: true,
               mouseCursor: SystemMouseCursors.basic,
               style: const TextStyle(
-                color: Color(0xFF64748B),
+                color: Cristal.textoSuave,
                 fontSize: 13.8,
                 fontWeight: FontWeight.w500,
               ),
@@ -789,10 +747,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
             const SizedBox(height: 6),
             const Text(
               'El correo electrónico no se puede modificar.',
-              style: TextStyle(
-                color: Color(0xFF64748B),
-                fontSize: 11.8,
-              ),
+              style: TextStyle(color: Cristal.textoSuave, fontSize: 11.8),
             ),
             const SizedBox(height: 18),
 
@@ -819,7 +774,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
               readOnly: true,
               mouseCursor: SystemMouseCursors.basic,
               style: const TextStyle(
-                color: Color(0xFF64748B),
+                color: Cristal.textoSuave,
                 fontSize: 13.8,
                 fontWeight: FontWeight.w500,
               ),
@@ -828,10 +783,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
             const SizedBox(height: 6),
             const Text(
               'Para actualizar este dato, contacta al soporte de la plataforma.',
-              style: TextStyle(
-                color: Color(0xFF64748B),
-                fontSize: 11.8,
-              ),
+              style: TextStyle(color: Cristal.textoSuave, fontSize: 11.8),
             ),
             const SizedBox(height: 24),
 
@@ -842,8 +794,8 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                 child: ElevatedButton.icon(
                   onPressed: _isSavingProfile ? null : _guardarDatosPerfil,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _navyDark,
-                    foregroundColor: Colors.white,
+                    backgroundColor: Cristal.acento,
+                    foregroundColor: Cristal.texto,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(horizontal: 22),
                     shape: RoundedRectangleBorder(
@@ -856,7 +808,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                           height: 16,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            color: Cristal.texto,
                           ),
                         )
                       : const Icon(Icons.save_outlined, size: 18),
@@ -891,12 +843,12 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                   width: 44,
                   height: 44,
                   decoration: const BoxDecoration(
-                    color: _iconCircleBg,
+                    color: Cristal.vidrioSuave,
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
                     Icons.shield_outlined,
-                    color: _iconBlue,
+                    color: Cristal.acentoClaro,
                     size: 22,
                   ),
                 ),
@@ -908,7 +860,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                       Text(
                         'Cambio de contraseña',
                         style: TextStyle(
-                          color: _navyDark,
+                          color: Cristal.texto,
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
                         ),
@@ -917,7 +869,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                       Text(
                         'Actualiza tu clave de acceso.',
                         style: TextStyle(
-                          color: Color(0xFF64748B),
+                          color: Cristal.textoSuave,
                           fontSize: 13,
                         ),
                       ),
@@ -932,7 +884,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
             TextFormField(
               controller: _currentPasswordController,
               obscureText: !_showCurrentPassword,
-              style: const TextStyle(color: _navyDark, fontSize: 14),
+              style: const TextStyle(color: Cristal.texto, fontSize: 14),
               decoration: _editableDecoration(
                 hint: 'Ingresa tu contraseña actual',
                 icon: Icons.lock_outline_rounded,
@@ -946,7 +898,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                         ? Icons.visibility_off_outlined
                         : Icons.visibility_outlined,
                     size: 19,
-                    color: const Color(0xFF64748B),
+                    color: Cristal.textoSuave,
                   ),
                 ),
               ),
@@ -960,21 +912,20 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
             TextFormField(
               controller: _newPasswordController,
               obscureText: !_showNewPassword,
-              style: const TextStyle(color: _navyDark, fontSize: 14),
+              style: const TextStyle(color: Cristal.texto, fontSize: 14),
               decoration: _editableDecoration(
                 hint: 'Mín. 8 caracteres, mayúscula y número',
                 icon: Icons.lock_outline_rounded,
                 suffixIcon: IconButton(
                   tooltip: _showNewPassword ? 'Ocultar' : 'Mostrar',
-                  onPressed: () => setState(
-                    () => _showNewPassword = !_showNewPassword,
-                  ),
+                  onPressed: () =>
+                      setState(() => _showNewPassword = !_showNewPassword),
                   icon: Icon(
                     _showNewPassword
                         ? Icons.visibility_off_outlined
                         : Icons.visibility_outlined,
                     size: 19,
-                    color: const Color(0xFF64748B),
+                    color: Cristal.textoSuave,
                   ),
                 ),
               ),
@@ -993,7 +944,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
             TextFormField(
               controller: _confirmPasswordController,
               obscureText: !_showConfirmPassword,
-              style: const TextStyle(color: _navyDark, fontSize: 14),
+              style: const TextStyle(color: Cristal.texto, fontSize: 14),
               decoration: _editableDecoration(
                 hint: 'Repite la nueva contraseña',
                 icon: Icons.lock_outline_rounded,
@@ -1007,7 +958,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                         ? Icons.visibility_off_outlined
                         : Icons.visibility_outlined,
                     size: 19,
-                    color: const Color(0xFF64748B),
+                    color: Cristal.textoSuave,
                   ),
                 ),
               ),
@@ -1029,8 +980,8 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
               child: ElevatedButton.icon(
                 onPressed: _isChangingPassword ? null : _cambiarContrasena,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _navyDark,
-                  foregroundColor: Colors.white,
+                  backgroundColor: Cristal.acento,
+                  foregroundColor: Cristal.texto,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(11),
@@ -1042,16 +993,13 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                         height: 16,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: Cristal.texto,
                         ),
                       )
                     : const Icon(Icons.vpn_key_outlined, size: 18),
                 label: const Text(
                   'Actualizar contraseña',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13.8,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.8),
                 ),
               ),
             ),
@@ -1064,7 +1012,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
   Widget _buildMainPane({required bool isMobile}) {
     if (_isLoadingProfile) {
       return const Center(
-        child: CircularProgressIndicator(color: _navyDark),
+        child: CircularProgressIndicator(color: Cristal.acentoClaro),
       );
     }
 
@@ -1140,185 +1088,73 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
     return SelectionArea(
       child: isMobile
           ? Scaffold(
-        backgroundColor: _bgCrema,
-        body: SafeArea(child: _buildMainPane(isMobile: true)),
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: 0,
-          onTap: (bottomIdx) {
-            if (bottomIdx >= 0 && bottomIdx < _mobileTabIndices.length) {
-              _navegarASeccion(_mobileTabIndices[bottomIdx]);
-            }
-          },
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
-          selectedItemColor: const Color(0xFF64748B),
-          unselectedItemColor: const Color(0xFF64748B),
-          selectedLabelStyle: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-          ),
-          unselectedLabelStyle: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-          ),
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              label: 'Inicio',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.description_outlined),
-              label: 'Contratos',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.account_balance_outlined),
-              label: 'Entidades',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.people_outline),
-              label: 'Contratistas',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.star_border_rounded),
-              label: 'Favoritos',
-            ),
-          ],
-        ),
-      )
-    : Scaffold(
-        backgroundColor: _bgCrema,
-        body: Row(
-          children: [
-            CollapsibleSideMenu(
-              selectedIndex: -1,
-              isCollapsed: _isSidebarCollapsed,
-              onItemSelected: _navegarASeccion,
-              onToggleCollapse: () => setState(
-                () => _isSidebarCollapsed = !_isSidebarCollapsed,
+              backgroundColor: Colors.transparent,
+              body: SafeArea(child: _buildMainPane(isMobile: true)),
+              bottomNavigationBar: BottomNavigationBar(
+                currentIndex: 0,
+                onTap: (bottomIdx) {
+                  if (bottomIdx >= 0 && bottomIdx < _mobileTabIndices.length) {
+                    _navegarASeccion(_mobileTabIndices[bottomIdx]);
+                  }
+                },
+                type: BottomNavigationBarType.fixed,
+                backgroundColor: Colors.transparent,
+                selectedItemColor: Cristal.dorado,
+                unselectedItemColor: Cristal.textoTenue,
+                selectedLabelStyle: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+                unselectedLabelStyle: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+                items: const [
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.home_outlined),
+                    label: 'Inicio',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.description_outlined),
+                    label: 'Contratos',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.account_balance_outlined),
+                    label: 'Entidades',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.people_outline),
+                    label: 'Contratistas',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.star_border_rounded),
+                    label: 'Favoritos',
+                  ),
+                ],
               ),
-              onLogout: _cerrarSesion,
+            )
+          : Scaffold(
+              backgroundColor: Colors.transparent,
+              body: Row(
+                // El contenido ocupa todo el alto: si es corto queda arriba, no
+                // centrado.
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  CollapsibleSideMenu(
+                    selectedIndex: -1,
+                    isCollapsed: _isSidebarCollapsed,
+                    onItemSelected: _navegarASeccion,
+                    onToggleCollapse: () => setState(
+                      () => _isSidebarCollapsed = !_isSidebarCollapsed,
+                    ),
+                    onLogout: _cerrarSesion,
+                  ),
+                  Expanded(child: _buildMainPane(isMobile: false)),
+                ],
+              ),
             ),
-            Expanded(child: _buildMainPane(isMobile: false)),
-          ],
-        ),
-      ),
     );
   }
-}
-
-/// Curvas vectoriales decorativas del banner panorámico superior de "Mi perfil"
-/// (onda dorada suave a la izquierda + onda dorada y ondas azul cielo a la derecha).
-class _ProfileBannerWavesPainter extends CustomPainter {
-  const _ProfileBannerWavesPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double w = size.width;
-    final double h = size.height;
-
-    final Paint whiteStroke = Paint()
-      ..color = Colors.white.withValues(alpha: 0.88)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.7
-      ..isAntiAlias = true;
-
-    // 1. Onda cálida dorada/crema izquierda debajo de "Mi perfil"
-    final Path leftGoldPath = Path()
-      ..moveTo(0, h * 0.46)
-      ..quadraticBezierTo(w * 0.16, h * 0.34, w * 0.40, h)
-      ..lineTo(0, h)
-      ..close();
-
-    final Paint leftGoldFill = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Color(0xFFF7E4B6),
-          Color(0xDCFAECC9),
-        ],
-      ).createShader(Rect.fromLTWH(0, h * 0.32, w * 0.42, h * 0.68));
-    canvas.drawPath(leftGoldPath, leftGoldFill);
-
-    final Path leftGoldBorder = Path()
-      ..moveTo(0, h * 0.46)
-      ..quadraticBezierTo(w * 0.16, h * 0.34, w * 0.40, h);
-    canvas.drawPath(leftGoldBorder, whiteStroke);
-
-    // 2. Onda dorada derecha que asciende hacia el borde derecho
-    final Path rightGoldPath = Path()
-      ..moveTo(w * 0.72, h * 0.86)
-      ..quadraticBezierTo(w * 0.87, h * 0.56, w, h * 0.25)
-      ..lineTo(w, h)
-      ..lineTo(w * 0.72, h)
-      ..close();
-
-    final Paint rightGoldFill = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topRight,
-        end: Alignment.bottomLeft,
-        colors: [
-          Color(0xFFF6CE62),
-          Color(0xE8FBE4A1),
-        ],
-      ).createShader(Rect.fromLTWH(w * 0.72, h * 0.24, w * 0.28, h * 0.76));
-    canvas.drawPath(rightGoldPath, rightGoldFill);
-
-    final Path rightGoldBorder = Path()
-      ..moveTo(w * 0.72, h * 0.86)
-      ..quadraticBezierTo(w * 0.87, h * 0.56, w, h * 0.25);
-    canvas.drawPath(rightGoldBorder, whiteStroke);
-
-    // 3. Primera onda azul cielo inferior derecha
-    final Path rightBlueUpper = Path()
-      ..moveTo(w * 0.74, h * 0.82)
-      ..quadraticBezierTo(w * 0.90, h * 0.50, w, h * 0.53)
-      ..lineTo(w, h)
-      ..lineTo(w * 0.74, h)
-      ..close();
-
-    final Paint rightBlueUpperFill = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          Color(0xFF93C4F7),
-          Color(0xFFBEDDFC),
-        ],
-      ).createShader(Rect.fromLTWH(w * 0.74, h * 0.50, w * 0.26, h * 0.50));
-    canvas.drawPath(rightBlueUpper, rightBlueUpperFill);
-
-    final Path rightBlueUpperBorder = Path()
-      ..moveTo(w * 0.74, h * 0.82)
-      ..quadraticBezierTo(w * 0.90, h * 0.50, w, h * 0.53);
-    canvas.drawPath(rightBlueUpperBorder, whiteStroke);
-
-    // 4. Segunda onda azul hielo suave en la esquina inferior derecha
-    final Path rightBlueLower = Path()
-      ..moveTo(w * 0.78, h)
-      ..quadraticBezierTo(w * 0.90, h * 0.67, w, h * 0.66)
-      ..lineTo(w, h)
-      ..close();
-
-    final Paint rightBlueLowerFill = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Color(0xFFCDE3FD),
-          Color(0xFFE7F2FE),
-        ],
-      ).createShader(Rect.fromLTWH(w * 0.78, h * 0.65, w * 0.22, h * 0.35));
-    canvas.drawPath(rightBlueLower, rightBlueLowerFill);
-
-    final Path rightBlueLowerBorder = Path()
-      ..moveTo(w * 0.78, h)
-      ..quadraticBezierTo(w * 0.90, h * 0.67, w, h * 0.66);
-    canvas.drawPath(rightBlueLowerBorder, whiteStroke);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _EditAvatarDialog extends StatefulWidget {
@@ -1329,11 +1165,6 @@ class _EditAvatarDialog extends StatefulWidget {
 }
 
 class _EditAvatarDialogState extends State<_EditAvatarDialog> {
-  static const Color _navyDark = Color(0xFF0B224C);
-  static const Color _iconCircleBg = Color(0xFFEBF2FF);
-  static const Color _iconBlue = Color(0xFF1D5CE5);
-  static const Color _inputBorder = Color(0xFFDCE3EC);
-
   late final TextEditingController _urlController;
   late final String _currentSource;
   String? _errorText;
@@ -1432,10 +1263,11 @@ class _EditAvatarDialogState extends State<_EditAvatarDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: Colors.white,
-      surfaceTintColor: Colors.white,
+      backgroundColor: Cristal.flotante,
+      surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
+        side: const BorderSide(color: Cristal.bordeFuerte),
       ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 440),
@@ -1451,12 +1283,12 @@ class _EditAvatarDialogState extends State<_EditAvatarDialog> {
                     width: 40,
                     height: 40,
                     decoration: const BoxDecoration(
-                      color: _iconCircleBg,
+                      color: Cristal.vidrioSuave,
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
                       Icons.camera_alt_outlined,
-                      color: _iconBlue,
+                      color: Cristal.acentoClaro,
                       size: 20,
                     ),
                   ),
@@ -1468,7 +1300,7 @@ class _EditAvatarDialogState extends State<_EditAvatarDialog> {
                         Text(
                           'Editar foto de perfil',
                           style: TextStyle(
-                            color: _navyDark,
+                            color: Cristal.texto,
                             fontSize: 17,
                             fontWeight: FontWeight.w800,
                           ),
@@ -1477,7 +1309,7 @@ class _EditAvatarDialogState extends State<_EditAvatarDialog> {
                         Text(
                           'Sube una imagen o ingresa un enlace directo.',
                           style: TextStyle(
-                            color: Color(0xFF64748B),
+                            color: Cristal.textoSuave,
                             fontSize: 12.5,
                           ),
                         ),
@@ -1491,7 +1323,7 @@ class _EditAvatarDialogState extends State<_EditAvatarDialog> {
                         : () => Navigator.of(context).pop(),
                     icon: const Icon(
                       Icons.close_rounded,
-                      color: Color(0xFF64748B),
+                      color: Cristal.textoSuave,
                       size: 20,
                     ),
                   ),
@@ -1502,9 +1334,9 @@ class _EditAvatarDialogState extends State<_EditAvatarDialog> {
                 OutlinedButton.icon(
                   onPressed: _isSaving ? null : _subirDesdeEquipo,
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: _navyDark,
-                    backgroundColor: const Color(0xFFF8FAFC),
-                    side: const BorderSide(color: _inputBorder),
+                    foregroundColor: Cristal.texto,
+                    backgroundColor: Cristal.vidrioSuave,
+                    side: const BorderSide(color: Cristal.borde),
                     padding: const EdgeInsets.symmetric(vertical: 13),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -1524,7 +1356,7 @@ class _EditAvatarDialogState extends State<_EditAvatarDialog> {
               const Text(
                 'O pega la URL de una imagen',
                 style: TextStyle(
-                  color: _navyDark,
+                  color: Cristal.texto,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1533,36 +1365,39 @@ class _EditAvatarDialogState extends State<_EditAvatarDialog> {
               TextField(
                 controller: _urlController,
                 keyboardType: TextInputType.url,
-                style: const TextStyle(color: _navyDark, fontSize: 13.5),
+                style: const TextStyle(color: Cristal.texto, fontSize: 13.5),
                 decoration: InputDecoration(
                   hintText: 'https://ejemplo.com/mi-foto.jpg',
                   hintStyle: const TextStyle(
-                    color: Color(0xFF94A3B8),
+                    color: Cristal.textoTenue,
                     fontSize: 13.5,
                   ),
                   errorText: _errorText,
                   prefixIcon: const Icon(
                     Icons.link_rounded,
                     size: 19,
-                    color: Color(0xFF475569),
+                    color: Cristal.textoMedio,
                   ),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: Cristal.campo,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 14,
                     vertical: 14,
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: _inputBorder),
+                    borderSide: const BorderSide(color: Cristal.borde),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: _inputBorder),
+                    borderSide: const BorderSide(color: Cristal.borde),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: _navyDark, width: 1.4),
+                    borderSide: const BorderSide(
+                      color: Cristal.acentoClaro,
+                      width: 1.4,
+                    ),
                   ),
                 ),
               ),
@@ -1573,7 +1408,7 @@ class _EditAvatarDialogState extends State<_EditAvatarDialog> {
                     TextButton(
                       onPressed: _isSaving ? null : _quitarFoto,
                       style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFFDC2626),
+                        foregroundColor: Cristal.rojo,
                       ),
                       child: const Text(
                         'Quitar foto',
@@ -1586,7 +1421,7 @@ class _EditAvatarDialogState extends State<_EditAvatarDialog> {
                         ? null
                         : () => Navigator.of(context).pop(),
                     style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF64748B),
+                      foregroundColor: Cristal.textoSuave,
                     ),
                     child: const Text(
                       'Cancelar',
@@ -1597,8 +1432,8 @@ class _EditAvatarDialogState extends State<_EditAvatarDialog> {
                   ElevatedButton(
                     onPressed: _isSaving ? null : _guardarUrl,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _navyDark,
-                      foregroundColor: Colors.white,
+                      backgroundColor: Cristal.acento,
+                      foregroundColor: Cristal.texto,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 18,

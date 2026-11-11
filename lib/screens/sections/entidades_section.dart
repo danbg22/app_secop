@@ -15,6 +15,7 @@ import '../../utils/app_scroll_behavior.dart';
 import '../../widgets/user_profile_header_action.dart';
 import '../perfil_entidad_screen.dart';
 import '../procesos_secop_i_screen.dart';
+import '../../tema/cristal.dart';
 
 enum EntityEmblemType {
   alcaldiaCoatOfArms,
@@ -48,23 +49,23 @@ class EntitySummaryRecord {
   });
 
   EntitySummaryRecord conContratistas(int contratistas) => EntitySummaryRecord(
-        name: name,
-        nit: nit,
-        location: location,
-        municipio: municipio,
-        departamento: departamento,
-        category: category,
-        emblemType: emblemType,
-        contractsCount: contractsCount,
-        contractsFormatted: contractsFormatted,
-        amountMillions: amountMillions,
-        amountFormatted: amountFormatted,
-        dependenciesCount: dependenciesCount,
-        uniqueContractors: contratistas,
-        secopKeywords: secopKeywords,
-        isDependency: isDependency,
-        topShieldInRanking: topShieldInRanking,
-      );
+    name: name,
+    nit: nit,
+    location: location,
+    municipio: municipio,
+    departamento: departamento,
+    category: category,
+    emblemType: emblemType,
+    contractsCount: contractsCount,
+    contractsFormatted: contractsFormatted,
+    amountMillions: amountMillions,
+    amountFormatted: amountFormatted,
+    dependenciesCount: dependenciesCount,
+    uniqueContractors: contratistas,
+    secopKeywords: secopKeywords,
+    isDependency: isDependency,
+    topShieldInRanking: topShieldInRanking,
+  );
 
   final String name;
   final String nit;
@@ -107,8 +108,6 @@ class _CachedEntitiesBundle {
 class EntidadesSection extends StatelessWidget {
   const EntidadesSection({super.key});
 
-  static const Color _azulOscuro = Color(0xFF1A2B4C);
-
   @override
   Widget build(BuildContext context) {
     return const _EntidadesSectionStateful();
@@ -124,10 +123,6 @@ class _EntidadesSectionStateful extends StatefulWidget {
 }
 
 class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
-  static const Color _azulOscuro = EntidadesSection._azulOscuro;
-  static const Color _azulPrimario = Color(0xFF1D4ED8);
-  static const Color _bgCrema = Color(0xFFFAF5EA);
-
   // Caché estática en memoria de consultas reales a SECOP II
   static final Map<String, _CachedEntitiesBundle> _queryCache = {};
   static final Map<String, Future<_CachedEntitiesBundle?>> _inFlightQueries =
@@ -183,7 +178,8 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       0,
       (s, e) => s + e.amountMillions,
     );
-    _kpiUniqueContractors = contratistasUnicos ??
+    _kpiUniqueContractors =
+        contratistasUnicos ??
         list.fold<int>(0, (s, e) => s + e.uniqueContractors);
   }
 
@@ -491,7 +487,9 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
   ) async {
     try {
       final resp = await http
-          .get(Uri.https('www.datos.gov.co', '/resource/jbjy-vk9h.json', params))
+          .get(
+            Uri.https('www.datos.gov.co', '/resource/jbjy-vk9h.json', params),
+          )
           .timeout(const Duration(seconds: 15));
       if (resp.statusCode != 200) return const [];
       final decoded = jsonDecode(utf8.decode(resp.bodyBytes));
@@ -535,7 +533,8 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
         'AND nit_entidad in (${nits.join(',')})';
     final resultados = await Future.wait([
       _consultarSecop({
-        r'$select': 'nit_entidad,count(distinct documento_proveedor) as contratistas',
+        r'$select':
+            'nit_entidad,count(distinct documento_proveedor) as contratistas',
         r'$where': where,
         r'$group': 'nit_entidad',
         r'$limit': '${nits.length}',
@@ -558,13 +557,12 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
   static List<EntitySummaryRecord> _aplicarContratistas(
     List<EntitySummaryRecord> entidades,
     Map<String, int> porNit,
-  ) =>
-      [
-        for (final e in entidades)
-          e.conContratistas(
-            porNit[e.nit.replaceAll(RegExp(r'[^0-9]'), '')] ?? e.uniqueContractors,
-          ),
-      ];
+  ) => [
+    for (final e in entidades)
+      e.conContratistas(
+        porNit[e.nit.replaceAll(RegExp(r'[^0-9]'), '')] ?? e.uniqueContractors,
+      ),
+  ];
 
   Future<void> _fetchLiveTopEntitiesAcrossColombia() async {
     final rawList = await _consultarAgregadoEntidades(
@@ -861,7 +859,8 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
         consolidated[normPretty] = EntitySummaryRecord(
           name: prettyName,
           nit:
-              entityEffectiveNit.isNotEmpty && entityEffectiveNit != 'No Definido'
+              entityEffectiveNit.isNotEmpty &&
+                  entityEffectiveNit != 'No Definido'
               ? (entityEffectiveNit == '8999990341'
                     ? '899999034'
                     : entityEffectiveNit)
@@ -925,7 +924,16 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     if (clean.isEmpty) return null;
 
     const conectores = {
-      'DE', 'DEL', 'LA', 'LAS', 'EL', 'LOS', 'EN', 'Y', 'PARA', 'POR',
+      'DE',
+      'DEL',
+      'LA',
+      'LAS',
+      'EL',
+      'LOS',
+      'EN',
+      'Y',
+      'PARA',
+      'POR',
     };
     final tokens = SecurityService.sanitizeSoqlToken(clean, maxLength: 100)
         .split(RegExp(r'\s+'))
@@ -981,11 +989,16 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     return _CachedEntitiesBundle(
       entities: finalEntities,
       totalEntities: finalEntities.length,
-      totalContracts:
-          finalEntities.fold<int>(0, (acc, e) => acc + e.contractsCount),
-      totalAmountMillions:
-          finalEntities.fold<double>(0, (acc, e) => acc + e.amountMillions),
-      totalUniqueContractors: unicos ??
+      totalContracts: finalEntities.fold<int>(
+        0,
+        (acc, e) => acc + e.contractsCount,
+      ),
+      totalAmountMillions: finalEntities.fold<double>(
+        0,
+        (acc, e) => acc + e.amountMillions,
+      ),
+      totalUniqueContractors:
+          unicos ??
           finalEntities.fold<int>(0, (acc, e) => acc + e.uniqueContractors),
       periodo: soloVigencia
           ? 'Vigencia ${AniosSecop.actual}'
@@ -1055,7 +1068,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
             orElse: () => pool.first,
           );
 
-    showDialog<void>(
+    mostrarDialogoCristal<void>(
       context: context,
       builder: (dialogContext) {
         return _CompareEntitiesUnfilteredDialog(
@@ -1103,7 +1116,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
             const Text(
               'Entidades',
               style: TextStyle(
-                color: _azulOscuro,
+                color: Cristal.texto,
                 fontSize: 28,
                 fontWeight: FontWeight.w900,
                 letterSpacing: -0.5,
@@ -1114,7 +1127,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
             const Text(
               'Explora las entidades que contratan con el Estado y descubre cómo se distribuyen los recursos públicos.',
               style: TextStyle(
-                color: Color(0xFF334155),
+                color: Cristal.textoCuerpo,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
                 height: 1.35,
@@ -1141,7 +1154,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                   const Text(
                     'Entidades',
                     style: TextStyle(
-                      color: _azulOscuro,
+                      color: Cristal.texto,
                       fontSize: 37,
                       fontWeight: FontWeight.w900,
                       letterSpacing: -0.6,
@@ -1152,7 +1165,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                   const Text(
                     'Explora las entidades que contratan con el Estado y descubre\ncómo se distribuyen los recursos públicos.',
                     style: TextStyle(
-                      color: Color(0xFF334155),
+                      color: Cristal.textoCuerpo,
                       fontSize: 13.8,
                       fontWeight: FontWeight.w500,
                       height: 1.36,
@@ -1175,7 +1188,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                       'Conoce quién contrata,\nqué contrata y en qué\nse invierte',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: _azulOscuro,
+                        color: Cristal.texto,
                         fontSize: 13.5,
                         fontStyle: FontStyle.italic,
                         fontWeight: FontWeight.w700,
@@ -1202,15 +1215,8 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Cristal.vidrio,
         borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: _azulOscuro.withValues(alpha: 0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Row(
         children: [
@@ -1222,20 +1228,20 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                 onChanged: _onSearchChanged,
                 onSubmitted: (_) => _runFastEntitiesQuery(forceRefresh: true),
                 style: const TextStyle(
-                  color: _azulOscuro,
+                  color: Cristal.texto,
                   fontSize: 13.2,
                   fontWeight: FontWeight.w600,
                 ),
                 decoration: InputDecoration(
                   hintText: 'Buscar entidad verificada en SECOP II (ej. SENA, Alcaldía de Santa Marta, INVIAS, ICBF...)',
                   hintStyle: const TextStyle(
-                    color: Color(0xFF94A3B8),
+                    color: Cristal.textoTenue,
                     fontSize: 12.8,
                     fontWeight: FontWeight.w500,
                   ),
                   prefixIcon: const Icon(
                     Icons.search_rounded,
-                    color: Color(0xFF64748B),
+                    color: Cristal.textoSuave,
                     size: 20,
                   ),
                   suffixIcon: _isLoadingLive
@@ -1246,7 +1252,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                             height: 16,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: _azulPrimario,
+                              color: Cristal.acentoClaro,
                             ),
                           ),
                         )
@@ -1260,12 +1266,12 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                                 icon: const Icon(
                                   Icons.close_rounded,
                                   size: 18,
-                                  color: Color(0xFF64748B),
+                                  color: Cristal.textoSuave,
                                 ),
                               )
                             : null),
                   filled: true,
-                  fillColor: const Color(0xFFF4F6F9),
+                  fillColor: Cristal.campo,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 14,
                     vertical: 0,
@@ -1281,7 +1287,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(11),
                     borderSide: const BorderSide(
-                      color: Color(0xFFCBD5E1),
+                      color: Cristal.bordeFuerte,
                       width: 1,
                     ),
                   ),
@@ -1307,15 +1313,8 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Cristal.vidrio,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: _azulOscuro.withValues(alpha: 0.04),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
-            ),
-          ],
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -1332,7 +1331,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: Color(0xFF334155),
+                      color: Cristal.textoCuerpo,
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
                       height: 1.15,
@@ -1344,7 +1343,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: Color(0xFF64748B),
+                        color: Cristal.textoSuave,
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
                         height: 1.15,
@@ -1357,7 +1356,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                     child: Text(
                       mainValue,
                       style: TextStyle(
-                        color: _azulOscuro,
+                        color: Cristal.texto,
                         fontSize: valueFontSize,
                         fontWeight: FontWeight.w900,
                         height: 1.1,
@@ -1373,7 +1372,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                         TextSpan(
                           text: trendPercent,
                           style: const TextStyle(
-                            color: Color(0xFF16A34A),
+                            color: Cristal.verde,
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
                           ),
@@ -1381,7 +1380,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                         TextSpan(
                           text: ' $trendComparison',
                           style: const TextStyle(
-                            color: Color(0xFF64748B),
+                            color: Cristal.textoSuave,
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
                           ),
@@ -1419,11 +1418,11 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
 
     final card1 = kpiCard(
       iconCircle: doubleRingIcon(
-        outerColor: const Color(0xFFE0EEFF),
-        innerColor: const Color(0xFFC7DFFF),
+        outerColor: Cristal.azulVidrio,
+        innerColor: const Color(0x473B82F6),
         child: const Icon(
           Icons.account_balance_rounded,
-          color: Color(0xFF1E3A8A),
+          color: Cristal.acentoClaro,
           size: 20,
         ),
       ),
@@ -1435,11 +1434,11 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     );
     final card2 = kpiCard(
       iconCircle: doubleRingIcon(
-        outerColor: const Color(0xFFE0EEFF),
-        innerColor: const Color(0xFFC7DFFF),
+        outerColor: Cristal.azulVidrio,
+        innerColor: const Color(0x473B82F6),
         child: const Icon(
           Icons.description_outlined,
-          color: Color(0xFF1D4ED8),
+          color: Cristal.acentoClaro,
           size: 20,
         ),
       ),
@@ -1450,20 +1449,20 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     );
     final card3 = kpiCard(
       iconCircle: doubleRingIcon(
-        outerColor: const Color(0xFFDCFCE7),
-        innerColor: const Color(0xFFBBF7D0),
+        outerColor: Cristal.verdeVidrio,
+        innerColor: const Color(0x4722C55E),
         child: Container(
           width: 22,
           height: 22,
           alignment: Alignment.center,
           decoration: const BoxDecoration(
-            color: Color(0xFF15803D),
+            color: Cristal.verde,
             shape: BoxShape.circle,
           ),
           child: const Text(
             '\$',
             style: TextStyle(
-              color: Colors.white,
+              color: Cristal.tinta,
               fontSize: 13,
               fontWeight: FontWeight.w900,
             ),
@@ -1478,11 +1477,11 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     );
     final card4 = kpiCard(
       iconCircle: doubleRingIcon(
-        outerColor: const Color(0xFFEDE9FE),
-        innerColor: const Color(0xFFDDD6FE),
+        outerColor: const Color(0x248B5CF6),
+        innerColor: const Color(0x478B5CF6),
         child: const Icon(
           Icons.people_outline_rounded,
-          color: Color(0xFF4338CA),
+          color: Color(0xFF818CF8),
           size: 20,
         ),
       ),
@@ -1495,7 +1494,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.55),
+        color: Cristal.vidrioSuave,
         borderRadius: BorderRadius.circular(20),
       ),
       child: LayoutBuilder(
@@ -1535,6 +1534,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
   Widget _buildCategoryTab({required IconData icon, required String label}) {
     final bool selected = _selectedTab == label;
     return InkWell(
+      hoverDuration: Cristal.micro,
       onTap: () => setState(() => _selectedTab = label),
       borderRadius: BorderRadius.circular(8),
       child: Padding(
@@ -1548,13 +1548,13 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                 Icon(
                   icon,
                   size: 16,
-                  color: selected ? _azulOscuro : const Color(0xFF64748B),
+                  color: selected ? Cristal.texto : Cristal.textoSuave,
                 ),
                 const SizedBox(width: 7),
                 Text(
                   label,
                   style: TextStyle(
-                    color: selected ? _azulOscuro : const Color(0xFF64748B),
+                    color: selected ? Cristal.texto : Cristal.textoSuave,
                     fontSize: 12.8,
                     fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
                   ),
@@ -1567,7 +1567,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
               height: 3,
               width: selected ? 68 : 0,
               decoration: BoxDecoration(
-                color: _azulOscuro,
+                color: Cristal.acento,
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
@@ -1593,7 +1593,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: 15, color: const Color(0xFF475569)),
+                Icon(icon, size: 15, color: Cristal.textoMedio),
                 const SizedBox(width: 6),
                 Flexible(
                   child: Text(
@@ -1601,7 +1601,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: _azulOscuro,
+                      color: Cristal.texto,
                       fontSize: 13.8,
                       fontWeight: FontWeight.w800,
                     ),
@@ -1617,7 +1617,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: Color(0xFF64748B),
+                  color: Cristal.textoSuave,
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
                 ),
@@ -1633,6 +1633,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     return Material(
       color: Colors.transparent,
       child: InkWell(
+        hoverDuration: Cristal.micro,
         onTap: () => _openEntityProfile(entity),
         child: Padding(
           padding: EdgeInsets.symmetric(
@@ -1661,7 +1662,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: _azulOscuro,
+                              color: Cristal.texto,
                               fontSize: 13,
                               fontWeight: FontWeight.w800,
                             ),
@@ -1672,7 +1673,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: Color(0xFF64748B),
+                              color: Cristal.textoSuave,
                               fontSize: 11,
                               fontWeight: FontWeight.w500,
                             ),
@@ -1681,7 +1682,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                           Text(
                             '${entity.contractsFormatted} cont. · ${entity.amountFormatted}',
                             style: const TextStyle(
-                              color: Color(0xFF1D4ED8),
+                              color: Cristal.acentoClaro,
                               fontSize: 11.5,
                               fontWeight: FontWeight.w800,
                             ),
@@ -1691,7 +1692,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                     ),
                     const Icon(
                       Icons.chevron_right_rounded,
-                      color: Color(0xFF475569),
+                      color: Cristal.textoMedio,
                       size: 20,
                     ),
                   ],
@@ -1718,7 +1719,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: _azulOscuro,
+                              color: Cristal.texto,
                               fontSize: 13.5,
                               fontWeight: FontWeight.w800,
                             ),
@@ -1729,7 +1730,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: Color(0xFF64748B),
+                              color: Cristal.textoSuave,
                               fontSize: 11.5,
                               fontWeight: FontWeight.w500,
                             ),
@@ -1761,7 +1762,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                     const SizedBox(width: 6),
                     const Icon(
                       Icons.chevron_right_rounded,
-                      color: Color(0xFF475569),
+                      color: Cristal.textoMedio,
                       size: 20,
                     ),
                   ],
@@ -1777,15 +1778,8 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Cristal.vidrio,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: _azulOscuro.withValues(alpha: 0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -1816,7 +1810,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                       const Text(
                         'Ordenar por:',
                         style: TextStyle(
-                          color: Color(0xFF64748B),
+                          color: Cristal.textoSuave,
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
                         ),
@@ -1826,9 +1820,9 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                         height: 32,
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
+                          color: Cristal.vidrioSuave,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          border: Border.all(color: Cristal.borde),
                         ),
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<String>(
@@ -1839,11 +1833,11 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                               child: Icon(
                                 Icons.keyboard_arrow_down_rounded,
                                 size: 16,
-                                color: Color(0xFF475569),
+                                color: Cristal.textoMedio,
                               ),
                             ),
                             style: const TextStyle(
-                              color: _azulOscuro,
+                              color: Cristal.texto,
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
@@ -1882,12 +1876,14 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
           if (_isLoadingLive)
             const LinearProgressIndicator(
               minHeight: 2,
-              color: _azulPrimario,
-              backgroundColor: Color(0xFFE2E8F0),
+              color: Cristal.acentoClaro,
+              backgroundColor: Cristal.vidrioFuerte,
             )
           else
-            const Divider(height: 1, color: Color(0xFFEEF2F6)),
-          if (entities.isEmpty && !_isLoadingLive && _entidadesSecopI.isNotEmpty)
+            const Divider(height: 1, color: Cristal.borde),
+          if (entities.isEmpty &&
+              !_isLoadingLive &&
+              _entidadesSecopI.isNotEmpty)
             _buildEntidadesSecopI()
           else if (entities.isEmpty)
             Padding(
@@ -1897,7 +1893,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                   const Icon(
                     Icons.account_balance_outlined,
                     size: 40,
-                    color: Color(0xFF94A3B8),
+                    color: Cristal.textoTenue,
                   ),
                   const SizedBox(height: 10),
                   Text(
@@ -1905,7 +1901,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                         ? 'Consultando entidades verificadas en SECOP II...'
                         : 'No se encontraron entidades en SECOP II ni en SECOP I con ese criterio.',
                     style: const TextStyle(
-                      color: _azulOscuro,
+                      color: Cristal.texto,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1915,7 +1911,10 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                     const Text(
                       'Si es una entidad de régimen especial (por ejemplo, una universidad pública), puede publicar su contratación en su propio portal.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Color(0xFF64748B), fontSize: 12.5),
+                      style: TextStyle(
+                        color: Cristal.textoSuave,
+                        fontSize: 12.5,
+                      ),
                     ),
                   ],
                   const SizedBox(height: 8),
@@ -1939,7 +1938,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                   height: 1,
                   indent: 20,
                   endIndent: 20,
-                  color: Color(0xFFF1F5F9),
+                  color: Cristal.borde,
                 ),
             ],
         ],
@@ -1955,9 +1954,9 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
           margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFFBEB),
+            color: Cristal.ambarVidrio,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFFCD34D)),
+            border: Border.all(color: Cristal.ambarBorde),
           ),
           child: const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1965,7 +1964,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
               Text(
                 'Procesos publicados en SECOP I (régimen especial)',
                 style: TextStyle(
-                  color: Color(0xFF78350F),
+                  color: Cristal.ambar,
                   fontWeight: FontWeight.w800,
                   fontSize: 14,
                 ),
@@ -1973,19 +1972,25 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
               SizedBox(height: 4),
               Text(
                 'Esta entidad no registra contratos en SECOP II. Estos son procesos que convocó en SECOP I: muestran la cuantía estimada, no el contratista ni el valor del contrato firmado.',
-                style: TextStyle(color: Color(0xFF92400E), fontSize: 12.5),
+                style: TextStyle(color: Cristal.ambar, fontSize: 12.5),
               ),
             ],
           ),
         ),
         for (final e in _entidadesSecopI)
           ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-            leading: const Icon(Icons.account_balance_outlined, color: _azulOscuro),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 4,
+            ),
+            leading: const Icon(
+              Icons.account_balance_outlined,
+              color: Cristal.texto,
+            ),
             title: Text(
               e.nombre,
               style: const TextStyle(
-                color: _azulOscuro,
+                color: Cristal.texto,
                 fontWeight: FontWeight.w800,
                 fontSize: 13.5,
               ),
@@ -2020,15 +2025,8 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
         Container(
           padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Cristal.vidrio,
             borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: _azulOscuro.withValues(alpha: 0.06),
-                blurRadius: 18,
-                offset: const Offset(0, 5),
-              ),
-            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2039,12 +2037,12 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                     width: 24,
                     height: 24,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFEF3C7),
+                      color: Cristal.ambarVidrio,
                       borderRadius: BorderRadius.circular(7),
                     ),
                     child: const Icon(
                       Icons.star_rounded,
-                      color: Color(0xFFF59E0B),
+                      color: Cristal.ambar,
                       size: 17,
                     ),
                   ),
@@ -2055,13 +2053,14 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: _azulOscuro,
+                        color: Cristal.texto,
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
                   InkWell(
+                    hoverDuration: Cristal.micro,
                     onTap: () {
                       setState(() {
                         _sortBy = 'Mayor valor';
@@ -2073,7 +2072,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                       child: Text(
                         'Ver todas →',
                         style: TextStyle(
-                          color: Color(0xFF1E40AF),
+                          color: Cristal.acentoClaro,
                           fontSize: 11.8,
                           fontWeight: FontWeight.w700,
                         ),
@@ -2091,15 +2090,15 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                         ? 'Consultando el ranking en SECOP II...'
                         : 'No fue posible cargar el ranking de SECOP II.',
                     style: const TextStyle(
-                      color: Color(0xFF64748B),
+                      color: Cristal.textoSuave,
                       fontSize: 12.5,
                     ),
                   ),
                 ),
               for (var index = 0; index < top5.length; index++) ...[
-                if (index > 0)
-                  const Divider(height: 14, color: Color(0xFFF1F5F9)),
+                if (index > 0) const Divider(height: 14, color: Cristal.borde),
                 InkWell(
+                  hoverDuration: Cristal.micro,
                   onTap: () => _openEntityProfile(top5[index]),
                   borderRadius: BorderRadius.circular(10),
                   child: Padding(
@@ -2112,14 +2111,14 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             color: index == 0
-                                ? const Color(0xFFFEF3C7)
-                                : const Color(0xFFF1F5F9),
+                                ? Cristal.ambarVidrio
+                                : Cristal.vidrioSuave,
                             shape: BoxShape.circle,
                           ),
                           child: Text(
                             '${index + 1}',
                             style: const TextStyle(
-                              color: _azulOscuro,
+                              color: Cristal.texto,
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
                             ),
@@ -2144,7 +2143,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                  color: _azulOscuro,
+                                  color: Cristal.texto,
                                   fontSize: 12.5,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -2155,7 +2154,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                                   Text(
                                     '${top5[index].contractsFormatted} contratos',
                                     style: const TextStyle(
-                                      color: Color(0xFF64748B),
+                                      color: Cristal.textoSuave,
                                       fontSize: 11.2,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -2167,7 +2166,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
-                                        color: _azulOscuro,
+                                        color: Cristal.texto,
                                         fontSize: 12.2,
                                         fontWeight: FontWeight.w900,
                                       ),
@@ -2191,16 +2190,9 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Cristal.vidrio,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: [
-              BoxShadow(
-                color: _azulOscuro.withValues(alpha: 0.05),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            border: Border.all(color: Cristal.borde),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2211,12 +2203,12 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE0E7FF),
+                      color: Cristal.azulVidrio,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(
                       Icons.compare_arrows_rounded,
-                      color: _azulOscuro,
+                      color: Cristal.texto,
                       size: 18,
                     ),
                   ),
@@ -2225,7 +2217,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                     child: Text(
                       'Comparar entidades',
                       style: TextStyle(
-                        color: _azulOscuro,
+                        color: Cristal.texto,
                         fontSize: 16,
                         fontWeight: FontWeight.w900,
                       ),
@@ -2237,13 +2229,13 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFEF3C7),
+                      color: Cristal.ambarVidrio,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Text(
                       'SECOP II',
                       style: TextStyle(
-                        color: Color(0xFFB45309),
+                        color: Cristal.ambar,
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
                       ),
@@ -2262,7 +2254,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                         const Text(
                           'Busca sin filtros cualquier par de entidades verificadas de SECOP II y compara su valor contratado, contratos y contratistas.',
                           style: TextStyle(
-                            color: Color(0xFF475569),
+                            color: Cristal.textoMedio,
                             fontSize: 11.6,
                             height: 1.4,
                           ),
@@ -2273,8 +2265,8 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                           child: ElevatedButton.icon(
                             onPressed: _showCompareEntitiesModal,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: _azulOscuro,
-                              foregroundColor: Colors.white,
+                              backgroundColor: Cristal.acento,
+                              foregroundColor: Cristal.texto,
                               elevation: 0,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
@@ -2313,128 +2305,82 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Container(
-        color: _bgCrema,
-        child: SingleChildScrollView(
-          child: Stack(
-            children: [
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                height: 195,
-                child: Row(
-                  children: [
-                    const Expanded(flex: 3, child: SizedBox()),
-                    Expanded(
-                      flex: 7,
-                      child: ShaderMask(
-                        blendMode: BlendMode.dstIn,
-                        shaderCallback: (bounds) => const LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: [
-                            Colors.transparent,
-                            Colors.white,
-                            Colors.white,
-                            Colors.transparent,
-                          ],
-                          stops: [0.0, 0.25, 0.78, 0.99],
-                        ).createShader(bounds),
-                        child: Image.asset(
-                          'assets/images/fondo_valledupar.jpg',
-                          fit: BoxFit.cover,
-                          alignment: const Alignment(0.2, -0.28),
-                          filterQuality: FilterQuality.high,
-                          errorBuilder: (_, _, _) => const SizedBox.expand(),
+      child: SingleChildScrollView(
+        child: Stack(
+          children: [
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 195,
+              child: FotoAmbiente.cabecera(),
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                MediaQuery.sizeOf(context).width < 900 ? 14 : 26,
+                16,
+                MediaQuery.sizeOf(context).width < 900 ? 14 : 26,
+                28,
+              ),
+              child: MediaQuery.sizeOf(context).width < 900
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (MediaQuery.sizeOf(context).width >= 768) ...[
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: _buildTopRightProfileBar(),
+                          ),
+                          const SizedBox(height: 6),
+                        ],
+                        _buildHeaderLeftWithCallout(),
+                        const SizedBox(height: 10),
+                        _buildSearchAndFiltersCard(),
+                        const SizedBox(height: 12),
+                        _buildKpiSummaryRow(),
+                        const SizedBox(height: 14),
+                        _buildEntitiesMainTableCard(),
+                        const SizedBox(height: 18),
+                        _buildRightSideColumn(),
+                      ],
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 69,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _buildHeaderLeftWithCallout(),
+                              const SizedBox(height: 10),
+                              _buildSearchAndFiltersCard(),
+                              const SizedBox(height: 14),
+                              _buildKpiSummaryRow(),
+                              const SizedBox(height: 14),
+                              _buildEntitiesMainTableCard(),
+                            ],
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Positioned(
-                top: 130,
-                left: 0,
-                right: 0,
-                height: 68,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [_bgCrema.withValues(alpha: 0.0), _bgCrema],
-                    ),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  MediaQuery.sizeOf(context).width < 900 ? 14 : 26,
-                  16,
-                  MediaQuery.sizeOf(context).width < 900 ? 14 : 26,
-                  28,
-                ),
-                child: MediaQuery.sizeOf(context).width < 900
-                    ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (MediaQuery.sizeOf(context).width >= 768) ...[
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: _buildTopRightProfileBar(),
-                            ),
-                            const SizedBox(height: 6),
-                          ],
-                          _buildHeaderLeftWithCallout(),
-                          const SizedBox(height: 10),
-                          _buildSearchAndFiltersCard(),
-                          const SizedBox(height: 12),
-                          _buildKpiSummaryRow(),
-                          const SizedBox(height: 14),
-                          _buildEntitiesMainTableCard(),
-                          const SizedBox(height: 18),
-                          _buildRightSideColumn(),
-                        ],
-                      )
-                    : Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            flex: 69,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                _buildHeaderLeftWithCallout(),
-                                const SizedBox(height: 10),
-                                _buildSearchAndFiltersCard(),
-                                const SizedBox(height: 14),
-                                _buildKpiSummaryRow(),
-                                const SizedBox(height: 14),
-                                _buildEntitiesMainTableCard(),
-                              ],
-                            ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          flex: 31,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: _buildTopRightProfileBar(),
+                              ),
+                              const SizedBox(height: 36),
+                              _buildRightSideColumn(),
+                            ],
                           ),
-                          const SizedBox(width: 20),
-                          Expanded(
-                            flex: 31,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: _buildTopRightProfileBar(),
-                                ),
-                                const SizedBox(height: 36),
-                                _buildRightSideColumn(),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-              ),
-            ],
-          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ],
         ),
       ),
     );
@@ -2505,7 +2451,7 @@ class EntityEmblemWidget extends StatelessWidget {
         height: size,
         padding: EdgeInsets.all(size * 0.06),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Cristal.vidrio,
           borderRadius: BorderRadius.circular(size * 0.22),
         ),
         child: Image.asset(
@@ -2626,15 +2572,15 @@ class EntityEmblemWidget extends StatelessWidget {
           height: size,
           padding: EdgeInsets.all(size * 0.08),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Cristal.vidrio,
             shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFF1A2B4C), width: 2.2),
+            border: Border.all(color: Cristal.acentoClaro, width: 2.2),
           ),
           child: Container(
             decoration: BoxDecoration(
-              color: const Color(0xFF1A2B4C),
+              color: Cristal.acento,
               shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFF93C5FD), width: 1.4),
+              border: Border.all(color: Cristal.acentoBorde, width: 1.4),
             ),
             child: Icon(
               Icons.account_balance_rounded,
@@ -2648,13 +2594,13 @@ class EntityEmblemWidget extends StatelessWidget {
           width: size,
           height: size,
           decoration: const BoxDecoration(
-            color: Color(0xFF1A2B4C),
+            color: Cristal.acento,
             shape: BoxShape.circle,
           ),
           child: Center(
             child: Icon(
               Icons.monitor_heart_rounded,
-              color: Colors.white,
+              color: Cristal.texto,
               size: size * 0.56,
             ),
           ),
@@ -2682,13 +2628,13 @@ class EntityEmblemWidget extends StatelessWidget {
           width: size,
           height: size,
           decoration: const BoxDecoration(
-            color: Color(0xFFE0F2FE),
+            color: Cristal.azulVidrio,
             shape: BoxShape.circle,
           ),
           child: Center(
             child: Icon(
               Icons.theater_comedy_rounded,
-              color: const Color(0xFF1A2B4C),
+              color: Cristal.texto,
               size: size * 0.58,
             ),
           ),
@@ -2698,13 +2644,13 @@ class EntityEmblemWidget extends StatelessWidget {
           width: size,
           height: size,
           decoration: const BoxDecoration(
-            color: Color(0xFFE0F2FE),
+            color: Cristal.azulVidrio,
             shape: BoxShape.circle,
           ),
           child: Center(
             child: Icon(
               Icons.water_drop_rounded,
-              color: const Color(0xFF0284C7),
+              color: const Color(0xFF38BDF8),
               size: size * 0.56,
             ),
           ),
@@ -3390,7 +3336,7 @@ class _EntityNetworkIllustration extends StatelessWidget {
             ),
             child: const Icon(
               Icons.account_balance_rounded,
-              color: Color(0xFF1A2B4C),
+              color: Cristal.tinta,
               size: 20,
             ),
           ),
@@ -3405,7 +3351,7 @@ class _NetworkOrbitLinesPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final orbitPaint = Paint()
-      ..color = const Color(0xFFCBD5E1)
+      ..color = Cristal.bordeFuerte
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.2;
     canvas.drawCircle(center, 37, orbitPaint);
@@ -3438,7 +3384,7 @@ class _EntityBarIllustration extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(
               4,
-              (_) => Container(height: 1, color: const Color(0xFFF1F5F9)),
+              (_) => Container(height: 1, color: Cristal.vidrioSuave),
             ),
           ),
           Row(
@@ -3496,10 +3442,6 @@ class _CompareEntitiesUnfilteredDialog extends StatefulWidget {
 
 class _CompareEntitiesUnfilteredDialogState
     extends State<_CompareEntitiesUnfilteredDialog> {
-  static const Color _azulOscuro = Color(0xFF1A2B4C);
-  static const Color _azulPrimario = Color(0xFF1D4ED8);
-  static const Color _ambarComparador = Color(0xFFD97706);
-
   late EntitySummaryRecord _entityA;
   late EntitySummaryRecord _entityB;
 
@@ -3640,9 +3582,9 @@ class _CompareEntitiesUnfilteredDialogState
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Cristal.vidrio,
               borderRadius: BorderRadius.circular(11),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: Cristal.borde),
             ),
             child: Row(
               children: [
@@ -3664,7 +3606,7 @@ class _CompareEntitiesUnfilteredDialogState
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: _azulOscuro,
+                          color: Cristal.texto,
                           fontSize: 12.8,
                           fontWeight: FontWeight.w800,
                         ),
@@ -3675,7 +3617,7 @@ class _CompareEntitiesUnfilteredDialogState
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: Color(0xFF64748B),
+                          color: Cristal.textoSuave,
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
                         ),
@@ -3693,14 +3635,14 @@ class _CompareEntitiesUnfilteredDialogState
               controller: controller,
               onChanged: onQueryChanged,
               style: const TextStyle(
-                color: _azulOscuro,
+                color: Cristal.texto,
                 fontSize: 12.2,
                 fontWeight: FontWeight.w600,
               ),
               decoration: InputDecoration(
                 hintText: 'Buscar otra entidad en SECOP II (ej. SENA, Santa Marta...)',
                 hintStyle: const TextStyle(
-                  color: Color(0xFF94A3B8),
+                  color: Cristal.textoTenue,
                   fontSize: 11.5,
                 ),
                 prefixIcon: const Icon(Icons.search_rounded, size: 17),
@@ -3724,18 +3666,18 @@ class _CompareEntitiesUnfilteredDialogState
                             )
                           : null),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: Cristal.campo,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 10,
                   vertical: 0,
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(9),
-                  borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                  borderSide: const BorderSide(color: Cristal.bordeFuerte),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(9),
-                  borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                  borderSide: const BorderSide(color: Cristal.bordeFuerte),
                 ),
               ),
             ),
@@ -3745,18 +3687,19 @@ class _CompareEntitiesUnfilteredDialogState
             Container(
               constraints: const BoxConstraints(maxHeight: 150),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Cristal.vidrio,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFCBD5E1)),
+                border: Border.all(color: Cristal.bordeFuerte),
               ),
               child: ListView.separated(
                 shrinkWrap: true,
                 itemCount: suggestions.length,
                 separatorBuilder: (_, _) =>
-                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                    const Divider(height: 1, color: Cristal.borde),
                 itemBuilder: (context, idx) {
                   final item = suggestions[idx];
                   return InkWell(
+                    hoverDuration: Cristal.micro,
                     onTap: () {
                       controller.clear();
                       onSelectEntity(item);
@@ -3786,7 +3729,7 @@ class _CompareEntitiesUnfilteredDialogState
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                    color: _azulOscuro,
+                                    color: Cristal.texto,
                                     fontSize: 11.8,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -3796,7 +3739,7 @@ class _CompareEntitiesUnfilteredDialogState
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                    color: Color(0xFF64748B),
+                                    color: Cristal.textoSuave,
                                     fontSize: 10.5,
                                   ),
                                 ),
@@ -3828,21 +3771,21 @@ class _CompareEntitiesUnfilteredDialogState
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: Cristal.vidrioSuave,
         borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: Cristal.borde),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 16, color: _azulOscuro),
+              Icon(icon, size: 16, color: Cristal.texto),
               const SizedBox(width: 7),
               Text(
                 title,
                 style: const TextStyle(
-                  color: _azulOscuro,
+                  color: Cristal.texto,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w800,
                 ),
@@ -3859,7 +3802,7 @@ class _CompareEntitiesUnfilteredDialogState
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Color(0xFF475569),
+                    color: Cristal.textoMedio,
                     fontSize: 11.2,
                     fontWeight: FontWeight.w600,
                   ),
@@ -3872,8 +3815,8 @@ class _CompareEntitiesUnfilteredDialogState
                   child: LinearProgressIndicator(
                     value: ratioA.clamp(0.06, 1.0),
                     minHeight: 10,
-                    backgroundColor: const Color(0xFFE2E8F0),
-                    color: _azulPrimario,
+                    backgroundColor: Cristal.vidrioFuerte,
+                    color: Cristal.acentoClaro,
                   ),
                 ),
               ),
@@ -3884,7 +3827,7 @@ class _CompareEntitiesUnfilteredDialogState
                   valueA,
                   textAlign: TextAlign.right,
                   style: const TextStyle(
-                    color: _azulPrimario,
+                    color: Cristal.acentoClaro,
                     fontSize: 12.2,
                     fontWeight: FontWeight.w900,
                   ),
@@ -3902,7 +3845,7 @@ class _CompareEntitiesUnfilteredDialogState
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Color(0xFF475569),
+                    color: Cristal.textoMedio,
                     fontSize: 11.2,
                     fontWeight: FontWeight.w600,
                   ),
@@ -3915,8 +3858,8 @@ class _CompareEntitiesUnfilteredDialogState
                   child: LinearProgressIndicator(
                     value: ratioB.clamp(0.06, 1.0),
                     minHeight: 10,
-                    backgroundColor: const Color(0xFFE2E8F0),
-                    color: const Color(0xFFF59E0B),
+                    backgroundColor: Cristal.vidrioFuerte,
+                    color: Cristal.ambar,
                   ),
                 ),
               ),
@@ -3927,7 +3870,7 @@ class _CompareEntitiesUnfilteredDialogState
                   valueB,
                   textAlign: TextAlign.right,
                   style: const TextStyle(
-                    color: _ambarComparador,
+                    color: Cristal.ambar,
                     fontSize: 12.2,
                     fontWeight: FontWeight.w900,
                   ),
@@ -3964,7 +3907,10 @@ class _CompareEntitiesUnfilteredDialogState
     final maxAvg = math.max(avgA, avgB);
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: const BorderSide(color: Cristal.bordeFuerte),
+      ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 760, maxHeight: 680),
         child: Padding(
@@ -3979,12 +3925,12 @@ class _CompareEntitiesUnfilteredDialogState
                     width: 34,
                     height: 34,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE0E7FF),
+                      color: Cristal.azulVidrio,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Icon(
                       Icons.compare_arrows_rounded,
-                      color: _azulOscuro,
+                      color: Cristal.texto,
                       size: 20,
                     ),
                   ),
@@ -3996,7 +3942,7 @@ class _CompareEntitiesUnfilteredDialogState
                         Text(
                           'Comparador nacional y territorial de entidades (SECOP II)',
                           style: TextStyle(
-                            color: _azulOscuro,
+                            color: Cristal.texto,
                             fontSize: 18,
                             fontWeight: FontWeight.w900,
                           ),
@@ -4005,7 +3951,7 @@ class _CompareEntitiesUnfilteredDialogState
                         Text(
                           'Busca cualquier entidad verificada en SECOP II sin filtros y compara sus indicadores reales.',
                           style: TextStyle(
-                            color: Color(0xFF64748B),
+                            color: Cristal.textoSuave,
                             fontSize: 12.2,
                           ),
                         ),
@@ -4030,8 +3976,8 @@ class _CompareEntitiesUnfilteredDialogState
                           Expanded(
                             child: _buildEntitySelectorColumn(
                               slotLabel: 'ENTIDAD 1',
-                              accentColor: _azulPrimario,
-                              softBgColor: const Color(0xFFEFF6FF),
+                              accentColor: Cristal.acentoClaro,
+                              softBgColor: Cristal.azulVidrio,
                               selectedEntity: _entityA,
                               controller: _searchCtrlA,
                               suggestions: _suggestionsA,
@@ -4049,8 +3995,8 @@ class _CompareEntitiesUnfilteredDialogState
                           Expanded(
                             child: _buildEntitySelectorColumn(
                               slotLabel: 'ENTIDAD 2',
-                              accentColor: _ambarComparador,
-                              softBgColor: const Color(0xFFFFFBEB),
+                              accentColor: Cristal.ambar,
+                              softBgColor: Cristal.ambarVidrio,
                               selectedEntity: _entityB,
                               controller: _searchCtrlB,
                               suggestions: _suggestionsB,
@@ -4124,8 +4070,8 @@ class _CompareEntitiesUnfilteredDialogState
                   ElevatedButton(
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _azulOscuro,
-                      foregroundColor: Colors.white,
+                      backgroundColor: Cristal.acento,
+                      foregroundColor: Cristal.texto,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 22,
                         vertical: 10,

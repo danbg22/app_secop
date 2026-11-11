@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../widgets/dashboard_top_bar.dart';
+import '../../tema/cristal.dart';
 
 class InicioSection extends StatelessWidget {
   const InicioSection({
@@ -26,115 +27,104 @@ class InicioSection extends StatelessWidget {
     required VoidCallback onTap,
     required bool isMobile,
   }) {
-    return Container(
+    // Vidrio de verdad: la tarjeta va sobre la foto, así que desenfoca lo
+    // que tiene detrás y lo oscurece para que el texto se lea.
+    return PanelCristal(
       height: isMobile ? 210 : 280,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
+      radio: Cristal.radioPanel,
+      desenfoque: true,
+      color: Cristal.vidrioOscuro,
+      colorEncima: Cristal.vidrioOscuroEncima,
+      colorBorde: Cristal.bordeFuerte,
+      colorBordeEncima: const Color(0x52FFFFFF),
+      onTap: onTap,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: Container(
-                    color: Colors.white.withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(Cristal.radioPanel - 1),
+        child: Stack(
+          children: [
+            // Luz del color de la categoría, atrapada en el vidrio.
+            Positioned(
+              right: -80,
+              bottom: -100,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        waveColor.withValues(alpha: 0.36),
+                        waveColor.withValues(alpha: 0),
+                      ],
+                    ),
                   ),
+                  child: const SizedBox(width: 280, height: 280),
                 ),
-                Positioned(
-                  bottom: -40,
-                  right: -20,
-                  left: -20,
-                  child: Container(
-                    height: 100,
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.all(isMobile ? 18 : 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: isMobile ? 56 : 72,
+                    height: isMobile ? 56 : 72,
                     decoration: BoxDecoration(
-                      color: waveColor.withValues(alpha: 0.8),
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.elliptical(300, 80),
+                      color: iconBackground,
+                      borderRadius: BorderRadius.circular(Cristal.radioAviso),
+                      border: Border.all(
+                        color: iconColor.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: Icon(
+                      icon,
+                      color: iconColor,
+                      size: isMobile ? 28 : 36,
+                    ),
+                  ),
+                  SizedBox(height: isMobile ? 10 : 16),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: Cristal.texto,
+                      fontSize: isMobile ? 19 : 22,
+                      height: 1.2,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    description,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Cristal.textoCuerpo,
+                      fontSize: 13,
+                      height: 1.35,
+                    ),
+                  ),
+                  const Spacer(),
+                  const Align(
+                    alignment: Alignment.bottomRight,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Cristal.vidrioFuerte,
+                        shape: BoxShape.circle,
+                        border: Border.fromBorderSide(
+                          BorderSide(color: Cristal.bordeFuerte),
+                        ),
+                      ),
+                      child: SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: Icon(Icons.chevron_right, color: Cristal.texto),
                       ),
                     ),
                   ),
-                ),
-                Padding(
-                  padding: EdgeInsets.all(isMobile ? 18 : 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: isMobile ? 56 : 72,
-                        height: isMobile ? 56 : 72,
-                        decoration: BoxDecoration(
-                          color: iconBackground,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Icon(
-                          icon,
-                          color: iconColor,
-                          size: isMobile ? 28 : 36,
-                        ),
-                      ),
-                      SizedBox(height: isMobile ? 12 : 16),
-                      Text(
-                        title,
-                        style: TextStyle(
-                          color: const Color(0xFF0F172A),
-                          fontSize: isMobile ? 19 : 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        description,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: const Color(0xFF1A2B4C).withValues(alpha: 0.78),
-                          fontSize: 13,
-                          height: 1.35,
-                        ),
-                      ),
-                      const Spacer(),
-                      const Align(
-                        alignment: Alignment.bottomRight,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Color(0x241A2B4C),
-                                blurRadius: 10,
-                                offset: Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: SizedBox(
-                            width: 40,
-                            height: 40,
-                            child: Icon(
-                              Icons.chevron_right,
-                              color: Color(0xFF1A2B4C),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -148,11 +138,10 @@ class InicioSection extends StatelessWidget {
     final cards = [
       _buildCategoryCardContent(
         title: 'Contratos',
-        description:
-            'Consulta todos los contratos de la entidad o filtra por criterios específicos.',
-        iconBackground: const Color(0xFFFFF9C4),
-        waveColor: const Color(0xFFFFF9C4),
-        iconColor: const Color(0xFFFBC02D),
+        description: 'Consulta todos los contratos de la entidad o filtra por criterios específicos.',
+        iconBackground: Cristal.doradoVidrio,
+        waveColor: Cristal.dorado,
+        iconColor: Cristal.dorado,
         icon: Icons.description_outlined,
         onTap: () => onNavigateToSection(2),
         isMobile: isMobile,
@@ -161,9 +150,9 @@ class InicioSection extends StatelessWidget {
         title: 'Entidades',
         description:
             'Explora las entidades contratantes y su gestión contractual.',
-        iconBackground: const Color(0xFFE3F2FD),
-        waveColor: const Color(0xFFE3F2FD),
-        iconColor: const Color(0xFF1976D2),
+        iconBackground: Cristal.azulVidrio,
+        waveColor: Cristal.acento,
+        iconColor: Cristal.acentoClaro,
         icon: Icons.account_balance_outlined,
         onTap: () => onNavigateToSection(3),
         isMobile: isMobile,
@@ -172,9 +161,9 @@ class InicioSection extends StatelessWidget {
         title: 'Contratistas',
         description:
             'Conoce el historial de contratistas y proveedores del Estado.',
-        iconBackground: const Color(0xFFE8F5E9),
-        waveColor: const Color(0xFFE8F5E9),
-        iconColor: const Color(0xFF388E3C),
+        iconBackground: Cristal.verdeVidrio,
+        waveColor: Cristal.verde,
+        iconColor: Cristal.verde,
         icon: Icons.person_outline,
         onTap: () => onNavigateToSection(4),
         isMobile: isMobile,
@@ -184,30 +173,23 @@ class InicioSection extends StatelessWidget {
     return Expanded(
       child: Stack(
         children: [
-          Positioned.fill(child: Container(color: const Color(0xFFFBF8F1))),
+          // La foto de Valledupar, fundida con el fondo: es lo que se ve
+          // a través de las tarjetas de vidrio.
           Positioned.fill(
-            child: Image.asset(
-              'assets/images/fondo_valledupar.jpg',
-              fit: BoxFit.cover,
-              filterQuality: FilterQuality.high,
-              errorBuilder: (context, error, stackTrace) => Container(),
-            ),
-          ),
-          Positioned.fill(
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  colors: [
-                    Color(0xFFFFF8E7),
-                    Color(0xDDFFF8E7),
-                    Color(0x00FFF8E7),
-                  ],
-                  stops: [0.0, 0.3, 0.6],
-                ),
-              ),
-            ),
+            child: isMobile
+                ? const FotoAmbiente(
+                    opacidad: 0.7,
+                    inicio: 0,
+                    pleno: 0.9,
+                    fundidoSuperior: 0.34,
+                    fundidoInferior: 0.2,
+                  )
+                : const FotoAmbiente(
+                    opacidad: 0.8,
+                    inicio: 0.1,
+                    pleno: 0.8,
+                    fundidoInferior: 0.3,
+                  ),
           ),
           Positioned.fill(
             child: Column(
@@ -226,16 +208,12 @@ class InicioSection extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          width: 40,
-                          height: 4,
-                          color: const Color(0xFFFFD54F),
-                        ),
+                        Container(width: 40, height: 4, color: Cristal.dorado),
                         SizedBox(height: isMobile ? 12 : 18),
                         Text(
                           'Contrata Legal',
                           style: TextStyle(
-                            color: const Color(0xFF0F172A),
+                            color: Cristal.texto,
                             fontSize: isMobile ? 36 : 56,
                             fontWeight: FontWeight.w900,
                             letterSpacing: -1.0,
@@ -243,10 +221,12 @@ class InicioSection extends StatelessWidget {
                         ),
                         SizedBox(height: isMobile ? 10 : 16),
                         Text(
-                          'Explora la contratación pública de forma clara,\n'
+                          // El salto de línea fijo solo cabe en pantallas anchas.
+                          'Explora la contratación pública de forma clara,'
+                          '${isMobile ? ' ' : '\n'}'
                           'accesible y transparente.',
                           style: TextStyle(
-                            color: const Color(0xFF334155),
+                            color: Cristal.textoCuerpo,
                             fontWeight: FontWeight.w500,
                             fontSize: isMobile ? 16 : 22,
                             height: 1.3,

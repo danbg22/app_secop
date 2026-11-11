@@ -1,10 +1,9 @@
-// ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
 import 'dart:convert';
-import 'dart:html' as html;
 
 import 'package:flutter/material.dart';
 
 import '../services/security_service.dart';
+import 'file_downloader.dart';
 
 void exportCsv({
   required BuildContext context,
@@ -18,20 +17,17 @@ void exportCsv({
             .join(';'),
       )
       .join('\n');
-  final safeFileName = SecurityService.sanitizeFileName(fileName);
-  final bytes = utf8.encode('\uFEFF$csvData');
-  final blob = html.Blob([bytes], 'text/csv;charset=utf-8');
-  final url = html.Url.createObjectUrlFromBlob(blob);
-  html.AnchorElement(href: url)
-    ..setAttribute('download', safeFileName)
-    ..setAttribute('rel', 'noopener noreferrer')
-    ..click();
-  html.Url.revokeObjectUrl(url);
+  // La descarga vive en file_downloader (con su variante web), para que
+  // este archivo también compile fuera del navegador (pruebas).
+  downloadCsvBytes(
+    utf8Bytes: utf8.encode('\uFEFF$csvData'),
+    fileName: fileName,
+  );
 
   ScaffoldMessenger.of(context).showSnackBar(
     const SnackBar(
       content: Text('Reporte descargado con éxito.'),
-      backgroundColor: Colors.green,
+      backgroundColor: Color(0xFF16A34A),
     ),
   );
 }

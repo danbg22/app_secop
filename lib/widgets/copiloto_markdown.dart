@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../tema/cristal.dart';
+
 /// Renderiza el subconjunto de Markdown que devuelve el Copiloto IA:
 /// títulos (`#`), viñetas (`-`, `*`, `•`, con sangría), listas numeradas,
 /// `**negrita**`, `*cursiva*` y `` `código` ``. Todo lo demás se muestra como
@@ -36,7 +38,7 @@ class CopilotoMarkdown extends StatelessWidget {
       }
       if (RegExp(r'^\s*([-*_])\s*\1\s*\1[\s\-*_]*$').hasMatch(line)) {
         flushParagraph();
-        blocks.add(const Divider(height: 12, color: Color(0xFFE2E8F0)));
+        blocks.add(const Divider(height: 12, color: Cristal.borde));
         continue;
       }
 
@@ -108,7 +110,9 @@ class CopilotoMarkdown extends StatelessWidget {
     final spans = <InlineSpan>[];
     var last = 0;
     for (final m in _inline.allMatches(text)) {
-      if (m.start > last) spans.add(TextSpan(text: text.substring(last, m.start)));
+      if (m.start > last) {
+        spans.add(TextSpan(text: text.substring(last, m.start)));
+      }
       if (m.group(1) != null || m.group(2) != null) {
         spans.add(
           TextSpan(
@@ -122,7 +126,7 @@ class CopilotoMarkdown extends StatelessWidget {
             text: m.group(3),
             style: const TextStyle(
               fontWeight: FontWeight.w600,
-              backgroundColor: Color(0x14000000),
+              backgroundColor: Color(0x18FFFFFF),
             ),
           ),
         );

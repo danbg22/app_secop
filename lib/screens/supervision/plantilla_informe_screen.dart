@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../services/supervision_service.dart';
 import '../gestion_contractual/estilo_contractual.dart';
 import 'componentes_supervision.dart';
+import '../../tema/cristal.dart';
 
 /// Plantilla de informes de la entidad: lo que cambia entre una alcaldía y
 /// una gobernación (encabezado, quincenales, etapas, documentos y orden del
@@ -92,10 +93,10 @@ class _PlantillaInformeScreenState extends State<PlantillaInformeScreen> {
     final e = i == null ? null : p.etapas[i];
     final nombre = TextEditingController(text: e?.nombre ?? '');
     final cert = TextEditingController(text: e?.certificacion ?? '');
-    final ok = await showDialog<bool>(
+    final ok = await mostrarDialogoCristal<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: Cristal.flotante,
         title: Text(e == null ? 'Nueva etapa' : 'Editar etapa'),
         content: SizedBox(
           width: 520,
@@ -165,11 +166,11 @@ class _PlantillaInformeScreenState extends State<PlantillaInformeScreen> {
     final desc = TextEditingController(text: d.descripcion);
     final nota = TextEditingController(text: d.nota);
     final generable = DocumentosSistema.todos.contains(d.id);
-    final ok = await showDialog<bool>(
+    final ok = await mostrarDialogoCristal<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setD) => AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor: Cristal.flotante,
           title: Text(i == null ? 'Nuevo documento' : 'Editar documento'),
           content: SizedBox(
             width: 540,
@@ -221,7 +222,7 @@ class _PlantillaInformeScreenState extends State<PlantillaInformeScreen> {
                     const Text(
                       'La app sabe generar este documento con los datos del informe.',
                       style: TextStyle(
-                        color: Color(0xFF15803D),
+                        color: Cristal.verde,
                         fontWeight: FontWeight.w600,
                       ),
                     )
@@ -383,9 +384,7 @@ class _PlantillaInformeScreenState extends State<PlantillaInformeScreen> {
               onPressed: p.etapas.length >= 5 ? null : () => _editarEtapa(null),
               icon: const Icon(Icons.add_rounded, size: 18),
               label: const Text('Agregar etapa'),
-              style: TextButton.styleFrom(
-                foregroundColor: EstiloContractual.navy,
-              ),
+              style: TextButton.styleFrom(foregroundColor: Cristal.texto),
             ),
             children: [
               for (final (i, e) in p.etapas.indexed)
@@ -393,10 +392,13 @@ class _PlantillaInformeScreenState extends State<PlantillaInformeScreen> {
                   contentPadding: EdgeInsets.zero,
                   leading: CircleAvatar(
                     radius: 14,
-                    backgroundColor: EstiloContractual.navy,
+                    backgroundColor: Cristal.acentoVidrio,
                     child: Text(
                       '${i + 1}',
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                      style: const TextStyle(
+                        color: Cristal.texto,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                   title: Text(
@@ -448,9 +450,7 @@ class _PlantillaInformeScreenState extends State<PlantillaInformeScreen> {
               onPressed: () => _editarDocumento(null),
               icon: const Icon(Icons.add_rounded, size: 18),
               label: const Text('Agregar documento'),
-              style: TextButton.styleFrom(
-                foregroundColor: EstiloContractual.navy,
-              ),
+              style: TextButton.styleFrom(foregroundColor: Cristal.texto),
             ),
             children: [
               for (final (i, d) in p.documentos.indexed)

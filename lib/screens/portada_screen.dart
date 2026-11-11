@@ -1,49 +1,41 @@
 import 'package:flutter/material.dart';
 
 import 'escoger_rol_screen.dart';
+import '../tema/cristal.dart';
 
 /// Portada pública: mismo lenguaje visual que el flujo de registro
 /// (fondo crema sin fotografías, tarjetas limpias y botones tipo píldora).
 class PortadaScreen extends StatelessWidget {
   const PortadaScreen({super.key});
 
-  static const Color _navy = Color(0xFF0E2646);
-  static const Color _subtitleBlue = Color(0xFF364F6B);
-  static const Color _gold = Color(0xFFF5C032);
-  static const Color _goldText = Color(0xFFC98A00);
-
   static const List<_PortadaFeature> _features = [
     _PortadaFeature(
       icon: Icons.manage_search_rounded,
       title: 'Consulta contratos',
-      description:
-          'Busca procesos de SECOP I y SECOP II por entidad, contratista u objeto, con cifras claras y enlaces a la fuente oficial.',
-      color: Color(0xFFF5B82E),
-      tint: Color(0xFFFFF3CC),
-      cardBg: Color(0xFFFEFBF0),
+      description: 'Busca procesos de SECOP I y SECOP II por entidad, contratista u objeto, con cifras claras y enlaces a la fuente oficial.',
+      color: Cristal.dorado,
+      tint: Cristal.doradoVidrio,
+      cardBg: Cristal.vidrioSuave,
     ),
     _PortadaFeature(
       icon: Icons.account_balance_rounded,
       title: 'Entidades y contratistas',
-      description:
-          'Revisa el historial contractual de entidades públicas y contratistas para entender quién contrata, con quién y por cuánto.',
-      color: Color(0xFF28559A),
-      tint: Color(0xFFE8F1FC),
-      cardBg: Color(0xFFF8FAFC),
+      description: 'Revisa el historial contractual de entidades públicas y contratistas para entender quién contrata, con quién y por cuánto.',
+      color: Cristal.acentoClaro,
+      tint: Cristal.vidrioSuave,
+      cardBg: Cristal.vidrioSuave,
     ),
     _PortadaFeature(
       icon: Icons.verified_user_rounded,
       title: 'Gestión con trazabilidad',
-      description:
-          'Equipos jurídicos estructuran contratos en línea, invitan contratistas y validan documentos dejando registro de cada paso.',
-      color: Color(0xFF1F6E7A),
-      tint: Color(0xFFE3F3F2),
-      cardBg: Color(0xFFF9FCFA),
+      description: 'Equipos jurídicos estructuran contratos en línea, invitan contratistas y validan documentos dejando registro de cada paso.',
+      color: Color(0xFF22D3EE),
+      tint: Color(0x2414B8A6),
+      cardBg: Cristal.vidrioSuave,
     ),
   ];
 
-  void _irALogin(BuildContext context) =>
-      Navigator.pushNamed(context, '/auth');
+  void _irALogin(BuildContext context) => Navigator.pushNamed(context, '/auth');
 
   void _irARegistro(BuildContext context) =>
       Navigator.pushNamed(context, '/registro');
@@ -52,7 +44,7 @@ class PortadaScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return SelectionArea(
       child: Scaffold(
-        backgroundColor: OnboardingUnifiedBackground.bgCream,
+        backgroundColor: Colors.transparent,
         body: OnboardingUnifiedBackground(
           showScenicPhoto: false,
           child: LayoutBuilder(
@@ -82,7 +74,11 @@ class PortadaScreen extends StatelessWidget {
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  for (int i = 0; i < _features.length; i++) ...[
+                                  for (
+                                    int i = 0;
+                                    i < _features.length;
+                                    i++
+                                  ) ...[
                                     if (i > 0) const SizedBox(width: 18),
                                     Expanded(
                                       child: _PortadaFeatureCard(
@@ -114,7 +110,7 @@ class PortadaScreen extends StatelessWidget {
                             'Datos abiertos de Colombia Compra Eficiente (SECOP I y SECOP II).',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: _subtitleBlue.withValues(alpha: 0.85),
+                              color: Cristal.textoMedio.withValues(alpha: 0.85),
                               fontSize: 12.5,
                               fontWeight: FontWeight.w500,
                             ),
@@ -150,7 +146,7 @@ class PortadaScreen extends StatelessWidget {
             width: 42,
             height: 4,
             decoration: BoxDecoration(
-              color: _gold,
+              color: Cristal.dorado,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -161,13 +157,13 @@ class PortadaScreen extends StatelessWidget {
                 TextSpan(text: 'Contratación pública\nmás clara '),
                 TextSpan(
                   text: 'para todos',
-                  style: TextStyle(color: _goldText),
+                  style: TextStyle(color: Cristal.dorado),
                 ),
               ],
             ),
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: _navy,
+              color: Cristal.texto,
               fontSize: isMobile ? 30 : (isTablet ? 40 : 50),
               fontWeight: FontWeight.w800,
               height: 1.1,
@@ -179,7 +175,7 @@ class PortadaScreen extends StatelessWidget {
             'Información confiable, accesible y comprensible\nsobre la contratación pública en Colombia.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: _subtitleBlue,
+              color: Cristal.textoMedio,
               fontSize: isMobile ? 14.5 : 17,
               fontWeight: FontWeight.w500,
               height: 1.45,
@@ -197,8 +193,8 @@ class PortadaScreen extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: () => _irARegistro(context),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFF8C63A),
-                    foregroundColor: _navy,
+                    backgroundColor: Cristal.dorado,
+                    foregroundColor: Cristal.tinta,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(28),
@@ -210,13 +206,17 @@ class PortadaScreen extends StatelessWidget {
                       Text(
                         'Crear cuenta',
                         style: TextStyle(
-                          color: _navy,
+                          color: Cristal.tinta,
                           fontSize: 15.2,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                       SizedBox(width: 8),
-                      Icon(Icons.arrow_forward_rounded, size: 19, color: _navy),
+                      Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 19,
+                        color: Cristal.tinta,
+                      ),
                     ],
                   ),
                 ),
@@ -226,10 +226,13 @@ class PortadaScreen extends StatelessWidget {
                 height: 50,
                 child: ElevatedButton(
                   onPressed: () => _irALogin(context),
+                  // Acción secundaria: de vidrio, para que la principal
+                  // (dorada) sea la única de color.
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _navy,
-                    foregroundColor: Colors.white,
+                    backgroundColor: Cristal.vidrioFuerte,
+                    foregroundColor: Cristal.texto,
                     elevation: 0,
+                    side: const BorderSide(color: Cristal.bordeFuerte),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(28),
                     ),
@@ -237,7 +240,7 @@ class PortadaScreen extends StatelessWidget {
                   child: const Text(
                     'Ya tengo cuenta',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: Cristal.texto,
                       fontSize: 15,
                       fontWeight: FontWeight.w800,
                     ),
@@ -277,9 +280,6 @@ class _PortadaFeatureCard extends StatelessWidget {
 
   final _PortadaFeature feature;
 
-  static const Color _navy = Color(0xFF0E2646);
-  static const Color _subtitleBlue = Color(0xFF364F6B);
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -290,13 +290,6 @@ class _PortadaFeatureCard extends StatelessWidget {
           color: feature.color.withValues(alpha: 0.35),
           width: 1.3,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: _navy.withValues(alpha: 0.05),
-            blurRadius: 22,
-            offset: const Offset(0, 8),
-          ),
-        ],
       ),
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 22),
       child: Column(
@@ -317,9 +310,13 @@ class _PortadaFeatureCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: feature.color,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 3),
+                border: Border.all(color: Cristal.borde, width: 3),
               ),
-              child: Icon(feature.icon, color: Colors.white, size: 24),
+              child: Icon(
+                feature.icon,
+                color: Cristal.sobre(feature.color),
+                size: 24,
+              ),
             ),
           ),
           const SizedBox(height: 14),
@@ -328,7 +325,7 @@ class _PortadaFeatureCard extends StatelessWidget {
             child: Text(
               feature.title,
               style: const TextStyle(
-                color: _navy,
+                color: Cristal.texto,
                 fontSize: 20.5,
                 fontWeight: FontWeight.w800,
                 height: 1.15,
@@ -342,7 +339,7 @@ class _PortadaFeatureCard extends StatelessWidget {
             child: Text(
               feature.description,
               style: const TextStyle(
-                color: _subtitleBlue,
+                color: Cristal.textoMedio,
                 fontSize: 13.5,
                 height: 1.42,
                 fontWeight: FontWeight.w500,

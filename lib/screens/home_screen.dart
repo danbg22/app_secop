@@ -11,6 +11,7 @@ import 'sections/entidades_section.dart';
 import 'sections/equipo_juridico_section.dart';
 import 'sections/inicio_section.dart';
 import 'sections/oportunidades_paa_section.dart';
+import '../tema/cristal.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.initialIndex = 0});
@@ -22,10 +23,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  static const Color _crema = Color(0xFFFFF8EE);
-  static const Color _azulOscuro = Color(0xFF1A2B4C);
-  static const Color _dorado = Color(0xFFF5B82E);
-
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final TextEditingController _searchController = TextEditingController();
   late int _selectedIndex;
@@ -145,43 +142,46 @@ class _HomeScreenState extends State<HomeScreen> {
       case 0:
         return const BottomNavigationBarItem(
           icon: Icon(Icons.home_outlined),
-          activeIcon: Icon(Icons.home_rounded, color: _dorado),
+          activeIcon: Icon(Icons.home_rounded, color: Cristal.dorado),
           label: 'Inicio',
         );
       case 2:
         return const BottomNavigationBarItem(
           icon: Icon(Icons.description_outlined),
-          activeIcon: Icon(Icons.description_rounded, color: _dorado),
+          activeIcon: Icon(Icons.description_rounded, color: Cristal.dorado),
           label: 'Contratos',
         );
       case 3:
         return const BottomNavigationBarItem(
           icon: Icon(Icons.account_balance_outlined),
-          activeIcon: Icon(Icons.account_balance_rounded, color: _dorado),
+          activeIcon: Icon(
+            Icons.account_balance_rounded,
+            color: Cristal.dorado,
+          ),
           label: 'Entidades',
         );
       case 4:
         return const BottomNavigationBarItem(
           icon: Icon(Icons.people_outline),
-          activeIcon: Icon(Icons.people_alt_rounded, color: _dorado),
+          activeIcon: Icon(Icons.people_alt_rounded, color: Cristal.dorado),
           label: 'Contratistas',
         );
       case 7:
         return const BottomNavigationBarItem(
           icon: Icon(Icons.star_border_rounded),
-          activeIcon: Icon(Icons.star_rounded, color: _dorado),
+          activeIcon: Icon(Icons.star_rounded, color: Cristal.dorado),
           label: 'Favoritos',
         );
       case 8:
         return const BottomNavigationBarItem(
           icon: Icon(Icons.gavel_outlined),
-          activeIcon: Icon(Icons.gavel_rounded, color: _dorado),
+          activeIcon: Icon(Icons.gavel_rounded, color: Cristal.dorado),
           label: 'Gestión',
         );
       case 9:
         return const BottomNavigationBarItem(
           icon: Icon(Icons.event_note_outlined),
-          activeIcon: Icon(Icons.event_note_rounded, color: _dorado),
+          activeIcon: Icon(Icons.event_note_rounded, color: Cristal.dorado),
           label: 'Proyección',
         );
       default:
@@ -209,19 +209,19 @@ class _HomeScreenState extends State<HomeScreen> {
         if (isMobile) {
           mainContent = Scaffold(
             key: _scaffoldKey,
-            backgroundColor: _crema,
+            backgroundColor: Colors.transparent,
             drawer: null,
             drawerEnableOpenDragGesture: false,
             appBar: AppBar(
-              backgroundColor: const Color(0xFFFFFDF8),
+              backgroundColor: Colors.transparent,
               elevation: 0,
-              scrolledUnderElevation: 1,
+              scrolledUnderElevation: 0,
               automaticallyImplyLeading: false,
               titleSpacing: 16,
               title: Row(
                 children: [
                   Image.asset(
-                    'assets/images/logo.png',
+                    'assets/images/logo_fondo_oscuro.png',
                     height: 34,
                     fit: BoxFit.contain,
                     alignment: Alignment.centerLeft,
@@ -233,7 +233,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       CollapsibleSideMenu.opcionesMenu[activeIndex].titulo,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: _azulOscuro,
+                        color: Cristal.texto,
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                       ),
@@ -247,40 +247,50 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
               bottom: PreferredSize(
                 preferredSize: const Size.fromHeight(1),
-                child: Container(height: 1, color: const Color(0xFFEDE6D6)),
+                child: Container(height: 1, color: Cristal.borde),
               ),
             ),
-            body: Column(children: [_buildCurrentView(activeIndex)]),
+            body: CambioLiquido(
+              clave: activeIndex,
+              expandir: true,
+              child: Column(children: [_buildCurrentView(activeIndex)]),
+            ),
             bottomNavigationBar: mobileTabs.length >= 2
-                ? BottomNavigationBar(
-                    currentIndex: activeBottomIdx,
-                    onTap: (bottomIdx) {
-                      if (bottomIdx >= 0 && bottomIdx < mobileTabs.length) {
-                        _onItemTapped(mobileTabs[bottomIdx]);
-                      }
-                    },
-                    type: BottomNavigationBarType.fixed,
-                    backgroundColor: Colors.white,
-                    selectedItemColor: _azulOscuro,
-                    unselectedItemColor: const Color(0xFF64748B),
-                    selectedLabelStyle: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
+                ? DecoratedBox(
+                    decoration: const BoxDecoration(
+                      color: Cristal.vidrioSuave,
+                      border: Border(top: BorderSide(color: Cristal.borde)),
                     ),
-                    unselectedLabelStyle: const TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w500,
+                    child: BottomNavigationBar(
+                      currentIndex: activeBottomIdx,
+                      onTap: (bottomIdx) {
+                        if (bottomIdx >= 0 && bottomIdx < mobileTabs.length) {
+                          _onItemTapped(mobileTabs[bottomIdx]);
+                        }
+                      },
+                      type: BottomNavigationBarType.fixed,
+                      backgroundColor: Colors.transparent,
+                      selectedItemColor: Cristal.dorado,
+                      unselectedItemColor: Cristal.textoTenue,
+                      selectedLabelStyle: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                      unselectedLabelStyle: const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      items: [
+                        for (final idx in mobileTabs) _buildMobileNavItem(idx),
+                      ],
                     ),
-                    items: [
-                      for (final idx in mobileTabs) _buildMobileNavItem(idx),
-                    ],
                   )
                 : null,
           );
         } else {
           mainContent = Scaffold(
             key: _scaffoldKey,
-            backgroundColor: _crema,
+            backgroundColor: Colors.transparent,
             body: Row(
               children: [
                 CollapsibleSideMenu(
@@ -291,7 +301,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   onLogout: _cerrarSesion,
                 ),
                 Expanded(
-                  child: Column(children: [_buildCurrentView(activeIndex)]),
+                  child: CambioLiquido(
+                    clave: activeIndex,
+                    expandir: true,
+                    child: Column(children: [_buildCurrentView(activeIndex)]),
+                  ),
                 ),
               ],
             ),

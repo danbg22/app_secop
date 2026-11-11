@@ -5,6 +5,7 @@ import '../../services/paa_service.dart';
 import '../gestion_contractual/estilo_contractual.dart';
 import '../licitaciones/entidad_paa_screen.dart';
 import '../licitaciones/prediccion_paa_screen.dart';
+import '../../tema/cristal.dart';
 
 /// Empresa licitante: proyección de lo que cada entidad va a contratar, a
 /// partir de su Plan Anual de Adquisiciones. Se busca la entidad cabeza
@@ -129,14 +130,14 @@ class _OportunidadesPaaSectionState extends State<OportunidadesPaaSection> {
         hintText: 'Entidad (ej. SENA, Ministerio del Trabajo, Valledupar)',
         prefixIcon: const Icon(Icons.search_rounded),
         filled: true,
-        fillColor: const Color(0xFFF8FAFC),
+        fillColor: Cristal.campo,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: EstiloContractual.borde),
+          borderSide: const BorderSide(color: Cristal.borde),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: EstiloContractual.borde),
+          borderSide: const BorderSide(color: Cristal.borde),
         ),
       ),
     );
@@ -149,7 +150,7 @@ class _OportunidadesPaaSectionState extends State<OportunidadesPaaSection> {
     final resultados = _resultados;
 
     return Container(
-      color: EstiloContractual.crema,
+      color: Cristal.vidrioSuave,
       child: SingleChildScrollView(
         padding: EdgeInsets.symmetric(
           horizontal: mobile ? 16 : 36,
@@ -208,7 +209,7 @@ class _OportunidadesPaaSectionState extends State<OportunidadesPaaSection> {
                             const Text(
                               'Año:',
                               style: TextStyle(
-                                color: EstiloContractual.texto,
+                                color: Cristal.textoMedio,
                                 fontSize: 13,
                               ),
                             ),
@@ -216,8 +217,8 @@ class _OportunidadesPaaSectionState extends State<OportunidadesPaaSection> {
                               ChoiceChip(
                                 label: Text('$a'),
                                 selected: _anio == a,
-                                selectedColor: const Color(0xFFDCE6F5),
-                                checkmarkColor: EstiloContractual.navy,
+                                selectedColor: Cristal.azulVidrio,
+                                checkmarkColor: Cristal.texto,
                                 onSelected: (_) {
                                   setState(() => _anio = a);
                                   if (_busqueda.text.trim().length >= 3) {
@@ -232,7 +233,7 @@ class _OportunidadesPaaSectionState extends State<OportunidadesPaaSection> {
                           Text(
                             _error!,
                             style: const TextStyle(
-                              color: Color(0xFFB91C1C),
+                              color: Cristal.rojo,
                               fontSize: 13,
                             ),
                           ),
@@ -250,7 +251,7 @@ class _OportunidadesPaaSectionState extends State<OportunidadesPaaSection> {
                                   ? 'Aún no hay planes $_anio con ese nombre. Las entidades publican el PAA del año a más tardar el 31 de enero.'
                                   : 'No encontramos entidades con PAA $_anio con ese nombre. Prueba con otra parte del nombre o la sigla.',
                               style: const TextStyle(
-                                color: EstiloContractual.gris,
+                                color: Cristal.textoSuave,
                                 fontSize: 13,
                               ),
                             )
@@ -258,18 +259,16 @@ class _OportunidadesPaaSectionState extends State<OportunidadesPaaSection> {
                             Text(
                               '${resultados.length} entidad${resultados.length == 1 ? '' : 'es'} con PAA $_anio',
                               style: const TextStyle(
-                                color: EstiloContractual.gris,
+                                color: Cristal.textoSuave,
                                 fontSize: 12.5,
                               ),
                             ),
                             const SizedBox(height: 6),
                             for (final (i, e) in resultados.indexed) ...[
                               if (i > 0)
-                                const Divider(
-                                  height: 1,
-                                  color: Color(0xFFEDF0F4),
-                                ),
+                                const Divider(height: 1, color: Cristal.borde),
                               InkWell(
+                                hoverDuration: Cristal.micro,
                                 onTap: () => _abrir(e),
                                 borderRadius: BorderRadius.circular(10),
                                 child: Padding(
@@ -287,7 +286,7 @@ class _OportunidadesPaaSectionState extends State<OportunidadesPaaSection> {
                                             Text(
                                               e.nombre,
                                               style: const TextStyle(
-                                                color: EstiloContractual.navy,
+                                                color: Cristal.texto,
                                                 fontSize: 15,
                                                 fontWeight: FontWeight.w800,
                                               ),
@@ -298,7 +297,7 @@ class _OportunidadesPaaSectionState extends State<OportunidadesPaaSection> {
                                                   ? 'Ver su proyección de contratación'
                                                   : '${e.cuentas.length} cuentas coinciden con la búsqueda · ver su estructura',
                                               style: const TextStyle(
-                                                color: EstiloContractual.gris,
+                                                color: Cristal.textoSuave,
                                                 fontSize: 12.3,
                                               ),
                                             ),
@@ -307,7 +306,7 @@ class _OportunidadesPaaSectionState extends State<OportunidadesPaaSection> {
                                       ),
                                       const Icon(
                                         Icons.chevron_right_rounded,
-                                        color: EstiloContractual.gris,
+                                        color: Cristal.textoSuave,
                                       ),
                                     ],
                                   ),

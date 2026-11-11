@@ -24,6 +24,7 @@ import '../widgets/route_security_guard.dart';
 import '../widgets/user_profile_header_action.dart';
 import 'home_screen.dart';
 import 'perfil_contratista_screen.dart';
+import '../tema/cristal.dart';
 
 class DetalleContratoScreen extends StatefulWidget {
   final dynamic contrato;
@@ -40,10 +41,6 @@ class DetalleContratoScreen extends StatefulWidget {
 }
 
 class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
-  static const Color _azulOscuro = Color(0xFF1A2B4C);
-  static const Color _azulPrimario = Color(0xFF1D4ED8);
-  static const Color _amarillo = Color(0xFFF5B82E);
-
   final NumberFormat _formatoDecimal = NumberFormat.decimalPattern('es_CO');
   final TextEditingController _chatController = TextEditingController();
   final TextEditingController _docFilterController = TextEditingController();
@@ -82,8 +79,7 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
   void initState() {
     super.initState();
     _contratoData = widget.contrato is Map
-        ? (widget.contrato as Map)
-            .map((k, v) => MapEntry(k.toString(), v))
+        ? (widget.contrato as Map).map((k, v) => MapEntry(k.toString(), v))
         : <String, dynamic>{};
     _selectedTab = widget.initialTab.clamp(0, 2);
     _cargarEstadoFavorito();
@@ -169,8 +165,7 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
       } else if (ref.isNotEmpty && nit.isNotEmpty) {
         clauses.add("referencia_del_contrato='$ref'");
         clauses.add("nit_entidad='$nit'");
-      } else if (proceso.isNotEmpty &&
-          proceso.toUpperCase() != 'NO DEFINIDO') {
+      } else if (proceso.isNotEmpty && proceso.toUpperCase() != 'NO DEFINIDO') {
         clauses.add("proceso_de_compra='$proceso'");
         if (docProv.isNotEmpty) clauses.add("documento_proveedor='$docProv'");
       }
@@ -189,8 +184,9 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
       if (res.statusCode == 200) {
         final decoded = json.decode(utf8.decode(res.bodyBytes));
         if (decoded is List && decoded.isNotEmpty && decoded.first is Map) {
-          final fila = (decoded.first as Map)
-              .map((k, v) => MapEntry(k.toString(), v));
+          final fila = (decoded.first as Map).map(
+            (k, v) => MapEntry(k.toString(), v),
+          );
           final merged = Map<String, dynamic>.from(_contratoData);
           fila.forEach((k, v) {
             if (!_valorSecopVacio(v) || !merged.containsKey(k)) merged[k] = v;
@@ -210,12 +206,13 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
   }
 
   String get _descripcionContrato {
-    final raw = (_contratoData['descripcion_del_proceso'] ??
-            _contratoData['objeto_del_contrato'] ??
-            'Contrato estatal SECOP II')
-        .toString()
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
+    final raw =
+        (_contratoData['descripcion_del_proceso'] ??
+                _contratoData['objeto_del_contrato'] ??
+                'Contrato estatal SECOP II')
+            .toString()
+            .replaceAll(RegExp(r'\s+'), ' ')
+            .trim();
     return raw.isEmpty ? 'Contrato estatal SECOP II' : raw;
   }
 
@@ -250,29 +247,32 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
   }
 
   String get _procesoContrato {
-    final raw = (_contratoData['proceso_de_compra'] ??
-            _contratoData['id_contrato'] ??
-            _contratoData['referencia_del_contrato'] ??
-            'Proceso SECOP II')
-        .toString()
-        .trim();
+    final raw =
+        (_contratoData['proceso_de_compra'] ??
+                _contratoData['id_contrato'] ??
+                _contratoData['referencia_del_contrato'] ??
+                'Proceso SECOP II')
+            .toString()
+            .trim();
     return raw.isEmpty ? 'Proceso SECOP II' : raw;
   }
 
   String get _referenciaContrato {
-    final raw = (_contratoData['referencia_del_contrato'] ??
-            _contratoData['id_contrato'] ??
-            _procesoContrato)
-        .toString()
-        .trim();
+    final raw =
+        (_contratoData['referencia_del_contrato'] ??
+                _contratoData['id_contrato'] ??
+                _procesoContrato)
+            .toString()
+            .trim();
     return raw.isEmpty ? _procesoContrato : raw;
   }
 
   String get _fechaFirmaIso {
-    final raw = (_contratoData['fecha_de_firma'] ??
-            _contratoData['fecha_de_inicio_del_contrato'] ??
-            '2026-10-09')
-        .toString();
+    final raw =
+        (_contratoData['fecha_de_firma'] ??
+                _contratoData['fecha_de_inicio_del_contrato'] ??
+                '2026-10-09')
+            .toString();
     return raw.split('T').first;
   }
 
@@ -347,14 +347,17 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
     final ids = await FavoritesService.idsContratos();
     if (!mounted) return;
     setState(
-      () => _esFavorito = ids.contains(FavoritesService.idContrato(widget.contrato)),
+      () => _esFavorito = ids.contains(
+        FavoritesService.idContrato(widget.contrato),
+      ),
     );
   }
 
   Future<void> _alternarFavorito() async {
     if (widget.contrato is! Map) return;
-    final guardado =
-        await FavoritesService.alternarContrato(widget.contrato as Map);
+    final guardado = await FavoritesService.alternarContrato(
+      widget.contrato as Map,
+    );
     if (!mounted) return;
     setState(() => _esFavorito = guardado);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -380,7 +383,9 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Enlace e información del contrato copiados al portapapeles'),
+        content: Text(
+          'Enlace e información del contrato copiados al portapapeles',
+        ),
         duration: Duration(seconds: 2),
       ),
     );
@@ -418,8 +423,9 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
     }
 
     // `noticeUID` solo acepta avisos (CO1.NTC.*), no procesos CO1.BDOS.*
-    final proceso =
-        (_contratoData['proceso_de_compra'] ?? '').toString().trim();
+    final proceso = (_contratoData['proceso_de_compra'] ?? '')
+        .toString()
+        .trim();
     if (proceso.toUpperCase().startsWith('CO1.NTC.')) {
       return 'https://community.secop.gov.co/Public/Tendering/OpportunityDetail/Index?noticeUID=${Uri.encodeComponent(proceso)}';
     }
@@ -458,8 +464,8 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
     });
     final result =
         await SecopDocumentIntelligenceService.obtenerDocumentosDatosAbiertos(
-      widget.contrato,
-    );
+          widget.contrato,
+        );
     if (!mounted) return;
     setState(() {
       _isExtractingDocs = false;
@@ -467,7 +473,9 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
     });
   }
 
-  Future<void> _ejecutarExtraccionDocumentos({bool forceRefresh = false}) async {
+  Future<void> _ejecutarExtraccionDocumentos({
+    bool forceRefresh = false,
+  }) async {
     if (_isExtractingDocs) return;
     setState(() {
       _isExtractingDocs = true;
@@ -479,13 +487,13 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
 
     final result =
         await SecopDocumentIntelligenceService.extraerDocumentosContrato(
-      widget.contrato,
-      forceRefresh: forceRefresh,
-      onProgress: (stepMsg) {
-        if (!mounted) return;
-        setState(() => _extractingStepText = stepMsg);
-      },
-    );
+          widget.contrato,
+          forceRefresh: forceRefresh,
+          onProgress: (stepMsg) {
+            if (!mounted) return;
+            setState(() => _extractingStepText = stepMsg);
+          },
+        );
 
     if (!mounted) return;
     setState(() {
@@ -512,9 +520,9 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
 
       final result =
           await SecopDocumentIntelligenceService.procesarTextoCopiadoDeSecop(
-        contrato: widget.contrato,
-        rawCopiedText: rawText,
-      );
+            contrato: widget.contrato,
+            rawCopiedText: rawText,
+          );
 
       if (!mounted) return;
       setState(() {
@@ -534,23 +542,28 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
 
   Future<void> _mostrarDialogoPegarSecop() async {
     final pasteController = TextEditingController();
-    final textoPegado = await showDialog<String>(
+    final textoPegado = await mostrarDialogoCristal<String>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor: Cristal.flotante,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
+            side: const BorderSide(color: Cristal.bordeFuerte),
           ),
           title: const Row(
             children: [
-              Icon(Icons.auto_awesome_rounded, color: _azulPrimario, size: 22),
+              Icon(
+                Icons.auto_awesome_rounded,
+                color: Cristal.acentoClaro,
+                size: 22,
+              ),
               SizedBox(width: 10),
               Expanded(
                 child: Text(
                   'Extraer lista de documentos',
                   style: TextStyle(
-                    color: _azulOscuro,
+                    color: Cristal.texto,
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                   ),
@@ -567,7 +580,7 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
                 const Text(
                   'En la ventana abierta del SECOP presiona Ctrl+A y luego Ctrl+C, y pega el contenido aquí abajo (Ctrl+V). Nuestra inteligencia filtrará únicamente los nombres reales de la sección Documentación:',
                   style: TextStyle(
-                    color: Color(0xFF475569),
+                    color: Cristal.textoMedio,
                     fontSize: 13,
                     height: 1.45,
                   ),
@@ -577,28 +590,27 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
                   controller: pasteController,
                   maxLines: 6,
                   autofocus: true,
-                  style: const TextStyle(fontSize: 12.5, color: _azulOscuro),
+                  style: const TextStyle(fontSize: 12.5, color: Cristal.texto),
                   decoration: InputDecoration(
-                    hintText:
-                        'Pega aquí (Ctrl+V) el texto copiado de la página del proceso en SECOP...',
+                    hintText: 'Pega aquí (Ctrl+V) el texto copiado de la página del proceso en SECOP...',
                     hintStyle: const TextStyle(
-                      color: Color(0xFF94A3B8),
+                      color: Cristal.textoTenue,
                       fontSize: 12.5,
                     ),
                     filled: true,
-                    fillColor: const Color(0xFFF8FAFC),
+                    fillColor: Cristal.campo,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                      borderSide: const BorderSide(color: Cristal.bordeFuerte),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                      borderSide: const BorderSide(color: Cristal.bordeFuerte),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: const BorderSide(
-                        color: _azulPrimario,
+                        color: Cristal.acentoClaro,
                         width: 1.5,
                       ),
                     ),
@@ -612,7 +624,7 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
               onPressed: () => Navigator.of(dialogContext).pop(),
               child: const Text(
                 'Cancelar',
-                style: TextStyle(color: Color(0xFF64748B)),
+                style: TextStyle(color: Cristal.textoSuave),
               ),
             ),
             ElevatedButton.icon(
@@ -621,15 +633,15 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
               icon: const Icon(
                 Icons.auto_awesome_rounded,
                 size: 16,
-                color: _amarillo,
+                color: Cristal.dorado,
               ),
               label: const Text(
                 'Extraer nombres',
                 style: TextStyle(fontWeight: FontWeight.w700),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _azulOscuro,
-                foregroundColor: Colors.white,
+                backgroundColor: Cristal.acento,
+                foregroundColor: Cristal.texto,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -645,15 +657,14 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
 
     setState(() {
       _isExtractingDocs = true;
-      _extractingStepText =
-          'Filtrando los nombres reales de los documentos...';
+      _extractingStepText = 'Filtrando los nombres reales de los documentos...';
     });
 
     final result =
         await SecopDocumentIntelligenceService.procesarTextoCopiadoDeSecop(
-      contrato: widget.contrato,
-      rawCopiedText: textoPegado,
-    );
+          contrato: widget.contrato,
+          rawCopiedText: textoPegado,
+        );
 
     if (!mounted) return;
     setState(() {
@@ -723,7 +734,7 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             behavior: SnackBarBehavior.floating,
-            backgroundColor: _azulOscuro,
+            backgroundColor: Cristal.flotante,
             duration: const Duration(seconds: 4),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -732,7 +743,7 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
               children: [
                 Icon(
                   Icons.verified_user_outlined,
-                  color: _amarillo,
+                  color: Cristal.dorado,
                   size: 19,
                 ),
                 SizedBox(width: 10),
@@ -763,10 +774,11 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
   void _abrirPerfilContratista() {
     final rawContractor =
         _contratoData['proveedor_adjudicado']?.toString().trim() ??
-            _contratistaContrato;
+        _contratistaContrato;
     if (rawContractor.isEmpty || rawContractor == 'No disponible') return;
-    final docProveedor =
-        _contratoData['documento_proveedor']?.toString().trim();
+    final docProveedor = _contratoData['documento_proveedor']
+        ?.toString()
+        .trim();
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -787,9 +799,8 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
     }
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
-        builder: (_) => RouteSecurityGuard(
-          child: HomeScreen(initialIndex: index),
-        ),
+        builder: (_) =>
+            RouteSecurityGuard(child: HomeScreen(initialIndex: index)),
       ),
       (route) => false,
     );
@@ -812,8 +823,7 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
       actionKey: 'copilot_chat:${AuthService.getActiveUserStorageScope()}',
       maxAttempts: 10,
       window: const Duration(minutes: 1),
-      customErrorMessage:
-          'Alcanzaste el límite de consultas por minuto al Copiloto IA. Espera unos segundos.',
+      customErrorMessage: 'Alcanzaste el límite de consultas por minuto al Copiloto IA. Espera unos segundos.',
     );
     if (!aiRate.allowed) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -873,7 +883,8 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
         historial.removeAt(0);
       }
 
-      final String contextoContrato = '''
+      final String contextoContrato =
+          '''
 Responde la consulta aplicando estrictamente las reglas de tono, extensión y formato del sistema. Usa solo los datos del contrato; si un dato no figura, indícalo como "No reportado en SECOP".
 
 <datos_contrato_no_confiables>
@@ -961,32 +972,49 @@ FORMATO (Markdown)
 
     linea('Tipo de contrato', campo('tipo_de_contrato'));
     linea('Plazo', a.tienePlazo ? a.equivalenciaTexto : '');
-    linea('Inicio', a.fechaInicio != null
-        ? ContractFinancialAnalysis.formatFecha(a.fechaInicio)
-        : '');
-    linea('Fin', a.fechaFin != null
-        ? ContractFinancialAnalysis.formatFecha(a.fechaFin)
-        : '');
+    linea(
+      'Inicio',
+      a.fechaInicio != null
+          ? ContractFinancialAnalysis.formatFecha(a.fechaInicio)
+          : '',
+    );
+    linea(
+      'Fin',
+      a.fechaFin != null
+          ? ContractFinancialAnalysis.formatFecha(a.fechaFin)
+          : '',
+    );
     if (a.tienePlazo && a.valorTotal > 0) {
-      linea('Valor diario promedio', ContractFinancialAnalysis.formatCop(a.valorDiario));
+      linea(
+        'Valor diario promedio',
+        ContractFinancialAnalysis.formatCop(a.valorDiario),
+      );
       linea(
         'Valor mensual estimado (base 30 días)',
         ContractFinancialAnalysis.formatCop(a.valorMensualEstimado),
       );
     }
-    if (a.diasAdicionados > 0) linea('Días adicionados', '${a.diasAdicionados}');
-    a.pagos.forEach(
-      (k, v) => linea(k, ContractFinancialAnalysis.formatCop(v)),
-    );
+    if (a.diasAdicionados > 0) {
+      linea('Días adicionados', '${a.diasAdicionados}');
+    }
+    a.pagos.forEach((k, v) => linea(k, ContractFinancialAnalysis.formatCop(v)));
     linea('Supervisor', campo('nombre_supervisor'));
     linea('Ordenador del gasto', campo('nombre_ordenador_del_gasto'));
     linea('NIT entidad', campo('nit_entidad'));
     linea('Documento contratista', campo('documento_proveedor'));
     linea('Representante legal', campo('nombre_representante_legal'));
-    linea('Departamento / ciudad',
-        [campo('departamento'), campo('ciudad')].where((e) => e.isNotEmpty).join(' / '));
+    linea(
+      'Departamento / ciudad',
+      [
+        campo('departamento'),
+        campo('ciudad'),
+      ].where((e) => e.isNotEmpty).join(' / '),
+    );
     linea('Categoría UNSPSC', campo('codigo_de_categoria_principal'));
-    linea('Justificación modalidad', campo('justificacion_modalidad_de_contratacion'));
+    linea(
+      'Justificación modalidad',
+      campo('justificacion_modalidad_de_contratacion'),
+    );
     linea('Origen de los recursos', campo('origen_de_los_recursos'));
     return buffer.toString().trimRight();
   }
@@ -1017,7 +1045,8 @@ FORMATO (Markdown)
   String _generarRespuestaLocalInteligente(String pregunta) {
     final q = pregunta.toLowerCase();
     final a = _analisis;
-    final datosClave = '- **Entidad:** $_entidadContrato\n'
+    final datosClave =
+        '- **Entidad:** $_entidadContrato\n'
         '- **Contratista:** $_contratistaContrato\n'
         '- **Valor:** $_valorFormateado COP · **Modalidad:** $_modalidadContrato\n'
         '- **Estado:** $_estadoContrato · **Firma:** $_fechaFirmaCorta';
@@ -1031,11 +1060,12 @@ FORMATO (Markdown)
           '- **Régimen aplicable:** en modalidad **$_modalidadContrato** prima lo pactado en la minuta y, en régimen especial, el manual de contratación de la entidad.\n'
           '- **Recomendación:** revisar las cláusulas de terminación en el expediente de SECOP.';
     }
-    if ((RegExp(r'mensual|meses|\bmes\b|diario|por d[ií]a|plazo|duraci|financ').hasMatch(q)) &&
+    if ((RegExp(r'mensual|meses|\bmes\b|diario|por d[ií]a|plazo|duraci|financ')
+            .hasMatch(q)) &&
         a.tienePlazo) {
       final valores = a.valorTotal > 0
           ? '- **Valor diario promedio:** ${ContractFinancialAnalysis.formatCop(a.valorDiario)}\n'
-              '- **Valor mensual estimado (base 30 días):** ${ContractFinancialAnalysis.formatCop(a.valorMensualEstimado)}\n'
+                '- **Valor mensual estimado (base 30 días):** ${ContractFinancialAnalysis.formatCop(a.valorMensualEstimado)}\n'
           : '';
       return '- **Valor total:** $_valorFormateado COP\n'
           '- **Plazo:** ${a.equivalenciaTexto}\n'
@@ -1057,7 +1087,9 @@ FORMATO (Markdown)
           '2. **Ejecución:** el contrato figura como **$_estadoContrato** desde el **$_fechaFirmaCorta**; revisar los informes de supervisión en SECOP.\n'
           '- **Recomendación:** contrastar pagos y adiciones con el avance reportado.';
     }
-    if (q.contains('contratista') || q.contains('quién') || q.contains('quien')) {
+    if (q.contains('contratista') ||
+        q.contains('quién') ||
+        q.contains('quien')) {
       return '- **Contratista:** $_contratistaContrato\n'
           '- **Entidad:** $_entidadContrato · **Firma:** $_fechaFirmaCorta\n'
           '- Su historial completo está en el perfil del contratista (clic en su nombre en la ficha técnica).';
@@ -1097,25 +1129,19 @@ FORMATO (Markdown)
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         InkWell(
+          hoverDuration: Cristal.micro,
           onTap: () => Navigator.maybePop(context),
           borderRadius: BorderRadius.circular(22),
           child: Container(
             width: isMobile ? 36 : 40,
             height: isMobile ? 36 : 40,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.92),
+              color: Cristal.vidrio,
               shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: _azulOscuro.withValues(alpha: 0.06),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
             ),
             child: Icon(
               Icons.arrow_back,
-              color: _azulOscuro,
+              color: Cristal.texto,
               size: isMobile ? 17 : 19,
             ),
           ),
@@ -1128,7 +1154,7 @@ FORMATO (Markdown)
               Text(
                 'Detalle del contrato',
                 style: TextStyle(
-                  color: _azulOscuro,
+                  color: Cristal.texto,
                   fontSize: isMobile ? 22 : 32,
                   fontWeight: FontWeight.w800,
                   height: 1.05,
@@ -1139,7 +1165,7 @@ FORMATO (Markdown)
                 width: 38,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: _amarillo,
+                  color: Cristal.dorado,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1151,7 +1177,7 @@ FORMATO (Markdown)
             icon: _esFavorito
                 ? Icons.bookmark_rounded
                 : Icons.bookmark_border_rounded,
-            iconColor: _esFavorito ? Colors.amber.shade700 : _azulOscuro,
+            iconColor: _esFavorito ? Cristal.ambar : Cristal.texto,
             tooltip: _esFavorito
                 ? 'Eliminar de favoritos'
                 : 'Guardar en favoritos',
@@ -1161,7 +1187,7 @@ FORMATO (Markdown)
           const SizedBox(width: 10),
           _buildActionIconButton(
             icon: Icons.share_outlined,
-            iconColor: _azulOscuro,
+            iconColor: Cristal.texto,
             tooltip: 'Compartir contrato',
             onTap: _compartirContrato,
             elevatedWhite: true,
@@ -1183,19 +1209,20 @@ FORMATO (Markdown)
     return Tooltip(
       message: tooltip,
       child: InkWell(
+        hoverDuration: Cristal.micro,
         onTap: onTap,
         borderRadius: BorderRadius.circular(11),
         child: Container(
           width: elevatedWhite ? 42 : 38,
           height: elevatedWhite ? 42 : 38,
           decoration: BoxDecoration(
-            color: elevatedWhite ? Colors.white : const Color(0xFFF8FAFC),
+            color: elevatedWhite ? Cristal.vidrio : Cristal.vidrioSuave,
             borderRadius: BorderRadius.circular(11),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: Cristal.borde),
             boxShadow: elevatedWhite
                 ? [
                     BoxShadow(
-                      color: _azulOscuro.withValues(alpha: 0.06),
+                      color: Cristal.sombra,
                       blurRadius: 10,
                       offset: const Offset(0, 3),
                     ),
@@ -1216,12 +1243,14 @@ FORMATO (Markdown)
       bool showSparkle = false,
     }) {
       final bool isSelected = _selectedTab == index;
-      final Color activeColor =
-          insideSummaryCard ? _azulOscuro : _azulPrimario;
-      final Color inactiveColor = const Color(0xFF475569);
+      final Color activeColor = insideSummaryCard
+          ? Cristal.texto
+          : Cristal.acentoClaro;
+      final Color inactiveColor = Cristal.textoMedio;
 
       return Expanded(
         child: InkWell(
+          hoverDuration: Cristal.micro,
           onTap: () => setState(() => _selectedTab = index),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
           child: Column(
@@ -1244,8 +1273,9 @@ FORMATO (Markdown)
                       style: TextStyle(
                         color: isSelected ? activeColor : inactiveColor,
                         fontSize: 13,
-                        fontWeight:
-                            isSelected ? FontWeight.w700 : FontWeight.w600,
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.w600,
                       ),
                     ),
                     if (showSparkle) ...[
@@ -1259,7 +1289,7 @@ FORMATO (Markdown)
                 height: 3,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: isSelected ? _amarillo : Colors.transparent,
+                  color: isSelected ? Cristal.dorado : Colors.transparent,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1271,17 +1301,11 @@ FORMATO (Markdown)
 
     return Container(
       decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
-        ),
+        border: Border(bottom: BorderSide(color: Cristal.borde, width: 1)),
       ),
       child: Row(
         children: [
-          tabItem(
-            index: 0,
-            icon: Icons.description_outlined,
-            label: 'Resumen',
-          ),
+          tabItem(index: 0, icon: Icons.description_outlined, label: 'Resumen'),
           tabItem(
             index: 1,
             icon: Icons.insert_drive_file_outlined,
@@ -1303,15 +1327,8 @@ FORMATO (Markdown)
       width: double.infinity,
       padding: EdgeInsets.all(isMobile ? 16 : 28),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Cristal.vidrio,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: _azulOscuro.withValues(alpha: 0.05),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1324,7 +1341,7 @@ FORMATO (Markdown)
                   vertical: 7,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE8F1FF),
+                  color: Cristal.azulVidrio,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -1333,13 +1350,13 @@ FORMATO (Markdown)
                     const Icon(
                       Icons.check_circle_outline,
                       size: 16,
-                      color: Color(0xFF2563EB),
+                      color: Cristal.acentoClaro,
                     ),
                     const SizedBox(width: 7),
                     Text(
                       _estadoContrato,
                       style: const TextStyle(
-                        color: Color(0xFF2563EB),
+                        color: Cristal.acentoClaro,
                         fontSize: 12.5,
                         fontWeight: FontWeight.w700,
                       ),
@@ -1352,7 +1369,7 @@ FORMATO (Markdown)
                 icon: _esFavorito
                     ? Icons.bookmark_rounded
                     : Icons.bookmark_border_rounded,
-                iconColor: _esFavorito ? Colors.amber.shade700 : _azulOscuro,
+                iconColor: _esFavorito ? Cristal.ambar : Cristal.texto,
                 tooltip: _esFavorito
                     ? 'Eliminar de favoritos'
                     : 'Guardar en favoritos',
@@ -1361,7 +1378,7 @@ FORMATO (Markdown)
               const SizedBox(width: 8),
               _buildActionIconButton(
                 icon: Icons.share_outlined,
-                iconColor: _azulOscuro,
+                iconColor: Cristal.texto,
                 tooltip: 'Compartir contrato',
                 onTap: _compartirContrato,
               ),
@@ -1371,7 +1388,7 @@ FORMATO (Markdown)
           Text(
             _descripcionContrato.toUpperCase(),
             style: TextStyle(
-              color: _azulOscuro,
+              color: Cristal.texto,
               fontSize: isMobile ? 16.5 : 19.5,
               fontWeight: FontWeight.w800,
               height: 1.35,
@@ -1381,7 +1398,7 @@ FORMATO (Markdown)
           Text(
             _valorFormateado,
             style: TextStyle(
-              color: const Color(0xFF15803D),
+              color: Cristal.verde,
               fontSize: isMobile ? 24 : 30,
               fontWeight: FontWeight.w800,
             ),
@@ -1393,16 +1410,16 @@ FORMATO (Markdown)
           if (isMobile) ...[
             _buildResumenInfoBox(
               icon: Icons.account_balance_outlined,
-              iconColor: const Color(0xFF2563EB),
-              iconBg: const Color(0xFFE8F1FF),
+              iconColor: Cristal.acentoClaro,
+              iconBg: Cristal.azulVidrio,
               label: 'Entidad contratante',
               value: _entidadContrato.toUpperCase(),
             ),
             const SizedBox(height: 10),
             _buildResumenInfoBox(
               icon: Icons.person_outline,
-              iconColor: const Color(0xFF16A34A),
-              iconBg: const Color(0xFFE6F6EC),
+              iconColor: Cristal.verde,
+              iconBg: Cristal.verdeVidrio,
               label: 'Contratista',
               value: _contratistaContrato.toUpperCase(),
               isLink: true,
@@ -1411,16 +1428,16 @@ FORMATO (Markdown)
             const SizedBox(height: 10),
             _buildResumenInfoBox(
               icon: Icons.gavel_rounded,
-              iconColor: const Color(0xFFE5A000),
-              iconBg: const Color(0xFFFEF5D8),
+              iconColor: Cristal.dorado,
+              iconBg: Cristal.doradoVidrio,
               label: 'Modalidad',
               value: _modalidadContrato,
             ),
             const SizedBox(height: 10),
             _buildResumenInfoBox(
               icon: Icons.calendar_today_outlined,
-              iconColor: const Color(0xFF4F46E5),
-              iconBg: const Color(0xFFEDE9FE),
+              iconColor: const Color(0xFF818CF8),
+              iconBg: const Color(0x248B5CF6),
               label: 'Fecha de firma',
               value: _fechaFirmaIso,
             ),
@@ -1430,8 +1447,8 @@ FORMATO (Markdown)
                 Expanded(
                   child: _buildResumenInfoBox(
                     icon: Icons.account_balance_outlined,
-                    iconColor: const Color(0xFF2563EB),
-                    iconBg: const Color(0xFFE8F1FF),
+                    iconColor: Cristal.acentoClaro,
+                    iconBg: Cristal.azulVidrio,
                     label: 'Entidad contratante',
                     value: _entidadContrato.toUpperCase(),
                   ),
@@ -1440,8 +1457,8 @@ FORMATO (Markdown)
                 Expanded(
                   child: _buildResumenInfoBox(
                     icon: Icons.person_outline,
-                    iconColor: const Color(0xFF16A34A),
-                    iconBg: const Color(0xFFE6F6EC),
+                    iconColor: Cristal.verde,
+                    iconBg: Cristal.verdeVidrio,
                     label: 'Contratista',
                     value: _contratistaContrato.toUpperCase(),
                     isLink: true,
@@ -1456,8 +1473,8 @@ FORMATO (Markdown)
                 Expanded(
                   child: _buildResumenInfoBox(
                     icon: Icons.gavel_rounded,
-                    iconColor: const Color(0xFFE5A000),
-                    iconBg: const Color(0xFFFEF5D8),
+                    iconColor: Cristal.dorado,
+                    iconBg: Cristal.doradoVidrio,
                     label: 'Modalidad',
                     value: _modalidadContrato,
                   ),
@@ -1466,8 +1483,8 @@ FORMATO (Markdown)
                 Expanded(
                   child: _buildResumenInfoBox(
                     icon: Icons.calendar_today_outlined,
-                    iconColor: const Color(0xFF4F46E5),
-                    iconBg: const Color(0xFFEDE9FE),
+                    iconColor: const Color(0xFF818CF8),
+                    iconBg: const Color(0x248B5CF6),
                     label: 'Fecha de firma',
                     value: _fechaFirmaIso,
                   ),
@@ -1488,19 +1505,19 @@ FORMATO (Markdown)
               icon: const Icon(
                 Icons.open_in_new,
                 size: 17,
-                color: _azulOscuro,
+                color: Cristal.texto,
               ),
               label: const Text(
                 'Ver expediente original en SECOP',
                 style: TextStyle(
-                  color: _azulOscuro,
+                  color: Cristal.texto,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               style: OutlinedButton.styleFrom(
-                backgroundColor: const Color(0xFFF8FAFC),
-                side: const BorderSide(color: Color(0xFFCBD5E1)),
+                backgroundColor: Cristal.vidrioSuave,
+                side: const BorderSide(color: Cristal.bordeFuerte),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -1516,9 +1533,6 @@ FORMATO (Markdown)
   // DESGLOSE FINANCIERO, PLAZO Y VALOR MENSUAL + FICHA TÉCNICA INTEGRAL
   // ===========================================================================
 
-  static const Color _finCrema = Color(0xFFFAF5EA);
-  static const Color _finVerdeValor = Color(0xFF15803D);
-
   Widget _buildValorMensualHeadline({required bool isMobile}) {
     final a = _analisis;
     final chips = <Widget>[];
@@ -1530,9 +1544,9 @@ FORMATO (Markdown)
           text: a.esMenorAUnMes
               ? 'Pago total por ${a.plazoDias} días'
               : '≈ ${ContractFinancialAnalysis.formatCop(a.valorMensualEstimado)} / mes',
-          bg: _azulOscuro,
-          fg: Colors.white,
-          iconColor: _amarillo,
+          bg: Cristal.acentoVidrio,
+          fg: Cristal.texto,
+          iconColor: Cristal.dorado,
         ),
       );
     }
@@ -1541,9 +1555,9 @@ FORMATO (Markdown)
         _finHeadlineChip(
           icon: Icons.timelapse_rounded,
           text: '${a.plazoDias} días · ${a.mesesDecimalTexto}',
-          bg: const Color(0xFFFEF5D8),
-          fg: _azulOscuro,
-          iconColor: const Color(0xFFB45309),
+          bg: Cristal.doradoVidrio,
+          fg: Cristal.texto,
+          iconColor: Cristal.ambar,
         ),
       );
     }
@@ -1552,9 +1566,9 @@ FORMATO (Markdown)
         _finHeadlineChip(
           icon: Icons.sync_rounded,
           text: 'Completando expediente oficial…',
-          bg: const Color(0xFFF1F5F9),
-          fg: const Color(0xFF475569),
-          iconColor: const Color(0xFF64748B),
+          bg: Cristal.vidrioSuave,
+          fg: Cristal.textoMedio,
+          iconColor: Cristal.textoSuave,
         ),
       );
     }
@@ -1611,10 +1625,10 @@ FORMATO (Markdown)
           width: 38,
           height: 38,
           decoration: BoxDecoration(
-            color: _azulOscuro,
+            color: Cristal.acento,
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, color: _amarillo, size: 20),
+          child: Icon(icon, color: Cristal.dorado, size: 20),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -1624,7 +1638,7 @@ FORMATO (Markdown)
               Text(
                 title,
                 style: const TextStyle(
-                  color: _azulOscuro,
+                  color: Cristal.texto,
                   fontSize: 15.5,
                   fontWeight: FontWeight.w800,
                   height: 1.25,
@@ -1635,7 +1649,7 @@ FORMATO (Markdown)
                 Text(
                   subtitle,
                   style: const TextStyle(
-                    color: Color(0xFF64748B),
+                    color: Cristal.textoSuave,
                     fontSize: 12,
                     height: 1.35,
                   ),
@@ -1661,10 +1675,10 @@ FORMATO (Markdown)
       width: width,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: highlight ? _azulOscuro : Colors.white,
+        color: highlight ? Cristal.acentoVidrio : Cristal.vidrio,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: highlight ? _azulOscuro : const Color(0xFFEDE3CC),
+          color: highlight ? Cristal.acentoClaro : Cristal.borde,
         ),
       ),
       child: Column(
@@ -1675,7 +1689,7 @@ FORMATO (Markdown)
               Icon(
                 icon,
                 size: 16,
-                color: highlight ? _amarillo : const Color(0xFFB45309),
+                color: highlight ? Cristal.dorado : Cristal.ambar,
               ),
               const SizedBox(width: 6),
               Expanded(
@@ -1683,8 +1697,8 @@ FORMATO (Markdown)
                   label,
                   style: TextStyle(
                     color: highlight
-                        ? Colors.white.withValues(alpha: 0.85)
-                        : const Color(0xFF64748B),
+                        ? Cristal.texto.withValues(alpha: 0.85)
+                        : Cristal.textoSuave,
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1696,7 +1710,7 @@ FORMATO (Markdown)
           SelectableText(
             value,
             style: TextStyle(
-              color: highlight ? _amarillo : _azulOscuro,
+              color: highlight ? Cristal.dorado : Cristal.texto,
               fontSize: highlight ? 20 : 16.5,
               fontWeight: FontWeight.w800,
             ),
@@ -1707,8 +1721,8 @@ FORMATO (Markdown)
               caption,
               style: TextStyle(
                 color: highlight
-                    ? Colors.white.withValues(alpha: 0.75)
-                    : const Color(0xFF64748B),
+                    ? Cristal.texto.withValues(alpha: 0.75)
+                    : Cristal.textoSuave,
                 fontSize: 11.5,
                 height: 1.35,
               ),
@@ -1727,9 +1741,9 @@ FORMATO (Markdown)
       width: double.infinity,
       padding: EdgeInsets.all(isMobile ? 14 : 20),
       decoration: BoxDecoration(
-        color: _finCrema,
+        color: Cristal.vidrioSuave,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEDE3CC)),
+        border: Border.all(color: Cristal.borde),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1737,15 +1751,12 @@ FORMATO (Markdown)
           _finSectionHeader(
             icon: Icons.calculate_outlined,
             title: 'Desglose financiero, plazo y valor mensual estimado',
-            subtitle:
-                'Calculado con los datos oficiales de SECOP · 1 mes comercial = 30 días',
+            subtitle: 'Calculado con los datos oficiales de SECOP · 1 mes comercial = 30 días',
           ),
           const SizedBox(height: 16),
           LayoutBuilder(
             builder: (context, constraints) {
-              final cols = isMobile
-                  ? 1
-                  : (constraints.maxWidth > 820 ? 3 : 2);
+              final cols = isMobile ? 1 : (constraints.maxWidth > 820 ? 3 : 2);
               const gap = 12.0;
               final w = (constraints.maxWidth - gap * (cols - 1)) / cols;
               final tiles = <Widget>[
@@ -1819,9 +1830,9 @@ FORMATO (Markdown)
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Cristal.vidrio,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFEDE3CC)),
+                border: Border.all(color: Cristal.borde),
               ),
               child: SelectableText(
                 'Cálculo: ${fmt(a.valorTotal)} ÷ ${a.plazoDias} días = '
@@ -1831,7 +1842,7 @@ FORMATO (Markdown)
                 'pago real (mensualidades, anticipo o pago único) se define en '
                 'la minuta y los estudios previos del contrato.',
                 style: const TextStyle(
-                  color: Color(0xFF475569),
+                  color: Cristal.textoMedio,
                   fontSize: 12,
                   height: 1.45,
                 ),
@@ -1876,7 +1887,7 @@ FORMATO (Markdown)
               child: Text(
                 'Inicio: ${ContractFinancialAnalysis.formatFecha(a.fechaInicio)}',
                 style: const TextStyle(
-                  color: _azulOscuro,
+                  color: Cristal.texto,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1885,7 +1896,7 @@ FORMATO (Markdown)
             Text(
               'Fin: ${ContractFinancialAnalysis.formatFecha(a.fechaFin)}',
               style: const TextStyle(
-                color: _azulOscuro,
+                color: Cristal.texto,
                 fontSize: 12.5,
                 fontWeight: FontWeight.w700,
               ),
@@ -1899,8 +1910,8 @@ FORMATO (Markdown)
             child: LinearProgressIndicator(
               value: avance,
               minHeight: 9,
-              backgroundColor: const Color(0xFFEDE3CC),
-              valueColor: const AlwaysStoppedAnimation<Color>(_amarillo),
+              backgroundColor: Cristal.vidrioFuerte,
+              valueColor: const AlwaysStoppedAnimation<Color>(Cristal.dorado),
             ),
           ),
         ],
@@ -1909,7 +1920,7 @@ FORMATO (Markdown)
           avance != null
               ? '${a.estadoTemporal} · ${(avance * 100).toStringAsFixed(0)}% del plazo transcurrido'
               : a.estadoTemporal,
-          style: const TextStyle(color: Color(0xFF64748B), fontSize: 11.5),
+          style: const TextStyle(color: Cristal.textoSuave, fontSize: 11.5),
         ),
       ],
     );
@@ -1926,12 +1937,12 @@ FORMATO (Markdown)
       children: [
         Row(
           children: [
-            Icon(icono, size: 17, color: const Color(0xFFB45309)),
+            Icon(icono, size: 17, color: Cristal.ambar),
             const SizedBox(width: 6),
             Text(
               titulo,
               style: const TextStyle(
-                color: _azulOscuro,
+                color: Cristal.texto,
                 fontSize: 13.5,
                 fontWeight: FontWeight.w800,
               ),
@@ -1952,7 +1963,7 @@ FORMATO (Markdown)
                       child: Text(
                         e.key,
                         style: const TextStyle(
-                          color: Color(0xFF475569),
+                          color: Cristal.textoMedio,
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1961,7 +1972,7 @@ FORMATO (Markdown)
                     Text(
                       ContractFinancialAnalysis.formatCop(e.value),
                       style: const TextStyle(
-                        color: _finVerdeValor,
+                        color: Cristal.verde,
                         fontSize: 12.5,
                         fontWeight: FontWeight.w800,
                       ),
@@ -1974,7 +1985,7 @@ FORMATO (Markdown)
                           '${(pct * 100).toStringAsFixed(0)}%',
                           textAlign: TextAlign.right,
                           style: const TextStyle(
-                            color: Color(0xFF64748B),
+                            color: Cristal.textoSuave,
                             fontSize: 11.5,
                           ),
                         ),
@@ -1989,9 +2000,9 @@ FORMATO (Markdown)
                     child: LinearProgressIndicator(
                       value: pct,
                       minHeight: 6,
-                      backgroundColor: const Color(0xFFEDE3CC),
+                      backgroundColor: Cristal.vidrioFuerte,
                       valueColor: const AlwaysStoppedAnimation<Color>(
-                        _azulOscuro,
+                        Cristal.acentoClaro,
                       ),
                     ),
                   ),
@@ -2025,8 +2036,10 @@ FORMATO (Markdown)
 
   Widget _buildFichaTecnicaIntegral({required bool isMobile}) {
     final secciones = ContractFieldCatalog.buildSections(_contratoData);
-    final totalCampos =
-        secciones.fold<int>(0, (sum, s) => sum + s.entries.length);
+    final totalCampos = secciones.fold<int>(
+      0,
+      (sum, s) => sum + s.entries.length,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2037,14 +2050,14 @@ FORMATO (Markdown)
           subtitle: _expedienteEnriquecido
               ? '$totalCampos campos oficiales extraídos de Datos Abiertos SECOP'
               : '$totalCampos campos disponibles'
-                  '${_cargandoExpedienteCompleto ? ' · consultando expediente completo…' : ''}',
+                    '${_cargandoExpedienteCompleto ? ' · consultando expediente completo…' : ''}',
           trailing: _cargandoExpedienteCompleto
               ? const SizedBox(
                   width: 18,
                   height: 18,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: _azulOscuro,
+                    color: Cristal.acentoClaro,
                   ),
                 )
               : null,
@@ -2053,7 +2066,7 @@ FORMATO (Markdown)
         if (secciones.isEmpty)
           const Text(
             'SECOP no reporta información adicional para este contrato.',
-            style: TextStyle(color: Color(0xFF64748B), fontSize: 12.5),
+            style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
           ),
         ...secciones.map(
           (s) => Padding(
@@ -2071,9 +2084,9 @@ FORMATO (Markdown)
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Cristal.vidrio,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: Cristal.borde),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -2083,20 +2096,20 @@ FORMATO (Markdown)
           childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
           leading: Icon(
             _finIconoSeccion(seccion.id),
-            color: _azulOscuro,
+            color: Cristal.texto,
             size: 20,
           ),
           title: Text(
             seccion.title,
             style: const TextStyle(
-              color: _azulOscuro,
+              color: Cristal.texto,
               fontSize: 13.5,
               fontWeight: FontWeight.w800,
             ),
           ),
           subtitle: Text(
             '${seccion.entries.length} campos',
-            style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11.5),
+            style: const TextStyle(color: Cristal.textoTenue, fontSize: 11.5),
           ),
           children: [
             LayoutBuilder(
@@ -2120,13 +2133,14 @@ FORMATO (Markdown)
   }
 
   Widget _finCampoFicha(ContractFieldEntry e, {required double width}) {
-    final esContratista = e.key == 'proveedor_adjudicado' ||
+    final esContratista =
+        e.key == 'proveedor_adjudicado' ||
         e.key == 'nom_razon_social_contratista';
     return Container(
       width: width,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: Cristal.vidrioSuave,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
@@ -2135,7 +2149,7 @@ FORMATO (Markdown)
           Text(
             e.label,
             style: const TextStyle(
-              color: Color(0xFF64748B),
+              color: Cristal.textoSuave,
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -2143,11 +2157,12 @@ FORMATO (Markdown)
           const SizedBox(height: 4),
           if (esContratista)
             InkWell(
+              hoverDuration: Cristal.micro,
               onTap: _abrirPerfilContratista,
               child: Text(
                 e.value,
                 style: const TextStyle(
-                  color: _azulPrimario,
+                  color: Cristal.acentoClaro,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                   decoration: TextDecoration.underline,
@@ -2158,7 +2173,7 @@ FORMATO (Markdown)
             SelectableText(
               e.value,
               style: const TextStyle(
-                color: _azulOscuro,
+                color: Cristal.texto,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 height: 1.35,
@@ -2181,16 +2196,9 @@ FORMATO (Markdown)
     final content = Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Cristal.vidrio,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFEEF2F6)),
-        boxShadow: [
-          BoxShadow(
-            color: _azulOscuro.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        border: Border.all(color: Cristal.borde),
       ),
       child: Row(
         children: [
@@ -2211,7 +2219,7 @@ FORMATO (Markdown)
                 Text(
                   label,
                   style: const TextStyle(
-                    color: Color(0xFF64748B),
+                    color: Cristal.textoSuave,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
@@ -2222,11 +2230,11 @@ FORMATO (Markdown)
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: isLink ? _azulPrimario : _azulOscuro,
+                    color: isLink ? Cristal.acentoClaro : Cristal.texto,
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     decoration: isLink ? TextDecoration.underline : null,
-                    decorationColor: _azulPrimario,
+                    decorationColor: Cristal.acentoClaro,
                   ),
                 ),
               ],
@@ -2234,11 +2242,7 @@ FORMATO (Markdown)
           ),
           if (isLink) ...[
             const SizedBox(width: 8),
-            const Icon(
-              Icons.open_in_new,
-              size: 17,
-              color: _azulPrimario,
-            ),
+            const Icon(Icons.open_in_new, size: 17, color: Cristal.acentoClaro),
           ],
         ],
       ),
@@ -2246,6 +2250,7 @@ FORMATO (Markdown)
 
     if (onTap != null) {
       return InkWell(
+        hoverDuration: Cristal.micro,
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
         child: content,
@@ -2299,15 +2304,8 @@ FORMATO (Markdown)
             vertical: isMobile ? 26 : 36,
           ),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Cristal.vidrio,
             borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: _azulOscuro.withValues(alpha: 0.05),
-                blurRadius: 18,
-                offset: const Offset(0, 6),
-              ),
-            ],
           ),
           child: innerContent,
         ),
@@ -2339,9 +2337,9 @@ FORMATO (Markdown)
                       height: 90,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: const Color(0xFFEFF6FF),
+                        color: Cristal.azulVidrio,
                         border: Border.all(
-                          color: const Color(0xFFDBEAFE),
+                          color: Cristal.acentoBorde,
                           width: 1.5,
                         ),
                       ),
@@ -2350,19 +2348,12 @@ FORMATO (Markdown)
                       width: 64,
                       height: 64,
                       decoration: BoxDecoration(
-                        color: _azulOscuro,
+                        color: Cristal.acentoVidrio,
                         borderRadius: BorderRadius.circular(18),
-                        boxShadow: [
-                          BoxShadow(
-                            color: _azulOscuro.withValues(alpha: 0.18),
-                            blurRadius: 14,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
                       ),
                       child: const Icon(
                         Icons.find_in_page_rounded,
-                        color: Colors.white,
+                        color: Cristal.texto,
                         size: 32,
                       ),
                     ),
@@ -2373,20 +2364,13 @@ FORMATO (Markdown)
                         width: 30,
                         height: 30,
                         decoration: BoxDecoration(
-                          color: _amarillo,
+                          color: Cristal.dorado,
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2.5),
-                          boxShadow: [
-                            BoxShadow(
-                              color: _azulOscuro.withValues(alpha: 0.12),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
+                          border: Border.all(color: Cristal.borde, width: 2.5),
                         ),
                         child: const Icon(
                           Icons.auto_awesome_rounded,
-                          color: _azulOscuro,
+                          color: Cristal.tinta,
                           size: 15,
                         ),
                       ),
@@ -2401,9 +2385,9 @@ FORMATO (Markdown)
                   vertical: 5,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEFF6FF),
+                  color: Cristal.azulVidrio,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFBFDBFE)),
+                  border: Border.all(color: Cristal.acentoBorde),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
@@ -2411,13 +2395,13 @@ FORMATO (Markdown)
                     Icon(
                       Icons.auto_awesome_rounded,
                       size: 13,
-                      color: _azulPrimario,
+                      color: Cristal.acentoClaro,
                     ),
                     SizedBox(width: 6),
                     Text(
                       'INTELIGENCIA DOCUMENTAL · SECOP II',
                       style: TextStyle(
-                        color: _azulPrimario,
+                        color: Cristal.acentoClaro,
                         fontSize: 10.5,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.3,
@@ -2431,7 +2415,7 @@ FORMATO (Markdown)
                 'Conoce qué documentos tiene este contrato',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: _azulOscuro,
+                  color: Cristal.texto,
                   fontSize: isMobile ? 20 : 23,
                   fontWeight: FontWeight.w800,
                   height: 1.2,
@@ -2442,7 +2426,7 @@ FORMATO (Markdown)
                 'Escanea en tiempo real la sección "Documentación" de este expediente en SECOP II para extraer y listar aquí los nombres exactos de los anexos publicados antes de ir a descargarlos.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: const Color(0xFF475569),
+                  color: Cristal.textoMedio,
                   fontSize: isMobile ? 14 : 15,
                   fontWeight: FontWeight.w500,
                   height: 1.55,
@@ -2455,9 +2439,9 @@ FORMATO (Markdown)
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: Cristal.vidrioSuave,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: Cristal.borde),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -2465,7 +2449,7 @@ FORMATO (Markdown)
                     const Icon(
                       Icons.link_rounded,
                       size: 16,
-                      color: _azulPrimario,
+                      color: Cristal.acentoClaro,
                     ),
                     const SizedBox(width: 8),
                     Flexible(
@@ -2474,7 +2458,7 @@ FORMATO (Markdown)
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: Color(0xFF334155),
+                          color: Cristal.textoCuerpo,
                           fontSize: 12.5,
                           fontWeight: FontWeight.w700,
                         ),
@@ -2492,7 +2476,7 @@ FORMATO (Markdown)
                       _ejecutarExtraccionDocumentos(forceRefresh: false),
                   icon: const Icon(
                     Icons.auto_awesome_rounded,
-                    color: _amarillo,
+                    color: Cristal.dorado,
                     size: 20,
                   ),
                   label: Text(
@@ -2504,10 +2488,10 @@ FORMATO (Markdown)
                     ),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _azulOscuro,
-                    foregroundColor: Colors.white,
+                    backgroundColor: Cristal.acento,
+                    foregroundColor: Cristal.texto,
                     elevation: 2,
-                    shadowColor: _azulOscuro.withValues(alpha: 0.25),
+                    shadowColor: Cristal.sombra,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -2520,13 +2504,10 @@ FORMATO (Markdown)
                 icon: const Icon(Icons.open_in_new_rounded, size: 15),
                 label: const Text(
                   'O abrir directamente la sección en SECOP II',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
                 ),
                 style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF64748B),
+                  foregroundColor: Cristal.textoSuave,
                 ),
               ),
             ],
@@ -2557,7 +2538,7 @@ FORMATO (Markdown)
                       child: CircularProgressIndicator(
                         strokeWidth: 3.2,
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          _azulPrimario,
+                          Cristal.acentoClaro,
                         ),
                       ),
                     ),
@@ -2565,12 +2546,12 @@ FORMATO (Markdown)
                       width: 44,
                       height: 44,
                       decoration: const BoxDecoration(
-                        color: Color(0xFFEFF6FF),
+                        color: Cristal.azulVidrio,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
                         Icons.auto_awesome_rounded,
-                        color: _azulOscuro,
+                        color: Cristal.texto,
                         size: 22,
                       ),
                     ),
@@ -2582,7 +2563,7 @@ FORMATO (Markdown)
                 'Analizando sección Documentación en SECOP II',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: _azulOscuro,
+                  color: Cristal.texto,
                   fontSize: isMobile ? 17 : 19,
                   fontWeight: FontWeight.w800,
                 ),
@@ -2592,7 +2573,7 @@ FORMATO (Markdown)
                 _extractingStepText,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  color: Color(0xFF475569),
+                  color: Cristal.textoMedio,
                   fontSize: 13.5,
                   fontWeight: FontWeight.w600,
                   height: 1.45,
@@ -2602,10 +2583,7 @@ FORMATO (Markdown)
               const Text(
                 'Extrayendo únicamente los nombres reales de los anexos cargados por la entidad...',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Color(0xFF94A3B8),
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: Cristal.textoTenue, fontSize: 12),
               ),
             ],
           ),
@@ -2626,10 +2604,12 @@ FORMATO (Markdown)
     final filteredDocs = queryNorm.isEmpty
         ? allDocs
         : allDocs.where((d) {
-            final nameNorm =
-                SecopDocumentIntelligenceService.normalizarTexto(d.name);
-            final catNorm =
-                SecopDocumentIntelligenceService.normalizarTexto(d.category);
+            final nameNorm = SecopDocumentIntelligenceService.normalizarTexto(
+              d.name,
+            );
+            final catNorm = SecopDocumentIntelligenceService.normalizarTexto(
+              d.category,
+            );
             return nameNorm.contains(queryNorm) || catNorm.contains(queryNorm);
           }).toList();
 
@@ -2648,12 +2628,12 @@ FORMATO (Markdown)
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
+                color: Cristal.azulVidrio,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(
                 Icons.fact_check_outlined,
-                color: _azulPrimario,
+                color: Cristal.acentoClaro,
                 size: 24,
               ),
             ),
@@ -2670,7 +2650,7 @@ FORMATO (Markdown)
                       Text(
                         'Documentos encontrados en SECOP II',
                         style: TextStyle(
-                          color: _azulOscuro,
+                          color: Cristal.texto,
                           fontSize: isMobile ? 17.5 : 20,
                           fontWeight: FontWeight.w800,
                         ),
@@ -2681,9 +2661,9 @@ FORMATO (Markdown)
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFECFDF5),
+                          color: const Color(0x1F10B981),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFFA7F3D0)),
+                          border: Border.all(color: Cristal.verdeBorde),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -2691,13 +2671,13 @@ FORMATO (Markdown)
                             const Icon(
                               Icons.check_circle_rounded,
                               size: 13,
-                              color: Color(0xFF059669),
+                              color: Color(0xFF34D399),
                             ),
                             const SizedBox(width: 5),
                             Text(
                               countBadgeText,
                               style: const TextStyle(
-                                color: Color(0xFF047857),
+                                color: Color(0xFF34D399),
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -2711,7 +2691,7 @@ FORMATO (Markdown)
                   Text(
                     'Sección "Documentación" · Proceso: $referenciaDetalle',
                     style: const TextStyle(
-                      color: Color(0xFF64748B),
+                      color: Cristal.textoSuave,
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
                     ),
@@ -2726,10 +2706,10 @@ FORMATO (Markdown)
                       onPressed: () =>
                           _ejecutarExtraccionDocumentos(forceRefresh: true),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: _azulOscuro,
+                        foregroundColor: Cristal.texto,
                         minimumSize: const Size(40, 40),
                         padding: EdgeInsets.zero,
-                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        side: const BorderSide(color: Cristal.bordeFuerte),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
@@ -2742,12 +2722,12 @@ FORMATO (Markdown)
                       icon: const Icon(Icons.refresh_rounded, size: 16),
                       label: const Text('Actualizar'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: _azulOscuro,
+                        foregroundColor: Cristal.texto,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 14,
                           vertical: 10,
                         ),
-                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        side: const BorderSide(color: Cristal.bordeFuerte),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
@@ -2763,16 +2743,16 @@ FORMATO (Markdown)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: Cristal.vidrioSuave,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: Cristal.borde),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Icon(
                   Icons.auto_awesome_rounded,
-                  color: _azulPrimario,
+                  color: Cristal.acentoClaro,
                   size: 19,
                 ),
                 const SizedBox(width: 10),
@@ -2780,7 +2760,7 @@ FORMATO (Markdown)
                   child: Text(
                     result.summaryText,
                     style: const TextStyle(
-                      color: Color(0xFF334155),
+                      color: Cristal.textoCuerpo,
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                       height: 1.45,
@@ -2798,18 +2778,17 @@ FORMATO (Markdown)
           TextField(
             controller: _docFilterController,
             onChanged: (v) => setState(() => _docSearchQuery = v),
-            style: const TextStyle(fontSize: 13, color: _azulOscuro),
+            style: const TextStyle(fontSize: 13, color: Cristal.texto),
             decoration: InputDecoration(
-              hintText:
-                  'Filtrar documentos por nombre o categoría (ej. Estudios previos, CDP, Adenda)...',
+              hintText: 'Filtrar documentos por nombre o categoría (ej. Estudios previos, CDP, Adenda)...',
               hintStyle: const TextStyle(
-                color: Color(0xFF94A3B8),
+                color: Cristal.textoTenue,
                 fontSize: 13,
               ),
               prefixIcon: const Icon(
                 Icons.search_rounded,
                 size: 19,
-                color: Color(0xFF64748B),
+                color: Cristal.textoSuave,
               ),
               suffixIcon: _docSearchQuery.isNotEmpty
                   ? IconButton(
@@ -2826,18 +2805,21 @@ FORMATO (Markdown)
                 vertical: 12,
               ),
               filled: true,
-              fillColor: const Color(0xFFF8FAFC),
+              fillColor: Cristal.campo,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(11),
-                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                borderSide: const BorderSide(color: Cristal.borde),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(11),
-                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                borderSide: const BorderSide(color: Cristal.borde),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(11),
-                borderSide: const BorderSide(color: _azulPrimario, width: 1.4),
+                borderSide: const BorderSide(
+                  color: Cristal.acentoClaro,
+                  width: 1.4,
+                ),
               ),
             ),
           ),
@@ -2852,7 +2834,7 @@ FORMATO (Markdown)
               child: Text(
                 'Ningún documento coincide con "$_docSearchQuery".',
                 style: const TextStyle(
-                  color: Color(0xFF64748B),
+                  color: Cristal.textoSuave,
                   fontSize: 13.5,
                 ),
               ),
@@ -2890,15 +2872,17 @@ FORMATO (Markdown)
           children: [
             Icon(
               esProceso ? Icons.folder_open_rounded : Icons.handshake_outlined,
-              color: _azulPrimario,
+              color: Cristal.acentoClaro,
               size: 19,
             ),
             const SizedBox(width: 8),
             Flexible(
               child: Text(
-                esProceso ? 'Documentos del proceso' : 'Documentos del contrato',
+                esProceso
+                    ? 'Documentos del proceso'
+                    : 'Documentos del contrato',
                 style: const TextStyle(
-                  color: _azulOscuro,
+                  color: Cristal.texto,
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
                 ),
@@ -2908,7 +2892,7 @@ FORMATO (Markdown)
             Text(
               '(${docs.length})',
               style: const TextStyle(
-                color: Color(0xFF64748B),
+                color: Cristal.textoSuave,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
@@ -2945,7 +2929,9 @@ FORMATO (Markdown)
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No fue posible descargar el documento desde SECOP II.'),
+          content: Text(
+            'No fue posible descargar el documento desde SECOP II.',
+          ),
           backgroundColor: Color(0xFFB91C1C),
         ),
       );
@@ -2963,20 +2949,20 @@ FORMATO (Markdown)
     IconData fileIcon;
 
     if (ext == 'PDF') {
-      badgeBg = const Color(0xFFFEF2F2);
-      badgeText = const Color(0xFFDC2626);
+      badgeBg = Cristal.rojoVidrio;
+      badgeText = Cristal.rojo;
       fileIcon = Icons.picture_as_pdf_rounded;
     } else if (ext == 'XLSX' || ext == 'XLS' || ext == 'CSV') {
-      badgeBg = const Color(0xFFECFDF5);
-      badgeText = const Color(0xFF059669);
+      badgeBg = const Color(0x1F10B981);
+      badgeText = const Color(0xFF34D399);
       fileIcon = Icons.table_chart_rounded;
     } else if (ext == 'ZIP' || ext == 'RAR' || ext == '7Z') {
-      badgeBg = const Color(0xFFFFFBEB);
-      badgeText = const Color(0xFFD97706);
+      badgeBg = Cristal.ambarVidrio;
+      badgeText = Cristal.ambar;
       fileIcon = Icons.folder_zip_rounded;
     } else {
-      badgeBg = const Color(0xFFEFF6FF);
-      badgeText = _azulPrimario;
+      badgeBg = Cristal.azulVidrio;
+      badgeText = Cristal.acentoClaro;
       fileIcon = Icons.description_rounded;
     }
 
@@ -2987,9 +2973,9 @@ FORMATO (Markdown)
         vertical: 13,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Cristal.vidrio,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: Cristal.borde),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -3000,7 +2986,7 @@ FORMATO (Markdown)
             child: Text(
               '${index.toString().padLeft(2, '0')}.',
               style: const TextStyle(
-                color: Color(0xFF94A3B8),
+                color: Cristal.textoTenue,
                 fontSize: 12.5,
                 fontWeight: FontWeight.w800,
               ),
@@ -3023,7 +3009,7 @@ FORMATO (Markdown)
                 SelectableText(
                   doc.name,
                   style: const TextStyle(
-                    color: _azulOscuro,
+                    color: Cristal.texto,
                     fontSize: 13.8,
                     fontWeight: FontWeight.w700,
                     height: 1.3,
@@ -3059,13 +3045,13 @@ FORMATO (Markdown)
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
+                        color: Cristal.vidrioSuave,
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         doc.category,
                         style: const TextStyle(
-                          color: Color(0xFF475569),
+                          color: Cristal.textoMedio,
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
@@ -3084,7 +3070,7 @@ FORMATO (Markdown)
                     tooltip: 'Descargar',
                     icon: const Icon(
                       Icons.download_rounded,
-                      color: _azulPrimario,
+                      color: Cristal.acentoClaro,
                     ),
                   )
                 : OutlinedButton.icon(
@@ -3095,8 +3081,8 @@ FORMATO (Markdown)
                       style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: _azulPrimario,
-                      side: const BorderSide(color: Color(0xFFBFDBFE)),
+                      foregroundColor: Cristal.acentoClaro,
+                      side: const BorderSide(color: Cristal.acentoBorde),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -3110,13 +3096,13 @@ FORMATO (Markdown)
                 Icon(
                   Icons.verified_outlined,
                   size: 14,
-                  color: Color(0xFF059669),
+                  color: Color(0xFF34D399),
                 ),
                 SizedBox(width: 5),
                 Text(
                   'En SECOP II',
                   style: TextStyle(
-                    color: Color(0xFF059669),
+                    color: Color(0xFF34D399),
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -3145,12 +3131,12 @@ FORMATO (Markdown)
                 width: 68,
                 height: 68,
                 decoration: const BoxDecoration(
-                  color: Color(0xFFF1F5F9),
+                  color: Cristal.vidrioSuave,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.inbox_outlined,
-                  color: Color(0xFF64748B),
+                  color: Cristal.textoSuave,
                   size: 32,
                 ),
               ),
@@ -3159,18 +3145,17 @@ FORMATO (Markdown)
                 'Sin documentos listados en esta sección',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: _azulOscuro,
+                  color: Cristal.texto,
                   fontSize: isMobile ? 18 : 20,
                   fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(height: 10),
               Text(
-                message ??
-                    'Se consultó la sección Documentación de este expediente en SECOP II y no se encontraron anexos publicados.',
+                message ?? 'Se consultó la sección Documentación de este expediente en SECOP II y no se encontraron anexos publicados.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  color: Color(0xFF64748B),
+                  color: Cristal.textoSuave,
                   fontSize: 13.5,
                   height: 1.5,
                 ),
@@ -3187,8 +3172,8 @@ FORMATO (Markdown)
                     icon: const Icon(Icons.refresh_rounded, size: 17),
                     label: const Text('Volver a consultar'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: _azulOscuro,
-                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      foregroundColor: Cristal.texto,
+                      side: const BorderSide(color: Cristal.bordeFuerte),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 18,
                         vertical: 12,
@@ -3203,12 +3188,12 @@ FORMATO (Markdown)
                     icon: const Icon(
                       Icons.open_in_browser_rounded,
                       size: 17,
-                      color: _amarillo,
+                      color: Cristal.dorado,
                     ),
                     label: const Text('Verificar en SECOP II'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _azulOscuro,
-                      foregroundColor: Colors.white,
+                      backgroundColor: Cristal.acento,
+                      foregroundColor: Cristal.texto,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 18,
                         vertical: 12,
@@ -3243,13 +3228,13 @@ FORMATO (Markdown)
                 width: 68,
                 height: 68,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFFBEB),
+                  color: Cristal.ambarVidrio,
                   shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFFFDE68A)),
+                  border: Border.all(color: Cristal.ambarBorde),
                 ),
                 child: const Icon(
                   Icons.security_rounded,
-                  color: Color(0xFFD97706),
+                  color: Cristal.ambar,
                   size: 32,
                 ),
               ),
@@ -3258,18 +3243,17 @@ FORMATO (Markdown)
                 'SECOP solicitó validación anti-bots (reCAPTCHA)',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: _azulOscuro,
+                  color: Cristal.texto,
                   fontSize: isMobile ? 18 : 21,
                   fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(height: 10),
               Text(
-                message ??
-                    'El firewall de Colombia Compra Eficiente bloqueó temporalmente la lectura automática de este contrato.',
+                message ?? 'El firewall de Colombia Compra Eficiente bloqueó temporalmente la lectura automática de este contrato.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  color: Color(0xFF475569),
+                  color: Cristal.textoMedio,
                   fontSize: 13.5,
                   height: 1.5,
                 ),
@@ -3278,9 +3262,9 @@ FORMATO (Markdown)
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: Cristal.vidrioSuave,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: Cristal.borde),
                 ),
                 child: const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -3288,7 +3272,7 @@ FORMATO (Markdown)
                     Text(
                       'Extracción asistida en 2 clics (queda guardada en la app):',
                       style: TextStyle(
-                        color: _azulOscuro,
+                        color: Cristal.texto,
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
                       ),
@@ -3298,7 +3282,7 @@ FORMATO (Markdown)
                       '1. Abre la vista del proceso en SECOP (resuelve el reCAPTCHA si aparece) y presiona Ctrl+A y Ctrl+C.\n'
                       '2. Haz clic en "Extraer lista desde portapapeles" para filtrar y mostrar aquí solo los nombres de los documentos.',
                       style: TextStyle(
-                        color: Color(0xFF475569),
+                        color: Cristal.textoMedio,
                         fontSize: 12.5,
                         height: 1.5,
                       ),
@@ -3320,8 +3304,8 @@ FORMATO (Markdown)
                       style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: _azulOscuro,
-                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      foregroundColor: Cristal.texto,
+                      side: const BorderSide(color: Cristal.bordeFuerte),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 18,
                         vertical: 14,
@@ -3336,15 +3320,15 @@ FORMATO (Markdown)
                     icon: const Icon(
                       Icons.auto_awesome_rounded,
                       size: 18,
-                      color: _amarillo,
+                      color: Cristal.dorado,
                     ),
                     label: const Text(
                       '2. Extraer lista desde portapapeles',
                       style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _azulOscuro,
-                      foregroundColor: Colors.white,
+                      backgroundColor: Cristal.acento,
+                      foregroundColor: Cristal.texto,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 20,
                         vertical: 14,
@@ -3366,7 +3350,7 @@ FORMATO (Markdown)
                   style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
                 ),
                 style: TextButton.styleFrom(
-                  foregroundColor: _azulPrimario,
+                  foregroundColor: Cristal.acentoClaro,
                 ),
               ),
             ],
@@ -3384,17 +3368,15 @@ FORMATO (Markdown)
         const SizedBox(height: 12),
         Container(
           constraints: BoxConstraints(minHeight: isMobile ? 460 : 540),
-          padding: EdgeInsets.fromLTRB(isMobile ? 14 : 24, 20, isMobile ? 14 : 24, 16),
+          padding: EdgeInsets.fromLTRB(
+            isMobile ? 14 : 24,
+            20,
+            isMobile ? 14 : 24,
+            16,
+          ),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Cristal.vidrio,
             borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: _azulOscuro.withValues(alpha: 0.05),
-                blurRadius: 18,
-                offset: const Offset(0, 6),
-              ),
-            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -3445,10 +3427,7 @@ FORMATO (Markdown)
                   const Text(
                     'La información generada por la IA puede contener imprecisiones. Verifica siempre en el SECOP.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(0xFF94A3B8),
-                      fontSize: 11,
-                    ),
+                    style: TextStyle(color: Cristal.textoTenue, fontSize: 11),
                   ),
                 ],
               ),
@@ -3498,12 +3477,12 @@ FORMATO (Markdown)
           width: 42,
           height: 42,
           decoration: const BoxDecoration(
-            color: Color(0xFFE8F1FF),
+            color: Cristal.azulVidrio,
             shape: BoxShape.circle,
           ),
           child: const Icon(
             Icons.auto_awesome,
-            color: _azulPrimario,
+            color: Cristal.acentoClaro,
             size: 20,
           ),
         ),
@@ -3513,13 +3492,13 @@ FORMATO (Markdown)
             constraints: const BoxConstraints(maxWidth: 560),
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
             decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
+              color: Cristal.vidrioSuave,
               borderRadius: BorderRadius.circular(14),
             ),
             child: CopilotoMarkdown(
               text,
               style: const TextStyle(
-                color: _azulOscuro,
+                color: Cristal.texto,
                 fontSize: 13,
                 height: 1.45,
                 fontWeight: FontWeight.w500,
@@ -3541,13 +3520,13 @@ FORMATO (Markdown)
             constraints: const BoxConstraints(maxWidth: 500),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
             decoration: BoxDecoration(
-              color: _azulOscuro,
+              color: Cristal.acentoVidrio,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Text(
               text,
               style: const TextStyle(
-                color: Colors.white,
+                color: Cristal.texto,
                 fontSize: 13,
                 height: 1.4,
               ),
@@ -3597,13 +3576,13 @@ FORMATO (Markdown)
             tooltip: pregunta.prompt,
             onPressed: _isTyping ? null : () => _enviarMensaje(pregunta.prompt),
             labelStyle: const TextStyle(
-              color: _azulOscuro,
+              color: Cristal.texto,
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
-            backgroundColor: const Color(0xFFF4F7FB),
-            disabledColor: const Color(0xFFF8FAFC),
-            side: const BorderSide(color: Color(0xFFDCE4F0)),
+            backgroundColor: Cristal.vidrioSuave,
+            disabledColor: Cristal.vidrioFuerte,
+            side: const BorderSide(color: Cristal.borde),
             shape: const StadiumBorder(),
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             visualDensity: VisualDensity.compact,
@@ -3617,12 +3596,12 @@ FORMATO (Markdown)
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 10, 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Cristal.vidrio,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFBFD0EA), width: 1.4),
+        border: Border.all(color: Cristal.acentoBorde, width: 1.4),
         boxShadow: [
           BoxShadow(
-            color: _azulPrimario.withValues(alpha: 0.08),
+            color: Cristal.acentoClaro.withValues(alpha: 0.08),
             blurRadius: 14,
             offset: const Offset(0, 4),
           ),
@@ -3633,12 +3612,12 @@ FORMATO (Markdown)
         children: [
           const Row(
             children: [
-              Icon(Icons.auto_awesome, color: _azulPrimario, size: 15),
+              Icon(Icons.auto_awesome, color: Cristal.acentoClaro, size: 15),
               SizedBox(width: 6),
               Text(
                 'Pregunta lo que necesites sobre este contrato',
                 style: TextStyle(
-                  color: _azulOscuro,
+                  color: Cristal.texto,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w800,
                 ),
@@ -3657,7 +3636,7 @@ FORMATO (Markdown)
                   maxLines: 4,
                   maxLength: 600,
                   style: const TextStyle(
-                    color: _azulOscuro,
+                    color: Cristal.texto,
                     fontSize: 14,
                     height: 1.4,
                   ),
@@ -3666,9 +3645,10 @@ FORMATO (Markdown)
                         ? 'Ej.: ¿Cuáles son las obligaciones del contratista?'
                         : 'Ej.: ¿Cuáles son las obligaciones del contratista? ¿Hubo adiciones? ¿Quién supervisa?',
                     hintStyle: const TextStyle(
-                      color: Color(0xFF94A3B8),
+                      color: Cristal.textoTenue,
                       fontSize: 13.5,
                     ),
+                    filled: false,
                     border: InputBorder.none,
                     counterText: '',
                     contentPadding: const EdgeInsets.symmetric(vertical: 12),
@@ -3685,8 +3665,8 @@ FORMATO (Markdown)
                       : () => _enviarMensaje(_chatController.text),
                   tooltip: 'Enviar pregunta',
                   style: IconButton.styleFrom(
-                    backgroundColor: _azulOscuro,
-                    disabledBackgroundColor: const Color(0xFFCBD5E1),
+                    backgroundColor: Cristal.acento,
+                    disabledBackgroundColor: Cristal.vidrioFuerte,
                     fixedSize: const Size(44, 44),
                   ),
                   icon: _isTyping
@@ -3695,12 +3675,12 @@ FORMATO (Markdown)
                           height: 18,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            color: Cristal.texto,
                           ),
                         )
                       : const Icon(
                           Icons.send_rounded,
-                          color: Colors.white,
+                          color: Cristal.texto,
                           size: 19,
                         ),
                 ),
@@ -3716,20 +3696,14 @@ FORMATO (Markdown)
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Cristal.vidrio,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: _azulOscuro.withValues(alpha: 0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           InkWell(
+            hoverDuration: Cristal.micro,
             onTap: () => setState(() => _contextExpanded = !_contextExpanded),
             child: Row(
               children: [
@@ -3737,13 +3711,13 @@ FORMATO (Markdown)
                   width: 28,
                   height: 28,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE8F1FF),
+                    color: Cristal.azulVidrio,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(
                     Icons.description_outlined,
                     size: 16,
-                    color: Color(0xFF2563EB),
+                    color: Cristal.acentoClaro,
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -3751,7 +3725,7 @@ FORMATO (Markdown)
                   child: Text(
                     'Contexto del contrato',
                     style: TextStyle(
-                      color: _azulOscuro,
+                      color: Cristal.texto,
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
                     ),
@@ -3762,7 +3736,7 @@ FORMATO (Markdown)
                       ? Icons.keyboard_arrow_up
                       : Icons.keyboard_arrow_down,
                   size: 18,
-                  color: _azulOscuro,
+                  color: Cristal.texto,
                 ),
               ],
             ),
@@ -3771,15 +3745,15 @@ FORMATO (Markdown)
             const SizedBox(height: 14),
             _buildContextItem(
               icon: Icons.assignment_outlined,
-              iconColor: const Color(0xFF2563EB),
-              iconBg: const Color(0xFFE8F1FF),
+              iconColor: Cristal.acentoClaro,
+              iconBg: Cristal.azulVidrio,
               label: 'Objeto',
               valueWidget: Text(
                 _descripcionContrato.toUpperCase(),
                 maxLines: 4,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: _azulOscuro,
+                  color: Cristal.texto,
                   fontSize: 10.5,
                   fontWeight: FontWeight.w700,
                   height: 1.3,
@@ -3788,13 +3762,13 @@ FORMATO (Markdown)
             ),
             _buildContextItem(
               icon: Icons.attach_money_rounded,
-              iconColor: const Color(0xFF16A34A),
-              iconBg: const Color(0xFFE6F6EC),
+              iconColor: Cristal.verde,
+              iconBg: Cristal.verdeVidrio,
               label: 'Valor',
               valueWidget: Text(
                 _valorFormateado,
                 style: const TextStyle(
-                  color: _azulOscuro,
+                  color: Cristal.texto,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w800,
                 ),
@@ -3803,17 +3777,19 @@ FORMATO (Markdown)
             if (_analisis.tienePlazo && _analisis.valorTotal > 0)
               _buildContextItem(
                 icon: Icons.payments_outlined,
-                iconColor: const Color(0xFF1D4ED8),
-                iconBg: const Color(0xFFEFF6FF),
+                iconColor: Cristal.acentoClaro,
+                iconBg: Cristal.azulVidrio,
                 label: _analisis.esMenorAUnMes
                     ? 'Pago por ${_analisis.plazoDias} días'
                     : 'Valor mensual estimado',
                 valueWidget: Text(
                   _analisis.esMenorAUnMes
-                      ? ContractFinancialAnalysis.formatCop(_analisis.valorTotal)
+                      ? ContractFinancialAnalysis.formatCop(
+                          _analisis.valorTotal,
+                        )
                       : '${ContractFinancialAnalysis.formatCop(_analisis.valorMensualEstimado)} / mes',
                   style: const TextStyle(
-                    color: Color(0xFF1D4ED8),
+                    color: Cristal.acentoClaro,
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
                   ),
@@ -3822,13 +3798,13 @@ FORMATO (Markdown)
             if (_analisis.tienePlazo)
               _buildContextItem(
                 icon: Icons.timelapse_rounded,
-                iconColor: const Color(0xFFD97706),
-                iconBg: const Color(0xFFFEF5D8),
+                iconColor: Cristal.ambar,
+                iconBg: Cristal.doradoVidrio,
                 label: 'Plazo (base 30 días/mes)',
                 valueWidget: Text(
                   '${_analisis.plazoDias} días · ${_analisis.mesesDecimalTexto}',
                   style: const TextStyle(
-                    color: _azulOscuro,
+                    color: Cristal.texto,
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -3836,13 +3812,13 @@ FORMATO (Markdown)
               ),
             _buildContextItem(
               icon: Icons.account_balance_outlined,
-              iconColor: const Color(0xFF2563EB),
-              iconBg: const Color(0xFFE8F1FF),
+              iconColor: Cristal.acentoClaro,
+              iconBg: Cristal.azulVidrio,
               label: 'Entidad contratante',
               valueWidget: Text(
                 _toTitleCase(_entidadContrato),
                 style: const TextStyle(
-                  color: _azulOscuro,
+                  color: Cristal.texto,
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
                 ),
@@ -3850,15 +3826,16 @@ FORMATO (Markdown)
             ),
             _buildContextItem(
               icon: Icons.person_outline,
-              iconColor: const Color(0xFFD97706),
-              iconBg: const Color(0xFFFEF5D8),
+              iconColor: Cristal.ambar,
+              iconBg: Cristal.doradoVidrio,
               label: 'Contratista',
               valueWidget: InkWell(
+                hoverDuration: Cristal.micro,
                 onTap: _abrirPerfilContratista,
                 child: Text(
                   _toTitleCase(_contratistaContrato),
                   style: const TextStyle(
-                    color: _azulOscuro,
+                    color: Cristal.texto,
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
                   ),
@@ -3867,13 +3844,13 @@ FORMATO (Markdown)
             ),
             _buildContextItem(
               icon: Icons.gavel_rounded,
-              iconColor: const Color(0xFFD97706),
-              iconBg: const Color(0xFFFEF5D8),
+              iconColor: Cristal.ambar,
+              iconBg: Cristal.doradoVidrio,
               label: 'Modalidad',
               valueWidget: Text(
                 _modalidadContrato,
                 style: const TextStyle(
-                  color: _azulOscuro,
+                  color: Cristal.texto,
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
                 ),
@@ -3881,13 +3858,13 @@ FORMATO (Markdown)
             ),
             _buildContextItem(
               icon: Icons.calendar_today_outlined,
-              iconColor: const Color(0xFF2563EB),
-              iconBg: const Color(0xFFE8F1FF),
+              iconColor: Cristal.acentoClaro,
+              iconBg: Cristal.azulVidrio,
               label: 'Fecha de firma',
               valueWidget: Text(
                 _fechaFirmaCorta,
                 style: const TextStyle(
-                  color: _azulOscuro,
+                  color: Cristal.texto,
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
                 ),
@@ -3895,8 +3872,8 @@ FORMATO (Markdown)
             ),
             _buildContextItem(
               icon: Icons.check_circle_outline,
-              iconColor: const Color(0xFF16A34A),
-              iconBg: const Color(0xFFE6F6EC),
+              iconColor: Cristal.verde,
+              iconBg: Cristal.verdeVidrio,
               label: 'Estado',
               isLast: true,
               valueWidget: Container(
@@ -3906,13 +3883,13 @@ FORMATO (Markdown)
                   vertical: 2.5,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFDCFCE7),
+                  color: Cristal.verdeVidrio,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   _estadoContrato,
                   style: const TextStyle(
-                    color: Color(0xFF15803D),
+                    color: Cristal.verde,
                     fontSize: 10.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -3926,8 +3903,8 @@ FORMATO (Markdown)
               child: TextButton.icon(
                 onPressed: _abrirEnlaceSecop,
                 style: TextButton.styleFrom(
-                  backgroundColor: const Color(0xFFF1F5F9),
-                  foregroundColor: _azulOscuro,
+                  backgroundColor: Cristal.vidrioSuave,
+                  foregroundColor: Cristal.texto,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(9),
                   ),
@@ -3935,10 +3912,7 @@ FORMATO (Markdown)
                 icon: const Icon(Icons.open_in_new, size: 14),
                 label: const Text(
                   'Ver expediente en SECOP',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
                 ),
               ),
             ),
@@ -3965,10 +3939,7 @@ FORMATO (Markdown)
             width: 26,
             height: 26,
             margin: const EdgeInsets.only(top: 2),
-            decoration: BoxDecoration(
-              color: iconBg,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
             child: Icon(icon, size: 14, color: iconColor),
           ),
           const SizedBox(width: 10),
@@ -3979,7 +3950,7 @@ FORMATO (Markdown)
                 Text(
                   label,
                   style: const TextStyle(
-                    color: Color(0xFF64748B),
+                    color: Cristal.textoSuave,
                     fontSize: 10.5,
                   ),
                 ),
@@ -4004,15 +3975,8 @@ FORMATO (Markdown)
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Cristal.vidrio,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: _azulOscuro.withValues(alpha: 0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4023,13 +3987,13 @@ FORMATO (Markdown)
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFEF5D8),
+                  color: Cristal.doradoVidrio,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
                   Icons.lightbulb_outline,
                   size: 16,
-                  color: Color(0xFFD97706),
+                  color: Cristal.ambar,
                 ),
               ),
               const SizedBox(width: 10),
@@ -4037,7 +4001,7 @@ FORMATO (Markdown)
                 child: Text(
                   'Sugerencias de preguntas',
                   style: TextStyle(
-                    color: _azulOscuro,
+                    color: Cristal.texto,
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
                   ),
@@ -4048,6 +4012,7 @@ FORMATO (Markdown)
           const SizedBox(height: 12),
           for (var i = 0; i < sugerencias.length; i++) ...[
             InkWell(
+              hoverDuration: Cristal.micro,
               onTap: () => _enviarMensaje(sugerencias[i]),
               borderRadius: BorderRadius.circular(8),
               child: Padding(
@@ -4058,7 +4023,7 @@ FORMATO (Markdown)
                       child: Text(
                         sugerencias[i],
                         style: const TextStyle(
-                          color: _azulOscuro,
+                          color: Cristal.texto,
                           fontSize: 11.5,
                           fontWeight: FontWeight.w500,
                         ),
@@ -4067,14 +4032,14 @@ FORMATO (Markdown)
                     const Icon(
                       Icons.chevron_right,
                       size: 16,
-                      color: Color(0xFF64748B),
+                      color: Cristal.textoSuave,
                     ),
                   ],
                 ),
               ),
             ),
             if (i < sugerencias.length - 1)
-              const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              const Divider(height: 1, color: Cristal.borde),
           ],
         ],
       ),
@@ -4086,106 +4051,56 @@ FORMATO (Markdown)
     final screenW = MediaQuery.sizeOf(context).width;
     final isMobile = screenW < 768;
 
-    final bodyContent = Container(
-      color: const Color(0xFFFAF5EA),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final double horizontalPad = isMobile
-              ? 16.0
-              : (constraints.maxWidth > 1220 ? 32.0 : 24.0);
-          return SingleChildScrollView(
-            child: Stack(
-              children: [
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: 215,
-                  child: Image.asset(
-                    'assets/images/fondo_valledupar.jpg',
-                    fit: BoxFit.cover,
-                    filterQuality: FilterQuality.high,
-                    alignment: const Alignment(0.0, -0.38),
-                    errorBuilder: (context, error, stackTrace) =>
-                        Container(),
-                  ),
+    final bodyContent = LayoutBuilder(
+      builder: (context, constraints) {
+        final double horizontalPad = isMobile
+            ? 16.0
+            : (constraints.maxWidth > 1220 ? 32.0 : 24.0);
+        return SingleChildScrollView(
+          child: Stack(
+            children: [
+              const Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 215,
+                child: FotoAmbiente.cabecera(),
+              ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  horizontalPad,
+                  isMobile ? 16 : 24,
+                  horizontalPad,
+                  28,
                 ),
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: 215,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        colors: [
-                          const Color(0xFFFAF5EA),
-                          const Color(0xFFFAF5EA)
-                              .withValues(alpha: 0.92),
-                          const Color(0xFFFAF5EA)
-                              .withValues(alpha: 0.0),
-                        ],
-                        stops: const [0.0, 0.36, 0.65],
-                      ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildHeaderRow(
+                      showTopRightActions: _selectedTab == 1,
+                      isMobile: isMobile,
                     ),
-                  ),
-                ),
-                Positioned(
-                  top: 145,
-                  left: 0,
-                  right: 0,
-                  height: 70,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          const Color(0xFFFAF5EA)
-                              .withValues(alpha: 0.0),
-                          const Color(0xFFFAF5EA),
-                        ],
-                      ),
+                    SizedBox(height: isMobile ? 16 : 22),
+                    CambioLiquido(
+                      clave: _selectedTab,
+                      child: switch (_selectedTab) {
+                        0 => _buildResumenTabContent(isMobile: isMobile),
+                        1 => _buildDocumentosTabContent(isMobile: isMobile),
+                        _ => _buildCopilotoTabContent(isMobile: isMobile),
+                      },
                     ),
-                  ),
+                  ],
                 ),
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    horizontalPad,
-                    isMobile ? 16 : 24,
-                    horizontalPad,
-                    28,
-                  ),
-                  child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.stretch,
-                    children: [
-                      _buildHeaderRow(
-                        showTopRightActions: _selectedTab == 1,
-                        isMobile: isMobile,
-                      ),
-                      SizedBox(height: isMobile ? 16 : 22),
-                      if (_selectedTab == 0)
-                        _buildResumenTabContent(isMobile: isMobile)
-                      else if (_selectedTab == 1)
-                        _buildDocumentosTabContent(isMobile: isMobile)
-                      else
-                        _buildCopilotoTabContent(isMobile: isMobile),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+              ),
+            ],
+          ),
+        );
+      },
     );
 
     if (isMobile) {
       return Scaffold(
-        backgroundColor: const Color(0xFFFFF8EE),
+        backgroundColor: Colors.transparent,
         drawer: null,
         drawerEnableOpenDragGesture: false,
         body: SafeArea(child: bodyContent),
@@ -4196,18 +4111,17 @@ FORMATO (Markdown)
             if (bottomIdx >= 0 && bottomIdx < mobileTabIndices.length) {
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(
-                  builder: (_) => HomeScreen(
-                    initialIndex: mobileTabIndices[bottomIdx],
-                  ),
+                  builder: (_) =>
+                      HomeScreen(initialIndex: mobileTabIndices[bottomIdx]),
                 ),
                 (route) => false,
               );
             }
           },
           type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
-          selectedItemColor: _azulOscuro,
-          unselectedItemColor: const Color(0xFF64748B),
+          backgroundColor: Colors.transparent,
+          selectedItemColor: Cristal.dorado,
+          unselectedItemColor: Cristal.textoTenue,
           selectedLabelStyle: const TextStyle(
             fontSize: 11.5,
             fontWeight: FontWeight.w800,
@@ -4219,27 +4133,33 @@ FORMATO (Markdown)
           items: const [
             BottomNavigationBarItem(
               icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home_rounded, color: _amarillo),
+              activeIcon: Icon(Icons.home_rounded, color: Cristal.dorado),
               label: 'Inicio',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.description_outlined),
-              activeIcon: Icon(Icons.description_rounded, color: _amarillo),
+              activeIcon: Icon(
+                Icons.description_rounded,
+                color: Cristal.dorado,
+              ),
               label: 'Contratos',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.account_balance_outlined),
-              activeIcon: Icon(Icons.account_balance_rounded, color: _amarillo),
+              activeIcon: Icon(
+                Icons.account_balance_rounded,
+                color: Cristal.dorado,
+              ),
               label: 'Entidades',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.people_outline),
-              activeIcon: Icon(Icons.people_alt_rounded, color: _amarillo),
+              activeIcon: Icon(Icons.people_alt_rounded, color: Cristal.dorado),
               label: 'Contratistas',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.star_border_rounded),
-              activeIcon: Icon(Icons.star_rounded, color: _amarillo),
+              activeIcon: Icon(Icons.star_rounded, color: Cristal.dorado),
               label: 'Favoritos',
             ),
           ],
@@ -4248,16 +4168,18 @@ FORMATO (Markdown)
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF8EE),
+      backgroundColor: Colors.transparent,
       body: Row(
+        // El contenido ocupa todo el alto: si es corto queda arriba, no
+        // centrado.
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           CollapsibleSideMenu(
             selectedIndex: 2,
             isCollapsed: _isSidebarCollapsed,
             onItemSelected: _onSidebarItemSelected,
-            onToggleCollapse: () => setState(
-              () => _isSidebarCollapsed = !_isSidebarCollapsed,
-            ),
+            onToggleCollapse: () =>
+                setState(() => _isSidebarCollapsed = !_isSidebarCollapsed),
             onLogout: _cerrarSesion,
           ),
           Expanded(child: bodyContent),

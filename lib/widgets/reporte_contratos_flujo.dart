@@ -5,15 +5,13 @@ import '../services/reporte_contratos_pdf_service.dart';
 import '../services/reporte_contratos_service.dart';
 import '../services/reporte_xlsx_service.dart';
 import '../utils/anios_secop.dart';
+import '../tema/cristal.dart';
 
 /// Motivo por el que no se genera el reporte (se muestra tal cual).
 class ReporteException implements Exception {
   const ReporteException(this.message);
   final String message;
 }
-
-const Color _navy = Color(0xFF0E2646);
-const Color _gris = Color(0xFF64748B);
 
 /// El PDF de miles de filas tarda minutos en el navegador; la hoja de
 /// cálculo no tiene ese problema.
@@ -221,7 +219,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
     child: Text(
       t,
       style: const TextStyle(
-        color: _navy,
+        color: Cristal.texto,
         fontWeight: FontWeight.w800,
         fontSize: 13.5,
       ),
@@ -234,6 +232,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
     String detalle,
     VoidCallback onTap,
   ) => InkWell(
+    hoverDuration: Cristal.micro,
     onTap: onTap,
     borderRadius: BorderRadius.circular(12),
     child: Container(
@@ -241,10 +240,10 @@ class _DialogoReporteState extends State<DialogoReporte> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: activa ? const Color(0xFFEFF4FB) : Colors.white,
+        color: activa ? Cristal.vidrioSuave : Cristal.vidrio,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: activa ? _navy : const Color(0xFFE2E8F0),
+          color: activa ? Cristal.acentoClaro : Cristal.borde,
           width: activa ? 1.4 : 1,
         ),
       ),
@@ -256,7 +255,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
                 ? Icons.radio_button_checked_rounded
                 : Icons.radio_button_unchecked_rounded,
             size: 20,
-            color: _navy,
+            color: Cristal.texto,
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -266,7 +265,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
                 Text(
                   titulo,
                   style: const TextStyle(
-                    color: _navy,
+                    color: Cristal.texto,
                     fontWeight: FontWeight.w800,
                     fontSize: 13.4,
                   ),
@@ -275,7 +274,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
                 Text(
                   detalle,
                   style: const TextStyle(
-                    color: _gris,
+                    color: Cristal.textoSuave,
                     fontSize: 12.3,
                     height: 1.35,
                   ),
@@ -293,8 +292,8 @@ class _DialogoReporteState extends State<DialogoReporte> {
     return ChoiceChip(
       label: Text(t),
       selected: sel,
-      selectedColor: const Color(0xFFDCE6F5),
-      checkmarkColor: _navy,
+      selectedColor: Cristal.azulVidrio,
+      checkmarkColor: Cristal.texto,
       onSelected: (_) => setState(() {
         _desde = desde;
         _corte = _hoy;
@@ -310,7 +309,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
           padding: EdgeInsets.only(bottom: 10),
           child: Text(
             'No fue posible consultar las unidades de contratación.',
-            style: TextStyle(color: Color(0xFFB91C1C), fontSize: 12.5),
+            style: TextStyle(color: Cristal.rojo, fontSize: 12.5),
           ),
         );
       }
@@ -369,11 +368,14 @@ class _DialogoReporteState extends State<DialogoReporte> {
     final criterios = widget.criterios(_opciones, _exacto ? unidad : null);
     final puedeGenerar = (_pdf || _xlsx) && (!_exacto || unidad != null);
     return AlertDialog(
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      backgroundColor: Cristal.flotante,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: const BorderSide(color: Cristal.bordeFuerte),
+      ),
       title: const Text(
         'Exportar reporte de contratos',
-        style: TextStyle(color: _navy, fontWeight: FontWeight.w800),
+        style: TextStyle(color: Cristal.texto, fontWeight: FontWeight.w800),
       ),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560),
@@ -394,7 +396,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
                 _seccion('Contratos de'),
                 Text(
                   '${widget.unidadFija!.etiqueta} (criterio exacto de SECOP II)',
-                  style: const TextStyle(color: _navy, fontSize: 13.2),
+                  style: const TextStyle(color: Cristal.texto, fontSize: 13.2),
                 ),
               ] else if (widget.unidades != null) ...[
                 _seccion('¿Qué contratos incluir?'),
@@ -456,7 +458,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
                     child: OutlinedButton.icon(
                       onPressed: _elegirCorte,
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: _navy,
+                        foregroundColor: Cristal.texto,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -476,17 +478,18 @@ class _DialogoReporteState extends State<DialogoReporte> {
                 title: const Text(
                   'Solo prestación de servicios profesionales y de apoyo a la gestión',
                   style: TextStyle(
-                    color: _navy,
+                    color: Cristal.texto,
                     fontSize: 13.2,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 subtitle: const Text(
                   'Numeral 3 del artículo 32 de la Ley 80 de 1993.',
-                  style: TextStyle(color: _gris, fontSize: 12),
+                  style: TextStyle(color: Cristal.textoSuave, fontSize: 12),
                 ),
               ),
               InkWell(
+                hoverDuration: Cristal.micro,
                 onTap: () => setState(() => _verColumnas = !_verColumnas),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
@@ -495,7 +498,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
                       Text(
                         'Columnas del reporte (${_columnas.length})',
                         style: const TextStyle(
-                          color: _navy,
+                          color: Cristal.texto,
                           fontWeight: FontWeight.w800,
                           fontSize: 13.5,
                         ),
@@ -504,7 +507,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
                       Text(
                         _verColumnas ? 'Ocultar' : 'Agregar o quitar',
                         style: const TextStyle(
-                          color: Color(0xFF1D4ED8),
+                          color: Cristal.acentoClaro,
                           fontWeight: FontWeight.w700,
                           fontSize: 12.8,
                         ),
@@ -516,7 +519,10 @@ class _DialogoReporteState extends State<DialogoReporte> {
               if (!_verColumnas)
                 Text(
                   _columnas.map((c) => c.titulo).join(' · '),
-                  style: const TextStyle(color: _gris, fontSize: 12),
+                  style: const TextStyle(
+                    color: Cristal.textoSuave,
+                    fontSize: 12,
+                  ),
                 )
               else
                 Wrap(
@@ -532,8 +538,8 @@ class _DialogoReporteState extends State<DialogoReporte> {
                           style: const TextStyle(fontSize: 12),
                         ),
                         selected: _columnas.contains(c),
-                        selectedColor: const Color(0xFFDCE6F5),
-                        checkmarkColor: _navy,
+                        selectedColor: Cristal.azulVidrio,
+                        checkmarkColor: Cristal.texto,
                         onSelected: (_) => _alternarColumna(c),
                       ),
                   ],
@@ -546,7 +552,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
                     avatar: const Icon(Icons.grid_on_rounded, size: 16),
                     label: const Text('Hoja de cálculo (.xlsx)'),
                     selected: _xlsx,
-                    selectedColor: const Color(0xFFDCE6F5),
+                    selectedColor: Cristal.azulVidrio,
                     showCheckmark: false,
                     onSelected: (v) => setState(() => _xlsx = v),
                   ),
@@ -554,7 +560,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
                     avatar: const Icon(Icons.picture_as_pdf_outlined, size: 16),
                     label: const Text('PDF'),
                     selected: _pdf,
-                    selectedColor: const Color(0xFFDCE6F5),
+                    selectedColor: Cristal.azulVidrio,
                     showCheckmark: false,
                     onSelected: (v) => setState(() => _pdf = v),
                   ),
@@ -565,7 +571,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
                   padding: EdgeInsets.only(top: 6),
                   child: Text(
                     'El PDF admite hasta $maxFilasPdf contratos; para más, usa la hoja de cálculo.',
-                    style: TextStyle(color: _gris, fontSize: 12),
+                    style: TextStyle(color: Cristal.textoSuave, fontSize: 12),
                   ),
                 ),
               const SizedBox(height: 14),
@@ -573,7 +579,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: Cristal.vidrioSuave,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
@@ -587,12 +593,14 @@ class _DialogoReporteState extends State<DialogoReporte> {
                             children: [
                               TextSpan(
                                 text: '$k: ',
-                                style: const TextStyle(color: _gris),
+                                style: const TextStyle(
+                                  color: Cristal.textoSuave,
+                                ),
                               ),
                               TextSpan(
                                 text: v,
                                 style: const TextStyle(
-                                  color: _navy,
+                                  color: Cristal.texto,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -618,8 +626,8 @@ class _DialogoReporteState extends State<DialogoReporte> {
               ? () => Navigator.pop(context, _opciones)
               : null,
           style: FilledButton.styleFrom(
-            backgroundColor: _navy,
-            foregroundColor: Colors.white,
+            backgroundColor: Cristal.acento,
+            foregroundColor: Cristal.texto,
           ),
           icon: const Icon(Icons.download_rounded, size: 18),
           label: const Text('Generar'),
@@ -647,14 +655,17 @@ Future<void> generarReporteContratos(
   final estado = ValueNotifier<String>('Consultando contratos en SECOP II…');
   final navegador = Navigator.of(context, rootNavigator: true);
   final mensajero = ScaffoldMessenger.of(context);
-  showDialog<void>(
+  mostrarDialogoCristal<void>(
     context: context,
     barrierDismissible: false,
     builder: (ctx) => PopScope(
       canPop: false,
       child: AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        backgroundColor: Cristal.flotante,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: Cristal.bordeFuerte),
+        ),
         content: Row(
           children: [
             const SizedBox(
@@ -669,7 +680,7 @@ Future<void> generarReporteContratos(
                 builder: (_, t, _) => Text(
                   t,
                   style: const TextStyle(
-                    color: _navy,
+                    color: Cristal.texto,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -818,7 +829,9 @@ Future<void> generarReporteContratos(
     SnackBar(
       behavior: SnackBarBehavior.floating,
       duration: const Duration(seconds: 6),
-      backgroundColor: error == null ? _navy : const Color(0xFFB91C1C),
+      backgroundColor: error == null
+          ? Cristal.flotante
+          : const Color(0xFFB91C1C),
       content: Text(
         error ??
             'Reporte descargado: ${_miles(cantidad)} contratos'
@@ -850,7 +863,7 @@ Future<void> exportarReporteUnidad(
     if (o.soloPrestacionServicios)
       ('Tipo', 'Prestación de servicios profesionales y de apoyo a la gestión'),
   ];
-  final o = await showDialog<OpcionesReporte>(
+  final o = await mostrarDialogoCristal<OpcionesReporte>(
     context: context,
     builder: (_) => DialogoReporte(
       criterios: criterios,

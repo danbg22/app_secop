@@ -6,6 +6,7 @@ import '../gestion_contractual/estilo_contractual.dart';
 import 'componentes_supervision.dart';
 import 'editar_plan_screen.dart';
 import 'revision_supervisor_screen.dart';
+import '../../tema/cristal.dart';
 
 /// Supervisión de un contrato: plan, avance del pago y los informes por
 /// periodo con su estado.
@@ -107,14 +108,14 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
         const Icon(
           Icons.assignment_turned_in_outlined,
           size: 44,
-          color: EstiloContractual.navy,
+          color: Cristal.texto,
         ),
         const SizedBox(height: 12),
         const Text(
           'Activa los informes de ejecución de este contrato',
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: EstiloContractual.navy,
+            color: Cristal.texto,
             fontSize: 18,
             fontWeight: FontWeight.w800,
           ),
@@ -126,7 +127,7 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
           'de cobro y el informe de supervisión.',
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: EstiloContractual.texto,
+            color: Cristal.textoMedio,
             fontSize: 13.5,
             height: 1.5,
           ),
@@ -145,7 +146,7 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
                 )
               : const Text(
                   'Pídele al titular del equipo que la configure.',
-                  style: TextStyle(color: EstiloContractual.gris),
+                  style: TextStyle(color: Cristal.textoSuave),
                 ),
         ),
       ],
@@ -173,9 +174,7 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
               onPressed: () => _editar(plan),
               icon: const Icon(Icons.edit_outlined, size: 17),
               label: const Text('Editar'),
-              style: TextButton.styleFrom(
-                foregroundColor: EstiloContractual.navy,
-              ),
+              style: TextButton.styleFrom(foregroundColor: Cristal.texto),
             )
           : null,
       children: [
@@ -211,7 +210,7 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
             const Text(
               'Avance del pago',
               style: TextStyle(
-                color: EstiloContractual.navy,
+                color: Cristal.texto,
                 fontSize: 13,
                 fontWeight: FontWeight.w800,
               ),
@@ -219,10 +218,7 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
             const Spacer(),
             Text(
               '${formatoCop(aprobado)} de ${formatoCop(total)}',
-              style: const TextStyle(
-                color: EstiloContractual.texto,
-                fontSize: 12.5,
-              ),
+              style: const TextStyle(color: Cristal.textoMedio, fontSize: 12.5),
             ),
           ],
         ),
@@ -237,14 +233,14 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
                     total <= 0 ? 0 : (v / total).clamp(0.0, 1.0) * c.maxWidth;
                 return Stack(
                   children: [
-                    Container(color: const Color(0xFFF1F5F9)),
+                    Container(color: Cristal.vidrioSuave),
                     Container(
                       width: ancho(aprobado),
                       color: const Color(0xFF86EFAC),
                     ),
                     Container(
                       width: ancho(pagado),
-                      color: const Color(0xFF0F766E),
+                      color: const Color(0xFF2DD4BF),
                     ),
                   ],
                 );
@@ -256,7 +252,7 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
         const Wrap(
           spacing: 16,
           children: [
-            _Leyenda(color: Color(0xFF0F766E), texto: 'Pagado'),
+            _Leyenda(color: Color(0xFF2DD4BF), texto: 'Pagado'),
             _Leyenda(
               color: Color(0xFF86EFAC),
               texto: 'Aprobado, pendiente de pago',
@@ -326,7 +322,7 @@ class _Leyenda extends StatelessWidget {
       const SizedBox(width: 6),
       Text(
         texto,
-        style: const TextStyle(color: EstiloContractual.gris, fontSize: 11.8),
+        style: const TextStyle(color: Cristal.textoSuave, fontSize: 11.8),
       ),
     ],
   );
@@ -364,9 +360,10 @@ class _TarjetaPeriodo extends StatelessWidget {
         !(inf?.existe ?? false) &&
         DateTime.now().isAfter(periodo.limite.add(const Duration(days: 1)));
     return Material(
-      color: Colors.white,
+      color: Cristal.vidrio,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
+        hoverDuration: Cristal.micro,
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
         child: Container(
@@ -374,7 +371,7 @@ class _TarjetaPeriodo extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: actual ? EstiloContractual.navy : const Color(0xFFE2E8F0),
+              color: actual ? Cristal.acentoClaro : Cristal.borde,
               width: actual ? 1.6 : 1,
             ),
           ),
@@ -386,7 +383,7 @@ class _TarjetaPeriodo extends StatelessWidget {
                   Text(
                     'N.º ${periodo.numero}',
                     style: const TextStyle(
-                      color: EstiloContractual.gris,
+                      color: Cristal.textoSuave,
                       fontSize: 11.5,
                       fontWeight: FontWeight.w700,
                     ),
@@ -396,7 +393,7 @@ class _TarjetaPeriodo extends StatelessWidget {
                     const Text(
                       'EN CURSO',
                       style: TextStyle(
-                        color: EstiloContractual.navy,
+                        color: Cristal.texto,
                         fontSize: 11.5,
                         fontWeight: FontWeight.w800,
                       ),
@@ -407,9 +404,7 @@ class _TarjetaPeriodo extends StatelessWidget {
               Text(
                 '${fechaLegible(periodo.desde, conDia: false)} – ${fechaLegible(periodo.hasta, conDia: false)}',
                 style: TextStyle(
-                  color: futuro
-                      ? EstiloContractual.gris
-                      : EstiloContractual.navy,
+                  color: futuro ? Cristal.textoSuave : Cristal.texto,
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
                 ),
@@ -418,13 +413,13 @@ class _TarjetaPeriodo extends StatelessWidget {
               if (futuro && inf == null)
                 const Text(
                   'Próximo',
-                  style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                  style: TextStyle(color: Cristal.textoTenue, fontSize: 12),
                 )
               else if (vencido)
                 const EtiquetaColor(
                   texto: 'Vencido sin enviar',
-                  color: Color(0xFFB91C1C),
-                  fondo: Color(0xFFFEE2E2),
+                  color: Cristal.rojo,
+                  fondo: Cristal.rojoVidrio,
                 )
               else
                 ChipEstadoInforme(estado),
@@ -433,7 +428,7 @@ class _TarjetaPeriodo extends StatelessWidget {
                 Text(
                   etapa,
                   style: const TextStyle(
-                    color: EstiloContractual.texto,
+                    color: Cristal.textoMedio,
                     fontSize: 11.8,
                   ),
                 ),
@@ -443,7 +438,7 @@ class _TarjetaPeriodo extends StatelessWidget {
                 Text(
                   formatoCop(inf.valorCobradoCop),
                   style: const TextStyle(
-                    color: EstiloContractual.texto,
+                    color: Cristal.textoMedio,
                     fontSize: 12,
                   ),
                 ),

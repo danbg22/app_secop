@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../services/juridico_contratacion_service.dart';
 import '../utils/document_file_picker.dart';
 import 'supervision/informes_contratista_view.dart';
+import '../tema/cristal.dart';
 
 class PortalContratistaInvitadoScreen extends StatefulWidget {
   const PortalContratistaInvitadoScreen({super.key, required this.token});
@@ -19,12 +20,6 @@ class PortalContratistaInvitadoScreen extends StatefulWidget {
 
 class _PortalContratistaInvitadoScreenState
     extends State<PortalContratistaInvitadoScreen> {
-  static const Color _bgCrema = Color(0xFFFFF8EE);
-  static const Color _azulOscuro = Color(0xFF1A2B4C);
-  static const Color _azulPrimario = Color(0xFF2563EB);
-  static const Color _bordeSuave = Color(0xFFE2E8F0);
-  static const Color _textoSecundario = Color(0xFF64748B);
-
   final NumberFormat _monedaFormat = NumberFormat.currency(
     locale: 'es_CO',
     symbol: r'$',
@@ -212,9 +207,7 @@ class _PortalContratistaInvitadoScreenState
       ..showSnackBar(
         SnackBar(
           behavior: SnackBarBehavior.floating,
-          backgroundColor: esError
-              ? const Color(0xFFB91C1C)
-              : const Color(0xFF0F172A),
+          backgroundColor: esError ? const Color(0xFFB91C1C) : Cristal.flotante,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
@@ -232,7 +225,7 @@ class _PortalContratistaInvitadoScreenState
 
     return SelectionArea(
       child: Scaffold(
-        backgroundColor: _bgCrema,
+        backgroundColor: Colors.transparent,
         body: SafeArea(
           child: _cargando
               ? const Center(child: CircularProgressIndicator())
@@ -254,15 +247,15 @@ class _PortalContratistaInvitadoScreenState
           margin: const EdgeInsets.all(20),
           padding: const EdgeInsets.all(28),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Cristal.vidrio,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: _bordeSuave),
+            border: Border.all(color: Cristal.borde),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Image.asset(
-                'assets/images/logo.png',
+                'assets/images/logo_fondo_oscuro.png',
                 height: 46,
                 fit: BoxFit.contain,
                 filterQuality: FilterQuality.high,
@@ -272,7 +265,7 @@ class _PortalContratistaInvitadoScreenState
                 'Enlace de contrato no encontrado',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: _azulOscuro,
+                  color: Cristal.texto,
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                 ),
@@ -282,7 +275,7 @@ class _PortalContratistaInvitadoScreenState
                 'Verifica que hayas copiado completo el enlace enviado por el equipo jurídico de la entidad contratante.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: _textoSecundario,
+                  color: Cristal.textoSuave,
                   fontSize: 13.5,
                   height: 1.45,
                 ),
@@ -311,23 +304,16 @@ class _PortalContratistaInvitadoScreenState
           child: Container(
             padding: EdgeInsets.all(isMobile ? 22 : 30),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Cristal.vidrio,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: _bordeSuave),
-              boxShadow: [
-                BoxShadow(
-                  color: _azulOscuro.withValues(alpha: 0.05),
-                  blurRadius: 20,
-                  offset: const Offset(0, 6),
-                ),
-              ],
+              border: Border.all(color: Cristal.borde),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Center(
                   child: Image.asset(
-                    'assets/images/logo.png',
+                    'assets/images/logo_fondo_oscuro.png',
                     height: 50,
                     fit: BoxFit.contain,
                     filterQuality: FilterQuality.high,
@@ -339,9 +325,9 @@ class _PortalContratistaInvitadoScreenState
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
+                    color: Cristal.vidrioSuave,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _bordeSuave),
+                    border: Border.all(color: Cristal.borde),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -349,7 +335,7 @@ class _PortalContratistaInvitadoScreenState
                       Text(
                         exp.entidadNombre,
                         style: const TextStyle(
-                          color: _textoSecundario,
+                          color: Cristal.textoSuave,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -358,7 +344,7 @@ class _PortalContratistaInvitadoScreenState
                       Text(
                         'Contrato ${exp.numeroContrato}',
                         style: const TextStyle(
-                          color: _azulOscuro,
+                          color: Cristal.texto,
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
                         ),
@@ -367,7 +353,7 @@ class _PortalContratistaInvitadoScreenState
                       Text(
                         exp.objetoContrato,
                         style: const TextStyle(
-                          color: Color(0xFF334155),
+                          color: Cristal.textoCuerpo,
                           fontSize: 13,
                           height: 1.4,
                         ),
@@ -380,7 +366,7 @@ class _PortalContratistaInvitadoScreenState
                 const Text(
                   'Ingreso del contratista',
                   style: TextStyle(
-                    color: _azulOscuro,
+                    color: Cristal.texto,
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
                   ),
@@ -389,7 +375,7 @@ class _PortalContratistaInvitadoScreenState
                 const Text(
                   'Ingresa tu nombre completo y número de cédula para cargar o subsanar los documentos de este contrato.',
                   style: TextStyle(
-                    color: _textoSecundario,
+                    color: Cristal.textoSuave,
                     fontSize: 13,
                     height: 1.4,
                   ),
@@ -399,7 +385,7 @@ class _PortalContratistaInvitadoScreenState
                 const Text(
                   'Nombre completo',
                   style: TextStyle(
-                    color: Color(0xFF334155),
+                    color: Cristal.textoCuerpo,
                     fontSize: 12.8,
                     fontWeight: FontWeight.w600,
                   ),
@@ -408,31 +394,31 @@ class _PortalContratistaInvitadoScreenState
                 TextField(
                   controller: _nombreController,
                   textInputAction: TextInputAction.next,
-                  style: const TextStyle(fontSize: 14, color: _azulOscuro),
+                  style: const TextStyle(fontSize: 14, color: Cristal.texto),
                   decoration: InputDecoration(
                     hintText: 'Ej.: ${exp.contratistaNombreEsperado}',
                     hintStyle: const TextStyle(
-                      color: Color(0xFF94A3B8),
+                      color: Cristal.textoTenue,
                       fontSize: 13.5,
                     ),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: Cristal.campo,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 14,
                       vertical: 12,
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: _bordeSuave),
+                      borderSide: const BorderSide(color: Cristal.borde),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: _bordeSuave),
+                      borderSide: const BorderSide(color: Cristal.borde),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: const BorderSide(
-                        color: _azulOscuro,
+                        color: Cristal.acentoClaro,
                         width: 1.4,
                       ),
                     ),
@@ -443,7 +429,7 @@ class _PortalContratistaInvitadoScreenState
                 const Text(
                   'Número de cédula',
                   style: TextStyle(
-                    color: Color(0xFF334155),
+                    color: Cristal.textoCuerpo,
                     fontSize: 12.8,
                     fontWeight: FontWeight.w600,
                   ),
@@ -453,31 +439,31 @@ class _PortalContratistaInvitadoScreenState
                   controller: _cedulaController,
                   keyboardType: TextInputType.number,
                   onSubmitted: (_) => _ingresarAlContrato(),
-                  style: const TextStyle(fontSize: 14, color: _azulOscuro),
+                  style: const TextStyle(fontSize: 14, color: Cristal.texto),
                   decoration: InputDecoration(
                     hintText: 'Ingresa tu número de documento sin puntos',
                     hintStyle: const TextStyle(
-                      color: Color(0xFF94A3B8),
+                      color: Cristal.textoTenue,
                       fontSize: 13.5,
                     ),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: Cristal.campo,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 14,
                       vertical: 12,
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: _bordeSuave),
+                      borderSide: const BorderSide(color: Cristal.borde),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: _bordeSuave),
+                      borderSide: const BorderSide(color: Cristal.borde),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: const BorderSide(
-                        color: _azulOscuro,
+                        color: Cristal.acentoClaro,
                         width: 1.4,
                       ),
                     ),
@@ -492,14 +478,14 @@ class _PortalContratistaInvitadoScreenState
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFEF2F2),
+                      color: Cristal.rojoVidrio,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFFECACA)),
+                      border: Border.all(color: Cristal.rojoBorde),
                     ),
                     child: Text(
                       _mensajeErrorIngreso!,
                       style: const TextStyle(
-                        color: Color(0xFFB91C1C),
+                        color: Cristal.rojo,
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,
                       ),
@@ -511,7 +497,7 @@ class _PortalContratistaInvitadoScreenState
                 FilledButton(
                   onPressed: _validandoIngreso ? null : _ingresarAlContrato,
                   style: FilledButton.styleFrom(
-                    backgroundColor: _azulOscuro,
+                    backgroundColor: Cristal.acento,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(11),
@@ -552,9 +538,9 @@ class _PortalContratistaInvitadoScreenState
               Container(
                 padding: EdgeInsets.all(isMobile ? 16 : 22),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Cristal.vidrio,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: _bordeSuave),
+                  border: Border.all(color: Cristal.borde),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -562,7 +548,7 @@ class _PortalContratistaInvitadoScreenState
                     Row(
                       children: [
                         Image.asset(
-                          'assets/images/logo.png',
+                          'assets/images/logo_fondo_oscuro.png',
                           height: 36,
                           fit: BoxFit.contain,
                           filterQuality: FilterQuality.high,
@@ -575,11 +561,9 @@ class _PortalContratistaInvitadoScreenState
                               vertical: 5,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFECFDF5),
+                              color: const Color(0x1F10B981),
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: const Color(0xFFA7F3D0),
-                              ),
+                              border: Border.all(color: Cristal.verdeBorde),
                             ),
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
@@ -587,13 +571,13 @@ class _PortalContratistaInvitadoScreenState
                                 Icon(
                                   Icons.circle,
                                   size: 7,
-                                  color: Color(0xFF10B981),
+                                  color: Color(0xFF34D399),
                                 ),
                                 SizedBox(width: 6),
                                 Text(
                                   'Sincronización en tiempo real',
                                   style: TextStyle(
-                                    color: Color(0xFF047857),
+                                    color: Color(0xFF34D399),
                                     fontSize: 11.5,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -610,12 +594,12 @@ class _PortalContratistaInvitadoScreenState
                           icon: const Icon(
                             Icons.logout_rounded,
                             size: 16,
-                            color: _textoSecundario,
+                            color: Cristal.textoSuave,
                           ),
                           label: const Text(
                             'Salir',
                             style: TextStyle(
-                              color: _textoSecundario,
+                              color: Cristal.textoSuave,
                               fontSize: 12.5,
                             ),
                           ),
@@ -623,7 +607,7 @@ class _PortalContratistaInvitadoScreenState
                       ],
                     ),
                     const SizedBox(height: 14),
-                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                    const Divider(height: 1, color: Cristal.borde),
                     const SizedBox(height: 14),
                     Wrap(
                       spacing: 12,
@@ -633,7 +617,7 @@ class _PortalContratistaInvitadoScreenState
                         Text(
                           'Contrato ${exp.numeroContrato}',
                           style: TextStyle(
-                            color: _azulOscuro,
+                            color: Cristal.texto,
                             fontSize: isMobile ? 18 : 20,
                             fontWeight: FontWeight.w800,
                           ),
@@ -644,13 +628,13 @@ class _PortalContratistaInvitadoScreenState
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF1F5F9),
+                            color: Cristal.vidrioSuave,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
                             '${exp.totalCargados} de ${exp.totalApartados} documentos cargados',
                             style: const TextStyle(
-                              color: _azulOscuro,
+                              color: Cristal.texto,
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
@@ -662,7 +646,7 @@ class _PortalContratistaInvitadoScreenState
                     Text(
                       '${exp.entidadNombre} · ${exp.dependencia}${exp.valorContratoCop > 0 ? " · ${_monedaFormat.format(exp.valorContratoCop)} (${exp.plazoEjecucion})" : ""}',
                       style: const TextStyle(
-                        color: _textoSecundario,
+                        color: Cristal.textoSuave,
                         fontSize: 13,
                       ),
                     ),
@@ -670,7 +654,7 @@ class _PortalContratistaInvitadoScreenState
                     Text(
                       exp.objetoContrato,
                       style: const TextStyle(
-                        color: Color(0xFF334155),
+                        color: Cristal.textoCuerpo,
                         fontSize: 13,
                         height: 1.4,
                       ),
@@ -679,7 +663,7 @@ class _PortalContratistaInvitadoScreenState
                     Text(
                       'Contratista: $_contratistaNombreActivo · CC $_contratistaCedulaActiva',
                       style: const TextStyle(
-                        color: _azulOscuro,
+                        color: Cristal.texto,
                         fontSize: 12.8,
                         fontWeight: FontWeight.w600,
                       ),
@@ -700,16 +684,16 @@ class _PortalContratistaInvitadoScreenState
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFFBEB),
+                    color: Cristal.ambarVidrio,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFFCD34D)),
+                    border: Border.all(color: Cristal.ambarBorde),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Icon(
                         Icons.info_outline_rounded,
-                        color: Color(0xFFB45309),
+                        color: Cristal.ambar,
                         size: 20,
                       ),
                       const SizedBox(width: 10),
@@ -719,7 +703,7 @@ class _PortalContratistaInvitadoScreenState
                               ? 'Tienes 1 documento devuelto por el equipo jurídico. Revisa la observación indicada abajo y sube el archivo corregido.'
                               : 'Tienes ${exp.totalPorSubsanar} documentos devueltos por el equipo jurídico. Revisa las observaciones indicadas abajo y sube los archivos corregidos.',
                           style: const TextStyle(
-                            color: Color(0xFF92400E),
+                            color: Cristal.ambar,
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                             height: 1.4,
@@ -736,9 +720,9 @@ class _PortalContratistaInvitadoScreenState
               // Lista limpia de documentos requeridos
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Cristal.vidrio,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: _bordeSuave),
+                  border: Border.all(color: Cristal.borde),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -748,16 +732,15 @@ class _PortalContratistaInvitadoScreenState
                       child: Text(
                         'Documentos requeridos',
                         style: TextStyle(
-                          color: _azulOscuro,
+                          color: Cristal.texto,
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
-                    const Divider(height: 1, color: _bordeSuave),
+                    const Divider(height: 1, color: Cristal.borde),
                     for (var i = 0; i < exp.apartados.length; i++) ...[
-                      if (i > 0)
-                        const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                      if (i > 0) const Divider(height: 1, color: Cristal.borde),
                       _buildFilaDocumentoContratista(
                         exp,
                         exp.apartados[i],
@@ -773,13 +756,14 @@ class _PortalContratistaInvitadoScreenState
               // Trazabilidad limpia colapsable
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Cristal.vidrio,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: _bordeSuave),
+                  border: Border.all(color: Cristal.borde),
                 ),
                 child: Column(
                   children: [
                     InkWell(
+                      hoverDuration: Cristal.micro,
                       onTap: () => setState(
                         () => _trazabilidadAbierta = !_trazabilidadAbierta,
                       ),
@@ -795,7 +779,7 @@ class _PortalContratistaInvitadoScreenState
                               child: Text(
                                 'Trazabilidad (${exp.trazabilidad.length} eventos)',
                                 style: const TextStyle(
-                                  color: _azulOscuro,
+                                  color: Cristal.texto,
                                   fontSize: 14.5,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -805,14 +789,14 @@ class _PortalContratistaInvitadoScreenState
                               _trazabilidadAbierta
                                   ? Icons.keyboard_arrow_up_rounded
                                   : Icons.keyboard_arrow_down_rounded,
-                              color: _textoSecundario,
+                              color: Cristal.textoSuave,
                             ),
                           ],
                         ),
                       ),
                     ),
                     if (_trazabilidadAbierta) ...[
-                      const Divider(height: 1, color: _bordeSuave),
+                      const Divider(height: 1, color: Cristal.borde),
                       Padding(
                         padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
                         child: Column(
@@ -828,7 +812,7 @@ class _PortalContratistaInvitadoScreenState
                                       width: 7,
                                       height: 7,
                                       decoration: const BoxDecoration(
-                                        color: _azulPrimario,
+                                        color: Color(0xFF2563EB),
                                         shape: BoxShape.circle,
                                       ),
                                     ),
@@ -843,7 +827,7 @@ class _PortalContratistaInvitadoScreenState
                                               ev.fechaIso,
                                             ),
                                             style: const TextStyle(
-                                              color: _textoSecundario,
+                                              color: Cristal.textoSuave,
                                               fontSize: 11.5,
                                             ),
                                           ),
@@ -851,7 +835,7 @@ class _PortalContratistaInvitadoScreenState
                                           Text(
                                             '${ev.actorNombre} · ${ev.titulo}',
                                             style: const TextStyle(
-                                              color: _azulOscuro,
+                                              color: Cristal.texto,
                                               fontSize: 12.8,
                                               fontWeight: FontWeight.w600,
                                             ),
@@ -860,7 +844,7 @@ class _PortalContratistaInvitadoScreenState
                                             Text(
                                               ev.detalle,
                                               style: const TextStyle(
-                                                color: _textoSecundario,
+                                                color: Cristal.textoSuave,
                                                 fontSize: 12,
                                               ),
                                             ),
@@ -893,29 +877,29 @@ class _PortalContratistaInvitadoScreenState
 
     final (Color dot, Color bg, Color fg) = switch (ap.estado) {
       EstadoDocumentoJuridico.enRevision => (
-        const Color(0xFF16A34A),
-        const Color(0xFFDCFCE7),
-        const Color(0xFF166534),
+        Cristal.verde,
+        Cristal.verdeVidrio,
+        Cristal.verde,
       ),
       EstadoDocumentoJuridico.subsanadoEnRevision => (
-        const Color(0xFF0284C7),
-        const Color(0xFFE0F2FE),
-        const Color(0xFF075985),
+        const Color(0xFF38BDF8),
+        Cristal.azulVidrio,
+        const Color(0xFF38BDF8),
       ),
       EstadoDocumentoJuridico.aprobado => (
-        const Color(0xFF059669),
-        const Color(0xFFD1FAE5),
-        const Color(0xFF065F46),
+        const Color(0xFF34D399),
+        const Color(0x2410B981),
+        const Color(0xFF34D399),
       ),
       EstadoDocumentoJuridico.devueltoSubsanar => (
-        const Color(0xFFD97706),
-        const Color(0xFFFEF3C7),
-        const Color(0xFF92400E),
+        Cristal.ambar,
+        Cristal.ambarVidrio,
+        Cristal.ambar,
       ),
       EstadoDocumentoJuridico.pendiente => (
-        const Color(0xFF94A3B8),
-        const Color(0xFFF1F5F9),
-        const Color(0xFF475569),
+        Cristal.textoTenue,
+        Cristal.vidrioSuave,
+        Cristal.textoMedio,
       ),
     };
 
@@ -932,7 +916,7 @@ class _PortalContratistaInvitadoScreenState
               Text(
                 ap.nombre,
                 style: const TextStyle(
-                  color: _azulOscuro,
+                  color: Cristal.texto,
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
@@ -975,7 +959,7 @@ class _PortalContratistaInvitadoScreenState
             const SizedBox(height: 4),
             Text(
               ap.descripcion,
-              style: const TextStyle(color: _textoSecundario, fontSize: 12.3),
+              style: const TextStyle(color: Cristal.textoSuave, fontSize: 12.3),
             ),
           ],
 
@@ -988,14 +972,14 @@ class _PortalContratistaInvitadoScreenState
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFFBEB),
+                color: Cristal.ambarVidrio,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFFDE68A)),
+                border: Border.all(color: Cristal.ambarBorde),
               ),
               child: Text(
                 'Observación para corregir: ${ap.observacionJuridica}',
                 style: const TextStyle(
-                  color: Color(0xFF92400E),
+                  color: Cristal.ambar,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
                   height: 1.38,
@@ -1008,12 +992,10 @@ class _PortalContratistaInvitadoScreenState
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: Cristal.vidrioSuave,
               borderRadius: BorderRadius.circular(11),
               border: Border.all(
-                color: ap.requiereSubsanacion
-                    ? const Color(0xFFF59E0B)
-                    : _bordeSuave,
+                color: ap.requiereSubsanacion ? Cristal.ambar : Cristal.borde,
               ),
             ),
             child: Row(
@@ -1024,16 +1006,16 @@ class _PortalContratistaInvitadoScreenState
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: ap.tieneArchivoCargado
-                        ? const Color(0xFFFEE2E2)
-                        : const Color(0xFFE2E8F0),
+                        ? Cristal.rojoVidrio
+                        : Cristal.vidrioFuerte,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     ap.tieneArchivoCargado ? ap.formatoCorto : 'PDF',
                     style: TextStyle(
                       color: ap.tieneArchivoCargado
-                          ? const Color(0xFFB91C1C)
-                          : _textoSecundario,
+                          ? Cristal.rojo
+                          : Cristal.textoSuave,
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                     ),
@@ -1052,8 +1034,8 @@ class _PortalContratistaInvitadoScreenState
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: ap.tieneArchivoCargado
-                              ? _azulOscuro
-                              : _textoSecundario,
+                              ? Cristal.texto
+                              : Cristal.textoSuave,
                           fontSize: 13.2,
                           fontWeight: ap.tieneArchivoCargado
                               ? FontWeight.w700
@@ -1064,7 +1046,7 @@ class _PortalContratistaInvitadoScreenState
                         Text(
                           '${ap.formatoCorto}${ap.tamanoFormateado.isNotEmpty ? " · ${ap.tamanoFormateado}" : ""}',
                           style: const TextStyle(
-                            color: _textoSecundario,
+                            color: Cristal.textoSuave,
                             fontSize: 11.8,
                           ),
                         ),
@@ -1076,9 +1058,9 @@ class _PortalContratistaInvitadoScreenState
                   OutlinedButton(
                     onPressed: () => _verDocumentoCargado(exp, ap),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: _azulOscuro,
-                      backgroundColor: Colors.white,
-                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      foregroundColor: Cristal.texto,
+                      backgroundColor: Cristal.vidrio,
+                      side: const BorderSide(color: Cristal.bordeFuerte),
                       minimumSize: const Size(54, 34),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
@@ -1106,7 +1088,7 @@ class _PortalContratistaInvitadoScreenState
                     style: FilledButton.styleFrom(
                       backgroundColor: ap.requiereSubsanacion
                           ? const Color(0xFFD97706)
-                          : _azulOscuro,
+                          : Cristal.acento,
                       minimumSize: const Size(80, 34),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 13,

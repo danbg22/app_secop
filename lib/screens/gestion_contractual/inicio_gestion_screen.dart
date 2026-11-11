@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'estilo_contractual.dart';
+import '../../tema/cristal.dart';
 
 /// Los dos caminos de la gestión contractual.
 enum CaminoGestion { prestacionServicios, importarSecop }
@@ -18,8 +19,8 @@ class InicioGestionScreen extends StatelessWidget {
     final opciones = [
       _OpcionCamino(
         icono: Icons.edit_document,
-        color: const Color(0xFF0F766E),
-        fondo: const Color(0xFFCCFBF1),
+        color: const Color(0xFF2DD4BF),
+        fondo: const Color(0x2414B8A6),
         etiqueta: 'Antes de SECOP II',
         titulo: 'Estructurar nuevo proceso',
         subtitulo:
@@ -35,8 +36,8 @@ class InicioGestionScreen extends StatelessWidget {
       ),
       _OpcionCamino(
         icono: Icons.cloud_download_outlined,
-        color: const Color(0xFF1D4ED8),
-        fondo: const Color(0xFFDBEAFE),
+        color: Cristal.acentoClaro,
+        fondo: Cristal.azulVidrio,
         etiqueta: 'Ya está en SECOP II',
         titulo: 'Importar proceso existente',
         subtitulo: 'Licitación, selección abreviada, mínima cuantía, concurso de méritos y demás',
@@ -141,6 +142,7 @@ class _OpcionCaminoState extends State<_OpcionCamino> {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
+            hoverDuration: Cristal.micro,
             onTap: widget.onTap,
             borderRadius: BorderRadius.circular(20),
             child: Padding(
@@ -174,7 +176,7 @@ class _OpcionCaminoState extends State<_OpcionCamino> {
                   Text(
                     widget.titulo,
                     style: const TextStyle(
-                      color: EstiloContractual.navy,
+                      color: Cristal.texto,
                       fontSize: 21,
                       fontWeight: FontWeight.w800,
                     ),
@@ -206,7 +208,7 @@ class _OpcionCaminoState extends State<_OpcionCamino> {
                             child: Text(
                               p,
                               style: const TextStyle(
-                                color: EstiloContractual.texto,
+                                color: Cristal.textoMedio,
                                 fontSize: 13.3,
                                 height: 1.4,
                               ),
@@ -222,6 +224,9 @@ class _OpcionCaminoState extends State<_OpcionCamino> {
                       onPressed: widget.onTap,
                       style: EstiloContractual.botonPrincipal().copyWith(
                         backgroundColor: WidgetStatePropertyAll(widget.color),
+                        foregroundColor: WidgetStatePropertyAll(
+                          Cristal.sobre(widget.color),
+                        ),
                       ),
                       icon: const Icon(Icons.arrow_forward_rounded, size: 18),
                       label: Text(

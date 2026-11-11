@@ -16,6 +16,7 @@ import '../widgets/route_security_guard.dart';
 import '../widgets/user_profile_header_action.dart';
 import 'detalle_screen.dart';
 import 'home_screen.dart';
+import '../tema/cristal.dart';
 
 class PerfilContratistaScreen extends StatefulWidget {
   final String? nombreContratista;
@@ -41,9 +42,6 @@ class PerfilContratistaScreen extends StatefulWidget {
 }
 
 class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
-  static const Color _azulOscuro = Color(0xFF1A2B4C);
-  static const Color _amarillo = Color(0xFFF5B82E);
-
   final NumberFormat formatoMoneda = NumberFormat.decimalPattern('es_CO');
 
   bool isLoading = true;
@@ -74,17 +72,19 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
       'fecha_de_firma,fecha_de_inicio_del_contrato,fecha_de_fin_del_contrato,'
       'objeto_del_contrato,descripcion_del_proceso,urlproceso';
 
-  static List<String> get _aniosHistorial =>
-      [for (final a in AniosSecop.disponibles) '$a'];
+  static List<String> get _aniosHistorial => [
+    for (final a in AniosSecop.disponibles) '$a',
+  ];
 
   String _anioContrato(dynamic c) {
     if (c is! Map) return '';
-    final raw = (c['fecha_de_firma'] ??
-            c['fecha_de_inicio_del_contrato'] ??
-            c['anno_firma_contrato'] ??
-            c['fecha_ini_ejec_contrato'] ??
-            '')
-        .toString();
+    final raw =
+        (c['fecha_de_firma'] ??
+                c['fecha_de_inicio_del_contrato'] ??
+                c['anno_firma_contrato'] ??
+                c['fecha_ini_ejec_contrato'] ??
+                '')
+            .toString();
     if (raw.length >= 4) {
       final y = raw.substring(0, 4);
       if (RegExp(r'^\d{4}$').hasMatch(y)) return y;
@@ -193,8 +193,9 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
   }
 
   Future<void> _cargarEstadoFavorito() async {
-    final estaGuardado =
-        await FavoritesService.esContratistaFavorito(_idContratista);
+    final estaGuardado = await FavoritesService.esContratistaFavorito(
+      _idContratista,
+    );
     if (!mounted) return;
     setState(() => _perfilFavoritoGuardado = estaGuardado);
   }
@@ -254,7 +255,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
       if (contrato is Map) {
         suma +=
             double.tryParse(contrato['valor_del_contrato']?.toString() ?? '') ??
-                0;
+            0;
       }
     }
     return (contratos.length, suma);
@@ -281,7 +282,13 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
       ) async {
         try {
           final res = await http
-              .get(Uri.https('www.datos.gov.co', '/resource/$dataset.json', params))
+              .get(
+                Uri.https(
+                  'www.datos.gov.co',
+                  '/resource/$dataset.json',
+                  params,
+                ),
+              )
               .timeout(const Duration(seconds: 15));
           if (res.statusCode != 200) return const [];
           final decoded = json.decode(utf8.decode(res.bodyBytes));
@@ -290,7 +297,6 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
           return const [];
         }
       }
-
 
       final cleanDoc = (widget.documentoProveedor ?? widget.nit ?? '')
           .replaceAll(RegExp(r'[^0-9]'), '')
@@ -327,16 +333,18 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
               r'$limit': '2000',
             })
           : _nombreAuditar.isNotEmpty
-              ? consultar(SecopI.dataset, {
-                  'nom_razon_social_contratista': _nombreAuditar,
-                  r'$where': SecopI.filtroAnio(),
-                  r'$order': 'fecha_de_firma_del_contrato DESC',
-                  r'$limit': '2000',
-                })
-              : Future.value(const <dynamic>[]);
+          ? consultar(SecopI.dataset, {
+              'nom_razon_social_contratista': _nombreAuditar,
+              r'$where': SecopI.filtroAnio(),
+              r'$order': 'fecha_de_firma_del_contrato DESC',
+              r'$limit': '2000',
+            })
+          : Future.value(const <dynamic>[]);
 
-      final resultados =
-          await Future.wait([...consultasSecopII, consultaSecopI]);
+      final resultados = await Future.wait([
+        ...consultasSecopII,
+        consultaSecopI,
+      ]);
       for (final lista in resultados.take(consultasSecopII.length)) {
         lista.forEach(addContractIfNew);
       }
@@ -344,19 +352,15 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
       // Fallback tolerante por palabras del nombre si SECOP II no encontró nada
       if (allContracts.isEmpty && _nombreAuditar.isNotEmpty) {
         final tokens = SecurityService.sanitizeSoqlToken(
-              _nombreAuditar
-                  .toUpperCase()
-                  .replaceAll('Á', 'A')
-                  .replaceAll('É', 'E')
-                  .replaceAll('Í', 'I')
-                  .replaceAll('Ó', 'O')
-                  .replaceAll('Ú', 'U'),
-              maxLength: 100,
-            )
-            .split(RegExp(r'\s+'))
-            .where((w) => w.length >= 2)
-            .take(6)
-            .toList();
+          _nombreAuditar
+              .toUpperCase()
+              .replaceAll('Á', 'A')
+              .replaceAll('É', 'E')
+              .replaceAll('Í', 'I')
+              .replaceAll('Ó', 'O')
+              .replaceAll('Ú', 'U'),
+          maxLength: 100,
+        ).split(RegExp(r'\s+')).where((w) => w.length >= 2).take(6).toList();
         if (tokens.isNotEmpty) {
           final fallback = await consultar('jbjy-vk9h', {
             r'$where': tokens
@@ -377,8 +381,20 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
 
       // Ordenar contratos consolidados cronológicamente (más recientes primero)
       allContracts.sort((a, b) {
-        final dateA = (a is Map ? (a['fecha_de_firma'] ?? a['fecha_de_inicio_del_contrato'] ?? '') : '').toString();
-        final dateB = (b is Map ? (b['fecha_de_firma'] ?? b['fecha_de_inicio_del_contrato'] ?? '') : '').toString();
+        final dateA =
+            (a is Map
+                    ? (a['fecha_de_firma'] ??
+                          a['fecha_de_inicio_del_contrato'] ??
+                          '')
+                    : '')
+                .toString();
+        final dateB =
+            (b is Map
+                    ? (b['fecha_de_firma'] ??
+                          b['fecha_de_inicio_del_contrato'] ??
+                          '')
+                    : '')
+                .toString();
         return dateB.compareTo(dateA);
       });
 
@@ -422,9 +438,8 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
   void _onSidebarItemSelected(int index) {
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
-        builder: (_) => RouteSecurityGuard(
-          child: HomeScreen(initialIndex: index),
-        ),
+        builder: (_) =>
+            RouteSecurityGuard(child: HomeScreen(initialIndex: index)),
       ),
       (route) => false,
     );
@@ -444,25 +459,19 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         InkWell(
+          hoverDuration: Cristal.micro,
           onTap: () => Navigator.maybePop(context),
           borderRadius: BorderRadius.circular(22),
           child: Container(
             width: isMobile ? 36 : 40,
             height: isMobile ? 36 : 40,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.92),
+              color: Cristal.vidrio,
               shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: _azulOscuro.withValues(alpha: 0.06),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
             ),
             child: Icon(
               Icons.arrow_back,
-              color: _azulOscuro,
+              color: Cristal.texto,
               size: isMobile ? 17 : 19,
             ),
           ),
@@ -475,7 +484,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
               Text(
                 'Perfil Unificado',
                 style: TextStyle(
-                  color: _azulOscuro,
+                  color: Cristal.texto,
                   fontSize: isMobile ? 22 : 32,
                   fontWeight: FontWeight.w800,
                   height: 1.05,
@@ -486,7 +495,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                 width: 38,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: _amarillo,
+                  color: Cristal.dorado,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -498,30 +507,22 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
               ? 'Eliminar de favoritos'
               : 'Guardar en favoritos',
           child: InkWell(
+            hoverDuration: Cristal.micro,
             onTap: _alternarFavorito,
             borderRadius: BorderRadius.circular(11),
             child: Container(
               width: isMobile ? 38 : 42,
               height: isMobile ? 38 : 42,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Cristal.vidrio,
                 borderRadius: BorderRadius.circular(11),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-                boxShadow: [
-                  BoxShadow(
-                    color: _azulOscuro.withValues(alpha: 0.06),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
+                border: Border.all(color: Cristal.borde),
               ),
               child: Icon(
                 _perfilFavoritoGuardado
                     ? Icons.bookmark_rounded
                     : Icons.bookmark_border_rounded,
-                color: _perfilFavoritoGuardado
-                    ? Colors.amber.shade700
-                    : _azulOscuro,
+                color: _perfilFavoritoGuardado ? Cristal.ambar : Cristal.texto,
                 size: isMobile ? 18 : 20,
               ),
             ),
@@ -541,15 +542,8 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
         vertical: isMobile ? 16 : 24,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Cristal.vidrio,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: _azulOscuro.withValues(alpha: 0.05),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-        ],
       ),
       child: isMobile
           ? Column(
@@ -562,13 +556,13 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                       width: 52,
                       height: 52,
                       decoration: const BoxDecoration(
-                        color: Color(0xFFE5F0FF),
+                        color: Cristal.azulVidrio,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
                         Icons.person,
                         size: 30,
-                        color: Color(0xFF1E40AF),
+                        color: Cristal.acentoClaro,
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -581,7 +575,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                             style: const TextStyle(
                               fontSize: 18.5,
                               fontWeight: FontWeight.w800,
-                              color: _azulOscuro,
+                              color: Cristal.texto,
                               height: 1.2,
                             ),
                           ),
@@ -592,7 +586,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                               style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF64748B),
+                                color: Cristal.textoSuave,
                               ),
                             ),
                           ],
@@ -613,7 +607,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                         vertical: 5,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE6F4EA),
+                        color: Cristal.verdeVidrio,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: const Row(
@@ -622,13 +616,13 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                           Icon(
                             Icons.check_circle,
                             size: 14,
-                            color: Color(0xFF2E7D32),
+                            color: Cristal.verde,
                           ),
                           SizedBox(width: 5),
                           Text(
                             'Contratista (SECOP)',
                             style: TextStyle(
-                              color: Color(0xFF2E7D32),
+                              color: Cristal.verde,
                               fontSize: 11.5,
                               fontWeight: FontWeight.w700,
                             ),
@@ -644,8 +638,8 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                       ),
                       decoration: BoxDecoration(
                         color: esServidorPublico == true
-                            ? const Color(0xFFFEF3C7)
-                            : const Color(0xFFEEF2F6),
+                            ? Cristal.ambarVidrio
+                            : Cristal.vidrioSuave,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Row(
@@ -657,8 +651,8 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                                 : Icons.info_outline,
                             size: 14,
                             color: esServidorPublico == true
-                                ? const Color(0xFFB45309)
-                                : const Color(0xFF475569),
+                                ? Cristal.ambar
+                                : Cristal.textoMedio,
                           ),
                           const SizedBox(width: 5),
                           Text(
@@ -667,8 +661,8 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                                 : 'No registra en SIGEP',
                             style: TextStyle(
                               color: esServidorPublico == true
-                                  ? const Color(0xFFB45309)
-                                  : const Color(0xFF475569),
+                                  ? Cristal.ambar
+                                  : Cristal.textoMedio,
                               fontSize: 11.5,
                               fontWeight: FontWeight.w600,
                             ),
@@ -687,13 +681,13 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                   width: 78,
                   height: 78,
                   decoration: const BoxDecoration(
-                    color: Color(0xFFE5F0FF),
+                    color: Cristal.azulVidrio,
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
                     Icons.person,
                     size: 44,
-                    color: Color(0xFF1E40AF),
+                    color: Cristal.acentoClaro,
                   ),
                 ),
                 const SizedBox(width: 24),
@@ -706,7 +700,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                         style: const TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.w800,
-                          color: _azulOscuro,
+                          color: Cristal.texto,
                           height: 1.15,
                         ),
                       ),
@@ -717,7 +711,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                           style: const TextStyle(
                             fontSize: 14.5,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF64748B),
+                            color: Cristal.textoSuave,
                           ),
                         ),
                       ],
@@ -733,7 +727,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFE6F4EA),
+                              color: Cristal.verdeVidrio,
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: const Row(
@@ -742,13 +736,13 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                                 Icon(
                                   Icons.check_circle,
                                   size: 16,
-                                  color: Color(0xFF2E7D32),
+                                  color: Cristal.verde,
                                 ),
                                 SizedBox(width: 7),
                                 Text(
                                   'Contratista (SECOP)',
                                   style: TextStyle(
-                                    color: Color(0xFF2E7D32),
+                                    color: Cristal.verde,
                                     fontSize: 12.5,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -764,8 +758,8 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                             ),
                             decoration: BoxDecoration(
                               color: esServidorPublico == true
-                                  ? const Color(0xFFFEF3C7)
-                                  : const Color(0xFFEEF2F6),
+                                  ? Cristal.ambarVidrio
+                                  : Cristal.vidrioSuave,
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Row(
@@ -777,8 +771,8 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                                       : Icons.info_outline,
                                   size: 16,
                                   color: esServidorPublico == true
-                                      ? const Color(0xFFB45309)
-                                      : const Color(0xFF475569),
+                                      ? Cristal.ambar
+                                      : Cristal.textoMedio,
                                 ),
                                 const SizedBox(width: 7),
                                 Text(
@@ -787,8 +781,8 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                                       : 'No registra en SIGEP',
                                   style: TextStyle(
                                     color: esServidorPublico == true
-                                        ? const Color(0xFFB45309)
-                                        : const Color(0xFF475569),
+                                        ? Cristal.ambar
+                                        : Cristal.textoMedio,
                                     fontSize: 12.5,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -820,15 +814,8 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
           vertical: isMobile ? 14 : 20,
         ),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Cristal.vidrio,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: _azulOscuro.withValues(alpha: 0.05),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
-          ],
         ),
         child: Row(
           children: [
@@ -852,7 +839,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                     child: Text(
                       value,
                       style: TextStyle(
-                        color: _azulOscuro,
+                        color: Cristal.texto,
                         fontSize: isMobile ? 22 : 26,
                         fontWeight: FontWeight.w800,
                       ),
@@ -862,7 +849,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                   Text(
                     subtitle,
                     style: TextStyle(
-                      color: const Color(0xFF64748B),
+                      color: Cristal.textoSuave,
                       fontSize: isMobile ? 12 : 13,
                       fontWeight: FontWeight.w500,
                     ),
@@ -880,16 +867,16 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
         children: [
           kpiCard(
             icon: Icons.description_outlined,
-            iconColor: const Color(0xFF2563EB),
-            iconBg: const Color(0xFFE8F1FF),
+            iconColor: Cristal.acentoClaro,
+            iconBg: Cristal.azulVidrio,
             value: formatoMoneda.format(cantidadContratos),
             subtitle: 'Contratos celebrados',
           ),
           const SizedBox(height: 10),
           kpiCard(
             icon: Icons.toll_outlined,
-            iconColor: const Color(0xFF2E7D32),
-            iconBg: const Color(0xFFE6F4EA),
+            iconColor: Cristal.verde,
+            iconBg: Cristal.verdeVidrio,
             value: '\$ ${formatoMoneda.format(valorTotalAcumulado.round())}',
             subtitle: 'Valor total acumulado',
           ),
@@ -902,8 +889,8 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
         Expanded(
           child: kpiCard(
             icon: Icons.description_outlined,
-            iconColor: const Color(0xFF2563EB),
-            iconBg: const Color(0xFFE8F1FF),
+            iconColor: Cristal.acentoClaro,
+            iconBg: Cristal.azulVidrio,
             value: formatoMoneda.format(cantidadContratos),
             subtitle: 'Contratos celebrados',
           ),
@@ -912,8 +899,8 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
         Expanded(
           child: kpiCard(
             icon: Icons.toll_outlined,
-            iconColor: const Color(0xFF2E7D32),
-            iconBg: const Color(0xFFE6F4EA),
+            iconColor: Cristal.verde,
+            iconBg: Cristal.verdeVidrio,
             value: '\$ ${formatoMoneda.format(valorTotalAcumulado.round())}',
             subtitle: 'Valor total',
           ),
@@ -926,17 +913,16 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
     final entidad =
         (contrato['nombre_entidad']?.toString() ?? 'Entidad no especificada')
             .toUpperCase();
-    final descripcion = (contrato['descripcion_del_proceso'] ??
-            contrato['objeto_del_contrato'] ??
-            'Sin descripción')
-        .toString()
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim()
-        .toUpperCase();
-    final valor = double.tryParse(
-          contrato['valor_del_contrato']?.toString() ?? '',
-        ) ??
-        0;
+    final descripcion =
+        (contrato['descripcion_del_proceso'] ??
+                contrato['objeto_del_contrato'] ??
+                'Sin descripción')
+            .toString()
+            .replaceAll(RegExp(r'\s+'), ' ')
+            .trim()
+            .toUpperCase();
+    final valor =
+        double.tryParse(contrato['valor_del_contrato']?.toString() ?? '') ?? 0;
     final fecha = _fechaContrato(
       contrato['fecha_de_firma'] ?? contrato['fecha_de_inicio_del_contrato'],
     );
@@ -947,6 +933,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: InkWell(
+        hoverDuration: Cristal.micro,
         borderRadius: BorderRadius.circular(16),
         onTap: () async {
           await Navigator.push(
@@ -962,15 +949,8 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
         child: Container(
           padding: EdgeInsets.all(isMobile ? 14 : 20),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Cristal.vidrio,
             borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: _azulOscuro.withValues(alpha: 0.05),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
           ),
           child: isMobile
               ? Column(
@@ -983,12 +963,12 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                           width: 38,
                           height: 38,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFEF5D8),
+                            color: Cristal.doradoVidrio,
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(
                             Icons.request_quote_outlined,
-                            color: Color(0xFFE5A000),
+                            color: Cristal.dorado,
                             size: 20,
                           ),
                         ),
@@ -999,7 +979,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: _azulOscuro,
+                              color: Cristal.texto,
                               fontSize: 13,
                               fontWeight: FontWeight.w800,
                               height: 1.3,
@@ -1019,8 +999,8 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                                 ? Icons.star_rounded
                                 : Icons.star_border_rounded,
                             color: esFavorito
-                                ? Colors.amber.shade700
-                                : const Color(0xFF1E3A8A),
+                                ? Cristal.ambar
+                                : Cristal.acentoClaro,
                             size: 23,
                           ),
                         ),
@@ -1032,7 +1012,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                         const Icon(
                           Icons.account_balance_outlined,
                           size: 14,
-                          color: Color(0xFF64748B),
+                          color: Cristal.textoSuave,
                         ),
                         const SizedBox(width: 6),
                         Expanded(
@@ -1041,7 +1021,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: Color(0xFF64748B),
+                              color: Cristal.textoSuave,
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),
@@ -1049,7 +1029,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                         ),
                       ],
                     ),
-                    const Divider(height: 16, color: Color(0xFFF1F5F9)),
+                    const Divider(height: 16, color: Cristal.borde),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.end,
@@ -1060,19 +1040,20 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                             Text(
                               '\$ ${formatoMoneda.format(valor.round())}',
                               style: const TextStyle(
-                                color: Color(0xFF2E7D32),
+                                color: Cristal.verde,
                                 fontSize: 15.5,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
-                            if (analisis.tienePlazo && analisis.valorTotal > 0) ...[
+                            if (analisis.tienePlazo &&
+                                analisis.valorTotal > 0) ...[
                               const SizedBox(height: 2),
                               Text(
                                 analisis.esMenorAUnMes
                                     ? '${analisis.plazoDias} días total'
                                     : '≈ ${ContractFinancialAnalysis.formatCop(analisis.valorMensualEstimado)} / mes',
                                 style: const TextStyle(
-                                  color: Color(0xFF1D4ED8),
+                                  color: Cristal.acentoClaro,
                                   fontSize: 11.5,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -1089,13 +1070,13 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                                 const Icon(
                                   Icons.calendar_today_outlined,
                                   size: 13,
-                                  color: Color(0xFF64748B),
+                                  color: Cristal.textoSuave,
                                 ),
                                 const SizedBox(width: 5),
                                 Text(
                                   fecha,
                                   style: const TextStyle(
-                                    color: Color(0xFF475569),
+                                    color: Cristal.textoMedio,
                                     fontSize: 11.5,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -1107,7 +1088,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                               Text(
                                 '${analisis.plazoDias}d · ${analisis.mesesDecimalTexto}',
                                 style: const TextStyle(
-                                  color: Color(0xFFB45309),
+                                  color: Cristal.ambar,
                                   fontSize: 10.5,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -1126,12 +1107,12 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFEF5D8),
+                        color: Cristal.doradoVidrio,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(
                         Icons.request_quote_outlined,
-                        color: Color(0xFFE5A000),
+                        color: Cristal.dorado,
                         size: 25,
                       ),
                     ),
@@ -1145,7 +1126,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: _azulOscuro,
+                              color: Cristal.texto,
                               fontSize: 13.5,
                               fontWeight: FontWeight.w800,
                               height: 1.35,
@@ -1157,7 +1138,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                               const Icon(
                                 Icons.account_balance_outlined,
                                 size: 15,
-                                color: Color(0xFF64748B),
+                                color: Cristal.textoSuave,
                               ),
                               const SizedBox(width: 6),
                               Expanded(
@@ -1166,7 +1147,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                    color: Color(0xFF64748B),
+                                    color: Cristal.textoSuave,
                                     fontSize: 12.5,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -1182,12 +1163,13 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                               Text(
                                 '\$ ${formatoMoneda.format(valor.round())}',
                                 style: const TextStyle(
-                                  color: Color(0xFF2E7D32),
+                                  color: Cristal.verde,
                                   fontSize: 17,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
-                              if (analisis.tienePlazo && analisis.valorTotal > 0) ...[
+                              if (analisis.tienePlazo &&
+                                  analisis.valorTotal > 0) ...[
                                 const SizedBox(width: 10),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
@@ -1195,7 +1177,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                                     vertical: 3,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFEFF6FF),
+                                    color: Cristal.azulVidrio,
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(
@@ -1203,7 +1185,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                                         ? '${analisis.plazoDias} días'
                                         : '≈ ${ContractFinancialAnalysis.formatCop(analisis.valorMensualEstimado)} / mes (${analisis.mesesDecimalTexto})',
                                     style: const TextStyle(
-                                      color: Color(0xFF1D4ED8),
+                                      color: Cristal.acentoClaro,
                                       fontSize: 11.5,
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -1219,7 +1201,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                     Container(
                       width: 1,
                       height: 38,
-                      color: const Color(0xFFE2E8F0),
+                      color: Cristal.vidrioFuerte,
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 18),
@@ -1229,13 +1211,13 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                           const Icon(
                             Icons.calendar_today_outlined,
                             size: 15,
-                            color: Color(0xFF64748B),
+                            color: Cristal.textoSuave,
                           ),
                           const SizedBox(width: 7),
                           Text(
                             fecha,
                             style: const TextStyle(
-                              color: Color(0xFF475569),
+                              color: Cristal.textoMedio,
                               fontSize: 12.5,
                               fontWeight: FontWeight.w500,
                             ),
@@ -1246,7 +1228,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                     Container(
                       width: 1,
                       height: 38,
-                      color: const Color(0xFFE2E8F0),
+                      color: Cristal.vidrioFuerte,
                     ),
                     const SizedBox(width: 8),
                     IconButton(
@@ -1258,9 +1240,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                         esFavorito
                             ? Icons.star_rounded
                             : Icons.star_border_rounded,
-                        color: esFavorito
-                            ? Colors.amber.shade700
-                            : const Color(0xFF1E3A8A),
+                        color: esFavorito ? Cristal.ambar : Cristal.acentoClaro,
                         size: 25,
                       ),
                     ),
@@ -1276,301 +1256,244 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
     final screenW = MediaQuery.sizeOf(context).width;
     final isMobile = screenW < 768;
 
-    final bodyContent = Container(
-      color: const Color(0xFFFAF5EA),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final double horizontalPad = isMobile
-              ? 16.0
-              : (constraints.maxWidth > 1220 ? 32.0 : 24.0);
-          return SingleChildScrollView(
-            child: Stack(
-              children: [
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: 215,
-                  child: Image.asset(
-                    'assets/images/fondo_valledupar.jpg',
-                    fit: BoxFit.cover,
-                    alignment: const Alignment(0.0, -0.38),
-                    errorBuilder: (context, error, stackTrace) =>
-                        Container(),
-                  ),
+    final bodyContent = LayoutBuilder(
+      builder: (context, constraints) {
+        final double horizontalPad = isMobile
+            ? 16.0
+            : (constraints.maxWidth > 1220 ? 32.0 : 24.0);
+        return SingleChildScrollView(
+          child: Stack(
+            children: [
+              const Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 215,
+                child: FotoAmbiente.cabecera(),
+              ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  horizontalPad,
+                  isMobile ? 16 : 24,
+                  horizontalPad,
+                  28,
                 ),
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: 215,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        colors: [
-                          const Color(0xFFFAF5EA),
-                          const Color(0xFFFAF5EA)
-                              .withValues(alpha: 0.92),
-                          const Color(0xFFFAF5EA)
-                              .withValues(alpha: 0.0),
-                        ],
-                        stops: const [0.0, 0.36, 0.65],
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: 145,
-                  left: 0,
-                  right: 0,
-                  height: 70,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          const Color(0xFFFAF5EA)
-                              .withValues(alpha: 0.0),
-                          const Color(0xFFFAF5EA),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    horizontalPad,
-                    isMobile ? 16 : 24,
-                    horizontalPad,
-                    28,
-                  ),
-                  child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.stretch,
-                    children: [
-                      _buildHeaderRow(isMobile),
-                      SizedBox(height: isMobile ? 16 : 22),
-                      _buildContractorIdentityCard(isMobile),
-                      const SizedBox(height: 16),
-                      _buildKpiSummaryRow(isMobile),
-                      const SizedBox(height: 24),
-                      Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Historial en SECOP',
-                            style: TextStyle(
-                              color: _azulOscuro,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                            ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildHeaderRow(isMobile),
+                    SizedBox(height: isMobile ? 16 : 22),
+                    _buildContractorIdentityCard(isMobile),
+                    const SizedBox(height: 16),
+                    _buildKpiSummaryRow(isMobile),
+                    const SizedBox(height: 24),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Historial en SECOP',
+                          style: TextStyle(
+                            color: Cristal.texto,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
                           ),
-                          const SizedBox(height: 6),
-                          Container(
-                            width: 28,
-                            height: 3.5,
-                            decoration: BoxDecoration(
-                              color: _amarillo,
-                              borderRadius:
-                                  BorderRadius.circular(2),
-                            ),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          width: 28,
+                          height: 3.5,
+                          decoration: BoxDecoration(
+                            color: Cristal.dorado,
+                            borderRadius: BorderRadius.circular(2),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      if (historialContratos.isNotEmpty) ...[
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              InkWell(
-                                onTap: () => setState(() {
-                                  _filtroAnio = '';
-                                  _historialVisible = _tamanoPaginaHistorial;
-                                }),
-                                borderRadius: BorderRadius.circular(20),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    if (historialContratos.isNotEmpty) ...[
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            InkWell(
+                              hoverDuration: Cristal.micro,
+                              onTap: () => setState(() {
+                                _filtroAnio = '';
+                                _historialVisible = _tamanoPaginaHistorial;
+                              }),
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _filtroAnio.isEmpty
+                                      ? Cristal.acentoVidrio
+                                      : Cristal.vidrio,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
                                     color: _filtroAnio.isEmpty
-                                        ? _azulOscuro
-                                        : Colors.white,
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: _filtroAnio.isEmpty
-                                          ? _azulOscuro
-                                          : const Color(0xFFCBD5E1),
-                                    ),
+                                        ? Cristal.acentoClaro
+                                        : Cristal.bordeFuerte,
                                   ),
-                                  child: Text(
-                                    'Todos (${AniosSecop.primero}–${AniosSecop.actual}): ${historialContratos.length}',
-                                    style: TextStyle(
-                                      color: _filtroAnio.isEmpty
-                                          ? Colors.white
-                                          : const Color(0xFF475569),
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                                ),
+                                child: Text(
+                                  'Todos (${AniosSecop.primero}–${AniosSecop.actual}): ${historialContratos.length}',
+                                  style: TextStyle(
+                                    color: _filtroAnio.isEmpty
+                                        ? Cristal.texto
+                                        : Cristal.textoMedio,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
                               ),
-                              for (final a in _aniosHistorial) ...[
-                                const SizedBox(width: 8),
-                                Builder(
-                                  builder: (context) {
-                                    final count = _contratosPorAnio[a] ?? 0;
-                                    final isSelected = _filtroAnio == a;
-                                    return InkWell(
-                                      onTap: count > 0 || isSelected
-                                          ? () => setState(() {
-                                              _filtroAnio = isSelected ? '' : a;
-                                              _historialVisible = _tamanoPaginaHistorial;
-                                            })
-                                          : null,
-                                      borderRadius: BorderRadius.circular(20),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 11,
-                                          vertical: 6,
-                                        ),
-                                        decoration: BoxDecoration(
+                            ),
+                            for (final a in _aniosHistorial) ...[
+                              const SizedBox(width: 8),
+                              Builder(
+                                builder: (context) {
+                                  final count = _contratosPorAnio[a] ?? 0;
+                                  final isSelected = _filtroAnio == a;
+                                  return InkWell(
+                                    hoverDuration: Cristal.micro,
+                                    onTap: count > 0 || isSelected
+                                        ? () => setState(() {
+                                            _filtroAnio = isSelected ? '' : a;
+                                            _historialVisible =
+                                                _tamanoPaginaHistorial;
+                                          })
+                                        : null,
+                                    borderRadius: BorderRadius.circular(20),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 11,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? Cristal.acentoVidrio
+                                            : (count > 0
+                                                  ? Cristal.vidrio
+                                                  : Cristal.vidrioSuave),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
                                           color: isSelected
-                                              ? _azulOscuro
-                                              : (count > 0 ? Colors.white : const Color(0xFFF1F5F9)),
-                                          borderRadius: BorderRadius.circular(20),
-                                          border: Border.all(
-                                            color: isSelected
-                                                ? _azulOscuro
-                                                : (count > 0
-                                                    ? const Color(0xFFCBD5E1)
-                                                    : const Color(0xFFE2E8F0)),
-                                          ),
-                                        ),
-                                        child: Text(
-                                          '$a ($count)',
-                                          style: TextStyle(
-                                            color: isSelected
-                                                ? Colors.white
-                                                : (count > 0
-                                                    ? _azulOscuro
-                                                    : const Color(0xFF94A3B8)),
-                                            fontSize: 12,
-                                            fontWeight: isSelected
-                                                ? FontWeight.w700
-                                                : FontWeight.w500,
-                                          ),
+                                              ? Cristal.acentoClaro
+                                              : (count > 0
+                                                    ? Cristal.bordeFuerte
+                                                    : Cristal.borde),
                                         ),
                                       ),
-                                    );
-                                  },
-                                ),
-                              ],
+                                      child: Text(
+                                        '$a ($count)',
+                                        style: TextStyle(
+                                          color: isSelected
+                                              ? Cristal.texto
+                                              : (count > 0
+                                                    ? Cristal.texto
+                                                    : Cristal.textoTenue),
+                                          fontSize: 12,
+                                          fontWeight: isSelected
+                                              ? FontWeight.w700
+                                              : FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
                             ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+                    if (isLoading)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 48),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (errorCarga != null)
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: Cristal.vidrio,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Text(
+                          errorCarga!,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Cristal.rojo, fontSize: 14),
+                        ),
+                      )
+                    else if (historialContratos.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: Cristal.vidrio,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Text(
+                          'No se encontraron contratos registrados en SECOP para este contratista desde 2015.',
+                          style: TextStyle(
+                            color: Cristal.textoSuave,
+                            fontSize: 13.5,
                           ),
                         ),
-                        const SizedBox(height: 14),
-                      ],
-                      if (isLoading)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(
-                            vertical: 48,
-                          ),
-                          child: Center(
-                            child: CircularProgressIndicator(),
-                          ),
-                        )
-                      else if (errorCarga != null)
-                        Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius:
-                                BorderRadius.circular(16),
-                          ),
+                      )
+                    else if (_contratosFiltrados.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: Cristal.vidrio,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Center(
                           child: Text(
-                            errorCarga!,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.red.shade700,
-                              fontSize: 14,
-                            ),
-                          ),
-                        )
-                      else if (historialContratos.isEmpty)
-                        Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius:
-                                BorderRadius.circular(16),
-                          ),
-                          child: const Text(
-                            'No se encontraron contratos registrados en SECOP para este contratista desde 2015.',
-                            style: TextStyle(
-                              color: Color(0xFF64748B),
+                            'No se registran contratos en el año $_filtroAnio para este contratista.',
+                            style: const TextStyle(
+                              color: Cristal.textoSuave,
                               fontSize: 13.5,
                             ),
                           ),
-                        )
-                      else if (_contratosFiltrados.isEmpty)
-                        Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
+                        ),
+                      )
+                    else ...[
+                      for (final contrato in _contratosFiltrados.take(
+                        _historialVisible,
+                      ))
+                        _buildHistorialContractCard(contrato, isMobile),
+                      if (_contratosFiltrados.length > _historialVisible)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
                           child: Center(
-                            child: Text(
-                              'No se registran contratos en el año $_filtroAnio para este contratista.',
-                              style: const TextStyle(
-                                color: Color(0xFF64748B),
-                                fontSize: 13.5,
+                            child: OutlinedButton.icon(
+                              onPressed: () => setState(
+                                () =>
+                                    _historialVisible += _tamanoPaginaHistorial,
+                              ),
+                              icon: const Icon(Icons.expand_more_rounded),
+                              label: Text(
+                                'Ver más (${_contratosFiltrados.length - _historialVisible} restantes)',
                               ),
                             ),
                           ),
-                        )
-                      else ...[
-                        for (final contrato in _contratosFiltrados.take(
-                          _historialVisible,
-                        ))
-                          _buildHistorialContractCard(contrato, isMobile),
-                        if (_contratosFiltrados.length > _historialVisible)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 6),
-                            child: Center(
-                              child: OutlinedButton.icon(
-                                onPressed: () => setState(
-                                  () => _historialVisible +=
-                                      _tamanoPaginaHistorial,
-                                ),
-                                icon: const Icon(Icons.expand_more_rounded),
-                                label: Text(
-                                  'Ver más (${_contratosFiltrados.length - _historialVisible} restantes)',
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
+                        ),
                     ],
-                  ),
+                  ],
                 ),
-              ],
-            ),
-          );
-        },
-      ),
+              ),
+            ],
+          ),
+        );
+      },
     );
 
     if (isMobile) {
       return Scaffold(
-        backgroundColor: const Color(0xFFFAF5EA),
+        backgroundColor: Colors.transparent,
         drawer: null,
         drawerEnableOpenDragGesture: false,
         body: SafeArea(child: bodyContent),
@@ -1581,18 +1504,17 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
             if (bottomIdx >= 0 && bottomIdx < mobileTabIndices.length) {
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(
-                  builder: (_) => HomeScreen(
-                    initialIndex: mobileTabIndices[bottomIdx],
-                  ),
+                  builder: (_) =>
+                      HomeScreen(initialIndex: mobileTabIndices[bottomIdx]),
                 ),
                 (route) => false,
               );
             }
           },
           type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
-          selectedItemColor: _azulOscuro,
-          unselectedItemColor: const Color(0xFF64748B),
+          backgroundColor: Colors.transparent,
+          selectedItemColor: Cristal.dorado,
+          unselectedItemColor: Cristal.textoTenue,
           selectedLabelStyle: const TextStyle(
             fontSize: 11.5,
             fontWeight: FontWeight.w800,
@@ -1604,27 +1526,33 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
           items: const [
             BottomNavigationBarItem(
               icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home_rounded, color: _amarillo),
+              activeIcon: Icon(Icons.home_rounded, color: Cristal.dorado),
               label: 'Inicio',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.description_outlined),
-              activeIcon: Icon(Icons.description_rounded, color: _amarillo),
+              activeIcon: Icon(
+                Icons.description_rounded,
+                color: Cristal.dorado,
+              ),
               label: 'Contratos',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.account_balance_outlined),
-              activeIcon: Icon(Icons.account_balance_rounded, color: _amarillo),
+              activeIcon: Icon(
+                Icons.account_balance_rounded,
+                color: Cristal.dorado,
+              ),
               label: 'Entidades',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.people_outline),
-              activeIcon: Icon(Icons.people_alt_rounded, color: _amarillo),
+              activeIcon: Icon(Icons.people_alt_rounded, color: Cristal.dorado),
               label: 'Contratistas',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.star_border_rounded),
-              activeIcon: Icon(Icons.star_rounded, color: _amarillo),
+              activeIcon: Icon(Icons.star_rounded, color: Cristal.dorado),
               label: 'Favoritos',
             ),
           ],
@@ -1633,16 +1561,18 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF8EE),
+      backgroundColor: Colors.transparent,
       body: Row(
+        // El contenido ocupa todo el alto: si es corto queda arriba, no
+        // centrado.
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           CollapsibleSideMenu(
             selectedIndex: -1,
             isCollapsed: _isSidebarCollapsed,
             onItemSelected: _onSidebarItemSelected,
-            onToggleCollapse: () => setState(
-              () => _isSidebarCollapsed = !_isSidebarCollapsed,
-            ),
+            onToggleCollapse: () =>
+                setState(() => _isSidebarCollapsed = !_isSidebarCollapsed),
             onLogout: _cerrarSesion,
           ),
           Expanded(child: bodyContent),
@@ -1707,7 +1637,9 @@ class _ContratosPorEntidadScreenState extends State<ContratosPorEntidadScreen> {
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(guardado ? 'Añadido a Favoritos ⭐' : 'Eliminado de Favoritos'),
+        content: Text(
+          guardado ? 'Añadido a Favoritos ⭐' : 'Eliminado de Favoritos',
+        ),
       ),
     );
   }
@@ -1717,23 +1649,23 @@ class _ContratosPorEntidadScreenState extends State<ContratosPorEntidadScreen> {
     if (estadoLower.contains('celebrado') ||
         estadoLower.contains('liquidado') ||
         estadoLower.contains('terminado')) {
-      return Colors.green;
+      return Cristal.verde;
     }
     if (estadoLower.contains('enviado') ||
         estadoLower.contains('convocado') ||
         estadoLower.contains('adjudicado')) {
-      return Colors.orange;
+      return Cristal.ambar;
     }
     if (estadoLower.contains('borrador') || estadoLower.contains('cancelado')) {
-      return Colors.grey;
+      return Cristal.textoTenue;
     }
-    return Colors.blue;
+    return Color(0xFF38BDF8);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF5EA),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1741,21 +1673,21 @@ class _ContratosPorEntidadScreenState extends State<ContratosPorEntidadScreen> {
             const Text(
               'Contratos con Entidad',
               style: TextStyle(
-                color: Color(0xFF1A2B4C),
+                color: Cristal.texto,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
             ),
             Text(
               widget.entidad,
-              style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+              style: const TextStyle(color: Cristal.textoSuave, fontSize: 12),
               overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF1A2B4C)),
+        iconTheme: const IconThemeData(color: Cristal.texto),
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1764,7 +1696,7 @@ class _ContratosPorEntidadScreenState extends State<ContratosPorEntidadScreen> {
             padding: const EdgeInsets.all(16.0),
             child: Text(
               'Mostrando ${widget.contratos.length} contratos de ${widget.proveedor} con esta entidad.',
-              style: TextStyle(color: Colors.blueGrey.shade600, fontSize: 13),
+              style: TextStyle(color: Cristal.textoSuave, fontSize: 13),
             ),
           ),
           Expanded(
@@ -1797,6 +1729,7 @@ class _ContratosPorEntidadScreenState extends State<ContratosPorEntidadScreen> {
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: InkWell(
+                    hoverDuration: Cristal.micro,
                     borderRadius: BorderRadius.circular(16),
                     onTap: () async {
                       await Navigator.push(
@@ -1823,7 +1756,7 @@ class _ContratosPorEntidadScreenState extends State<ContratosPorEntidadScreen> {
                                   style: const TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w700,
-                                    color: Color(0xFF1A2B4C),
+                                    color: Cristal.texto,
                                   ),
                                   maxLines: 3,
                                   overflow: TextOverflow.ellipsis,
@@ -1831,6 +1764,7 @@ class _ContratosPorEntidadScreenState extends State<ContratosPorEntidadScreen> {
                               ),
                               const SizedBox(width: 8),
                               InkWell(
+                                hoverDuration: Cristal.micro,
                                 onTap: () => _toggleFavorito(contrato),
                                 borderRadius: BorderRadius.circular(20),
                                 child: Padding(
@@ -1841,8 +1775,8 @@ class _ContratosPorEntidadScreenState extends State<ContratosPorEntidadScreen> {
                                   child: Icon(
                                     esFavorito ? Icons.star : Icons.star_border,
                                     color: esFavorito
-                                        ? Colors.orange
-                                        : Colors.grey.shade400,
+                                        ? Cristal.ambar
+                                        : Cristal.textoTenue,
                                     size: 24,
                                   ),
                                 ),
@@ -1855,7 +1789,7 @@ class _ContratosPorEntidadScreenState extends State<ContratosPorEntidadScreen> {
                               const Icon(
                                 Icons.gavel,
                                 size: 16,
-                                color: Colors.grey,
+                                color: Cristal.textoTenue,
                               ),
                               const SizedBox(width: 6),
                               Expanded(
@@ -1864,7 +1798,7 @@ class _ContratosPorEntidadScreenState extends State<ContratosPorEntidadScreen> {
                                       'Modalidad no definida',
                                   style: const TextStyle(
                                     fontSize: 13,
-                                    color: Colors.grey,
+                                    color: Cristal.textoTenue,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -1878,7 +1812,7 @@ class _ContratosPorEntidadScreenState extends State<ContratosPorEntidadScreen> {
                               Text(
                                 valorFormateado,
                                 style: const TextStyle(
-                                  color: Color(0xFF2E7D32),
+                                  color: Cristal.verde,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 18,
                                 ),

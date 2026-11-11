@@ -8,12 +8,10 @@ import '../services/payment_service.dart';
 import '../services/security_service.dart';
 import 'escoger_rol_screen.dart';
 import 'pasarela_pago_wompi_screen.dart';
+import '../tema/cristal.dart';
 
 class RegistroScreen extends StatefulWidget {
-  const RegistroScreen({
-    super.key,
-    this.rolSeleccionadoId = 'persona',
-  });
+  const RegistroScreen({super.key, this.rolSeleccionadoId = 'persona'});
 
   final String rolSeleccionadoId;
 
@@ -22,11 +20,6 @@ class RegistroScreen extends StatefulWidget {
 }
 
 class _RegistroScreenState extends State<RegistroScreen> {
-  static const _navyDark = Color(0xFF0E2646);
-  static const _subtitleBlue = Color(0xFF364F6B);
-  static const _royalBlue = Color(0xFF0D5BD9);
-  static const _goldAccent = Color(0xFFF5C032);
-  static const _tealCheck = Color(0xFF1E7868);
   static final _emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
 
   final _formKey = GlobalKey<FormState>();
@@ -76,7 +69,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
             children: [
               Icon(
                 isError ? Icons.error_outline_rounded : Icons.verified_rounded,
-                color: Colors.white,
+                color: Cristal.texto,
                 size: 20,
               ),
               const SizedBox(width: 10),
@@ -84,7 +77,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                 child: Text(
                   message,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: Cristal.texto,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
                   ),
@@ -92,7 +85,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
               ),
             ],
           ),
-          backgroundColor: isError ? Colors.red.shade700 : _navyDark,
+          backgroundColor: isError ? Color(0xFFDC2626) : Cristal.flotante,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -122,12 +115,15 @@ class _RegistroScreenState extends State<RegistroScreen> {
 
     _showMessage(titulo, isError: true);
 
-    await showDialog<void>(
+    await mostrarDialogoCristal<void>(
       context: context,
       builder: (ctx) => Dialog(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        backgroundColor: Cristal.flotante,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22),
+          side: const BorderSide(color: Cristal.bordeFuerte),
+        ),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 460),
           child: Padding(
@@ -139,12 +135,12 @@ class _RegistroScreenState extends State<RegistroScreen> {
                   width: 60,
                   height: 60,
                   decoration: const BoxDecoration(
-                    color: Color(0xFFFEE2E2),
+                    color: Cristal.rojoVidrio,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     Icons.warning_amber_rounded,
-                    color: Colors.red.shade700,
+                    color: Cristal.rojo,
                     size: 34,
                   ),
                 ),
@@ -153,7 +149,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                   titulo,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    color: _navyDark,
+                    color: Cristal.texto,
                     fontSize: 19,
                     fontWeight: FontWeight.w800,
                   ),
@@ -163,7 +159,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                   detalle,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    color: Color(0xFF475569),
+                    color: Cristal.textoMedio,
                     fontSize: 14,
                     height: 1.45,
                     fontWeight: FontWeight.w500,
@@ -176,8 +172,8 @@ class _RegistroScreenState extends State<RegistroScreen> {
                   child: ElevatedButton(
                     onPressed: () => Navigator.of(ctx).pop(),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _navyDark,
-                      foregroundColor: Colors.white,
+                      backgroundColor: Cristal.acento,
+                      foregroundColor: Cristal.texto,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(26),
@@ -261,8 +257,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
         setState(() {
           _isLoading = false;
           if (duplicados.emailEnUso) {
-            _errorEmailEnUso =
-                'Este correo electrónico ya se encuentra en uso. Cámbialo por otro.';
+            _errorEmailEnUso = 'Este correo electrónico ya se encuentra en uso. Cámbialo por otro.';
           }
           if (duplicados.documentoEnUso) {
             _errorCedulaEnUso =
@@ -316,15 +311,16 @@ class _RegistroScreenState extends State<RegistroScreen> {
       final bool esCorreoDuplicado =
           lowerMsg.contains('correo') && lowerMsg.contains('en uso');
       final bool esCedulaDuplicada =
-          (lowerMsg.contains('cédula') || lowerMsg.contains('cedula') || lowerMsg.contains('documento')) &&
+          (lowerMsg.contains('cédula') ||
+              lowerMsg.contains('cedula') ||
+              lowerMsg.contains('documento')) &&
           lowerMsg.contains('en uso');
 
       if (esCorreoDuplicado || esCedulaDuplicada) {
         setState(() {
           _isLoading = false;
           if (esCorreoDuplicado) {
-            _errorEmailEnUso =
-                'Este correo electrónico ya se encuentra en uso. Cámbialo por otro.';
+            _errorEmailEnUso = 'Este correo electrónico ya se encuentra en uso. Cámbialo por otro.';
           }
           if (esCedulaDuplicada) {
             _errorCedulaEnUso =
@@ -353,501 +349,512 @@ class _RegistroScreenState extends State<RegistroScreen> {
 
     return SelectionArea(
       child: Scaffold(
-        backgroundColor: OnboardingUnifiedBackground.bgCream,
+        backgroundColor: Colors.transparent,
         body: OnboardingUnifiedBackground(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final width = constraints.maxWidth;
-            final isTwoCols = width >= 680;
-            final isMobile = width < 600;
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              final isTwoCols = width >= 680;
+              final isMobile = width < 600;
 
-            final fieldNombres = _textField(
-              controller: _nombresController,
-              hint: 'Nombres *',
-              icon: Icons.person_outline_rounded,
-              validator: _requiredValidator,
-              textCapitalization: TextCapitalization.words,
-            );
+              final fieldNombres = _textField(
+                controller: _nombresController,
+                hint: 'Nombres *',
+                icon: Icons.person_outline_rounded,
+                validator: _requiredValidator,
+                textCapitalization: TextCapitalization.words,
+              );
 
-            final fieldApellidos = _textField(
-              controller: _apellidosController,
-              hint: 'Apellidos *',
-              icon: Icons.person_outline_rounded,
-              validator: _requiredValidator,
-              textCapitalization: TextCapitalization.words,
-            );
+              final fieldApellidos = _textField(
+                controller: _apellidosController,
+                hint: 'Apellidos *',
+                icon: Icons.person_outline_rounded,
+                validator: _requiredValidator,
+                textCapitalization: TextCapitalization.words,
+              );
 
-            final fieldEmail = _textField(
-              controller: _emailController,
-              hint: 'Correo electrónico *',
-              icon: Icons.mail_outline_rounded,
-              keyboardType: TextInputType.emailAddress,
-              onChanged: (_) {
-                if (_errorEmailEnUso != null) {
-                  setState(() => _errorEmailEnUso = null);
-                  _formKey.currentState?.validate();
-                }
-              },
-              validator: (value) {
-                final email = value?.trim() ?? '';
-                if (email.isEmpty) {
-                  return 'El correo electrónico es obligatorio.';
-                }
-                if (!_emailRegex.hasMatch(email)) {
-                  return 'Ingresa un correo electrónico válido.';
-                }
-                if (_errorEmailEnUso != null) {
-                  return _errorEmailEnUso;
-                }
-                return null;
-              },
-            );
+              final fieldEmail = _textField(
+                controller: _emailController,
+                hint: 'Correo electrónico *',
+                icon: Icons.mail_outline_rounded,
+                keyboardType: TextInputType.emailAddress,
+                onChanged: (_) {
+                  if (_errorEmailEnUso != null) {
+                    setState(() => _errorEmailEnUso = null);
+                    _formKey.currentState?.validate();
+                  }
+                },
+                validator: (value) {
+                  final email = value?.trim() ?? '';
+                  if (email.isEmpty) {
+                    return 'El correo electrónico es obligatorio.';
+                  }
+                  if (!_emailRegex.hasMatch(email)) {
+                    return 'Ingresa un correo electrónico válido.';
+                  }
+                  if (_errorEmailEnUso != null) {
+                    return _errorEmailEnUso;
+                  }
+                  return null;
+                },
+              );
 
-            final fieldDocumento = _textField(
-              controller: _documentoController,
-              hint: 'Número de cédula o documento *',
-              icon: Icons.badge_outlined,
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.\-]')),
-                LengthLimitingTextInputFormatter(18),
-              ],
-              onChanged: (_) {
-                if (_errorCedulaEnUso != null) {
-                  setState(() => _errorCedulaEnUso = null);
-                  _formKey.currentState?.validate();
-                }
-              },
-              validator: (value) {
-                final digits = (value ?? '').replaceAll(RegExp(r'\D'), '');
-                if (digits.isEmpty) {
-                  return 'El número de cédula es obligatorio.';
-                }
-                if (digits.length < 5) {
-                  return 'Ingresa un número de cédula válido (mínimo 5 dígitos).';
-                }
-                if (_errorCedulaEnUso != null) {
-                  return _errorCedulaEnUso;
-                }
-                return null;
-              },
-            );
+              final fieldDocumento = _textField(
+                controller: _documentoController,
+                hint: 'Número de cédula o documento *',
+                icon: Icons.badge_outlined,
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.\-]')),
+                  LengthLimitingTextInputFormatter(18),
+                ],
+                onChanged: (_) {
+                  if (_errorCedulaEnUso != null) {
+                    setState(() => _errorCedulaEnUso = null);
+                    _formKey.currentState?.validate();
+                  }
+                },
+                validator: (value) {
+                  final digits = (value ?? '').replaceAll(RegExp(r'\D'), '');
+                  if (digits.isEmpty) {
+                    return 'El número de cédula es obligatorio.';
+                  }
+                  if (digits.length < 5) {
+                    return 'Ingresa un número de cédula válido (mínimo 5 dígitos).';
+                  }
+                  if (_errorCedulaEnUso != null) {
+                    return _errorCedulaEnUso;
+                  }
+                  return null;
+                },
+              );
 
-            final fieldPais = DropdownButtonFormField<String>(
-              initialValue: _pais,
-              style: const TextStyle(
-                color: Color(0xFF1E293B),
-                fontSize: 14.8,
-                fontWeight: FontWeight.w500,
-              ),
-              icon: const Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: Color(0xFF475569),
-              ),
-              decoration: _decoration(
-                hint: 'País de residencia',
-                labelText: 'País de residencia *',
-                icon: Icons.public_rounded,
-              ),
-              items: const [
-                DropdownMenuItem(value: 'Colombia', child: Text('Colombia')),
-                DropdownMenuItem(value: 'México', child: Text('México')),
-                DropdownMenuItem(value: 'España', child: Text('España')),
-                DropdownMenuItem(
-                  value: 'Estados Unidos',
-                  child: Text('Estados Unidos'),
+              final fieldPais = DropdownButtonFormField<String>(
+                initialValue: _pais,
+                style: const TextStyle(
+                  color: Cristal.texto,
+                  fontSize: 14.8,
+                  fontWeight: FontWeight.w500,
                 ),
-                DropdownMenuItem(value: 'Otro', child: Text('Otro')),
-              ],
-              onChanged: _isLoading
-                  ? null
-                  : (value) {
-                      if (value != null) {
-                        setState(() => _pais = value);
-                      }
-                    },
-              validator: (value) => value == null ? 'Selecciona un país.' : null,
-            );
-
-            final fieldTelefono = _textField(
-              controller: _telefonoController,
-              hint: 'Número de teléfono (opcional)',
-              icon: Icons.phone_outlined,
-              keyboardType: TextInputType.phone,
-            );
-
-            final fieldPassword = _textField(
-              controller: _passwordController,
-              hint: 'Contraseña (mín. 8, mayús. y número) *',
-              icon: Icons.lock_outline_rounded,
-              obscureText: !_passwordVisible,
-              validator: (value) => SecurityService.validateStrongPassword(value),
-              suffixIcon: IconButton(
-                tooltip: _passwordVisible
-                    ? 'Ocultar contraseña'
-                    : 'Mostrar contraseña',
-                onPressed: () => setState(
-                  () => _passwordVisible = !_passwordVisible,
+                icon: const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: Cristal.textoMedio,
                 ),
-                icon: Icon(
-                  _passwordVisible
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  color: const Color(0xFF334155),
-                  size: 20,
+                decoration: _decoration(
+                  hint: 'País de residencia',
+                  labelText: 'País de residencia *',
+                  icon: Icons.public_rounded,
                 ),
-              ),
-            );
-
-            final fieldConfirmPassword = _textField(
-              controller: _confirmPasswordController,
-              hint: 'Confirmar contraseña *',
-              icon: Icons.lock_outline_rounded,
-              obscureText: !_confirmPasswordVisible,
-              validator: (value) {
-                if ((value ?? '').isEmpty) {
-                  return 'Confirma tu contraseña.';
-                }
-                if (value != _passwordController.text) {
-                  return 'Las contraseñas no coinciden.';
-                }
-                return null;
-              },
-              suffixIcon: IconButton(
-                tooltip: _confirmPasswordVisible
-                    ? 'Ocultar contraseña'
-                    : 'Mostrar contraseña',
-                onPressed: () => setState(
-                  () => _confirmPasswordVisible = !_confirmPasswordVisible,
-                ),
-                icon: Icon(
-                  _confirmPasswordVisible
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  color: const Color(0xFF334155),
-                  size: 20,
-                ),
-              ),
-            );
-
-            return SafeArea(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                  horizontal: isMobile ? 12 : 32,
-                  vertical: isMobile ? 12 : 18,
-                ),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: (constraints.maxHeight - 36).clamp(0.0, 2000.0),
+                items: const [
+                  DropdownMenuItem(value: 'Colombia', child: Text('Colombia')),
+                  DropdownMenuItem(value: 'México', child: Text('México')),
+                  DropdownMenuItem(value: 'España', child: Text('España')),
+                  DropdownMenuItem(
+                    value: 'Estados Unidos',
+                    child: Text('Estados Unidos'),
                   ),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 1080),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          // Barra superior sin logo duplicado (el logo HD grande va dentro de la tarjeta)
-                          OnboardingUnifiedTopBar(
-                            currentStep: 2,
-                            totalSteps: 3,
-                            onBack: _cambiarRol,
-                            backLabel: 'Cambiar rol',
-                            showBrandLogo: false,
-                          ),
-                          SizedBox(height: isMobile ? 10 : 14),
+                  DropdownMenuItem(value: 'Otro', child: Text('Otro')),
+                ],
+                onChanged: _isLoading
+                    ? null
+                    : (value) {
+                        if (value != null) {
+                          setState(() => _pais = value);
+                        }
+                      },
+                validator: (value) =>
+                    value == null ? 'Selecciona un país.' : null,
+              );
 
-                          // Título y subtítulo centrados
-                          Text(
-                            'Crea tu cuenta para continuar',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: _navyDark,
-                              fontSize: isMobile ? 23 : 30,
-                              fontWeight: FontWeight.w800,
-                              height: 1.12,
-                              letterSpacing: -0.5,
+              final fieldTelefono = _textField(
+                controller: _telefonoController,
+                hint: 'Número de teléfono (opcional)',
+                icon: Icons.phone_outlined,
+                keyboardType: TextInputType.phone,
+              );
+
+              final fieldPassword = _textField(
+                controller: _passwordController,
+                hint: 'Contraseña (mín. 8, mayús. y número) *',
+                icon: Icons.lock_outline_rounded,
+                obscureText: !_passwordVisible,
+                validator: (value) =>
+                    SecurityService.validateStrongPassword(value),
+                suffixIcon: IconButton(
+                  tooltip: _passwordVisible
+                      ? 'Ocultar contraseña'
+                      : 'Mostrar contraseña',
+                  onPressed: () =>
+                      setState(() => _passwordVisible = !_passwordVisible),
+                  icon: Icon(
+                    _passwordVisible
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: Cristal.textoCuerpo,
+                    size: 20,
+                  ),
+                ),
+              );
+
+              final fieldConfirmPassword = _textField(
+                controller: _confirmPasswordController,
+                hint: 'Confirmar contraseña *',
+                icon: Icons.lock_outline_rounded,
+                obscureText: !_confirmPasswordVisible,
+                validator: (value) {
+                  if ((value ?? '').isEmpty) {
+                    return 'Confirma tu contraseña.';
+                  }
+                  if (value != _passwordController.text) {
+                    return 'Las contraseñas no coinciden.';
+                  }
+                  return null;
+                },
+                suffixIcon: IconButton(
+                  tooltip: _confirmPasswordVisible
+                      ? 'Ocultar contraseña'
+                      : 'Mostrar contraseña',
+                  onPressed: () => setState(
+                    () => _confirmPasswordVisible = !_confirmPasswordVisible,
+                  ),
+                  icon: Icon(
+                    _confirmPasswordVisible
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: Cristal.textoCuerpo,
+                    size: 20,
+                  ),
+                ),
+              );
+
+              return SafeArea(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobile ? 12 : 32,
+                    vertical: isMobile ? 12 : 18,
+                  ),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: (constraints.maxHeight - 36).clamp(
+                        0.0,
+                        2000.0,
+                      ),
+                    ),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 1080),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            // Barra superior sin logo duplicado (el logo HD grande va dentro de la tarjeta)
+                            OnboardingUnifiedTopBar(
+                              currentStep: 2,
+                              totalSteps: 3,
+                              onBack: _cambiarRol,
+                              backLabel: 'Cambiar rol',
+                              showBrandLogo: false,
                             ),
-                          ),
-                          const SizedBox(height: 6),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            child: Text(
-                              'Completa tus datos personales. Tu cédula y tu correo electrónico son obligatorios y únicos.',
+                            SizedBox(height: isMobile ? 10 : 14),
+
+                            // Título y subtítulo centrados
+                            Text(
+                              'Crea tu cuenta para continuar',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                color: _subtitleBlue,
-                                fontSize: isMobile ? 13.2 : 14.8,
-                                fontWeight: FontWeight.w500,
-                                height: 1.35,
+                                color: Cristal.texto,
+                                fontSize: isMobile ? 23 : 30,
+                                fontWeight: FontWeight.w800,
+                                height: 1.12,
+                                letterSpacing: -0.5,
                               ),
                             ),
-                          ),
-                          SizedBox(height: isMobile ? 14 : 18),
-
-                          // Tarjeta centralizada más compacta y visualmente equilibrada
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 625),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(24),
-                                border: Border.all(
-                                  color: const Color(0xFFF5C032),
-                                  width: 1.8,
+                            const SizedBox(height: 6),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                              child: Text(
+                                'Completa tus datos personales. Tu cédula y tu correo electrónico son obligatorios y únicos.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Cristal.textoMedio,
+                                  fontSize: isMobile ? 13.2 : 14.8,
+                                  fontWeight: FontWeight.w500,
+                                  height: 1.35,
                                 ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFFF5B82E).withValues(
-                                      alpha: 0.16,
-                                    ),
-                                    blurRadius: 28,
-                                    spreadRadius: 1,
-                                    offset: const Offset(0, 10),
-                                  ),
-                                  BoxShadow(
-                                    color: _navyDark.withValues(alpha: 0.07),
-                                    blurRadius: 22,
-                                    offset: const Offset(0, 7),
-                                  ),
-                                ],
                               ),
-                              padding: EdgeInsets.symmetric(
-                                horizontal: isMobile ? 16 : 28,
-                                vertical: isMobile ? 18 : 24,
-                              ),
-                              child: Form(
-                                key: _formKey,
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    // Cabecera superior de la tarjeta: UN SOLO LOGO HD GRANDE + Stepper
-                                    _buildRegistrationCardHeader(
-                                      isMobile: isMobile,
+                            ),
+                            SizedBox(height: isMobile ? 14 : 18),
+
+                            // Tarjeta centralizada más compacta y visualmente equilibrada
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 625),
+                              // Vidrio de verdad: el formulario va sobre
+                              // la foto.
+                              child: DesenfoqueCristal(
+                                radio: BorderRadius.circular(24),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Cristal.vidrioOscuro,
+                                    borderRadius: BorderRadius.circular(24),
+                                    border: Border.all(
+                                      color: Cristal.dorado,
+                                      width: 1.8,
                                     ),
-                                    SizedBox(height: isMobile ? 14 : 16),
-
-                                    // Banner del rol seleccionado con la ilustración original de la foto y su precio ($100 COP)
-                                    _buildSelectedRoleBanner(
-                                      rol: rol,
-                                      isMobile: isMobile,
-                                    ),
-                                    SizedBox(height: isMobile ? 14 : 16),
-
-                                    // Campos en cuadrícula limpia de 2 columnas en escritorio / 1 columna ajustada en celular
-                                    if (isTwoCols) ...[
-                                      Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Expanded(child: fieldNombres),
-                                          const SizedBox(width: 12),
-                                          Expanded(child: fieldApellidos),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 11),
-                                      Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Expanded(child: fieldEmail),
-                                          const SizedBox(width: 12),
-                                          Expanded(child: fieldDocumento),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 11),
-                                      Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Expanded(child: fieldPais),
-                                          const SizedBox(width: 12),
-                                          Expanded(child: fieldTelefono),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 11),
-                                      Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Expanded(child: fieldPassword),
-                                          const SizedBox(width: 12),
-                                          Expanded(child: fieldConfirmPassword),
-                                        ],
-                                      ),
-                                    ] else ...[
-                                      fieldNombres,
-                                      const SizedBox(height: 11),
-                                      fieldApellidos,
-                                      const SizedBox(height: 11),
-                                      fieldEmail,
-                                      const SizedBox(height: 11),
-                                      fieldDocumento,
-                                      const SizedBox(height: 11),
-                                      fieldPais,
-                                      const SizedBox(height: 11),
-                                      fieldTelefono,
-                                      const SizedBox(height: 11),
-                                      fieldPassword,
-                                      const SizedBox(height: 11),
-                                      fieldConfirmPassword,
-                                    ],
-                                    const SizedBox(height: 13),
-
-                                    // Aviso de verificación de unicidad de cédula y correo
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 9,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFEEF5FD),
-                                        borderRadius: BorderRadius.circular(11),
-                                        border: Border.all(
-                                          color: const Color(0xFFDCE8F8),
-                                        ),
-                                      ),
-                                      child: const Row(
-                                        children: [
-                                          Icon(
-                                            Icons.verified_user_outlined,
-                                            color: Color(0xFF1D4ED8),
-                                            size: 18,
-                                          ),
-                                          SizedBox(width: 9),
-                                          Expanded(
-                                            child: Text(
-                                              'Tu número de cédula y tu correo electrónico son de uso único por cuenta y quedarán vinculados de forma segura.',
-                                              style: TextStyle(
-                                                color: Color(0xFF334155),
-                                                fontSize: 12.2,
-                                                fontWeight: FontWeight.w600,
-                                                height: 1.32,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 11),
-
-                                    // Autorización obligatoria de tratamiento de datos (Ley 1581 de 2012)
-                                    _buildConsentimientoDatos(),
-                                    const SizedBox(height: 16),
-
-                                    // Botón principal proporcionado
-                                    SizedBox(
-                                      height: 50,
-                                      child: ElevatedButton(
-                                        onPressed: _isLoading ? null : _register,
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: _aceptaPolitica
-                                              ? _goldAccent
-                                              : const Color(0xFFE2E8F0),
-                                          foregroundColor: _navyDark,
-                                          elevation: 0,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(26),
-                                          ),
-                                        ),
-                                        child: _isLoading
-                                            ? const SizedBox(
-                                                width: 22,
-                                                height: 22,
-                                                child: CircularProgressIndicator(
-                                                  strokeWidth: 2.5,
-                                                  color: _navyDark,
-                                                ),
-                                              )
-                                            : Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
-                                                children: [
-                                                  Flexible(
-                                                    child: Text(
-                                                      'Continuar al pago (${rol.precioFormateadoCop})',
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      style: TextStyle(
-                                                        color: _navyDark,
-                                                        fontSize:
-                                                            isMobile ? 14.8 : 15.8,
-                                                        fontWeight:
-                                                            FontWeight.w800,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 10),
-                                                  const Icon(
-                                                    Icons.arrow_forward_rounded,
-                                                    size: 19,
-                                                    color: _navyDark,
-                                                  ),
-                                                ],
-                                              ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 13),
-
-                                    // Enlace inferior a Iniciar sesión
-                                    Wrap(
-                                      alignment: WrapAlignment.center,
+                                  ),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isMobile ? 16 : 28,
+                                    vertical: isMobile ? 18 : 24,
+                                  ),
+                                  child: Form(
+                                    key: _formKey,
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
                                       crossAxisAlignment:
-                                          WrapCrossAlignment.center,
+                                          CrossAxisAlignment.stretch,
                                       children: [
-                                        const Text(
-                                          '¿Ya tienes cuenta registrada? ',
-                                          style: TextStyle(
-                                            color: Color(0xFF475569),
-                                            fontSize: 13.6,
-                                            fontWeight: FontWeight.w500,
+                                        // Cabecera superior de la tarjeta: UN SOLO LOGO HD GRANDE + Stepper
+                                        _buildRegistrationCardHeader(
+                                          isMobile: isMobile,
+                                        ),
+                                        SizedBox(height: isMobile ? 14 : 16),
+
+                                        // Banner del rol seleccionado con la ilustración original de la foto y su precio ($100 COP)
+                                        _buildSelectedRoleBanner(
+                                          rol: rol,
+                                          isMobile: isMobile,
+                                        ),
+                                        SizedBox(height: isMobile ? 14 : 16),
+
+                                        // Campos en cuadrícula limpia de 2 columnas en escritorio / 1 columna ajustada en celular
+                                        if (isTwoCols) ...[
+                                          Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Expanded(child: fieldNombres),
+                                              const SizedBox(width: 12),
+                                              Expanded(child: fieldApellidos),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 11),
+                                          Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Expanded(child: fieldEmail),
+                                              const SizedBox(width: 12),
+                                              Expanded(child: fieldDocumento),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 11),
+                                          Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Expanded(child: fieldPais),
+                                              const SizedBox(width: 12),
+                                              Expanded(child: fieldTelefono),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 11),
+                                          Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Expanded(child: fieldPassword),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: fieldConfirmPassword,
+                                              ),
+                                            ],
+                                          ),
+                                        ] else ...[
+                                          fieldNombres,
+                                          const SizedBox(height: 11),
+                                          fieldApellidos,
+                                          const SizedBox(height: 11),
+                                          fieldEmail,
+                                          const SizedBox(height: 11),
+                                          fieldDocumento,
+                                          const SizedBox(height: 11),
+                                          fieldPais,
+                                          const SizedBox(height: 11),
+                                          fieldTelefono,
+                                          const SizedBox(height: 11),
+                                          fieldPassword,
+                                          const SizedBox(height: 11),
+                                          fieldConfirmPassword,
+                                        ],
+                                        const SizedBox(height: 13),
+
+                                        // Aviso de verificación de unicidad de cédula y correo
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 9,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Cristal.vidrioSuave,
+                                            borderRadius: BorderRadius.circular(
+                                              11,
+                                            ),
+                                            border: Border.all(
+                                              color: Cristal.acentoBorde,
+                                            ),
+                                          ),
+                                          child: const Row(
+                                            children: [
+                                              Icon(
+                                                Icons.verified_user_outlined,
+                                                color: Cristal.acentoClaro,
+                                                size: 18,
+                                              ),
+                                              SizedBox(width: 9),
+                                              Expanded(
+                                                child: Text(
+                                                  'Tu número de cédula y tu correo electrónico son de uso único por cuenta y quedarán vinculados de forma segura.',
+                                                  style: TextStyle(
+                                                    color: Cristal.textoCuerpo,
+                                                    fontSize: 12.2,
+                                                    fontWeight: FontWeight.w600,
+                                                    height: 1.32,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                        InkWell(
-                                          onTap: _isLoading
-                                              ? null
-                                              : _navigateToLogin,
-                                          borderRadius: BorderRadius.circular(6),
-                                          child: const Padding(
-                                            padding: EdgeInsets.symmetric(
-                                              horizontal: 6,
-                                              vertical: 4,
-                                            ),
-                                            child: Text(
-                                              'Inicia sesión aquí →',
-                                              style: TextStyle(
-                                                color: _navyDark,
-                                                fontSize: 13.8,
-                                                fontWeight: FontWeight.w800,
-                                                decoration:
-                                                    TextDecoration.underline,
+                                        const SizedBox(height: 11),
+
+                                        // Autorización obligatoria de tratamiento de datos (Ley 1581 de 2012)
+                                        _buildConsentimientoDatos(),
+                                        const SizedBox(height: 16),
+
+                                        // Botón principal proporcionado
+                                        SizedBox(
+                                          height: 50,
+                                          child: ElevatedButton(
+                                            onPressed: _isLoading
+                                                ? null
+                                                : _register,
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: _aceptaPolitica
+                                                  ? Cristal.dorado
+                                                  : Cristal.vidrioFuerte,
+                                              foregroundColor: Cristal.texto,
+                                              elevation: 0,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(26),
                                               ),
                                             ),
+                                            child: _isLoading
+                                                ? const SizedBox(
+                                                    width: 22,
+                                                    height: 22,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                          strokeWidth: 2.5,
+                                                          color: Cristal
+                                                              .acentoClaro,
+                                                        ),
+                                                  )
+                                                : Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .center,
+                                                    children: [
+                                                      Flexible(
+                                                        child: Text(
+                                                          'Continuar al pago (${rol.precioFormateadoCop})',
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          style: TextStyle(
+                                                            color:
+                                                                Cristal.texto,
+                                                            fontSize: isMobile
+                                                                ? 14.8
+                                                                : 15.8,
+                                                            fontWeight:
+                                                                FontWeight.w800,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 10),
+                                                      const Icon(
+                                                        Icons
+                                                            .arrow_forward_rounded,
+                                                        size: 19,
+                                                        color: Cristal.texto,
+                                                      ),
+                                                    ],
+                                                  ),
                                           ),
+                                        ),
+                                        const SizedBox(height: 13),
+
+                                        // Enlace inferior a Iniciar sesión
+                                        Wrap(
+                                          alignment: WrapAlignment.center,
+                                          crossAxisAlignment:
+                                              WrapCrossAlignment.center,
+                                          children: [
+                                            const Text(
+                                              '¿Ya tienes cuenta registrada? ',
+                                              style: TextStyle(
+                                                color: Cristal.textoMedio,
+                                                fontSize: 13.6,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                            InkWell(
+                                              hoverDuration: Cristal.micro,
+                                              onTap: _isLoading
+                                                  ? null
+                                                  : _navigateToLogin,
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                              child: const Padding(
+                                                padding: EdgeInsets.symmetric(
+                                                  horizontal: 6,
+                                                  vertical: 4,
+                                                ),
+                                                child: Text(
+                                                  'Inicia sesión aquí →',
+                                                  style: TextStyle(
+                                                    color: Cristal.texto,
+                                                    fontSize: 13.8,
+                                                    fontWeight: FontWeight.w800,
+                                                    decoration: TextDecoration
+                                                        .underline,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
-                                  ],
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
+                            const SizedBox(height: 16),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildRegistrationCardHeader({required bool isMobile}) {
     final logo = ContrataLegalHdLogo(height: isMobile ? 50 : 62);
@@ -860,14 +867,14 @@ class _RegistroScreenState extends State<RegistroScreen> {
           width: isMobile ? 22 : 32,
           height: 2,
           margin: const EdgeInsets.only(bottom: 14, left: 4, right: 4),
-          color: _tealCheck,
+          color: Color(0xFF1E7868),
         ),
         _buildStepMiniItem(label: 'Registro', completed: false, active: true),
         Container(
           width: isMobile ? 22 : 32,
           height: 2,
           margin: const EdgeInsets.only(bottom: 14, left: 4, right: 4),
-          color: const Color(0xFFD8E0EA),
+          color: Cristal.vidrioFuerte,
         ),
         _buildStepMiniItem(label: 'Pago', completed: false, active: false),
       ],
@@ -885,10 +892,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        logo,
-        stepper,
-      ],
+      children: [logo, stepper],
     );
   }
 
@@ -905,13 +909,13 @@ class _RegistroScreenState extends State<RegistroScreen> {
           height: 24,
           decoration: BoxDecoration(
             color: completed
-                ? _tealCheck
-                : (active ? Colors.white : const Color(0xFFEEF2F6)),
+                ? Color(0xFF1E7868)
+                : (active ? Cristal.vidrio : Cristal.vidrioSuave),
             shape: BoxShape.circle,
             border: Border.all(
               color: completed || active
-                  ? _tealCheck
-                  : const Color(0xFFCBD5E1),
+                  ? Color(0xFF2DD4BF)
+                  : Cristal.bordeFuerte,
               width: active ? 2.0 : 1.4,
             ),
           ),
@@ -921,18 +925,17 @@ class _RegistroScreenState extends State<RegistroScreen> {
                 : (active ? Icons.edit_rounded : Icons.circle),
             size: completed || active ? 14 : 6,
             color: completed
-                ? Colors.white
-                : (active ? _tealCheck : const Color(0xFFCBD5E1)),
+                ? Cristal.texto
+                : (active ? Color(0xFF2DD4BF) : Cristal.textoApagado),
           ),
         ),
         const SizedBox(height: 4),
         Text(
           label,
           style: TextStyle(
-            color: completed || active ? _navyDark : const Color(0xFF94A3B8),
+            color: completed || active ? Cristal.texto : Cristal.textoTenue,
             fontSize: 11.5,
-            fontWeight:
-                completed || active ? FontWeight.w800 : FontWeight.w600,
+            fontWeight: completed || active ? FontWeight.w800 : FontWeight.w600,
           ),
         ),
       ],
@@ -960,22 +963,24 @@ class _RegistroScreenState extends State<RegistroScreen> {
     final cambiarRolBtn = OutlinedButton.icon(
       onPressed: _cambiarRol,
       style: OutlinedButton.styleFrom(
-        foregroundColor: _navyDark,
-        backgroundColor: Colors.white,
-        side: const BorderSide(color: Color(0xFFE2C05A), width: 1.3),
+        foregroundColor: Cristal.texto,
+        backgroundColor: Cristal.vidrio,
+        side: const BorderSide(color: Cristal.dorado, width: 1.3),
         padding: EdgeInsets.symmetric(
           horizontal: isMobile ? 12 : 16,
           vertical: isMobile ? 8 : 10,
         ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(22),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       ),
-      icon: const Icon(Icons.swap_horiz_rounded, size: 18, color: _navyDark),
+      icon: const Icon(
+        Icons.swap_horiz_rounded,
+        size: 18,
+        color: Cristal.texto,
+      ),
       label: Text(
         'Cambiar rol',
         style: TextStyle(
-          color: _navyDark,
+          color: Cristal.texto,
           fontSize: isMobile ? 12.8 : 13.8,
           fontWeight: FontWeight.w800,
         ),
@@ -985,9 +990,9 @@ class _RegistroScreenState extends State<RegistroScreen> {
     return Container(
       padding: EdgeInsets.all(isMobile ? 12 : 16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF8E5),
+        color: Cristal.vidrioSuave,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFF5D061), width: 1.3),
+        border: Border.all(color: Cristal.dorado, width: 1.3),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1009,7 +1014,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                         Text(
                           'Rol elegido: ${rol.nombre}',
                           style: TextStyle(
-                            color: _navyDark,
+                            color: Cristal.texto,
                             fontSize: isMobile ? 15.5 : 17,
                             fontWeight: FontWeight.w800,
                           ),
@@ -1020,13 +1025,13 @@ class _RegistroScreenState extends State<RegistroScreen> {
                             vertical: 3.5,
                           ),
                           decoration: BoxDecoration(
-                            color: _goldAccent,
+                            color: Cristal.dorado,
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Text(
                             rol.precioFormateadoCop,
                             style: const TextStyle(
-                              color: _navyDark,
+                              color: Cristal.tinta,
                               fontSize: 12.5,
                               fontWeight: FontWeight.w900,
                             ),
@@ -1040,7 +1045,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: _subtitleBlue,
+                        color: Cristal.textoMedio,
                         fontSize: isMobile ? 12.2 : 13,
                         fontWeight: FontWeight.w500,
                         height: 1.32,
@@ -1049,10 +1054,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                   ],
                 ),
               ),
-              if (!isMobile) ...[
-                const SizedBox(width: 10),
-                cambiarRolBtn,
-              ],
+              if (!isMobile) ...[const SizedBox(width: 10), cambiarRolBtn],
             ],
           ),
           if (isMobile) ...[
@@ -1074,10 +1076,10 @@ class _RegistroScreenState extends State<RegistroScreen> {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.fromLTRB(6, 6, 12, 6),
           decoration: BoxDecoration(
-            color: hayError ? const Color(0xFFFEF2F2) : const Color(0xFFF8FAFC),
+            color: hayError ? Cristal.rojoVidrio : Cristal.vidrioSuave,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: hayError ? Colors.red.shade400 : const Color(0xFFD8DEE8),
+              color: hayError ? Color(0xFFEF5350) : Cristal.borde,
               width: hayError ? 1.4 : 1,
             ),
           ),
@@ -1086,18 +1088,17 @@ class _RegistroScreenState extends State<RegistroScreen> {
             children: [
               Checkbox(
                 value: _aceptaPolitica,
-                activeColor: _navyDark,
+                activeColor: Cristal.acento,
                 side: BorderSide(
-                  color:
-                      hayError ? Colors.red.shade400 : const Color(0xFF64748B),
+                  color: hayError ? Color(0xFFEF5350) : const Color(0x52FFFFFF),
                   width: 1.6,
                 ),
                 onChanged: _isLoading
                     ? null
                     : (value) => setState(() {
-                          _aceptaPolitica = value ?? false;
-                          if (_aceptaPolitica) _mostrarErrorPolitica = false;
-                        }),
+                        _aceptaPolitica = value ?? false;
+                        if (_aceptaPolitica) _mostrarErrorPolitica = false;
+                      }),
               ),
               Expanded(
                 child: Padding(
@@ -1106,37 +1107,38 @@ class _RegistroScreenState extends State<RegistroScreen> {
                     onTap: _isLoading
                         ? null
                         : () => setState(() {
-                              _aceptaPolitica = !_aceptaPolitica;
-                              if (_aceptaPolitica) _mostrarErrorPolitica = false;
-                            }),
+                            _aceptaPolitica = !_aceptaPolitica;
+                            if (_aceptaPolitica) _mostrarErrorPolitica = false;
+                          }),
                     child: Wrap(
                       children: [
                         const Text(
                           'He leído y acepto la ',
                           style: TextStyle(
-                            color: Color(0xFF334155),
+                            color: Cristal.textoCuerpo,
                             fontSize: 13.2,
                             height: 1.4,
                           ),
                         ),
                         InkWell(
+                          hoverDuration: Cristal.micro,
                           onTap: _mostrarPoliticaPrivacidad,
                           child: const Text(
                             'Política de Privacidad y Tratamiento de Datos Personales',
                             style: TextStyle(
-                              color: _royalBlue,
+                              color: Cristal.acentoClaro,
                               fontSize: 13.2,
                               height: 1.4,
                               fontWeight: FontWeight.w700,
                               decoration: TextDecoration.underline,
-                              decorationColor: _royalBlue,
+                              decorationColor: Cristal.acentoClaro,
                             ),
                           ),
                         ),
                         const Text(
                           ' y autorizo el tratamiento de mis datos conforme a la Ley 1581 de 2012. *',
                           style: TextStyle(
-                            color: Color(0xFF334155),
+                            color: Cristal.textoCuerpo,
                             fontSize: 13.2,
                             height: 1.4,
                           ),
@@ -1154,13 +1156,13 @@ class _RegistroScreenState extends State<RegistroScreen> {
             padding: const EdgeInsets.only(left: 12, top: 6),
             child: Row(
               children: [
-                Icon(Icons.error_outline, size: 15, color: Colors.red.shade700),
+                Icon(Icons.error_outline, size: 15, color: Cristal.rojo),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     'Debes aceptar la política para crear tu cuenta.',
                     style: TextStyle(
-                      color: Colors.red.shade700,
+                      color: Cristal.rojo,
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1174,13 +1176,13 @@ class _RegistroScreenState extends State<RegistroScreen> {
   }
 
   Future<void> _mostrarPoliticaPrivacidad() async {
-    final acepta = await showDialog<bool>(
+    final acepta = await mostrarDialogoCristal<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text(
           'Política de Privacidad y Tratamiento de Datos Personales',
           style: TextStyle(
-            color: _navyDark,
+            color: Cristal.texto,
             fontSize: 18,
             fontWeight: FontWeight.w800,
           ),
@@ -1191,7 +1193,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
             child: Text(
               ConsentService.textoPolitica,
               style: TextStyle(
-                color: Color(0xFF334155),
+                color: Cristal.textoCuerpo,
                 fontSize: 13.5,
                 height: 1.5,
               ),
@@ -1206,8 +1208,8 @@ class _RegistroScreenState extends State<RegistroScreen> {
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: _navyDark,
-              foregroundColor: Colors.white,
+              backgroundColor: Cristal.acento,
+              foregroundColor: Cristal.texto,
             ),
             child: const Text('Acepto'),
           ),
@@ -1253,11 +1255,12 @@ class _RegistroScreenState extends State<RegistroScreen> {
       style: const TextStyle(
         fontSize: 14.8,
         fontWeight: FontWeight.w500,
-        color: Color(0xFF1E293B),
+        color: Cristal.texto,
       ),
-      decoration: _decoration(hint: hint, icon: icon).copyWith(
-        suffixIcon: suffixIcon,
-      ),
+      decoration: _decoration(
+        hint: hint,
+        icon: icon,
+      ).copyWith(suffixIcon: suffixIcon),
     );
   }
 
@@ -1269,39 +1272,36 @@ class _RegistroScreenState extends State<RegistroScreen> {
     return InputDecoration(
       hintText: hint,
       labelText: labelText,
-      labelStyle: const TextStyle(
-        color: Color(0xFF64748B),
-        fontSize: 13.5,
-      ),
+      labelStyle: const TextStyle(color: Cristal.textoSuave, fontSize: 13.5),
       hintStyle: const TextStyle(
-        color: Color(0xFF64748B),
+        color: Cristal.textoSuave,
         fontSize: 14.2,
         fontWeight: FontWeight.w400,
       ),
       filled: true,
-      fillColor: const Color(0xFFFDFEFE),
+      fillColor: Cristal.campo,
       isDense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-      prefixIcon: Icon(icon, color: _navyDark, size: 20),
+      prefixIcon: Icon(icon, color: Cristal.texto, size: 20),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(13),
-        borderSide: const BorderSide(color: Color(0xFFD8DEE8)),
+        borderSide: const BorderSide(color: Cristal.borde),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(13),
-        borderSide: const BorderSide(color: Color(0xFFD8DEE8)),
+        borderSide: const BorderSide(color: Cristal.borde),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(13),
-        borderSide: const BorderSide(color: _navyDark, width: 1.6),
+        borderSide: const BorderSide(color: Cristal.acentoClaro, width: 1.6),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(13),
-        borderSide: BorderSide(color: Colors.red.shade600, width: 1.4),
+        borderSide: BorderSide(color: Cristal.rojo, width: 1.4),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(13),
-        borderSide: BorderSide(color: Colors.red.shade700, width: 1.8),
+        borderSide: BorderSide(color: Cristal.rojo, width: 1.8),
       ),
     );
   }

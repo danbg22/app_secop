@@ -7,6 +7,7 @@ import '../../services/juridico_contratacion_service.dart';
 import '../../services/supervision_service.dart';
 import '../gestion_contractual/estilo_contractual.dart';
 import 'componentes_supervision.dart';
+import '../../tema/cristal.dart';
 
 /// Revisión de un informe: a la izquierda el informe como documento y sus
 /// soportes; a la derecha el recorrido por etapas, la verificación
@@ -222,8 +223,8 @@ class _RevisionSupervisorScreenState extends State<RevisionSupervisorScreen> {
                   if (retraso > 0)
                     EtiquetaColor(
                       texto: 'Con retraso · $retraso d',
-                      color: const Color(0xFFB45309),
-                      fondo: const Color(0xFFFEF3C7),
+                      color: Cristal.ambar,
+                      fondo: Cristal.ambarVidrio,
                       icono: Icons.schedule_rounded,
                     ),
                   ChipEstadoInforme(inf.estado),
@@ -379,7 +380,7 @@ class _RevisionSupervisorScreenState extends State<RevisionSupervisorScreen> {
           const Text(
             'Anexos',
             style: TextStyle(
-              color: EstiloContractual.navy,
+              color: Cristal.texto,
               fontWeight: FontWeight.w800,
               fontSize: 14,
             ),
@@ -426,7 +427,7 @@ class _RevisionSupervisorScreenState extends State<RevisionSupervisorScreen> {
                 '${etapa.responsableNombre.isEmpty ? etapa.responsableEmail : etapa.responsableNombre} debe revisar y verificar '
                 'el informe. No requiere acción de tu parte en este momento.',
                 style: const TextStyle(
-                  color: EstiloContractual.texto,
+                  color: Cristal.textoMedio,
                   fontSize: 13,
                   height: 1.45,
                 ),
@@ -440,13 +441,13 @@ class _RevisionSupervisorScreenState extends State<RevisionSupervisorScreen> {
         return TarjetaSupervision(
           titulo: 'Devuelto al contratista',
           icono: Icons.undo_rounded,
-          colorBorde: const Color(0xFFFCD34D),
+          colorBorde: Cristal.ambarBorde,
           children: [
             if (d != null)
               Text(
                 '${d.etapaNombre} · ${d.actor}: ${d.observacion}',
                 style: const TextStyle(
-                  color: Color(0xFF92400E),
+                  color: Cristal.ambar,
                   fontSize: 13,
                   height: 1.45,
                 ),
@@ -454,7 +455,7 @@ class _RevisionSupervisorScreenState extends State<RevisionSupervisorScreen> {
             const SizedBox(height: 6),
             const Text(
               'Cuando lo corrija y lo reenvíe, vuelve a la etapa que lo devolvió.',
-              style: TextStyle(color: EstiloContractual.gris, fontSize: 12.3),
+              style: TextStyle(color: Cristal.textoSuave, fontSize: 12.3),
             ),
           ],
         );
@@ -467,7 +468,7 @@ class _RevisionSupervisorScreenState extends State<RevisionSupervisorScreen> {
               ? 'Referencia ${inf.pagoReferencia.isEmpty ? '—' : inf.pagoReferencia} · ${JuridicoContratacionService.formatearFechaHumana(inf.pagadoEnIso)}'
               : 'Aprobado ${JuridicoContratacionService.formatearFechaHumana(inf.aprobadoEnIso)}. Descarga el paquete completo para radicación.',
           icono: pagado ? Icons.payments_rounded : Icons.verified_rounded,
-          colorBorde: const Color(0xFFBBF7D0),
+          colorBorde: Cristal.verdeBorde,
           children: [
             if (!pagado && SupervisionService.puedeRegistrarPago(_exp)) ...[
               TextField(
@@ -536,7 +537,7 @@ class _RevisionSupervisorScreenState extends State<RevisionSupervisorScreen> {
           ? 'Eres la última etapa: al aprobar, el informe queda aprobado para pago.'
           : 'Al aprobar, el informe pasa a ${siguiente!.nombre}.',
       icono: Icons.fact_check_outlined,
-      colorBorde: const Color(0xFFBFDBFE),
+      colorBorde: Cristal.acentoBorde,
       children: [
         Material(
           color: Colors.transparent,
@@ -581,7 +582,7 @@ class _RevisionSupervisorScreenState extends State<RevisionSupervisorScreen> {
                 ),
           style: EstiloContractual.botonPrincipal().copyWith(
             backgroundColor: WidgetStatePropertyAll(
-              todosChecks ? const Color(0xFF15803D) : const Color(0xFFCBD5E1),
+              todosChecks ? const Color(0xFF15803D) : Cristal.vidrioIntenso,
             ),
           ),
           icon: const Icon(Icons.verified_rounded, size: 18),
@@ -596,7 +597,7 @@ class _RevisionSupervisorScreenState extends State<RevisionSupervisorScreen> {
             child: Text(
               'Marca los tres puntos para aprobar.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: EstiloContractual.gris, fontSize: 12),
+              style: TextStyle(color: Cristal.textoSuave, fontSize: 12),
             ),
           ),
         const Padding(
@@ -606,7 +607,7 @@ class _RevisionSupervisorScreenState extends State<RevisionSupervisorScreen> {
         const Text(
           'Devolver con observaciones',
           style: TextStyle(
-            color: EstiloContractual.navy,
+            color: Cristal.texto,
             fontWeight: FontWeight.w800,
             fontSize: 14.5,
           ),
@@ -614,7 +615,7 @@ class _RevisionSupervisorScreenState extends State<RevisionSupervisorScreen> {
         const SizedBox(height: 4),
         const Text(
           'Marca lo que debe corregir y explícale cómo. El contratista lo verá primero al abrir su informe.',
-          style: TextStyle(color: EstiloContractual.texto, fontSize: 12.6),
+          style: TextStyle(color: Cristal.textoMedio, fontSize: 12.6),
         ),
         const SizedBox(height: 10),
         Wrap(
@@ -627,8 +628,8 @@ class _RevisionSupervisorScreenState extends State<RevisionSupervisorScreen> {
                 selected: _items.contains(id),
                 onSelected: (s) =>
                     setState(() => s ? _items.add(id) : _items.remove(id)),
-                selectedColor: const Color(0xFFFEF3C7),
-                checkmarkColor: const Color(0xFF92400E),
+                selectedColor: Cristal.ambarVidrio,
+                checkmarkColor: Cristal.ambar,
               ),
           ],
         ),
@@ -657,7 +658,7 @@ class _RevisionSupervisorScreenState extends State<RevisionSupervisorScreen> {
                   'Informe devuelto al contratista.',
                 ),
           style: EstiloContractual.botonSecundario().copyWith(
-            foregroundColor: const WidgetStatePropertyAll(Color(0xFFB45309)),
+            foregroundColor: const WidgetStatePropertyAll(Cristal.ambar),
           ),
           icon: const Icon(Icons.undo_rounded, size: 18),
           label: const Text(
@@ -674,6 +675,8 @@ class _RevisionSupervisorScreenState extends State<RevisionSupervisorScreen> {
 // El informe como documento
 // =============================================================================
 
+// cristal:conservar — imita la hoja impresa del informe: papel blanco y
+// tinta oscura, dentro de la interfaz de vidrio.
 class _Hoja extends StatelessWidget {
   const _Hoja({
     required this.expediente,
@@ -703,7 +706,7 @@ class _Hoja extends StatelessWidget {
             child: Text(
               k.toUpperCase(),
               style: const TextStyle(
-                color: EstiloContractual.gris,
+                color: PapelClaro.tintaSuave,
                 fontSize: 11.5,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 0.3,
@@ -713,180 +716,180 @@ class _Hoja extends StatelessWidget {
           Expanded(
             child: Text(
               v.isEmpty ? '—' : v,
-              style: const TextStyle(
-                color: EstiloContractual.navy,
-                fontSize: 13,
-              ),
+              style: const TextStyle(color: PapelClaro.tinta, fontSize: 13),
             ),
           ),
         ],
       ),
     );
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(26, 24, 26, 26),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: EstiloContractual.navy.withValues(alpha: 0.07),
-            blurRadius: 22,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final l in plan.plantilla.encabezado)
+    return PapelClaro(
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(26, 24, 26, 26),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: [
+            BoxShadow(
+              color: Cristal.sombra,
+              blurRadius: 22,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final l in plan.plantilla.encabezado)
+              Text(
+                l,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: PapelClaro.tinta,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12.5,
+                ),
+              ),
+            const SizedBox(height: 6),
             Text(
-              l,
+              'Informe ${plan.periodicidad.adjetivo} de ejecución contractual N.º ${inf.numero}',
               textAlign: TextAlign.center,
               style: const TextStyle(
-                color: EstiloContractual.navy,
+                color: PapelClaro.tinta,
                 fontWeight: FontWeight.w800,
-                fontSize: 12.5,
+                fontSize: 16,
               ),
             ),
-          const SizedBox(height: 6),
-          Text(
-            'Informe ${plan.periodicidad.adjetivo} de ejecución contractual N.º ${inf.numero}',
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: EstiloContractual.navy,
-              fontWeight: FontWeight.w800,
-              fontSize: 16,
+            const SizedBox(height: 14),
+            fila(
+              'Contrato',
+              [
+                e.numeroContrato,
+                if (plan.cdp.registrado) 'CDP ${plan.cdp.numero}',
+                plan.rp.registrado ? 'RP ${plan.rp.numero}' : 'RP pendiente',
+              ].join(' · '),
             ),
-          ),
-          const SizedBox(height: 14),
-          fila(
-            'Contrato',
-            [
-              e.numeroContrato,
-              if (plan.cdp.registrado) 'CDP ${plan.cdp.numero}',
-              plan.rp.registrado ? 'RP ${plan.rp.numero}' : 'RP pendiente',
-            ].join(' · '),
-          ),
-          fila(
-            'Contratista',
-            '${e.contratistaNombreEsperado} · C.C. ${e.contratistaCedulaEsperada}',
-          ),
-          fila(
-            'Periodo',
-            '${fechaNumerica(inf.desde)} – ${fechaNumerica(inf.hasta)}',
-          ),
-          fila('Valor a cobrar', formatoCop(inf.valorCobradoCop)),
-          fila('Objeto', e.objetoContrato),
-          fila('Supervisor', plan.supervisorNombre),
-          const SizedBox(height: 18),
-          const Text(
-            'Obligaciones y actividades',
-            style: TextStyle(
-              color: EstiloContractual.navy,
-              fontWeight: FontWeight.w800,
-              fontSize: 14.5,
+            fila(
+              'Contratista',
+              '${e.contratistaNombreEsperado} · C.C. ${e.contratistaCedulaEsperada}',
             ),
-          ),
-          const SizedBox(height: 8),
-          for (final (i, o) in plan.obligaciones.indexed)
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(
-                border: const Border(bottom: BorderSide(color: _linea)),
-                color: inf.estaDevuelto('obligacion:${o.id}')
-                    ? const Color(0xFFFFFBEB)
-                    : null,
+            fila(
+              'Periodo',
+              '${fechaNumerica(inf.desde)} – ${fechaNumerica(inf.hasta)}',
+            ),
+            fila('Valor a cobrar', formatoCop(inf.valorCobradoCop)),
+            fila('Objeto', e.objetoContrato),
+            fila('Supervisor', plan.supervisorNombre),
+            const SizedBox(height: 18),
+            const Text(
+              'Obligaciones y actividades',
+              style: TextStyle(
+                color: PapelClaro.tinta,
+                fontWeight: FontWeight.w800,
+                fontSize: 14.5,
               ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: 28,
-                    child: Text(
-                      '${i + 1}',
-                      style: const TextStyle(
-                        color: EstiloContractual.gris,
-                        fontWeight: FontWeight.w800,
+            ),
+            const SizedBox(height: 8),
+            for (final (i, o) in plan.obligaciones.indexed)
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  border: const Border(bottom: BorderSide(color: _linea)),
+                  color: inf.estaDevuelto('obligacion:${o.id}')
+                      ? const Color(0xFFFFFBEB)
+                      : null,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 28,
+                      child: Text(
+                        '${i + 1}',
+                        style: const TextStyle(
+                          color: PapelClaro.tintaSuave,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          o.texto,
-                          style: const TextStyle(
-                            color: EstiloContractual.gris,
-                            fontSize: 12.3,
-                            height: 1.4,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            o.texto,
+                            style: const TextStyle(
+                              color: PapelClaro.tintaSuave,
+                              fontSize: 12.3,
+                              height: 1.4,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          (inf.actividades[o.id] ?? '').trim().isEmpty
-                              ? 'Sin actividades.'
-                              : inf.actividades[o.id]!.trim(),
-                          style: TextStyle(
-                            color: (inf.actividades[o.id] ?? '').trim().isEmpty
-                                ? const Color(0xFFB91C1C)
-                                : EstiloContractual.navy,
-                            fontSize: 13.3,
-                            height: 1.5,
+                          const SizedBox(height: 5),
+                          Text(
+                            (inf.actividades[o.id] ?? '').trim().isEmpty
+                                ? 'Sin actividades.'
+                                : inf.actividades[o.id]!.trim(),
+                            style: TextStyle(
+                              color:
+                                  (inf.actividades[o.id] ?? '').trim().isEmpty
+                                  ? const Color(0xFFB91C1C)
+                                  : PapelClaro.tinta,
+                              fontSize: 13.3,
+                              height: 1.5,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+              ),
+            const SizedBox(height: 18),
+            const Text(
+              'Aportes a seguridad social',
+              style: TextStyle(
+                color: PapelClaro.tinta,
+                fontWeight: FontWeight.w800,
+                fontSize: 14.5,
               ),
             ),
-          const SizedBox(height: 18),
-          const Text(
-            'Aportes a seguridad social',
-            style: TextStyle(
-              color: EstiloContractual.navy,
-              fontWeight: FontWeight.w800,
-              fontSize: 14.5,
+            const SizedBox(height: 6),
+            for (final p in inf.planillas.where((p) => p.diligenciada))
+              fila(
+                'Planilla ${p.numero}',
+                '${nombreMes(p.periodo)} · pagada el ${fechaNumerica(DateTime.parse(p.fechaPagoIso))} · ${formatoCop(p.valorCop)}',
+              ),
+            if (inf.pensionado)
+              fila(
+                'Pensión',
+                'No cotiza${inf.motivoNoPension.isEmpty ? '' : ': ${inf.motivoNoPension}'}',
+              ),
+            if (inf.pideEstampilla(plan) && inf.estampilla.diligenciada)
+              fila(
+                'Estampilla departamental',
+                '${formatoCop(inf.estampilla.valorPagadoCop)} · liquidación ${inf.estampilla.liquidacion}',
+              ),
+            const SizedBox(height: 18),
+            const Text(
+              'Cuenta de cobro',
+              style: TextStyle(
+                color: PapelClaro.tinta,
+                fontWeight: FontWeight.w800,
+                fontSize: 14.5,
+              ),
             ),
-          ),
-          const SizedBox(height: 6),
-          for (final p in inf.planillas.where((p) => p.diligenciada))
+            const SizedBox(height: 6),
             fila(
-              'Planilla ${p.numero}',
-              '${nombreMes(p.periodo)} · pagada el ${fechaNumerica(DateTime.parse(p.fechaPagoIso))} · ${formatoCop(p.valorCop)}',
+              'Cuenta',
+              '${inf.datosCobro.banco} · ${inf.datosCobro.tipoCuenta} ${inf.datosCobro.numeroCuenta}',
             ),
-          if (inf.pensionado)
             fila(
-              'Pensión',
-              'No cotiza${inf.motivoNoPension.isEmpty ? '' : ': ${inf.motivoNoPension}'}',
+              'Dirección',
+              '${inf.datosCobro.direccion} · ${inf.datosCobro.ciudad} · ${inf.datosCobro.celular}',
             ),
-          if (inf.pideEstampilla(plan) && inf.estampilla.diligenciada)
-            fila(
-              'Estampilla departamental',
-              '${formatoCop(inf.estampilla.valorPagadoCop)} · liquidación ${inf.estampilla.liquidacion}',
-            ),
-          const SizedBox(height: 18),
-          const Text(
-            'Cuenta de cobro',
-            style: TextStyle(
-              color: EstiloContractual.navy,
-              fontWeight: FontWeight.w800,
-              fontSize: 14.5,
-            ),
-          ),
-          const SizedBox(height: 6),
-          fila(
-            'Cuenta',
-            '${inf.datosCobro.banco} · ${inf.datosCobro.tipoCuenta} ${inf.datosCobro.numeroCuenta}',
-          ),
-          fila(
-            'Dirección',
-            '${inf.datosCobro.direccion} · ${inf.datosCobro.ciudad} · ${inf.datosCobro.celular}',
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -911,7 +914,7 @@ class _FilaSoporte extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(vertical: 8),
     decoration: const BoxDecoration(
-      border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9))),
+      border: Border(bottom: BorderSide(color: Cristal.borde)),
     ),
     child: Row(
       children: [
@@ -923,8 +926,8 @@ class _FilaSoporte extends StatelessWidget {
                     : Icons.description_outlined),
           size: 19,
           color: devuelto
-              ? const Color(0xFFD97706)
-              : (falta ? const Color(0xFFDC2626) : EstiloContractual.navy),
+              ? Cristal.ambar
+              : (falta ? Cristal.rojo : Cristal.texto),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -934,7 +937,7 @@ class _FilaSoporte extends StatelessWidget {
               Text(
                 titulo,
                 style: const TextStyle(
-                  color: EstiloContractual.navy,
+                  color: Cristal.texto,
                   fontSize: 13.2,
                   fontWeight: FontWeight.w700,
                 ),
@@ -945,9 +948,7 @@ class _FilaSoporte extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: falta
-                        ? const Color(0xFFB91C1C)
-                        : EstiloContractual.gris,
+                    color: falta ? Cristal.rojo : Cristal.textoSuave,
                     fontSize: 12,
                   ),
                 ),

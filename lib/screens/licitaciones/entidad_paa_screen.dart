@@ -8,6 +8,7 @@ import '../../services/verificacion_paa_service.dart';
 import '../gestion_contractual/estilo_contractual.dart';
 import 'prediccion_paa_screen.dart';
 import 'verificacion_widgets.dart';
+import '../../tema/cristal.dart';
 
 /// Una entidad con todas las cuentas que publican PAA, ordenadas como está
 /// organizada (nivel central y regionales). Cada una abre su proyección.
@@ -397,8 +398,8 @@ class _EntidadPaaScreenState extends State<EntidadPaaScreen> {
                         ChoiceChip(
                           label: Text(t),
                           selected: _porContratar == v,
-                          selectedColor: const Color(0xFFDCE6F5),
-                          checkmarkColor: EstiloContractual.navy,
+                          selectedColor: Cristal.azulVidrio,
+                          checkmarkColor: Cristal.texto,
                           onSelected: (_) => setState(() => _porContratar = v),
                         ),
                     ],
@@ -434,7 +435,7 @@ class _EntidadPaaScreenState extends State<EntidadPaaScreen> {
           'encabezado porque algunas entidades lo diligencian distinto a sus compras. Lo contratado son los '
           'contratos firmados en el año por cada cuenta; "por contratar" es una aproximación.',
           style: TextStyle(
-            color: EstiloContractual.gris,
+            color: Cristal.textoSuave,
             fontSize: 11.5,
             height: 1.45,
           ),
@@ -476,17 +477,14 @@ class _Resumen extends StatelessWidget {
           Text(
             v,
             style: const TextStyle(
-              color: EstiloContractual.navy,
+              color: Cristal.texto,
               fontSize: 20,
               fontWeight: FontWeight.w800,
             ),
           ),
           Text(
             nota,
-            style: const TextStyle(
-              color: EstiloContractual.gris,
-              fontSize: 12.3,
-            ),
+            style: const TextStyle(color: Cristal.textoSuave, fontSize: 12.3),
           ),
         ],
       ),
@@ -533,7 +531,7 @@ class _Resumen extends StatelessWidget {
                         Text(
                           millones(total!),
                           style: const TextStyle(
-                            color: EstiloContractual.navy,
+                            color: Cristal.texto,
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
                           ),
@@ -542,7 +540,7 @@ class _Resumen extends StatelessWidget {
                         Text(
                           error!,
                           style: const TextStyle(
-                            color: Color(0xFFB91C1C),
+                            color: Cristal.rojo,
                             fontSize: 13,
                           ),
                         )
@@ -551,7 +549,7 @@ class _Resumen extends StatelessWidget {
                           'Calculando con cada compra de cada plan…'
                           '${pendientes > 0 ? ' faltan $pendientes cuenta${pendientes == 1 ? '' : 's'}.' : ''}',
                           style: const TextStyle(
-                            color: EstiloContractual.gris,
+                            color: Cristal.textoSuave,
                             fontSize: 13,
                           ),
                         ),
@@ -621,6 +619,7 @@ class _Grupo extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             InkWell(
+              hoverDuration: Cristal.micro,
               onTap: g.esCentral
                   ? (unaSola ? () => onAbrir(g.nodos.single) : null)
                   : onTap,
@@ -639,7 +638,7 @@ class _Grupo extends StatelessWidget {
                               Text(
                                 g.titulo,
                                 style: const TextStyle(
-                                  color: EstiloContractual.navy,
+                                  color: Cristal.texto,
                                   fontSize: 15.5,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -648,7 +647,7 @@ class _Grupo extends StatelessWidget {
                               Text(
                                 detalle,
                                 style: const TextStyle(
-                                  color: EstiloContractual.gris,
+                                  color: Cristal.textoSuave,
                                   fontSize: 12.3,
                                 ),
                               ),
@@ -672,7 +671,7 @@ class _Grupo extends StatelessWidget {
                                 : (abierto
                                       ? Icons.expand_less_rounded
                                       : Icons.expand_more_rounded),
-                            color: EstiloContractual.gris,
+                            color: Cristal.textoSuave,
                           ),
                       ],
                     ),
@@ -683,8 +682,8 @@ class _Grupo extends StatelessWidget {
                         child: LinearProgressIndicator(
                           value: total == null ? 0 : proporcion.clamp(0, 1),
                           minHeight: 6,
-                          color: EstiloContractual.navy,
-                          backgroundColor: const Color(0xFFF1F5F9),
+                          color: Cristal.acentoClaro,
+                          backgroundColor: Cristal.vidrioFuerte,
                         ),
                       ),
                     ],
@@ -697,7 +696,7 @@ class _Grupo extends StatelessWidget {
                                   '(${(contratado! / total * 100).round()} % del plan) · '
                                   'por contratar (aprox.) ${millones((total - contratado!).clamp(0, double.infinity).toDouble())}',
                         style: const TextStyle(
-                          color: EstiloContractual.texto,
+                          color: Cristal.textoMedio,
                           fontSize: 12.3,
                         ),
                       ),
@@ -761,13 +760,14 @@ class _FilaCuenta extends StatelessWidget {
     final p = nodo.cuenta.plan;
     final actualizado = fecha(p.actualizadoIso);
     return InkWell(
+      hoverDuration: Cristal.micro,
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
         margin: const EdgeInsets.only(top: 6),
         padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
         decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
+          color: Cristal.vidrioSuave,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -779,7 +779,7 @@ class _FilaCuenta extends StatelessWidget {
                   Text(
                     nodo.nombre,
                     style: const TextStyle(
-                      color: EstiloContractual.navy,
+                      color: Cristal.texto,
                       fontSize: 13.8,
                       fontWeight: FontWeight.w800,
                     ),
@@ -790,7 +790,7 @@ class _FilaCuenta extends StatelessWidget {
                       if (actualizado.isNotEmpty) 'actualizado $actualizado',
                     ].join(' · '),
                     style: const TextStyle(
-                      color: EstiloContractual.gris,
+                      color: Cristal.textoSuave,
                       fontSize: 12,
                     ),
                   ),
@@ -805,9 +805,7 @@ class _FilaCuenta extends StatelessWidget {
             ),
             Icon(
               Icons.chevron_right_rounded,
-              color: onTap == null
-                  ? const Color(0xFFCBD5E1)
-                  : EstiloContractual.gris,
+              color: onTap == null ? Cristal.textoApagado : Cristal.textoSuave,
             ),
           ],
         ),
@@ -832,7 +830,7 @@ class _Valor extends StatelessWidget {
     if (sinCompras) {
       return const Text(
         'Sin compras publicadas',
-        style: TextStyle(color: EstiloContractual.gris, fontSize: 12),
+        style: TextStyle(color: Cristal.textoSuave, fontSize: 12),
       );
     }
     if (total == null) {
@@ -848,14 +846,14 @@ class _Valor extends StatelessWidget {
         Text(
           millones(total!),
           style: const TextStyle(
-            color: EstiloContractual.navy,
+            color: Cristal.texto,
             fontSize: 14.5,
             fontWeight: FontWeight.w800,
           ),
         ),
         const Text(
           'previsto',
-          style: TextStyle(color: EstiloContractual.gris, fontSize: 11.5),
+          style: TextStyle(color: Cristal.textoSuave, fontSize: 11.5),
         ),
       ],
     );
@@ -878,10 +876,7 @@ class _Mensaje extends StatelessWidget {
           Expanded(
             child: Text(
               texto,
-              style: const TextStyle(
-                color: EstiloContractual.texto,
-                fontSize: 13.5,
-              ),
+              style: const TextStyle(color: Cristal.textoMedio, fontSize: 13.5),
             ),
           ),
           if (onReintentar != null)

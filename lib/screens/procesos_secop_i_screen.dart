@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../services/secop_i_procesos_service.dart';
 import '../services/security_service.dart';
+import '../tema/cristal.dart';
 
 /// Procesos que una entidad de régimen especial publicó en SECOP I.
 class ProcesosSecopIScreen extends StatefulWidget {
@@ -16,9 +17,6 @@ class ProcesosSecopIScreen extends StatefulWidget {
 }
 
 class _ProcesosSecopIScreenState extends State<ProcesosSecopIScreen> {
-  static const Color _azulOscuro = Color(0xFF1A2B4C);
-  static const Color _crema = Color(0xFFFAF5EA);
-
   final _moneda = NumberFormat.currency(
     locale: 'es_CO',
     symbol: '\$',
@@ -40,11 +38,14 @@ class _ProcesosSecopIScreenState extends State<ProcesosSecopIScreen> {
   Future<void> _abrir(dynamic ruta) async {
     final url = ruta is Map ? ruta['url']?.toString() : ruta?.toString();
     final uri = SecurityService.validateOfficialGovUrl(url);
-    final abierto = uri != null &&
+    final abierto =
+        uri != null &&
         await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!abierto && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No fue posible abrir el proceso en SECOP I.')),
+        const SnackBar(
+          content: Text('No fue posible abrir el proceso en SECOP I.'),
+        ),
       );
     }
   }
@@ -53,10 +54,10 @@ class _ProcesosSecopIScreenState extends State<ProcesosSecopIScreen> {
   Widget build(BuildContext context) {
     final e = widget.entidad;
     return Scaffold(
-      backgroundColor: _crema,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: _azulOscuro,
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
+        foregroundColor: Cristal.texto,
         title: const Text('Procesos en SECOP I'),
       ),
       body: ListView(
@@ -65,7 +66,7 @@ class _ProcesosSecopIScreenState extends State<ProcesosSecopIScreen> {
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Cristal.vidrio,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
@@ -74,7 +75,7 @@ class _ProcesosSecopIScreenState extends State<ProcesosSecopIScreen> {
                 SelectableText(
                   e.nombre,
                   style: const TextStyle(
-                    color: _azulOscuro,
+                    color: Cristal.texto,
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
                   ),
@@ -86,7 +87,10 @@ class _ProcesosSecopIScreenState extends State<ProcesosSecopIScreen> {
                     if (e.municipio.isNotEmpty) e.municipio,
                     if (e.departamento.isNotEmpty) e.departamento,
                   ].join(' · '),
-                  style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                  style: const TextStyle(
+                    color: Cristal.textoSuave,
+                    fontSize: 13,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -94,7 +98,7 @@ class _ProcesosSecopIScreenState extends State<ProcesosSecopIScreen> {
                   'publicados (${e.periodo}) · ${_moneda.format(e.valorEstimado)} '
                   'de cuantía estimada',
                   style: const TextStyle(
-                    color: _azulOscuro,
+                    color: Cristal.texto,
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
@@ -103,7 +107,7 @@ class _ProcesosSecopIScreenState extends State<ProcesosSecopIScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFFBEB),
+                    color: Cristal.ambarVidrio,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Text(
@@ -111,7 +115,7 @@ class _ProcesosSecopIScreenState extends State<ProcesosSecopIScreen> {
                     'registró procesos convocados: muestran el objeto y la cuantía '
                     'estimada, pero no el contratista ni el valor del contrato firmado. '
                     'Su contratación más reciente puede estar en su propio portal.',
-                    style: TextStyle(color: Color(0xFF92400E), fontSize: 12.5),
+                    style: TextStyle(color: Cristal.ambar, fontSize: 12.5),
                   ),
                 ),
               ],
@@ -154,7 +158,7 @@ class _ProcesosSecopIScreenState extends State<ProcesosSecopIScreen> {
                           (p['detalle_del_objeto_a_contratar'] ?? 'Sin objeto')
                               .toString(),
                           style: const TextStyle(
-                            color: _azulOscuro,
+                            color: Cristal.texto,
                             fontWeight: FontWeight.w700,
                             fontSize: 13.5,
                           ),

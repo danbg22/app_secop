@@ -9,6 +9,7 @@ import '../../services/juridico_contratacion_service.dart';
 import '../../services/procesos_contratacion_service.dart';
 import 'estado_secop.dart';
 import 'estilo_contractual.dart';
+import '../../tema/cristal.dart';
 
 final NumberFormat _cop = NumberFormat.currency(
   locale: 'es_CO',
@@ -36,22 +37,10 @@ String _fechaLegible(DateTime? d) {
 }
 
 (Color, Color) _colorVerificacion(EstadoVerificacion e) => switch (e) {
-  EstadoVerificacion.pendiente => (
-    const Color(0xFF64748B),
-    const Color(0xFFF1F5F9),
-  ),
-  EstadoVerificacion.cumple => (
-    const Color(0xFF15803D),
-    const Color(0xFFDCFCE7),
-  ),
-  EstadoVerificacion.subsanable => (
-    const Color(0xFFB45309),
-    const Color(0xFFFEF3C7),
-  ),
-  EstadoVerificacion.noCumple => (
-    const Color(0xFFB91C1C),
-    const Color(0xFFFEE2E2),
-  ),
+  EstadoVerificacion.pendiente => (Cristal.textoMedio, Cristal.vidrioFuerte),
+  EstadoVerificacion.cumple => (Cristal.verde, Cristal.verdeVidrio),
+  EstadoVerificacion.subsanable => (Cristal.ambar, Cristal.ambarVidrio),
+  EstadoVerificacion.noCumple => (Cristal.rojo, Cristal.rojoVidrio),
 };
 
 /// Tablero interno de un proceso que se adelanta en SECOP II: cronograma con
@@ -95,9 +84,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
         SnackBar(
           content: Text(texto),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: error
-              ? const Color(0xFFB91C1C)
-              : EstiloContractual.navy,
+          backgroundColor: error ? const Color(0xFFB91C1C) : Cristal.flotante,
         ),
       );
   }
@@ -125,21 +112,24 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
 
   Future<void> _confirmarEliminar(ProcesoContratacion p) async {
     final docs = p.documentosEntidad.length;
-    final confirmado = await showDialog<bool>(
+    final confirmado = await mostrarDialogoCristal<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        backgroundColor: Cristal.flotante,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: Cristal.bordeFuerte),
+        ),
         icon: const Icon(
           Icons.delete_forever_rounded,
-          color: Color(0xFFB91C1C),
+          color: Cristal.rojo,
           size: 36,
         ),
         title: const Text(
           '¿Seguro que quieres eliminar este proceso?',
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: EstiloContractual.navy,
+            color: Cristal.texto,
             fontSize: 18,
             fontWeight: FontWeight.w800,
           ),
@@ -154,15 +144,15 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: Cristal.vidrioSuave,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: Cristal.borde),
                 ),
                 child: Text(
                   '${p.numeroProceso} · ${p.modalidad.nombre}\n'
                   '$docs documento${docs == 1 ? '' : 's'} interno${docs == 1 ? '' : 's'} cargado${docs == 1 ? '' : 's'}',
                   style: const TextStyle(
-                    color: EstiloContractual.navy,
+                    color: Cristal.texto,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
                     height: 1.45,
@@ -175,7 +165,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                 'las observaciones y la trazabilidad, para ti y para todo tu equipo. '
                 'Lo publicado en SECOP II no cambia. Esta acción no se puede deshacer.',
                 style: TextStyle(
-                  color: EstiloContractual.texto,
+                  color: Cristal.textoMedio,
                   fontSize: 13.2,
                   height: 1.45,
                 ),
@@ -193,7 +183,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFFB91C1C),
-              foregroundColor: Colors.white,
+              foregroundColor: Cristal.texto,
             ),
             icon: const Icon(Icons.delete_outline_rounded, size: 18),
             label: const Text(
@@ -219,7 +209,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
       SnackBar(
         content: Text('Proceso ${p.numeroProceso} eliminado.'),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: EstiloContractual.navy,
+        backgroundColor: Cristal.flotante,
       ),
     );
   }
@@ -316,13 +306,16 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
             onCambiar: (t) => setState(() => _pestana = t),
           ),
           const SizedBox(height: 14),
-          switch (_pestana) {
-            _Pestana.cronograma => _panelCronograma(p),
-            _Pestana.etapas => _panelEtapas(p),
-            _Pestana.observaciones => _panelObservaciones(p),
-            _Pestana.verificacion => _panelVerificacion(p),
-            _Pestana.resultado => _panelResultado(p),
-          },
+          CambioLiquido(
+            clave: _pestana,
+            child: switch (_pestana) {
+              _Pestana.cronograma => _panelCronograma(p),
+              _Pestana.etapas => _panelEtapas(p),
+              _Pestana.observaciones => _panelObservaciones(p),
+              _Pestana.verificacion => _panelVerificacion(p),
+              _Pestana.resultado => _panelResultado(p),
+            },
+          ),
         ];
 
         return PantallaContractual(
@@ -338,9 +331,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                 if (ProcesosContratacionService.puedeEliminar(p))
                   TextButton.icon(
                     onPressed: _ocupado ? null : () => _confirmarEliminar(p),
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFFB91C1C),
-                    ),
+                    style: TextButton.styleFrom(foregroundColor: Cristal.rojo),
                     icon: const Icon(Icons.delete_outline_rounded, size: 18),
                     label: Text(mobile ? 'Eliminar' : 'Eliminar proceso'),
                   ),
@@ -420,7 +411,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                     ),
                   ),
           ),
-          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          const Divider(height: 1, color: Cristal.borde),
         ],
       ],
     );
@@ -463,15 +454,13 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                         : 'Responsable: $responsable',
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
-                  style: TextButton.styleFrom(
-                    foregroundColor: EstiloContractual.navy,
-                  ),
+                  style: TextButton.styleFrom(foregroundColor: Cristal.texto),
                 )
               : (responsable.isEmpty
                     ? null
                     : Text(
                         'Responsable: $responsable',
-                        style: const TextStyle(color: EstiloContractual.gris),
+                        style: const TextStyle(color: Cristal.textoSuave),
                       )),
           children: [
             if (etapa.plazo != null)
@@ -482,14 +471,14 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                     const Icon(
                       Icons.schedule_rounded,
                       size: 15,
-                      color: Color(0xFFB45309),
+                      color: Cristal.ambar,
                     ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         etapa.plazo!,
                         style: const TextStyle(
-                          color: Color(0xFFB45309),
+                          color: Cristal.ambar,
                           fontSize: 12.5,
                           fontWeight: FontWeight.w700,
                         ),
@@ -533,7 +522,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                   );
                 },
               ),
-              const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              const Divider(height: 1, color: Cristal.borde),
             ],
             if (indice == p.etapaActual && enCurso && _puedeGestionar) ...[
               const SizedBox(height: 14),
@@ -637,25 +626,23 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                     Text(
                       o.interesado.isEmpty ? 'Interesado' : o.interesado,
                       style: const TextStyle(
-                        color: EstiloContractual.navy,
+                        color: Cristal.texto,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                     Text(
                       '${o.fechaIso} · ${etapas[o.etapaId] ?? ''}',
                       style: const TextStyle(
-                        color: EstiloContractual.gris,
+                        color: Cristal.textoSuave,
                         fontSize: 12,
                       ),
                     ),
                     EtiquetaColor(
                       texto: o.respondida ? 'Respondida' : 'Pendiente',
-                      color: o.respondida
-                          ? const Color(0xFF15803D)
-                          : const Color(0xFFB45309),
+                      color: o.respondida ? Cristal.verde : Cristal.ambar,
                       fondo: o.respondida
-                          ? const Color(0xFFDCFCE7)
-                          : const Color(0xFFFEF3C7),
+                          ? Cristal.verdeVidrio
+                          : Cristal.ambarVidrio,
                     ),
                   ],
                 ),
@@ -663,7 +650,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                 Text(
                   o.texto,
                   style: const TextStyle(
-                    color: EstiloContractual.texto,
+                    color: Cristal.textoMedio,
                     fontSize: 13.2,
                   ),
                 ),
@@ -673,14 +660,14 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
+                      color: Cristal.vidrioSuave,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      border: Border.all(color: Cristal.borde),
                     ),
                     child: Text(
                       'Respuesta${o.responsable.isEmpty ? '' : ' (${o.responsable})'}: ${o.respuesta}',
                       style: const TextStyle(
-                        color: EstiloContractual.navy,
+                        color: Cristal.texto,
                         fontSize: 13,
                       ),
                     ),
@@ -694,7 +681,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                           ? null
                           : () => _responderObservacion(p, o),
                       style: TextButton.styleFrom(
-                        foregroundColor: EstiloContractual.navy,
+                        foregroundColor: Cristal.texto,
                       ),
                       child: Text(
                         o.respondida
@@ -707,7 +694,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
               ],
             ),
           ),
-          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          const Divider(height: 1, color: Cristal.borde),
         ],
       ],
     );
@@ -812,7 +799,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                 child: Text(
                   'SECOP II reporta adjudicación a ${p.secop!.proveedor} por ${_cop.format(p.secop!.valorAdjudicado)}.',
                   style: const TextStyle(
-                    color: Color(0xFF1D4ED8),
+                    color: Cristal.acentoClaro,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -828,7 +815,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                     : 'Declarado desierto · ${r.actoNumero.isEmpty ? '' : 'Acto ${r.actoNumero} · '}${r.fechaIso}'
                           '${r.motivo.isEmpty ? '' : '\nMotivo: ${r.motivo}'}',
                 style: const TextStyle(
-                  color: EstiloContractual.navy,
+                  color: Cristal.texto,
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
@@ -862,7 +849,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                     }
                   },
                 ),
-                const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                const Divider(height: 1, color: Cristal.borde),
               ],
             ],
           ),
@@ -878,7 +865,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
   Future<void> _editarVinculo(ProcesoContratacion p) async {
     final id = TextEditingController(text: p.idProcesoSecop);
     final url = TextEditingController(text: p.urlSecop);
-    final ok = await showDialog<bool>(
+    final ok = await mostrarDialogoCristal<bool>(
       context: context,
       builder: (_) => _Dialogo(
         titulo: 'Proceso en SECOP II',
@@ -907,7 +894,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
     EtapaProceso etapa,
   ) async {
     final c = TextEditingController(text: p.responsables[etapa.id] ?? '');
-    final ok = await showDialog<bool>(
+    final ok = await mostrarDialogoCristal<bool>(
       context: context,
       builder: (_) => _Dialogo(
         titulo: 'Responsable de "${etapa.nombre}"',
@@ -932,7 +919,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
               .modalidad
               .etapas[p.etapaActual.clamp(0, p.modalidad.etapas.length - 1)]
               .id;
-    final ok = await showDialog<bool>(
+    final ok = await mostrarDialogoCristal<bool>(
       context: context,
       builder: (_) => StatefulBuilder(
         builder: (ctx, setD) => _Dialogo(
@@ -979,7 +966,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
   ) async {
     final respuesta = TextEditingController(text: o.respuesta);
     final responsable = TextEditingController(text: o.responsable);
-    final ok = await showDialog<bool>(
+    final ok = await mostrarDialogoCristal<bool>(
       context: context,
       builder: (_) => _Dialogo(
         titulo:
@@ -1009,7 +996,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
     final nombre = TextEditingController();
     final nit = TextEditingController();
     final valor = TextEditingController();
-    final ok = await showDialog<bool>(
+    final ok = await mostrarDialogoCristal<bool>(
       context: context,
       builder: (_) => _Dialogo(
         titulo: p.esDirecta
@@ -1050,7 +1037,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
   ) async {
     var estado = actual?.estado ?? EstadoVerificacion.pendiente;
     final obs = TextEditingController(text: actual?.observacion ?? '');
-    final ok = await showDialog<bool>(
+    final ok = await mostrarDialogoCristal<bool>(
       context: context,
       builder: (_) => StatefulBuilder(
         builder: (ctx, setD) => _Dialogo(
@@ -1103,7 +1090,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
     );
     final puntaje = TextEditingController(text: o.puntaje?.toString() ?? '');
     final nota = TextEditingController(text: o.nota);
-    final ok = await showDialog<bool>(
+    final ok = await mostrarDialogoCristal<bool>(
       context: context,
       builder: (_) => _Dialogo(
         titulo: 'Calificación de ${o.proponente}',
@@ -1140,7 +1127,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
     final acto = TextEditingController(text: p.resultado?.actoNumero ?? '');
     final motivo = TextEditingController();
     DateTime fecha = DateTime.now();
-    final ok = await showDialog<bool>(
+    final ok = await mostrarDialogoCristal<bool>(
       context: context,
       builder: (_) => StatefulBuilder(
         builder: (ctx, setD) => _Dialogo(
@@ -1215,7 +1202,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
   static InputDecoration _decoracion(String etiqueta) => InputDecoration(
     labelText: etiqueta,
     filled: true,
-    fillColor: Colors.white,
+    fillColor: Cristal.campo,
     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
   );
 
@@ -1246,21 +1233,25 @@ class _AvisoApoyo extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
+        color: Cristal.azulVidrio,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFBFDBFE)),
+        border: Border.all(color: Cristal.acentoBorde),
       ),
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline_rounded, size: 18, color: Color(0xFF1D4ED8)),
+          Icon(
+            Icons.info_outline_rounded,
+            size: 18,
+            color: Cristal.acentoClaro,
+          ),
           SizedBox(width: 10),
           Expanded(
             child: Text(
               'Herramienta de apoyo interno del equipo jurídico. El proceso oficial se adelanta en SECOP II: '
               'allí se publican los documentos, se reciben las ofertas y se adjudica. Los proponentes no ingresan a Contrata Legal.',
               style: TextStyle(
-                color: Color(0xFF1E3A8A),
+                color: Cristal.acentoClaro,
                 fontSize: 12.8,
                 height: 1.4,
               ),
@@ -1282,18 +1273,9 @@ class _Encabezado extends StatelessWidget {
     final p = proceso;
     final m = p.modalidad;
     final (colorEstado, fondoEstado) = switch (p.estado) {
-      EstadoProceso.enCurso => (
-        const Color(0xFF1D4ED8),
-        const Color(0xFFDBEAFE),
-      ),
-      EstadoProceso.adjudicado => (
-        const Color(0xFF15803D),
-        const Color(0xFFDCFCE7),
-      ),
-      EstadoProceso.desierto => (
-        const Color(0xFFB91C1C),
-        const Color(0xFFFEE2E2),
-      ),
+      EstadoProceso.enCurso => (Cristal.acentoClaro, Cristal.azulVidrio),
+      EstadoProceso.adjudicado => (Cristal.verde, Cristal.verdeVidrio),
+      EstadoProceso.desierto => (Cristal.rojo, Cristal.rojoVidrio),
     };
     final datos = <(String, String)>[
       ('Entidad', p.entidadNombre),
@@ -1353,7 +1335,7 @@ class _Encabezado extends StatelessWidget {
                       child: Text(
                         valor,
                         style: const TextStyle(
-                          color: EstiloContractual.navy,
+                          color: Cristal.texto,
                           fontSize: 13.5,
                           fontWeight: FontWeight.w700,
                         ),
@@ -1396,7 +1378,7 @@ class _VinculoSecop extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: EstiloContractual.tarjeta(
-        colorBorde: novedades.isNotEmpty ? const Color(0xFFFDBA74) : null,
+        colorBorde: novedades.isNotEmpty ? Cristal.ambarBorde : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1406,11 +1388,11 @@ class _VinculoSecop extends StatelessWidget {
             runSpacing: 10,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              const Icon(Icons.link_rounded, color: EstiloContractual.navy),
+              const Icon(Icons.link_rounded, color: Cristal.texto),
               Text(
                 id.isEmpty ? 'Sin vincular a SECOP II' : 'SECOP II · $id',
                 style: const TextStyle(
-                  color: EstiloContractual.navy,
+                  color: Cristal.texto,
                   fontSize: 14.5,
                   fontWeight: FontWeight.w800,
                 ),
@@ -1419,9 +1401,7 @@ class _VinculoSecop extends StatelessWidget {
               if (puedeEditar && !proceso.importado)
                 TextButton(
                   onPressed: onEditar,
-                  style: TextButton.styleFrom(
-                    foregroundColor: EstiloContractual.navy,
-                  ),
+                  style: TextButton.styleFrom(foregroundColor: Cristal.texto),
                   child: Text(
                     id.isEmpty ? 'Vincular' : 'Editar',
                     style: const TextStyle(fontWeight: FontWeight.w800),
@@ -1457,7 +1437,7 @@ class _VinculoSecop extends StatelessWidget {
                           height: 16,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            color: Cristal.texto,
                           ),
                         )
                       : const Icon(Icons.sync_rounded, size: 18),
@@ -1474,9 +1454,9 @@ class _VinculoSecop extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFF7ED),
+                color: Cristal.ambarVidrio,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFFED7AA)),
+                border: Border.all(color: Cristal.ambarBorde),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1485,7 +1465,7 @@ class _VinculoSecop extends StatelessWidget {
                     children: [
                       const Icon(
                         Icons.fiber_new_rounded,
-                        color: Color(0xFFC2410C),
+                        color: Color(0xFFFB923C),
                         size: 20,
                       ),
                       const SizedBox(width: 6),
@@ -1493,7 +1473,7 @@ class _VinculoSecop extends StatelessWidget {
                         child: Text(
                           'Novedades en SECOP II',
                           style: TextStyle(
-                            color: Color(0xFF9A3412),
+                            color: Color(0xFFFB923C),
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -1501,7 +1481,7 @@ class _VinculoSecop extends StatelessWidget {
                       TextButton(
                         onPressed: onNovedadesRevisadas,
                         style: TextButton.styleFrom(
-                          foregroundColor: const Color(0xFF9A3412),
+                          foregroundColor: const Color(0xFFFB923C),
                         ),
                         child: const Text('Marcar como revisadas'),
                       ),
@@ -1513,7 +1493,7 @@ class _VinculoSecop extends StatelessWidget {
                       child: Text(
                         '• $n',
                         style: const TextStyle(
-                          color: Color(0xFF9A3412),
+                          color: Color(0xFFFB923C),
                           fontSize: 13,
                         ),
                       ),
@@ -1554,7 +1534,7 @@ class _VinculoSecop extends StatelessWidget {
                 title: Text(
                   'Documentos publicados en SECOP II (${s.documentos.length})',
                   style: const TextStyle(
-                    color: EstiloContractual.navy,
+                    color: Cristal.texto,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1573,16 +1553,13 @@ class _VinculoSecop extends StatelessWidget {
             Text(
               'Sincronizado ${haceCuanto(proceso.secopSincronizadoEnIso)}. Fuente: Datos Abiertos SECOP II '
               '(se actualiza a diario; puede tener un día de rezago).',
-              style: const TextStyle(
-                color: EstiloContractual.gris,
-                fontSize: 11.5,
-              ),
+              style: const TextStyle(color: Cristal.textoSuave, fontSize: 11.5),
             ),
           ] else if (id.isNotEmpty) ...[
             const SizedBox(height: 10),
             const Text(
               'Aún no se ha sincronizado. Toca "Actualizar estado desde SECOP" para traer su estado y documentos.',
-              style: TextStyle(color: EstiloContractual.gris, fontSize: 12.5),
+              style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
             ),
           ],
         ],
@@ -1599,7 +1576,7 @@ class _VinculoSecop extends StatelessWidget {
       Text(
         valor.isEmpty ? '—' : valor,
         style: const TextStyle(
-          color: EstiloContractual.navy,
+          color: Cristal.texto,
           fontSize: 13,
           fontWeight: FontWeight.w700,
         ),
@@ -1641,15 +1618,16 @@ class _Alertas extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF7ED),
+          color: Cristal.ambarVidrio,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFFED7AA)),
+          border: Border.all(color: Cristal.ambarBorde),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             for (final (texto, destino) in alertas)
               InkWell(
+                hoverDuration: Cristal.micro,
                 onTap: () => onIr(destino),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
@@ -1658,14 +1636,14 @@ class _Alertas extends StatelessWidget {
                       const Icon(
                         Icons.warning_amber_rounded,
                         size: 18,
-                        color: Color(0xFFC2410C),
+                        color: Color(0xFFFB923C),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           texto,
                           style: const TextStyle(
-                            color: Color(0xFF9A3412),
+                            color: Color(0xFFFB923C),
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                           ),
@@ -1674,7 +1652,7 @@ class _Alertas extends StatelessWidget {
                       const Icon(
                         Icons.chevron_right_rounded,
                         size: 18,
-                        color: Color(0xFFC2410C),
+                        color: Color(0xFFFB923C),
                       ),
                     ],
                   ),
@@ -1727,17 +1705,17 @@ class _Pestanas extends StatelessWidget {
               avatar: Icon(
                 icono,
                 size: 17,
-                color: t == actual ? Colors.white : EstiloContractual.navy,
+                color: t == actual ? Cristal.texto : Cristal.texto,
               ),
               label: Text(texto),
               selected: t == actual,
               showCheckmark: false,
               onSelected: (_) => onCambiar(t),
-              selectedColor: EstiloContractual.navy,
-              backgroundColor: Colors.white,
-              side: const BorderSide(color: Color(0xFFD8DEE8)),
+              selectedColor: Cristal.acento,
+              backgroundColor: Cristal.vidrio,
+              side: const BorderSide(color: Cristal.borde),
               labelStyle: TextStyle(
-                color: t == actual ? Colors.white : EstiloContractual.navy,
+                color: t == actual ? Cristal.texto : Cristal.texto,
                 fontWeight: FontWeight.w700,
                 fontSize: 13,
               ),
@@ -1781,7 +1759,7 @@ class _Tarjeta extends StatelessWidget {
               Text(
                 titulo,
                 style: const TextStyle(
-                  color: EstiloContractual.navy,
+                  color: Cristal.texto,
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
                 ),
@@ -1794,7 +1772,7 @@ class _Tarjeta extends StatelessWidget {
             Text(
               subtitulo!,
               style: const TextStyle(
-                color: EstiloContractual.texto,
+                color: Cristal.textoMedio,
                 fontSize: 12.8,
                 height: 1.4,
               ),
@@ -1832,7 +1810,7 @@ class _TextoVacio extends StatelessWidget {
     child: Text(
       texto,
       textAlign: TextAlign.center,
-      style: const TextStyle(color: EstiloContractual.gris, fontSize: 13),
+      style: const TextStyle(color: Cristal.textoSuave, fontSize: 13),
     ),
   );
 }
@@ -1855,13 +1833,13 @@ class _FilaHito extends StatelessWidget {
     final e = estado;
     final regla = e.hito.regla;
     final (icono, color) = switch (e.cumple) {
-      true => (Icons.check_circle_rounded, const Color(0xFF15803D)),
-      false => (Icons.error_rounded, const Color(0xFFB91C1C)),
+      true => (Icons.check_circle_rounded, Cristal.verde),
+      false => (Icons.error_rounded, Cristal.rojo),
       null => (
         e.fecha != null
             ? Icons.event_available_rounded
             : Icons.radio_button_unchecked_rounded,
-        e.fecha != null ? EstiloContractual.navy : const Color(0xFFCBD5E1),
+        e.fecha != null ? Cristal.texto : Cristal.textoApagado,
       ),
     };
     String? limite;
@@ -1880,8 +1858,8 @@ class _FilaHito extends StatelessWidget {
             e.fecha == null ? 'Registrar fecha' : _fechaLegible(e.fecha),
           ),
           style: OutlinedButton.styleFrom(
-            foregroundColor: EstiloContractual.navy,
-            side: const BorderSide(color: Color(0xFFD8DEE8)),
+            foregroundColor: Cristal.texto,
+            side: const BorderSide(color: Cristal.borde),
             shape: const StadiumBorder(),
             visualDensity: VisualDensity.compact,
           ),
@@ -1893,7 +1871,7 @@ class _FilaHito extends StatelessWidget {
             icon: const Icon(
               Icons.close_rounded,
               size: 18,
-              color: EstiloContractual.gris,
+              color: Cristal.textoSuave,
             ),
           ),
       ],
@@ -1915,7 +1893,7 @@ class _FilaHito extends StatelessWidget {
                       ? e.hito.nombre
                       : '${e.hito.nombre} · si aplica',
                   style: const TextStyle(
-                    color: EstiloContractual.navy,
+                    color: Cristal.texto,
                     fontSize: 13.8,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1925,7 +1903,7 @@ class _FilaHito extends StatelessWidget {
                   Text(
                     '${regla.descripcion}${regla.fundamento == null ? '' : ' (${regla.fundamento})'}',
                     style: const TextStyle(
-                      color: EstiloContractual.gris,
+                      color: Cristal.textoSuave,
                       fontSize: 12,
                     ),
                   ),
@@ -1937,9 +1915,7 @@ class _FilaHito extends StatelessWidget {
                         ? 'Incumple: ${limite.toLowerCase()}'
                         : limite,
                     style: TextStyle(
-                      color: e.cumple == false
-                          ? const Color(0xFFB91C1C)
-                          : const Color(0xFFB45309),
+                      color: e.cumple == false ? Cristal.rojo : Cristal.ambar,
                       fontSize: 12.3,
                       fontWeight: FontWeight.w800,
                     ),
@@ -1985,9 +1961,10 @@ class _LineaEtapas extends StatelessWidget {
                   height: 2,
                   color: i <= proceso.etapaActual
                       ? color
-                      : EstiloContractual.borde,
+                      : Cristal.vidrioFuerte,
                 ),
               InkWell(
+                hoverDuration: Cristal.micro,
                 onTap: () => onElegir(i),
                 borderRadius: BorderRadius.circular(22),
                 child: Container(
@@ -2004,20 +1981,20 @@ class _LineaEtapas extends StatelessWidget {
                         backgroundColor: i < proceso.etapaActual
                             ? color
                             : (i == proceso.etapaActual
-                                  ? EstiloContractual.navy
-                                  : const Color(0xFFE2E8F0)),
+                                  ? Cristal.acentoVidrio
+                                  : Cristal.vidrioFuerte),
                         child: i < proceso.etapaActual
                             ? const Icon(
                                 Icons.check_rounded,
                                 size: 15,
-                                color: Colors.white,
+                                color: Cristal.texto,
                               )
                             : Text(
                                 '${i + 1}',
                                 style: TextStyle(
                                   color: i == proceso.etapaActual
-                                      ? Colors.white
-                                      : EstiloContractual.gris,
+                                      ? Cristal.texto
+                                      : Cristal.textoSuave,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -2028,8 +2005,8 @@ class _LineaEtapas extends StatelessWidget {
                         etapas[i].nombre,
                         style: TextStyle(
                           color: i <= proceso.etapaActual
-                              ? EstiloContractual.navy
-                              : EstiloContractual.gris,
+                              ? Cristal.texto
+                              : Cristal.textoSuave,
                           fontSize: 12.8,
                           fontWeight: i == vista
                               ? FontWeight.w800
@@ -2084,10 +2061,8 @@ class _FilaDocumento extends StatelessWidget {
                       ? Icons.cloud_done_rounded
                       : Icons.check_circle_rounded),
             color: c == null
-                ? const Color(0xFFCBD5E1)
-                : (c.publicadoSecop
-                      ? const Color(0xFF15803D)
-                      : const Color(0xFF1D4ED8)),
+                ? Cristal.textoApagado
+                : (c.publicadoSecop ? Cristal.verde : Cristal.acentoClaro),
             size: 22,
           ),
           const SizedBox(width: 12),
@@ -2098,7 +2073,7 @@ class _FilaDocumento extends StatelessWidget {
                 Text(
                   d.obligatorio ? d.nombre : '${d.nombre} · si aplica',
                   style: const TextStyle(
-                    color: EstiloContractual.navy,
+                    color: Cristal.texto,
                     fontSize: 13.8,
                     fontWeight: FontWeight.w700,
                   ),
@@ -2109,7 +2084,7 @@ class _FilaDocumento extends StatelessWidget {
                       ? '${c.archivoNombre} · ${c.cargadoPor} · ${JuridicoContratacionService.formatearFechaHumana(c.fechaIso)}'
                       : d.descripcion,
                   style: const TextStyle(
-                    color: EstiloContractual.gris,
+                    color: Cristal.textoSuave,
                     fontSize: 12.3,
                   ),
                 ),
@@ -2117,7 +2092,7 @@ class _FilaDocumento extends StatelessWidget {
                   Text(
                     d.fundamento!,
                     style: const TextStyle(
-                      color: Color(0xFF94A3B8),
+                      color: Cristal.textoTenue,
                       fontSize: 11.5,
                       fontStyle: FontStyle.italic,
                     ),
@@ -2134,7 +2109,7 @@ class _FilaDocumento extends StatelessWidget {
                           onChanged: puedeEditar
                               ? (v) => onPublicado(v ?? false)
                               : null,
-                          activeColor: const Color(0xFF15803D),
+                          activeColor: Cristal.verde,
                         ),
                       ),
                       const SizedBox(width: 6),
@@ -2147,10 +2122,8 @@ class _FilaDocumento extends StatelessWidget {
                                     : 'Pendiente de publicar en SECOP II'),
                           style: TextStyle(
                             color: c.publicadoSecop
-                                ? const Color(0xFF15803D)
-                                : (vencido
-                                      ? const Color(0xFFB91C1C)
-                                      : const Color(0xFFB45309)),
+                                ? Cristal.verde
+                                : (vencido ? Cristal.rojo : Cristal.ambar),
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
                           ),
@@ -2167,17 +2140,12 @@ class _FilaDocumento extends StatelessWidget {
             IconButton(
               tooltip: 'Descargar',
               onPressed: onDescargar,
-              icon: const Icon(
-                Icons.download_rounded,
-                color: EstiloContractual.navy,
-              ),
+              icon: const Icon(Icons.download_rounded, color: Cristal.texto),
             ),
           if (puedeEditar)
             TextButton(
               onPressed: onCargar,
-              style: TextButton.styleFrom(
-                foregroundColor: EstiloContractual.navy,
-              ),
+              style: TextButton.styleFrom(foregroundColor: Cristal.texto),
               child: Text(
                 c != null ? 'Reemplazar' : 'Cargar',
                 style: const TextStyle(fontWeight: FontWeight.w800),
@@ -2228,7 +2196,7 @@ class _Matriz extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
             color: fondo,
-            border: const Border(bottom: BorderSide(color: Color(0xFFF1F5F9))),
+            border: const Border(bottom: BorderSide(color: Cristal.borde)),
           ),
           alignment: Alignment.centerLeft,
           child: hijo,
@@ -2243,11 +2211,11 @@ class _Matriz extends StatelessWidget {
               'Requisito',
               style: TextStyle(
                 fontWeight: FontWeight.w800,
-                color: EstiloContractual.navy,
+                color: Cristal.texto,
               ),
             ),
             ancho: _anchoRequisito,
-            fondo: const Color(0xFFF8FAFC),
+            fondo: Cristal.vidrioSuave,
           ),
           for (final (i, o) in ofertas.indexed)
             celda(
@@ -2260,20 +2228,20 @@ class _Matriz extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontWeight: FontWeight.w800,
-                      color: EstiloContractual.navy,
+                      color: Cristal.texto,
                       fontSize: 12.5,
                     ),
                   ),
                   Text(
                     o.nit,
                     style: const TextStyle(
-                      color: EstiloContractual.gris,
+                      color: Cristal.textoSuave,
                       fontSize: 11.5,
                     ),
                   ),
                 ],
               ),
-              fondo: const Color(0xFFF8FAFC),
+              fondo: Cristal.vidrioSuave,
             ),
         ]),
         for (final r in requisitos)
@@ -2281,10 +2249,7 @@ class _Matriz extends StatelessWidget {
             celda(
               Text(
                 r.obligatorio ? r.nombre : '${r.nombre} (si aplica)',
-                style: const TextStyle(
-                  color: EstiloContractual.navy,
-                  fontSize: 12.3,
-                ),
+                style: const TextStyle(color: Cristal.texto, fontSize: 12.3),
               ),
               ancho: _anchoRequisito,
             ),
@@ -2302,11 +2267,11 @@ class _Matriz extends StatelessWidget {
               'Resultado',
               style: TextStyle(
                 fontWeight: FontWeight.w800,
-                color: EstiloContractual.navy,
+                color: Cristal.texto,
               ),
             ),
             ancho: _anchoRequisito,
-            fondo: const Color(0xFFF8FAFC),
+            fondo: Cristal.vidrioSuave,
           ),
           for (final o in ofertas)
             celda(
@@ -2317,11 +2282,11 @@ class _Matriz extends StatelessWidget {
                 ).etiqueta,
                 style: const TextStyle(
                   fontWeight: FontWeight.w800,
-                  color: EstiloContractual.navy,
+                  color: Cristal.texto,
                   fontSize: 12.5,
                 ),
               ),
-              fondo: const Color(0xFFF8FAFC),
+              fondo: Cristal.vidrioSuave,
             ),
         ]),
         if (mostrarCalificacion)
@@ -2331,7 +2296,7 @@ class _Matriz extends StatelessWidget {
                 'Valor y puntaje',
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
-                  color: EstiloContractual.navy,
+                  color: Cristal.texto,
                 ),
               ),
               ancho: _anchoRequisito,
@@ -2342,7 +2307,7 @@ class _Matriz extends StatelessWidget {
                   '${o.valorCop > 0 ? _cop.format(o.valorCop) : 'Sin valor'}\n'
                   '${o.puntaje == null ? 'Sin puntaje' : 'Puntaje ${o.puntaje! == o.puntaje!.roundToDouble() ? o.puntaje!.toInt() : o.puntaje}'}',
                   style: const TextStyle(
-                    color: EstiloContractual.texto,
+                    color: Cristal.textoMedio,
                     fontSize: 12,
                   ),
                 ),
@@ -2360,7 +2325,7 @@ class _Matriz extends StatelessWidget {
                       TextButton(
                         onPressed: () => onCalificar(o),
                         style: TextButton.styleFrom(
-                          foregroundColor: EstiloContractual.navy,
+                          foregroundColor: Cristal.texto,
                           visualDensity: VisualDensity.compact,
                         ),
                         child: const Text(
@@ -2374,7 +2339,7 @@ class _Matriz extends StatelessWidget {
                       icon: const Icon(
                         Icons.delete_outline_rounded,
                         size: 18,
-                        color: EstiloContractual.gris,
+                        color: Cristal.textoSuave,
                       ),
                     ),
                   ],
@@ -2400,6 +2365,7 @@ class _EstadoCelda extends StatelessWidget {
     return Tooltip(
       message: obs.isEmpty ? 'Toca para verificar' : obs,
       child: InkWell(
+        hoverDuration: Cristal.micro,
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
         child: Container(
@@ -2459,7 +2425,7 @@ class _FilaLegalizacion extends StatelessWidget {
                       ? requisito.nombre
                       : '${requisito.nombre} · si aplica',
                   style: const TextStyle(
-                    color: EstiloContractual.navy,
+                    color: Cristal.texto,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -2469,7 +2435,7 @@ class _FilaLegalizacion extends StatelessWidget {
                       ? requisito.descripcion
                       : verificacion!.observacion,
                   style: const TextStyle(
-                    color: EstiloContractual.gris,
+                    color: Cristal.textoSuave,
                     fontSize: 12.2,
                   ),
                 ),
@@ -2503,7 +2469,7 @@ class _Trazabilidad extends StatelessWidget {
           const Text(
             'Trazabilidad',
             style: TextStyle(
-              color: EstiloContractual.navy,
+              color: Cristal.texto,
               fontSize: 17,
               fontWeight: FontWeight.w800,
             ),
@@ -2514,15 +2480,12 @@ class _Trazabilidad extends StatelessWidget {
             minHeight: 6,
             borderRadius: BorderRadius.circular(3),
             color: proceso.modalidad.color,
-            backgroundColor: const Color(0xFFF1F5F9),
+            backgroundColor: Cristal.vidrioFuerte,
           ),
           const SizedBox(height: 4),
           Text(
             '${(proceso.avanceDocumentosEntidad * 100).round()} % de los documentos internos obligatorios',
-            style: const TextStyle(
-              color: EstiloContractual.gris,
-              fontSize: 11.8,
-            ),
+            style: const TextStyle(color: Cristal.textoSuave, fontSize: 11.8),
           ),
           const SizedBox(height: 14),
           for (final e in proceso.trazabilidad.take(25))
@@ -2548,7 +2511,7 @@ class _Trazabilidad extends StatelessWidget {
                         Text(
                           e.titulo,
                           style: const TextStyle(
-                            color: EstiloContractual.navy,
+                            color: Cristal.texto,
                             fontSize: 12.8,
                             fontWeight: FontWeight.w700,
                           ),
@@ -2556,7 +2519,7 @@ class _Trazabilidad extends StatelessWidget {
                         Text(
                           '${e.actorNombre} · ${JuridicoContratacionService.formatearFechaHumana(e.fechaIso)}',
                           style: const TextStyle(
-                            color: EstiloContractual.gris,
+                            color: Cristal.textoSuave,
                             fontSize: 11.5,
                           ),
                         ),
@@ -2564,7 +2527,7 @@ class _Trazabilidad extends StatelessWidget {
                           Text(
                             e.detalle,
                             style: const TextStyle(
-                              color: EstiloContractual.texto,
+                              color: Cristal.textoMedio,
                               fontSize: 11.8,
                             ),
                           ),
@@ -2596,8 +2559,11 @@ class _Dialogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: const Color(0xFFFEFBF4),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+      backgroundColor: Cristal.flotante,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
+        side: const BorderSide(color: Cristal.bordeFuerte),
+      ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 540),
         child: SingleChildScrollView(
@@ -2609,7 +2575,7 @@ class _Dialogo extends StatelessWidget {
               Text(
                 titulo,
                 style: const TextStyle(
-                  color: EstiloContractual.navy,
+                  color: Cristal.texto,
                   fontSize: 19,
                   fontWeight: FontWeight.w800,
                 ),
@@ -2619,7 +2585,7 @@ class _Dialogo extends StatelessWidget {
                 Text(
                   detalle,
                   style: const TextStyle(
-                    color: EstiloContractual.texto,
+                    color: Cristal.textoMedio,
                     fontSize: 13.2,
                   ),
                 ),

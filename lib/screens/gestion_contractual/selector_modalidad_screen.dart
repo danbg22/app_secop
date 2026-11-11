@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/modalidades_contratacion.dart';
 import 'estilo_contractual.dart';
+import '../../tema/cristal.dart';
 
 /// Primer paso de Gestión contractual: escoger la modalidad de selección.
 /// Devuelve la modalidad elegida con `Navigator.pop`.
@@ -138,9 +139,9 @@ class _TarjetaModalidadState extends State<_TarjetaModalidad> {
                   decoration: BoxDecoration(
                     color: m.color,
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 3),
+                    border: Border.all(color: Cristal.borde, width: 3),
                   ),
-                  child: Icon(m.icono, color: Colors.white, size: 21),
+                  child: Icon(m.icono, color: Cristal.sobre(m.color), size: 21),
                 ),
               ),
               Padding(
@@ -151,7 +152,7 @@ class _TarjetaModalidadState extends State<_TarjetaModalidad> {
                     Text(
                       m.nombre,
                       style: const TextStyle(
-                        color: EstiloContractual.navy,
+                        color: Cristal.texto,
                         fontSize: 16.5,
                         fontWeight: FontWeight.w800,
                         height: 1.2,
@@ -161,7 +162,7 @@ class _TarjetaModalidadState extends State<_TarjetaModalidad> {
                     Text(
                       m.resumen,
                       style: const TextStyle(
-                        color: EstiloContractual.texto,
+                        color: Cristal.textoMedio,
                         fontSize: 12.8,
                         height: 1.4,
                       ),
@@ -186,7 +187,7 @@ class _TarjetaModalidadState extends State<_TarjetaModalidad> {
                         Icon(
                           Icons.arrow_forward_rounded,
                           size: 18,
-                          color: _hover ? m.color : EstiloContractual.gris,
+                          color: _hover ? m.color : Cristal.textoSuave,
                         ),
                       ],
                     ),

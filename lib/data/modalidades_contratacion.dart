@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../tema/cristal.dart';
 
 /// Configuración declarativa de las modalidades de selección de la
 /// contratación estatal colombiana (Ley 80 de 1993, Ley 1150 de 2007,
@@ -429,8 +430,8 @@ const List<ModalidadContratacion> modalidadesContratacion = [
     resumen: 'Contratación directa de servicios profesionales y de apoyo a la gestión con una persona natural o jurídica.',
     fundamento: 'Ley 1150 de 2007, art. 2 num. 4 lit. h · Decreto 1082 de 2015, art. 2.2.1.2.1.4.9',
     icono: Icons.badge_outlined,
-    color: Color(0xFFB7791F),
-    fondo: Color(0xFFFFF3CC),
+    color: Cristal.ambar,
+    fondo: Cristal.doradoVidrio,
     flujo: FlujoModalidad.contratoDirecto,
     // Sus documentos son la plantilla OPS que ya usa la mesa de verificación
     // (JuridicoContratacionService.plantillasEstandarColombia).
@@ -441,8 +442,8 @@ const List<ModalidadContratacion> modalidadesContratacion = [
     resumen: 'Casos taxativos sin convocatoria: convenios interadministrativos, urgencia manifiesta, no pluralidad de oferentes, arrendamientos, entre otros.',
     fundamento: 'Ley 1150 de 2007, art. 2 num. 4 · Decreto 1082 de 2015, art. 2.2.1.2.1.4.1',
     icono: Icons.handshake_outlined,
-    color: Color(0xFF28559A),
-    fondo: Color(0xFFE8F1FC),
+    color: Cristal.acentoClaro,
+    fondo: Cristal.vidrioSuave,
     flujo: FlujoModalidad.contratoDirecto,
     hitos: [
       HitoCronograma(
@@ -511,8 +512,8 @@ const List<ModalidadContratacion> modalidadesContratacion = [
     resumen: 'Contratos hasta el 10 % de la menor cuantía de la entidad. Invitación pública y se adjudica a la oferta de menor precio que cumpla.',
     fundamento: 'Ley 1474 de 2011, art. 94 · Decreto 1082 de 2015, arts. 2.2.1.2.1.5.1 a 2.2.1.2.1.5.4',
     icono: Icons.shopping_bag_outlined,
-    color: Color(0xFF1F6E7A),
-    fondo: Color(0xFFE3F3F2),
+    color: Color(0xFF22D3EE),
+    fondo: Color(0x2414B8A6),
     flujo: FlujoModalidad.procesoCompetitivo,
     hitos: [
       HitoCronograma(id: 'invitacion', nombre: 'Publicación de la invitación'),
@@ -622,8 +623,8 @@ const List<ModalidadContratacion> modalidadesContratacion = [
     resumen: 'Contratos hasta la menor cuantía de la entidad. Manifestación de interés; con más de diez interesados la entidad puede sortear.',
     fundamento: 'Ley 1150 de 2007, art. 2 num. 2 lit. b · Decreto 1082 de 2015, art. 2.2.1.2.1.2.20',
     icono: Icons.filter_alt_outlined,
-    color: Color(0xFF5D469C),
-    fondo: Color(0xFFEEEAF9),
+    color: Color(0xFFA78BFA),
+    fondo: Color(0x248B5CF6),
     flujo: FlujoModalidad.procesoCompetitivo,
     hitos: [
       HitoCronograma(
@@ -746,8 +747,8 @@ const List<ModalidadContratacion> modalidadesContratacion = [
     resumen: 'Bienes y servicios de características técnicas uniformes. Gana el menor precio ofrecido en la subasta.',
     fundamento: 'Ley 1150 de 2007, art. 2 num. 2 lit. a · Decreto 1082 de 2015, arts. 2.2.1.2.1.2.2 a 2.2.1.2.1.2.6',
     icono: Icons.trending_down_rounded,
-    color: Color(0xFFC2410C),
-    fondo: Color(0xFFFFEDD5),
+    color: Color(0xFFFB923C),
+    fondo: Cristal.ambarVidrio,
     flujo: FlujoModalidad.procesoCompetitivo,
     hitos: [
       HitoCronograma(
@@ -864,8 +865,8 @@ const List<ModalidadContratacion> modalidadesContratacion = [
     resumen: 'Regla general para contratos que superan la menor cuantía y no encajan en otra modalidad, incluida la obra pública.',
     fundamento: 'Ley 80 de 1993, art. 30 · Ley 1150 de 2007, art. 2 num. 1 · Decreto 1082 de 2015, art. 2.2.1.2.1.1.1',
     icono: Icons.gavel_rounded,
-    color: Color(0xFF0E2646),
-    fondo: Color(0xFFE2E8F0),
+    color: Cristal.texto,
+    fondo: Cristal.vidrioFuerte,
     flujo: FlujoModalidad.procesoCompetitivo,
     hitos: [
       HitoCronograma(
@@ -1019,8 +1020,8 @@ const List<ModalidadContratacion> modalidadesContratacion = [
     resumen: 'Consultoría y proyectos de arquitectura. Se califica la calidad técnica; el precio no es factor de escogencia.',
     fundamento: 'Ley 1150 de 2007, art. 2 num. 3 · Decreto 1082 de 2015, art. 2.2.1.2.1.3.1 y ss.',
     icono: Icons.workspace_premium_outlined,
-    color: Color(0xFF15803D),
-    fondo: Color(0xFFDCFCE7),
+    color: Cristal.verde,
+    fondo: Cristal.verdeVidrio,
     flujo: FlujoModalidad.procesoCompetitivo,
     hitos: [
       HitoCronograma(
@@ -1146,8 +1147,8 @@ const List<ModalidadContratacion> modalidadesContratacion = [
     fundamento:
         'Ley 1150 de 2007, art. 13 · Manual de contratación de la entidad',
     icono: Icons.account_balance_outlined,
-    color: Color(0xFF64748B),
-    fondo: Color(0xFFF1F5F9),
+    color: Cristal.textoSuave,
+    fondo: Cristal.vidrioSuave,
     flujo: FlujoModalidad.procesoCompetitivo,
     hitos: [
       HitoCronograma(

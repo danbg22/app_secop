@@ -6,6 +6,7 @@ import '../../services/verificacion_paa_service.dart';
 import '../gestion_contractual/estilo_contractual.dart';
 import '../../utils/texto_profesional.dart';
 import 'verificacion_widgets.dart';
+import '../../tema/cristal.dart';
 
 /// Predicción de licitaciones de una cuenta de la entidad, a partir de su
 /// Plan Anual de Adquisiciones: qué piensa contratar, cuándo y por cuánto.
@@ -272,7 +273,7 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
           'modificaciones a contratos. Cada compra del plan se cuenta una sola vez, en su versión más '
           'reciente. Cuando la entidad no vinculó el proceso, se busca por el parecido del objeto y del valor.',
           style: TextStyle(
-            color: EstiloContractual.gris,
+            color: Cristal.textoSuave,
             fontSize: 11.5,
             height: 1.45,
           ),
@@ -309,7 +310,7 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
                       Text(
                         widget.titulo,
                         style: const TextStyle(
-                          color: EstiloContractual.navy,
+                          color: Cristal.texto,
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
                         ),
@@ -318,7 +319,7 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
                       Text(
                         'Cuenta en SECOP II: ${p.nombreEntidad}',
                         style: const TextStyle(
-                          color: EstiloContractual.texto,
+                          color: Cristal.textoMedio,
                           fontSize: 12.8,
                         ),
                       ),
@@ -327,7 +328,7 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
                         'Con base en el PAA ${p.anio} · versión ${p.version}'
                         '${_fecha(p.actualizadoIso).isEmpty ? '' : ' · actualizado ${_fecha(p.actualizadoIso)}'}',
                         style: const TextStyle(
-                          color: EstiloContractual.gris,
+                          color: Cristal.textoSuave,
                           fontSize: 12.8,
                         ),
                       ),
@@ -343,10 +344,7 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
                   Expanded(
                     child: Text(
                       _errorItems!,
-                      style: const TextStyle(
-                        color: Color(0xFFB91C1C),
-                        fontSize: 13,
-                      ),
+                      style: const TextStyle(color: Cristal.rojo, fontSize: 13),
                     ),
                   ),
                   TextButton(
@@ -424,7 +422,7 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
       width: mobile ? double.infinity : 250,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: Cristal.vidrioSuave,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
@@ -435,7 +433,7 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
           Text(
             valor,
             style: const TextStyle(
-              color: EstiloContractual.navy,
+              color: Cristal.texto,
               fontSize: 19,
               fontWeight: FontWeight.w800,
             ),
@@ -444,7 +442,7 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
           Text(
             nota,
             style: const TextStyle(
-              color: EstiloContractual.gris,
+              color: Cristal.textoSuave,
               fontSize: 12.3,
               height: 1.35,
             ),
@@ -493,7 +491,7 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
             'y mínima cuantía hasta ${_cop(p.minimaCuantiaCop)}. Por encima de la menor cuantía, '
             'la compra suele ir por licitación pública.',
             style: const TextStyle(
-              color: EstiloContractual.texto,
+              color: Cristal.textoMedio,
               fontSize: 12.8,
               height: 1.45,
             ),
@@ -533,10 +531,7 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
                 ? 'Valor de todas las contrataciones previstas por mes esperado de inicio (con los filtros de abajo). '
                       'Toca un mes para ver solo sus compras.'
                 : 'Mostrando ${_meses[_mes! - 1]}. Toca de nuevo para ver todo el año.',
-            style: const TextStyle(
-              color: EstiloContractual.gris,
-              fontSize: 12.5,
-            ),
+            style: const TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
           ),
           const SizedBox(height: 14),
           SizedBox(
@@ -551,6 +546,7 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
                       label:
                           '${_meses[m - 1]}: ${cuenta[m - 1]} compras, ${_millones(porMes[m - 1])}',
                       child: InkWell(
+                        hoverDuration: Cristal.micro,
                         onTap: () => setState(() {
                           _mes = _mes == m ? null : m;
                           _mostrar = 30;
@@ -567,7 +563,7 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
                                 Text(
                                   '${cuenta[m - 1]}',
                                   style: const TextStyle(
-                                    color: EstiloContractual.gris,
+                                    color: Cristal.textoSuave,
                                     fontSize: 11.5,
                                   ),
                                 ),
@@ -578,9 +574,9 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
                                     : 4 + 96 * porMes[m - 1] / maximo,
                                 decoration: BoxDecoration(
                                   color: _mes == m
-                                      ? EstiloContractual.navy
+                                      ? Cristal.acentoVidrio
                                       : (m < mesActual
-                                            ? const Color(0xFFCBD5E1)
+                                            ? Cristal.vidrioIntenso
                                             : const Color(0xFF7FA6D9)),
                                   borderRadius: BorderRadius.circular(5),
                                 ),
@@ -590,8 +586,8 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
                                 _mesesCortos[m - 1],
                                 style: TextStyle(
                                   color: m == mesActual
-                                      ? EstiloContractual.navy
-                                      : EstiloContractual.gris,
+                                      ? Cristal.texto
+                                      : Cristal.textoSuave,
                                   fontSize: 11.5,
                                   fontWeight: m == mesActual
                                       ? FontWeight.w800
@@ -611,7 +607,7 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
             const SizedBox(height: 8),
             const Text(
               'En gris, los meses que ya pasaron.',
-              style: TextStyle(color: EstiloContractual.gris, fontSize: 11.5),
+              style: TextStyle(color: Cristal.textoSuave, fontSize: 11.5),
             ),
           ],
         ],
@@ -653,10 +649,10 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
                   ChoiceChip(
                     label: Text(t),
                     selected: _estado == e,
-                    selectedColor: const Color(0xFFDCE6F5),
-                    checkmarkColor: EstiloContractual.navy,
+                    selectedColor: Cristal.azulVidrio,
+                    checkmarkColor: Cristal.texto,
                     labelStyle: TextStyle(
-                      color: EstiloContractual.navy,
+                      color: Cristal.texto,
                       fontWeight: _estado == e
                           ? FontWeight.w800
                           : FontWeight.w500,
@@ -676,7 +672,7 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
                         'publicó en SECOP II desde enero: por la referencia que vinculó la entidad o, si no '
                         'la vinculó, por el parecido del objeto y del valor.',
               style: TextStyle(
-                color: EstiloContractual.gris,
+                color: Cristal.textoSuave,
                 fontSize: 12.3,
                 height: 1.4,
               ),
@@ -693,14 +689,14 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
               title: const Text(
                 'Solo compras donde una empresa puede competir',
                 style: TextStyle(
-                  color: EstiloContractual.navy,
+                  color: Cristal.texto,
                   fontSize: 13.5,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               subtitle: const Text(
                 'Quita la contratación directa, que casi siempre es prestación de servicios de personas.',
-                style: TextStyle(color: EstiloContractual.gris, fontSize: 12.3),
+                style: TextStyle(color: Cristal.textoSuave, fontSize: 12.3),
               ),
             ),
             const SizedBox(height: 6),
@@ -778,7 +774,7 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
         child: Text(
           '${lista.length} compra${lista.length == 1 ? '' : 's'} · ${_millones(valor)}',
           style: const TextStyle(
-            color: EstiloContractual.navy,
+            color: Cristal.texto,
             fontSize: 15,
             fontWeight: FontWeight.w800,
           ),
@@ -795,7 +791,7 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
                       '${p.anio + 1}, que las entidades publican a más tardar el 31 de enero.'
                 : 'Ninguna compra del plan coincide con los filtros.',
             style: const TextStyle(
-              color: EstiloContractual.gris,
+              color: Cristal.textoSuave,
               fontSize: 13,
               height: 1.45,
             ),
@@ -853,14 +849,14 @@ class AvisoPrediccionPaa extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFBEB),
+        color: Cristal.ambarVidrio,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFCD34D)),
+        border: Border.all(color: Cristal.ambarBorde),
       ),
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline_rounded, color: Color(0xFFB45309), size: 20),
+          Icon(Icons.info_outline_rounded, color: Cristal.ambar, size: 20),
           SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -869,7 +865,7 @@ class AvisoPrediccionPaa extends StatelessWidget {
               'SECOP II, pero los requisitos exactos (experiencia, capacidad financiera) solo se conocen en '
               'el pliego del proceso.',
               style: TextStyle(
-                color: Color(0xFF78350F),
+                color: Cristal.ambar,
                 fontSize: 13,
                 height: 1.45,
               ),
@@ -912,17 +908,14 @@ class _TarjetaCompra extends StatelessWidget {
   final String Function(double) cop;
   final String Function(String) fecha;
 
-  static const _navy = EstiloContractual.navy;
-  static const _gris = EstiloContractual.gris;
-
   @override
   Widget build(BuildContext context) {
     final i = item;
     final estado = verificando
         ? const EtiquetaColor(
             texto: 'Verificando en SECOP II…',
-            color: Color(0xFF64748B),
-            fondo: Color(0xFFF1F5F9),
+            color: Cristal.textoSuave,
+            fondo: Cristal.vidrioSuave,
           )
         : cruce != null
         ? EtiquetaColor(
@@ -933,18 +926,18 @@ class _TarjetaCompra extends StatelessWidget {
         : switch (situacion) {
             _Estado.porIniciar => const EtiquetaColor(
               texto: 'Por iniciar',
-              color: Color(0xFFB45309),
-              fondo: Color(0xFFFEF3C7),
+              color: Cristal.ambar,
+              fondo: Cristal.ambarVidrio,
             ),
             _Estado.enCurso => const EtiquetaColor(
               texto: 'Proceso vinculado',
-              color: Color(0xFF1D4ED8),
-              fondo: Color(0xFFDBEAFE),
+              color: Cristal.acentoClaro,
+              fondo: Cristal.azulVidrio,
             ),
             _ => const EtiquetaColor(
               texto: 'Fecha vencida, sin proceso en SECOP II',
-              color: Color(0xFF64748B),
-              fondo: Color(0xFFF1F5F9),
+              color: Cristal.textoSuave,
+              fondo: Cristal.vidrioSuave,
             ),
           };
 
@@ -957,7 +950,11 @@ class _TarjetaCompra extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             valor,
-            style: const TextStyle(color: _navy, fontSize: 13.2, height: 1.4),
+            style: const TextStyle(
+              color: Cristal.texto,
+              fontSize: 13.2,
+              height: 1.4,
+            ),
           ),
         ],
       ),
@@ -969,6 +966,7 @@ class _TarjetaCompra extends StatelessWidget {
       child: Material(
         type: MaterialType.transparency,
         child: InkWell(
+          hoverDuration: Cristal.micro,
           onTap: onTap,
           borderRadius: BorderRadius.circular(20),
           child: Padding(
@@ -982,15 +980,15 @@ class _TarjetaCompra extends StatelessWidget {
                   children: [
                     EtiquetaColor(
                       texto: mesTexto,
-                      color: _navy,
-                      fondo: const Color(0xFFEFF4FB),
+                      color: Cristal.texto,
+                      fondo: Cristal.vidrioSuave,
                       icono: Icons.event_rounded,
                     ),
                     if (i.modalidad.isNotEmpty)
                       EtiquetaColor(
                         texto: TextoProfesional.etiqueta(i.modalidad),
-                        color: const Color(0xFF1D4ED8),
-                        fondo: const Color(0xFFEFF6FF),
+                        color: Cristal.acentoClaro,
+                        fondo: Cristal.azulVidrio,
                       ),
                     estado,
                   ],
@@ -1005,7 +1003,7 @@ class _TarjetaCompra extends StatelessWidget {
                         maxLines: abierta ? null : 3,
                         overflow: abierta ? null : TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: _navy,
+                          color: Cristal.texto,
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                           height: 1.4,
@@ -1016,7 +1014,7 @@ class _TarjetaCompra extends StatelessWidget {
                       abierta
                           ? Icons.expand_less_rounded
                           : Icons.expand_more_rounded,
-                      color: _gris,
+                      color: Cristal.textoSuave,
                     ),
                   ],
                 ),
@@ -1027,14 +1025,14 @@ class _TarjetaCompra extends StatelessWidget {
                     if (i.duracion.isNotEmpty) 'duración ${i.duracion}',
                   ].join(' · '),
                   style: const TextStyle(
-                    color: _navy,
+                    color: Cristal.texto,
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 if (abierta) ...[
                   const SizedBox(height: 6),
-                  const Divider(height: 18, color: Color(0xFFEDF0F4)),
+                  const Divider(height: 18, color: Cristal.borde),
                   if (i.codigosUnspsc.isNotEmpty)
                     dato(
                       'Códigos UNSPSC',
@@ -1052,7 +1050,7 @@ class _TarjetaCompra extends StatelessWidget {
                         'La experiencia se acredita en el RUP con códigos UNSPSC; estos son los que la entidad '
                         'asignó a la compra. El pliego dirá cuáles exige y por qué valor.',
                         style: TextStyle(
-                          color: _gris,
+                          color: Cristal.textoSuave,
                           fontSize: 12.3,
                           height: 1.4,
                         ),
@@ -1112,7 +1110,7 @@ class _TarjetaCompra extends StatelessWidget {
                             child: Text(
                               'No fue posible consultar los contratos. Intenta de nuevo.',
                               style: TextStyle(
-                                color: Color(0xFFB91C1C),
+                                color: Cristal.rojo,
                                 fontSize: 12.8,
                               ),
                             ),
@@ -1135,7 +1133,7 @@ class _TarjetaCompra extends StatelessWidget {
                                   : 'Últimos contratos de esta entidad con el código ${i.codigosUnspsc.first.substring(0, 6)}: '
                                         'te muestran qué valores maneja y quién se los ha ganado.',
                               style: const TextStyle(
-                                color: _gris,
+                                color: Cristal.textoSuave,
                                 fontSize: 12.5,
                                 height: 1.4,
                               ),
@@ -1145,7 +1143,7 @@ class _TarjetaCompra extends StatelessWidget {
                                 margin: const EdgeInsets.only(top: 8),
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFF8FAFC),
+                                  color: Cristal.vidrioSuave,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Column(
@@ -1158,7 +1156,7 @@ class _TarjetaCompra extends StatelessWidget {
                                         r.modalidad,
                                       ].where((t) => t.isNotEmpty).join(' · '),
                                       style: const TextStyle(
-                                        color: _navy,
+                                        color: Cristal.texto,
                                         fontSize: 13,
                                         fontWeight: FontWeight.w800,
                                       ),
@@ -1167,7 +1165,7 @@ class _TarjetaCompra extends StatelessWidget {
                                       Text(
                                         r.proveedor,
                                         style: const TextStyle(
-                                          color: _navy,
+                                          color: Cristal.texto,
                                           fontSize: 12.8,
                                         ),
                                       ),
@@ -1177,7 +1175,7 @@ class _TarjetaCompra extends StatelessWidget {
                                       maxLines: 3,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
-                                        color: _gris,
+                                        color: Cristal.textoSuave,
                                         fontSize: 12.3,
                                         height: 1.35,
                                       ),

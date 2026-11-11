@@ -5,6 +5,7 @@ import 'estado_secop.dart';
 import 'estilo_contractual.dart';
 import 'importar_proceso_screen.dart';
 import 'proceso_detalle_screen.dart';
+import '../../tema/cristal.dart';
 
 /// Panel de seguimiento de los procesos del equipo en SECOP II: estado de
 /// cada uno, novedades desde la última revisión y sincronización.
@@ -30,9 +31,7 @@ class _SeguimientoSecopScreenState extends State<SeguimientoSecopScreen> {
         SnackBar(
           content: Text(t),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: error
-              ? const Color(0xFFB91C1C)
-              : EstiloContractual.navy,
+          backgroundColor: error ? const Color(0xFFB91C1C) : Cristal.flotante,
         ),
       );
   }
@@ -79,10 +78,10 @@ class _SeguimientoSecopScreenState extends State<SeguimientoSecopScreen> {
   }
 
   Future<void> _verNovedades(ProcesoContratacion p) async {
-    final revisar = await showDialog<bool>(
+    final revisar = await mostrarDialogoCristal<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: Cristal.flotante,
         title: Text('Novedades en SECOP II · ${p.numeroProceso}'),
         content: SizedBox(
           width: 480,
@@ -99,7 +98,7 @@ class _SeguimientoSecopScreenState extends State<SeguimientoSecopScreen> {
                       const Icon(
                         Icons.fiber_new_rounded,
                         size: 18,
-                        color: Color(0xFFC2410C),
+                        color: Color(0xFFFB923C),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -245,7 +244,7 @@ class _SeguimientoSecopScreenState extends State<SeguimientoSecopScreen> {
                   _FiltroChip(
                     texto: 'Todos (${todos.length})',
                     activo: _filtro == null && !_soloNovedades,
-                    color: EstiloContractual.navy,
+                    color: Cristal.texto,
                     onTap: () => setState(() {
                       _filtro = null;
                       _soloNovedades = false;
@@ -254,7 +253,7 @@ class _SeguimientoSecopScreenState extends State<SeguimientoSecopScreen> {
                   _FiltroChip(
                     texto: 'Con novedades ($novedades)',
                     activo: _soloNovedades,
-                    color: const Color(0xFFC2410C),
+                    color: const Color(0xFFFB923C),
                     icono: Icons.fiber_new_rounded,
                     onTap: () =>
                         setState(() => _soloNovedades = !_soloNovedades),
@@ -296,7 +295,7 @@ class _SeguimientoSecopScreenState extends State<SeguimientoSecopScreen> {
                 child: Center(
                   child: Text(
                     'Ningún proceso coincide con el filtro.',
-                    style: TextStyle(color: EstiloContractual.gris),
+                    style: TextStyle(color: Cristal.textoSuave),
                   ),
                 ),
               )
@@ -359,16 +358,16 @@ class _FiltroChip extends StatelessWidget {
     child: ChoiceChip(
       avatar: icono == null
           ? null
-          : Icon(icono, size: 16, color: activo ? Colors.white : color),
+          : Icon(icono, size: 16, color: activo ? Cristal.texto : color),
       label: Text(texto),
       selected: activo,
       showCheckmark: false,
       onSelected: (_) => onTap(),
       selectedColor: color,
-      backgroundColor: Colors.white,
-      side: BorderSide(color: activo ? color : const Color(0xFFD8DEE8)),
+      backgroundColor: Cristal.vidrio,
+      side: BorderSide(color: activo ? color : Cristal.borde),
       labelStyle: TextStyle(
-        color: activo ? Colors.white : EstiloContractual.navy,
+        color: activo ? Cristal.texto : Cristal.texto,
         fontWeight: FontWeight.w700,
         fontSize: 12.5,
       ),
@@ -403,11 +402,12 @@ class _TarjetaSeguimiento extends StatelessWidget {
     final novedades = p.secopNovedades.length;
     return Container(
       decoration: EstiloContractual.tarjeta(
-        colorBorde: novedades > 0 ? const Color(0xFFFDBA74) : null,
+        colorBorde: novedades > 0 ? Cristal.ambarBorde : null,
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
+          hoverDuration: Cristal.micro,
           onTap: onAbrir,
           borderRadius: BorderRadius.circular(20),
           child: Padding(
@@ -429,13 +429,14 @@ class _TarjetaSeguimiento extends StatelessWidget {
                     ),
                     if (novedades > 0)
                       InkWell(
+                        hoverDuration: Cristal.micro,
                         onTap: onNovedades,
                         borderRadius: BorderRadius.circular(12),
                         child: EtiquetaColor(
                           texto:
                               '$novedades novedad${novedades == 1 ? '' : 'es'}',
-                          color: const Color(0xFFC2410C),
-                          fondo: const Color(0xFFFFEDD5),
+                          color: const Color(0xFFFB923C),
+                          fondo: Cristal.ambarVidrio,
                           icono: Icons.fiber_new_rounded,
                         ),
                       ),
@@ -445,7 +446,7 @@ class _TarjetaSeguimiento extends StatelessWidget {
                 Text(
                   p.numeroProceso,
                   style: const TextStyle(
-                    color: EstiloContractual.navy,
+                    color: Cristal.texto,
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                   ),
@@ -460,7 +461,7 @@ class _TarjetaSeguimiento extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: EstiloContractual.texto,
+                    color: Cristal.textoMedio,
                     fontSize: 13,
                     height: 1.35,
                   ),
@@ -471,7 +472,7 @@ class _TarjetaSeguimiento extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: EstiloContractual.gris,
+                    color: Cristal.textoSuave,
                     fontSize: 12,
                   ),
                 ),
@@ -509,7 +510,7 @@ class _TarjetaSeguimiento extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFF7ED),
+                      color: Cristal.ambarVidrio,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
@@ -517,7 +518,7 @@ class _TarjetaSeguimiento extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: Color(0xFF9A3412),
+                        color: Color(0xFFFB923C),
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,
                       ),
@@ -525,7 +526,7 @@ class _TarjetaSeguimiento extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 12),
-                const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                const Divider(height: 1, color: Cristal.borde),
                 const SizedBox(height: 10),
                 Row(
                   children: [
@@ -534,7 +535,7 @@ class _TarjetaSeguimiento extends StatelessWidget {
                           ? Icons.cloud_done_outlined
                           : Icons.link_off_rounded,
                       size: 16,
-                      color: EstiloContractual.gris,
+                      color: Cristal.textoSuave,
                     ),
                     const SizedBox(width: 6),
                     Expanded(
@@ -545,7 +546,7 @@ class _TarjetaSeguimiento extends StatelessWidget {
                                   ? 'Aún no se ha sincronizado'
                                   : 'Sincronizado ${haceCuanto(p.secopSincronizadoEnIso)}'),
                         style: const TextStyle(
-                          color: EstiloContractual.gris,
+                          color: Cristal.textoSuave,
                           fontSize: 12,
                         ),
                       ),
@@ -565,7 +566,7 @@ class _TarjetaSeguimiento extends StatelessWidget {
                           : TextButton.icon(
                               onPressed: onSincronizar,
                               style: TextButton.styleFrom(
-                                foregroundColor: EstiloContractual.navy,
+                                foregroundColor: Cristal.texto,
                               ),
                               icon: const Icon(Icons.sync_rounded, size: 18),
                               label: Text(
@@ -597,7 +598,7 @@ class _Mini extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      Icon(icono, size: 15, color: EstiloContractual.gris),
+      Icon(icono, size: 15, color: Cristal.textoSuave),
       const SizedBox(width: 5),
       ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 220),
@@ -606,7 +607,7 @@ class _Mini extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
-            color: EstiloContractual.navy,
+            color: Cristal.texto,
             fontSize: 12.5,
             fontWeight: FontWeight.w600,
           ),
@@ -629,13 +630,13 @@ class _Vacio extends StatelessWidget {
         const Icon(
           Icons.cloud_download_outlined,
           size: 42,
-          color: EstiloContractual.navy,
+          color: Cristal.texto,
         ),
         const SizedBox(height: 10),
         const Text(
           'Aún no hay procesos en seguimiento',
           style: TextStyle(
-            color: EstiloContractual.navy,
+            color: Cristal.texto,
             fontSize: 18,
             fontWeight: FontWeight.w800,
           ),
@@ -644,7 +645,7 @@ class _Vacio extends StatelessWidget {
         const Text(
           'Importa un proceso de SECOP II con su ID o enlace para seguir su estado y sus documentos.',
           textAlign: TextAlign.center,
-          style: TextStyle(color: EstiloContractual.texto),
+          style: TextStyle(color: Cristal.textoMedio),
         ),
         const SizedBox(height: 16),
         FilledButton.icon(

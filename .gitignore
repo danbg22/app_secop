@@ -64,3 +64,6 @@ key.properties
 # Impeccable: el motor se descarga solo en el primer uso; los hooks son locales
 .claude/skills/impeccable/scripts/bin/
 .claude/settings.local.json
+
+# Capturas de revisión visual (tool/vista): se generan con --update-goldens
+tool/vista/capturas/

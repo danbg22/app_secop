@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/security_service.dart';
 import 'escoger_rol_screen.dart';
+import '../tema/cristal.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,9 +14,6 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   // Paleta compartida con el flujo de registro (EscogerRolScreen).
-  static const _navy = Color(0xFF0E2646);
-  static const _subtitleBlue = Color(0xFF364F6B);
-  static const _royalBlue = Color(0xFF0D5BD9);
   static final _emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
 
   final _formKey = GlobalKey<FormState>();
@@ -38,7 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ..showSnackBar(
         SnackBar(
           content: Text(message),
-          backgroundColor: isError ? Colors.red.shade700 : _navy,
+          backgroundColor: isError ? Color(0xFFDC2626) : Cristal.flotante,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -140,7 +138,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: OnboardingUnifiedBackground.bgCream,
+      backgroundColor: Colors.transparent,
       body: OnboardingUnifiedBackground(
         showScenicPhoto: false,
         child: LayoutBuilder(
@@ -172,7 +170,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           'Inicia sesión para continuar',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: _navy,
+                            color: Cristal.texto,
                             fontSize: isMobile ? 26 : (isTablet ? 34 : 40),
                             fontWeight: FontWeight.w800,
                             height: 1.12,
@@ -184,7 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           'Accede a tus consultas, favoritos y herramientas de contratación.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: _subtitleBlue,
+                            color: Cristal.textoMedio,
                             fontSize: isMobile ? 13.8 : 16,
                             fontWeight: FontWeight.w500,
                             height: 1.4,
@@ -204,7 +202,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             const Text(
                               '¿No tienes cuenta?',
                               style: TextStyle(
-                                color: _subtitleBlue,
+                                color: Cristal.textoMedio,
                                 fontSize: 13.8,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -217,7 +215,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       '/registro',
                                     ),
                               style: TextButton.styleFrom(
-                                foregroundColor: _navy,
+                                foregroundColor: Cristal.texto,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 8,
                                   vertical: 4,
@@ -226,7 +224,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: const Text(
                                 'Regístrate aquí →',
                                 style: TextStyle(
-                                  color: _navy,
+                                  color: Cristal.texto,
                                   fontSize: 13.8,
                                   fontWeight: FontWeight.w800,
                                   decoration: TextDecoration.underline,
@@ -253,16 +251,9 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildFormCard(bool isMobile) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Cristal.vidrio,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE6ECF5), width: 1.3),
-        boxShadow: [
-          BoxShadow(
-            color: _navy.withValues(alpha: 0.06),
-            blurRadius: 22,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        border: Border.all(color: Cristal.borde, width: 1.3),
       ),
       padding: EdgeInsets.symmetric(
         horizontal: isMobile ? 20 : 32,
@@ -280,7 +271,7 @@ class _LoginScreenState extends State<LoginScreen> {
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
               autofillHints: const [AutofillHints.email],
-              style: const TextStyle(fontSize: 14.5, color: Color(0xFF1E293B)),
+              style: const TextStyle(fontSize: 14.5, color: Cristal.texto),
               decoration: _inputDecoration(
                 hint: 'Correo electrónico',
                 icon: Icons.mail_outline_rounded,
@@ -302,26 +293,27 @@ class _LoginScreenState extends State<LoginScreen> {
               textInputAction: TextInputAction.done,
               autofillHints: const [AutofillHints.password],
               onFieldSubmitted: (_) => _signIn(),
-              style: const TextStyle(fontSize: 14.5, color: Color(0xFF1E293B)),
-              decoration: _inputDecoration(
-                hint: 'Contraseña',
-                icon: Icons.lock_outline_rounded,
-              ).copyWith(
-                suffixIcon: IconButton(
-                  tooltip: _passwordVisible
-                      ? 'Ocultar contraseña'
-                      : 'Mostrar contraseña',
-                  onPressed: () =>
-                      setState(() => _passwordVisible = !_passwordVisible),
-                  icon: Icon(
-                    _passwordVisible
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
-                    color: const Color(0xFF334155),
-                    size: 20,
+              style: const TextStyle(fontSize: 14.5, color: Cristal.texto),
+              decoration:
+                  _inputDecoration(
+                    hint: 'Contraseña',
+                    icon: Icons.lock_outline_rounded,
+                  ).copyWith(
+                    suffixIcon: IconButton(
+                      tooltip: _passwordVisible
+                          ? 'Ocultar contraseña'
+                          : 'Mostrar contraseña',
+                      onPressed: () =>
+                          setState(() => _passwordVisible = !_passwordVisible),
+                      icon: Icon(
+                        _passwordVisible
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        color: Cristal.textoCuerpo,
+                        size: 20,
+                      ),
+                    ),
                   ),
-                ),
-              ),
               validator: (value) =>
                   (value ?? '').isEmpty ? 'Ingresa tu contraseña.' : null,
             ),
@@ -333,7 +325,7 @@ class _LoginScreenState extends State<LoginScreen> {
               child: TextButton(
                 onPressed: _isLoading ? null : _resetPassword,
                 style: TextButton.styleFrom(
-                  foregroundColor: _royalBlue,
+                  foregroundColor: Cristal.acentoClaro,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 6,
                     vertical: 4,
@@ -344,7 +336,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: const Text(
                   'Olvidé mi contraseña',
                   style: TextStyle(
-                    color: _royalBlue,
+                    color: Cristal.acentoClaro,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -359,8 +351,8 @@ class _LoginScreenState extends State<LoginScreen> {
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _signIn,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _navy,
-                  foregroundColor: Colors.white,
+                  backgroundColor: Cristal.acento,
+                  foregroundColor: Cristal.texto,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(28),
@@ -372,7 +364,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         height: 22,
                         child: CircularProgressIndicator(
                           strokeWidth: 2.4,
-                          color: Colors.white,
+                          color: Cristal.texto,
                         ),
                       )
                     : const Row(
@@ -389,7 +381,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           Icon(
                             Icons.arrow_forward_rounded,
                             size: 19,
-                            color: Colors.white,
+                            color: Cristal.texto,
                           ),
                         ],
                       ),
@@ -401,21 +393,21 @@ class _LoginScreenState extends State<LoginScreen> {
             Row(
               children: [
                 const Expanded(
-                  child: Divider(color: Color(0xFFE6ECF5), thickness: 1),
+                  child: Divider(color: Cristal.borde, thickness: 1),
                 ),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 14),
                   child: Text(
                     'O continuar con',
                     style: TextStyle(
-                      color: Color(0xFF64748B),
+                      color: Cristal.textoSuave,
                       fontSize: 12.5,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
                 const Expanded(
-                  child: Divider(color: Color(0xFFE6ECF5), thickness: 1),
+                  child: Divider(color: Cristal.borde, thickness: 1),
                 ),
               ],
             ),
@@ -440,7 +432,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const Text(
                       'Iniciar sesión con Google',
                       style: TextStyle(
-                        color: _navy,
+                        color: Cristal.texto,
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                       ),
@@ -465,12 +457,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.apple, size: 22, color: Colors.black),
+                    Icon(Icons.apple, size: 22, color: Cristal.texto),
                     SizedBox(width: 10),
                     Text(
                       'Iniciar sesión con Apple',
                       style: TextStyle(
-                        color: _navy,
+                        color: Cristal.texto,
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                       ),
@@ -500,38 +492,38 @@ class _LoginScreenState extends State<LoginScreen> {
     return InputDecoration(
       hintText: hint,
       hintStyle: const TextStyle(
-        color: Color(0xFF64748B),
+        color: Cristal.textoSuave,
         fontSize: 14,
         fontWeight: FontWeight.w400,
       ),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: Cristal.campo,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      prefixIcon: Icon(icon, color: _navy, size: 20),
+      prefixIcon: Icon(icon, color: Cristal.texto, size: 20),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFD8DEE8)),
+        borderSide: const BorderSide(color: Cristal.borde),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFD8DEE8)),
+        borderSide: const BorderSide(color: Cristal.borde),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: _navy, width: 1.5),
+        borderSide: const BorderSide(color: Cristal.acentoClaro, width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.red.shade400),
+        borderSide: BorderSide(color: Color(0xFFEF5350)),
       ),
     );
   }
 
   ButtonStyle _socialButtonStyle() {
     return OutlinedButton.styleFrom(
-      backgroundColor: Colors.white,
-      foregroundColor: _navy,
-      side: const BorderSide(color: Color(0xFFD8DEE8), width: 1.2),
+      backgroundColor: Cristal.vidrio,
+      foregroundColor: Cristal.texto,
+      side: const BorderSide(color: Cristal.borde, width: 1.2),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
     );
   }

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../services/supervision_service.dart';
 import '../gestion_contractual/estilo_contractual.dart';
+import '../../tema/cristal.dart';
 
 /// Piezas visuales compartidas por las pantallas de supervisión.
 
@@ -17,9 +18,7 @@ void mensajeSupervision(
       SnackBar(
         content: Text(texto),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: error
-            ? const Color(0xFFB91C1C)
-            : EstiloContractual.navy,
+        backgroundColor: error ? const Color(0xFFB91C1C) : Cristal.flotante,
       ),
     );
 }
@@ -34,15 +33,15 @@ InputDecoration decoracionCampo(
   helperMaxLines: 3,
   prefixText: prefijo,
   filled: true,
-  fillColor: Colors.white,
+  fillColor: Cristal.campo,
   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
   enabledBorder: OutlineInputBorder(
     borderRadius: BorderRadius.circular(12),
-    borderSide: const BorderSide(color: Color(0xFFD8DEE8)),
+    borderSide: const BorderSide(color: Cristal.borde),
   ),
   focusedBorder: OutlineInputBorder(
     borderRadius: BorderRadius.circular(12),
-    borderSide: const BorderSide(color: EstiloContractual.navy, width: 1.5),
+    borderSide: const BorderSide(color: Cristal.acentoClaro, width: 1.5),
   ),
 );
 
@@ -131,14 +130,10 @@ class TarjetaSupervision extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
+                        color: Cristal.vidrioSuave,
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Icon(
-                        icono,
-                        size: 18,
-                        color: EstiloContractual.navy,
-                      ),
+                      child: Icon(icono, size: 18, color: Cristal.texto),
                     ),
                     const SizedBox(width: 12),
                   ],
@@ -149,7 +144,7 @@ class TarjetaSupervision extends StatelessWidget {
                         Text(
                           titulo!,
                           style: const TextStyle(
-                            color: EstiloContractual.navy,
+                            color: Cristal.texto,
                             fontSize: 16.5,
                             fontWeight: FontWeight.w800,
                           ),
@@ -159,7 +154,7 @@ class TarjetaSupervision extends StatelessWidget {
                           Text(
                             subtitulo!,
                             style: const TextStyle(
-                              color: EstiloContractual.texto,
+                              color: Cristal.textoMedio,
                               fontSize: 12.8,
                               height: 1.4,
                             ),
@@ -236,10 +231,10 @@ class RielEtapas extends StatelessWidget {
 
     Widget punto(_EstadoPaso e, int n) {
       final (fondo, icono) = switch (e) {
-        _EstadoPaso.hecho => (const Color(0xFF16A34A), Icons.check_rounded),
-        _EstadoPaso.actual => (EstiloContractual.navy, null),
-        _EstadoPaso.devuelto => (const Color(0xFFD97706), Icons.undo_rounded),
-        _EstadoPaso.pendiente => (const Color(0xFFE2E8F0), null),
+        _EstadoPaso.hecho => (Cristal.verde, Icons.check_rounded),
+        _EstadoPaso.actual => (Cristal.texto, null),
+        _EstadoPaso.devuelto => (Cristal.ambar, Icons.undo_rounded),
+        _EstadoPaso.pendiente => (Cristal.borde, null),
       };
       return Container(
         width: 28,
@@ -247,13 +242,13 @@ class RielEtapas extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(color: fondo, shape: BoxShape.circle),
         child: icono != null
-            ? Icon(icono, size: 16, color: Colors.white)
+            ? Icon(icono, size: 16, color: Cristal.texto)
             : Text(
                 '$n',
                 style: TextStyle(
                   color: e == _EstadoPaso.pendiente
-                      ? EstiloContractual.gris
-                      : Colors.white,
+                      ? Cristal.textoSuave
+                      : Cristal.texto,
                   fontWeight: FontWeight.w800,
                   fontSize: 12.5,
                 ),
@@ -272,8 +267,8 @@ class RielEtapas extends StatelessWidget {
               textAlign: centrado ? TextAlign.center : TextAlign.start,
               style: TextStyle(
                 color: p.$3 == _EstadoPaso.pendiente
-                    ? EstiloContractual.gris
-                    : EstiloContractual.navy,
+                    ? Cristal.textoSuave
+                    : Cristal.texto,
                 fontSize: 12.6,
                 fontWeight: p.$3 == _EstadoPaso.actual
                     ? FontWeight.w800
@@ -285,10 +280,7 @@ class RielEtapas extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: centrado ? TextAlign.center : TextAlign.start,
-              style: const TextStyle(
-                color: EstiloContractual.gris,
-                fontSize: 11.5,
-              ),
+              style: const TextStyle(color: Cristal.textoSuave, fontSize: 11.5),
             ),
           ],
         );
@@ -311,7 +303,7 @@ class RielEtapas extends StatelessWidget {
                             margin: const EdgeInsets.symmetric(vertical: 3),
                             color: p.$3 == _EstadoPaso.hecho
                                 ? const Color(0xFF16A34A)
-                                : const Color(0xFFE2E8F0),
+                                : Cristal.vidrioFuerte,
                           ),
                         ),
                     ],
@@ -348,7 +340,7 @@ class RielEtapas extends StatelessWidget {
                             ? Colors.transparent
                             : (pasos[i - 1].$3 == _EstadoPaso.hecho
                                   ? const Color(0xFF16A34A)
-                                  : const Color(0xFFE2E8F0)),
+                                  : Cristal.vidrioFuerte),
                       ),
                     ),
                     punto(p.$3, i + 1),
@@ -359,7 +351,7 @@ class RielEtapas extends StatelessWidget {
                             ? Colors.transparent
                             : (p.$3 == _EstadoPaso.hecho
                                   ? const Color(0xFF16A34A)
-                                  : const Color(0xFFE2E8F0)),
+                                  : Cristal.vidrioFuerte),
                       ),
                     ),
                   ],
@@ -398,18 +390,14 @@ class ListaVerificaciones extends StatelessWidget {
                 Icon(
                   h.cumple ? Icons.check_circle_rounded : Icons.error_rounded,
                   size: 18,
-                  color: h.cumple
-                      ? const Color(0xFF16A34A)
-                      : const Color(0xFFDC2626),
+                  color: h.cumple ? Cristal.verde : Cristal.rojo,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     h.texto,
                     style: TextStyle(
-                      color: h.cumple
-                          ? EstiloContractual.texto
-                          : const Color(0xFFB91C1C),
+                      color: h.cumple ? Cristal.textoMedio : Cristal.rojo,
                       fontSize: 13,
                       height: 1.35,
                       fontWeight: h.cumple ? FontWeight.w500 : FontWeight.w700,
@@ -441,7 +429,7 @@ class DatoSupervision extends StatelessWidget {
       Text(
         valor,
         style: TextStyle(
-          color: color ?? EstiloContractual.navy,
+          color: color ?? Cristal.texto,
           fontSize: 14,
           fontWeight: FontWeight.w800,
         ),
@@ -465,7 +453,7 @@ class HistorialInforme extends StatelessWidget {
     if (eventos.isEmpty) {
       return const Text(
         'Sin movimientos todavía.',
-        style: TextStyle(color: EstiloContractual.gris, fontSize: 12.5),
+        style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
       );
     }
     return Column(
@@ -482,7 +470,7 @@ class HistorialInforme extends StatelessWidget {
                   width: 8,
                   height: 8,
                   decoration: const BoxDecoration(
-                    color: EstiloContractual.navy,
+                    color: Cristal.acento,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -494,7 +482,7 @@ class HistorialInforme extends StatelessWidget {
                       Text(
                         e.accion,
                         style: const TextStyle(
-                          color: EstiloContractual.navy,
+                          color: Cristal.texto,
                           fontSize: 12.8,
                           fontWeight: FontWeight.w700,
                         ),
@@ -502,7 +490,7 @@ class HistorialInforme extends StatelessWidget {
                       Text(
                         '${e.actor} · ${formatoFecha(e.fechaIso)}',
                         style: const TextStyle(
-                          color: EstiloContractual.gris,
+                          color: Cristal.textoSuave,
                           fontSize: 11.5,
                         ),
                       ),
@@ -510,7 +498,7 @@ class HistorialInforme extends StatelessWidget {
                         Text(
                           e.detalle,
                           style: const TextStyle(
-                            color: EstiloContractual.texto,
+                            color: Cristal.textoMedio,
                             fontSize: 12,
                           ),
                         ),

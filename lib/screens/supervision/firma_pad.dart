@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../gestion_contractual/estilo_contractual.dart';
+import '../../tema/cristal.dart';
 
 /// Recuadro para dibujar la firma con el mouse, el dedo o un lápiz. Entrega
 /// un PNG con fondo transparente, recortado al trazo.
@@ -113,9 +114,7 @@ class _FirmaPadState extends State<FirmaPad> {
               onPressed: _vacia ? null : () => setState(_trazos.clear),
               icon: const Icon(Icons.refresh_rounded, size: 18),
               label: const Text('Borrar'),
-              style: TextButton.styleFrom(
-                foregroundColor: EstiloContractual.navy,
-              ),
+              style: TextButton.styleFrom(foregroundColor: Cristal.texto),
             ),
             const Spacer(),
             FilledButton.icon(

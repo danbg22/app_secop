@@ -15,6 +15,7 @@ import 'screens/portada_screen.dart';
 import 'screens/registro_screen.dart';
 import 'services/auth_service.dart';
 import 'services/juridico_contratacion_service.dart';
+import 'tema/cristal.dart';
 import 'utils/app_scroll_behavior.dart';
 import 'widgets/route_security_guard.dart';
 
@@ -48,43 +49,16 @@ Future<void> _activarAppCheck() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  static const TextStyle _heading = TextStyle(
-    color: Color(0xFF0E2646),
-    fontWeight: FontWeight.w800,
-    letterSpacing: -0.5,
-  );
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Contrata Legal',
       scrollBehavior: const AppScrollBehavior(),
-      theme: ThemeData(
-        // Tipografía corporativa empaquetada en assets/fonts/inter: se aplica a
-        // todos los textos que no fijan su propia familia.
-        fontFamily: 'Inter',
-        // Mismos valores que EstiloContractual (DESIGN.md): crema y azul marino.
-        scaffoldBackgroundColor: const Color(0xFFFEF9EB),
-        primaryColor: const Color(0xFF0E2646),
-        colorScheme: const ColorScheme.light(
-          primary: Color(0xFF0E2646),
-          secondary: Color(0xFFFFD54F),
-        ),
-        textTheme: const TextTheme(
-          displayLarge: _heading,
-          displayMedium: _heading,
-          displaySmall: _heading,
-          headlineLarge: _heading,
-          headlineMedium: _heading,
-          headlineSmall: _heading,
-          titleLarge: TextStyle(
-            color: Color(0xFF0E2646),
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.2,
-          ),
-        ),
-      ),
+      // Lenguaje visual "Liquid Glass" (lib/tema): tema oscuro de vidrio y
+      // un único fondo de manchas difuminadas detrás de todas las rutas.
+      theme: temaCristal(),
+      builder: (context, child) => FondoCristal(child: child!),
       home: const AuthGate(),
       routes: {
         '/portada': (context) => const PortadaScreen(),

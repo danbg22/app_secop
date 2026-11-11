@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 import '../services/equipo_juridico_service.dart';
+import '../tema/cristal.dart';
 
 String _fechaLarga(DateTime f) {
   const meses = [
@@ -32,10 +33,6 @@ class GestionEquipoScreen extends StatefulWidget {
 }
 
 class _GestionEquipoScreenState extends State<GestionEquipoScreen> {
-  static const Color _navy = Color(0xFF0E2646);
-  static const Color _texto = Color(0xFF364F6B);
-  static const Color _crema = Color(0xFFFEF9EB);
-
   List<MiembroEquipo> _miembros = const [];
   bool _cargando = true;
   String? _error;
@@ -75,7 +72,7 @@ class _GestionEquipoScreenState extends State<GestionEquipoScreen> {
         SnackBar(
           content: Text(texto),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: error ? const Color(0xFFB91C1C) : _navy,
+          backgroundColor: error ? const Color(0xFFB91C1C) : Cristal.flotante,
         ),
       );
   }
@@ -93,7 +90,7 @@ class _GestionEquipoScreenState extends State<GestionEquipoScreen> {
   }
 
   Future<void> _abrirFormulario({MiembroEquipo? existente}) async {
-    final guardado = await showDialog<bool>(
+    final guardado = await mostrarDialogoCristal<bool>(
       context: context,
       builder: (_) => _FormularioMiembro(existente: existente),
     );
@@ -101,7 +98,7 @@ class _GestionEquipoScreenState extends State<GestionEquipoScreen> {
   }
 
   Future<void> _confirmarQuitar(MiembroEquipo m) async {
-    final ok = await showDialog<bool>(
+    final ok = await mostrarDialogoCristal<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Quitar del equipo'),
@@ -139,7 +136,7 @@ class _GestionEquipoScreenState extends State<GestionEquipoScreen> {
     final lleno = usados >= EquipoJuridicoService.cupoMaximo;
 
     return Scaffold(
-      backgroundColor: _crema,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.symmetric(
@@ -160,7 +157,7 @@ class _GestionEquipoScreenState extends State<GestionEquipoScreen> {
                   Text(
                     'Mi equipo jurídico',
                     style: TextStyle(
-                      color: _navy,
+                      color: Cristal.texto,
                       fontSize: mobile ? 26 : 34,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.6,
@@ -173,7 +170,7 @@ class _GestionEquipoScreenState extends State<GestionEquipoScreen> {
                     'enviamos, trabaja sobre los expedientes del equipo con los '
                     'permisos que le asignes y pierde el acceso al vencer su vigencia.',
                     style: TextStyle(
-                      color: _texto,
+                      color: Cristal.textoMedio,
                       fontSize: 14.5,
                       height: 1.45,
                     ),
@@ -202,7 +199,7 @@ class _GestionEquipoScreenState extends State<GestionEquipoScreen> {
                           style: const TextStyle(fontWeight: FontWeight.w800),
                         ),
                         style: FilledButton.styleFrom(
-                          backgroundColor: _navy,
+                          backgroundColor: Cristal.acento,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 22,
                             vertical: 16,
@@ -284,9 +281,9 @@ class _PildoraVolver extends StatelessWidget {
         style: TextStyle(fontWeight: FontWeight.w800),
       ),
       style: OutlinedButton.styleFrom(
-        foregroundColor: const Color(0xFF0E2646),
-        backgroundColor: Colors.white,
-        side: const BorderSide(color: Color(0xFFE2DAC8), width: 1.2),
+        foregroundColor: Cristal.texto,
+        backgroundColor: Cristal.vidrio,
+        side: const BorderSide(color: Cristal.borde, width: 1.2),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
@@ -305,9 +302,9 @@ class _CupoIndicador extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Cristal.vidrio,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE6DFCF)),
+        border: Border.all(color: Cristal.borde),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -319,8 +316,8 @@ class _CupoIndicador extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: maximo == 0 ? 0 : usados / maximo,
                 minHeight: 7,
-                color: const Color(0xFFF5C032),
-                backgroundColor: const Color(0xFFF1F5F9),
+                color: Cristal.dorado,
+                backgroundColor: Cristal.vidrioFuerte,
               ),
             ),
           ),
@@ -328,7 +325,7 @@ class _CupoIndicador extends StatelessWidget {
           Text(
             '$usados de $maximo cupos usados',
             style: const TextStyle(
-              color: Color(0xFF0E2646),
+              color: Cristal.texto,
               fontSize: 13.5,
               fontWeight: FontWeight.w800,
             ),
@@ -357,19 +354,19 @@ class _TarjetaVacia extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Cristal.vidrio,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE6ECF5), width: 1.3),
+        border: Border.all(color: Cristal.borde, width: 1.3),
       ),
       child: Column(
         children: [
-          Icon(icono, size: 40, color: const Color(0xFF94A3B8)),
+          Icon(icono, size: 40, color: Cristal.textoTenue),
           const SizedBox(height: 12),
           Text(
             titulo,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              color: Color(0xFF0E2646),
+              color: Cristal.texto,
               fontSize: 17,
               fontWeight: FontWeight.w800,
             ),
@@ -378,7 +375,7 @@ class _TarjetaVacia extends StatelessWidget {
           Text(
             detalle,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0xFF364F6B), fontSize: 13.5),
+            style: const TextStyle(color: Cristal.textoMedio, fontSize: 13.5),
           ),
           ?accion,
         ],
@@ -402,16 +399,14 @@ class _TarjetaMiembro extends StatelessWidget {
   final VoidCallback onReenviar;
   final VoidCallback onQuitar;
 
-  static const Color _navy = Color(0xFF0E2646);
-
   @override
   Widget build(BuildContext context) {
     final m = miembro;
     final (estado, colorEstado, fondoEstado) = m.suspendido
-        ? ('Suspendido', const Color(0xFFB45309), const Color(0xFFFEF3C7))
+        ? ('Suspendido', Cristal.ambar, Cristal.ambarVidrio)
         : m.vencido
-        ? ('Vencido', const Color(0xFFB91C1C), const Color(0xFFFEE2E2))
-        : ('Activo', const Color(0xFF15803D), const Color(0xFFDCFCE7));
+        ? ('Vencido', Cristal.rojo, Cristal.rojoVidrio)
+        : ('Activo', Cristal.verde, Cristal.verdeVidrio);
     final vence = _fechaLarga(m.vigenteHasta);
     final iniciales = m.nombre
         .split(RegExp(r'\s+'))
@@ -423,27 +418,20 @@ class _TarjetaMiembro extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 16, 10, 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Cristal.vidrio,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE6ECF5), width: 1.3),
-        boxShadow: [
-          BoxShadow(
-            color: _navy.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        border: Border.all(color: Cristal.borde, width: 1.3),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CircleAvatar(
             radius: 22,
-            backgroundColor: const Color(0xFFE8F1FC),
+            backgroundColor: Cristal.vidrioSuave,
             child: Text(
               iniciales,
               style: const TextStyle(
-                color: Color(0xFF28559A),
+                color: Cristal.acentoClaro,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -461,7 +449,7 @@ class _TarjetaMiembro extends StatelessWidget {
                     Text(
                       m.nombre,
                       style: const TextStyle(
-                        color: _navy,
+                        color: Cristal.texto,
                         fontSize: 15.5,
                         fontWeight: FontWeight.w800,
                       ),
@@ -490,7 +478,7 @@ class _TarjetaMiembro extends StatelessWidget {
                 Text(
                   '${m.email} · vence el $vence',
                   style: const TextStyle(
-                    color: Color(0xFF64748B),
+                    color: Cristal.textoSuave,
                     fontSize: 12.5,
                   ),
                 ),
@@ -512,7 +500,7 @@ class _TarjetaMiembro extends StatelessWidget {
           ),
           PopupMenuButton<String>(
             tooltip: 'Opciones',
-            icon: const Icon(Icons.more_vert_rounded, color: _navy),
+            icon: const Icon(Icons.more_vert_rounded, color: Cristal.texto),
             onSelected: (v) => switch (v) {
               'editar' => onEditar(),
               'suspender' => onSuspender(),
@@ -538,7 +526,7 @@ class _TarjetaMiembro extends StatelessWidget {
                 value: 'quitar',
                 child: Text(
                   'Quitar del equipo',
-                  style: TextStyle(color: Color(0xFFB91C1C)),
+                  style: TextStyle(color: Cristal.rojo),
                 ),
               ),
             ],
@@ -560,11 +548,9 @@ class _ChipPermiso extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: activo ? const Color(0xFFEFF6FF) : const Color(0xFFF8FAFC),
+        color: activo ? Cristal.azulVidrio : Cristal.vidrioSuave,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: activo ? const Color(0xFFBFDBFE) : const Color(0xFFE2E8F0),
-        ),
+        border: Border.all(color: activo ? Cristal.acentoBorde : Cristal.borde),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -572,13 +558,13 @@ class _ChipPermiso extends StatelessWidget {
           Icon(
             activo ? Icons.check_rounded : Icons.block_rounded,
             size: 13,
-            color: activo ? const Color(0xFF1D4ED8) : const Color(0xFF94A3B8),
+            color: activo ? Cristal.acentoClaro : Cristal.textoTenue,
           ),
           const SizedBox(width: 4),
           Text(
             texto,
             style: TextStyle(
-              color: activo ? const Color(0xFF1E3A8A) : const Color(0xFF94A3B8),
+              color: activo ? Cristal.acentoClaro : Cristal.textoTenue,
               fontSize: 11.5,
               fontWeight: FontWeight.w600,
               decoration: activo ? null : TextDecoration.lineThrough,
@@ -601,8 +587,6 @@ class _FormularioMiembro extends StatefulWidget {
 }
 
 class _FormularioMiembroState extends State<_FormularioMiembro> {
-  static const Color _navy = Color(0xFF0E2646);
-
   late final TextEditingController _nombre;
   late final TextEditingController _correo;
   late Set<PermisoEquipo> _permisos;
@@ -711,21 +695,24 @@ class _FormularioMiembroState extends State<_FormularioMiembro> {
   InputDecoration _decoracion(String etiqueta, IconData icono) =>
       InputDecoration(
         labelText: etiqueta,
-        prefixIcon: Icon(icono, color: _navy, size: 20),
+        prefixIcon: Icon(icono, color: Cristal.texto, size: 20),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: Cristal.campo,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFD8DEE8)),
+          borderSide: const BorderSide(color: Cristal.borde),
         ),
       );
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: const Color(0xFFFEFBF4),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+      backgroundColor: Cristal.flotante,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
+        side: const BorderSide(color: Cristal.bordeFuerte),
+      ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 520),
         child: SingleChildScrollView(
@@ -737,7 +724,7 @@ class _FormularioMiembroState extends State<_FormularioMiembro> {
               Text(
                 _editando ? 'Editar abogado' : 'Agregar abogado al equipo',
                 style: const TextStyle(
-                  color: _navy,
+                  color: Cristal.texto,
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
                 ),
@@ -765,7 +752,7 @@ class _FormularioMiembroState extends State<_FormularioMiembro> {
               const Text(
                 'PERMISOS',
                 style: TextStyle(
-                  color: Color(0xFF64748B),
+                  color: Cristal.textoSuave,
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.5,
@@ -774,7 +761,7 @@ class _FormularioMiembroState extends State<_FormularioMiembro> {
               const SizedBox(height: 4),
               const Text(
                 'Todos los abogados pueden ver los expedientes del equipo.',
-                style: TextStyle(color: Color(0xFF64748B), fontSize: 12.5),
+                style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
               ),
               for (final p in PermisoEquipo.values)
                 CheckboxListTile(
@@ -784,18 +771,18 @@ class _FormularioMiembroState extends State<_FormularioMiembro> {
                   ),
                   title: Text(
                     p.etiqueta,
-                    style: const TextStyle(fontSize: 14, color: _navy),
+                    style: const TextStyle(fontSize: 14, color: Cristal.texto),
                   ),
                   controlAffinity: ListTileControlAffinity.leading,
                   contentPadding: EdgeInsets.zero,
                   dense: true,
-                  activeColor: _navy,
+                  activeColor: Cristal.acento,
                 ),
               const SizedBox(height: 10),
               const Text(
                 'VIGENCIA DEL ACCESO',
                 style: TextStyle(
-                  color: Color(0xFF64748B),
+                  color: Cristal.textoSuave,
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.5,
@@ -807,13 +794,13 @@ class _FormularioMiembroState extends State<_FormularioMiembro> {
                 icon: const Icon(Icons.event_rounded, size: 18),
                 label: Text('Hasta el ${_fechaLarga(_vigencia)}'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: _navy,
+                  foregroundColor: Cristal.texto,
                   alignment: Alignment.centerLeft,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
                     vertical: 14,
                   ),
-                  side: const BorderSide(color: Color(0xFFD8DEE8)),
+                  side: const BorderSide(color: Cristal.borde),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -823,10 +810,7 @@ class _FormularioMiembroState extends State<_FormularioMiembro> {
                 const SizedBox(height: 12),
                 Text(
                   _error!,
-                  style: const TextStyle(
-                    color: Color(0xFFB91C1C),
-                    fontSize: 13,
-                  ),
+                  style: const TextStyle(color: Cristal.rojo, fontSize: 13),
                 ),
               ],
               const SizedBox(height: 20),
@@ -843,7 +827,7 @@ class _FormularioMiembroState extends State<_FormularioMiembro> {
                   FilledButton(
                     onPressed: _guardando ? null : _guardar,
                     style: FilledButton.styleFrom(
-                      backgroundColor: _navy,
+                      backgroundColor: Cristal.acento,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 22,
                         vertical: 14,
@@ -856,7 +840,7 @@ class _FormularioMiembroState extends State<_FormularioMiembro> {
                             height: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Colors.white,
+                              color: Cristal.texto,
                             ),
                           )
                         : Text(

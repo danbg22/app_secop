@@ -2,44 +2,45 @@ import 'package:flutter/material.dart';
 
 import '../../services/secop_importacion_service.dart';
 import 'estilo_contractual.dart';
+import '../../tema/cristal.dart';
 
 /// Grupo visual del estado de un proceso en SECOP II.
 enum GrupoEstadoSecop {
   preparacion(
     'En preparación',
     Icons.edit_note_rounded,
-    Color(0xFF475569),
-    Color(0xFFE2E8F0),
+    Cristal.textoMedio,
+    Cristal.borde,
   ),
   publicado(
     'Publicado',
     Icons.campaign_outlined,
-    Color(0xFF1D4ED8),
-    Color(0xFFDBEAFE),
+    Cristal.acentoClaro,
+    Cristal.azulVidrio,
   ),
   evaluacion(
     'En evaluación',
     Icons.rule_rounded,
-    Color(0xFF7C3AED),
-    Color(0xFFEDE9FE),
+    Color(0xFFA78BFA),
+    Color(0x248B5CF6),
   ),
   adjudicado(
     'Adjudicado',
     Icons.verified_rounded,
-    Color(0xFF15803D),
-    Color(0xFFDCFCE7),
+    Cristal.verde,
+    Cristal.verdeVidrio,
   ),
   terminado(
     'Cancelado o desierto',
     Icons.block_rounded,
-    Color(0xFFB91C1C),
-    Color(0xFFFEE2E2),
+    Cristal.rojo,
+    Cristal.rojoVidrio,
   ),
   sinSincronizar(
     'Sin sincronizar',
     Icons.cloud_off_rounded,
-    Color(0xFF64748B),
-    Color(0xFFF1F5F9),
+    Cristal.textoSuave,
+    Cristal.vidrioSuave,
   );
 
   const GrupoEstadoSecop(this.etiqueta, this.icono, this.color, this.fondo);
@@ -149,7 +150,7 @@ class _ListaDocumentosSecopState extends State<ListaDocumentosSecop> {
     if (docs.isEmpty) {
       return const Text(
         'Aún no hay documentos publicados en SECOP II (o Datos Abiertos no los ha reportado).',
-        style: TextStyle(color: EstiloContractual.gris, fontSize: 12.8),
+        style: TextStyle(color: Cristal.textoSuave, fontSize: 12.8),
       );
     }
     final visibles = _todos
@@ -160,17 +161,14 @@ class _ListaDocumentosSecopState extends State<ListaDocumentosSecop> {
       children: [
         for (final d in visibles)
           InkWell(
+            hoverDuration: Cristal.micro,
             onTap: d.url.isEmpty ? null : () => widget.abrir(d.url),
             borderRadius: BorderRadius.circular(10),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 4),
               child: Row(
                 children: [
-                  Icon(
-                    _icono(d.extension),
-                    size: 20,
-                    color: EstiloContractual.navy,
-                  ),
+                  Icon(_icono(d.extension), size: 20, color: Cristal.texto),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -181,7 +179,7 @@ class _ListaDocumentosSecopState extends State<ListaDocumentosSecop> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            color: EstiloContractual.navy,
+                            color: Cristal.texto,
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                           ),
@@ -193,7 +191,7 @@ class _ListaDocumentosSecopState extends State<ListaDocumentosSecop> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: EstiloContractual.gris,
+                              color: Cristal.textoSuave,
                               fontSize: 11.8,
                             ),
                           ),
@@ -204,7 +202,7 @@ class _ListaDocumentosSecopState extends State<ListaDocumentosSecop> {
                   Text(
                     d.fechaIso,
                     style: const TextStyle(
-                      color: EstiloContractual.gris,
+                      color: Cristal.textoSuave,
                       fontSize: 11.8,
                     ),
                   ),
@@ -213,7 +211,7 @@ class _ListaDocumentosSecopState extends State<ListaDocumentosSecop> {
                     const Icon(
                       Icons.open_in_new_rounded,
                       size: 16,
-                      color: EstiloContractual.gris,
+                      color: Cristal.textoSuave,
                     ),
                   ],
                 ],
@@ -225,9 +223,7 @@ class _ListaDocumentosSecopState extends State<ListaDocumentosSecop> {
             alignment: Alignment.centerLeft,
             child: TextButton(
               onPressed: () => setState(() => _todos = !_todos),
-              style: TextButton.styleFrom(
-                foregroundColor: EstiloContractual.navy,
-              ),
+              style: TextButton.styleFrom(foregroundColor: Cristal.texto),
               child: Text(
                 _todos ? 'Ver menos' : 'Ver los ${docs.length} documentos',
               ),

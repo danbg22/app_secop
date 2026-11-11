@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'perfil_contratista_screen.dart';
 import '../services/security_service.dart';
 import '../services/sigep_service.dart';
+import '../tema/cristal.dart';
 
 class ResultadosBusquedaScreen extends StatefulWidget {
   final String query;
@@ -117,8 +118,10 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
             .replaceAll(RegExp(r'[^0-9]'), '');
         final docSigep2 = (record['numero_documento']?.toString() ?? '')
             .replaceAll(RegExp(r'[^0-9]'), '');
-        final docSigep3 = (record['documento']?.toString() ?? '')
-            .replaceAll(RegExp(r'[^0-9]'), '');
+        final docSigep3 = (record['documento']?.toString() ?? '').replaceAll(
+          RegExp(r'[^0-9]'),
+          '',
+        );
         return docSecop.contains(digitsOnly) ||
             docSigep1.contains(digitsOnly) ||
             docSigep2.contains(digitsOnly) ||
@@ -173,8 +176,7 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
   }
 
   Future<List<Map<String, dynamic>>> _buscarSecop(Uri uri) async {
-    final response =
-        await http.get(uri).timeout(const Duration(seconds: 10));
+    final response = await http.get(uri).timeout(const Duration(seconds: 10));
     if (response.statusCode != 200) return [];
     final decoded = json.decode(response.body);
     if (decoded is List) {
@@ -196,18 +198,15 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FB),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text(
           'Resultados de búsqueda',
-          style: TextStyle(
-            color: Color(0xFF17365D),
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Cristal.texto, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF17365D)),
+        iconTheme: const IconThemeData(color: Cristal.texto),
       ),
       body: FutureBuilder<List<_ResultadoPersona>>(
         future: _resultadosFuture,
@@ -227,16 +226,13 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
                     Icon(
                       Icons.person_search_outlined,
                       size: 72,
-                      color: Colors.blueGrey.shade300,
+                      color: Cristal.textoTenue,
                     ),
                     const SizedBox(height: 16),
                     Text(
                       'No se encontraron resultados para "${widget.query}".',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.blueGrey.shade600,
-                        fontSize: 16,
-                      ),
+                      style: TextStyle(color: Cristal.textoSuave, fontSize: 16),
                     ),
                   ],
                 ),
@@ -250,7 +246,7 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
             itemBuilder: (context, index) {
               final resultado = results[index];
               return Card(
-                color: Colors.white,
+                color: Cristal.vidrio,
                 elevation: 1,
                 margin: const EdgeInsets.only(bottom: 10),
                 shape: RoundedRectangleBorder(
@@ -258,23 +254,23 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
                 ),
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: Colors.blue.shade50,
+                    backgroundColor: Cristal.azulVidrio,
                     child: Icon(
                       Icons.person_outline,
-                      color: Colors.blue.shade800,
+                      color: Cristal.acentoClaro,
                     ),
                   ),
                   title: Text(
                     resultado.nombre.toUpperCase(),
                     style: const TextStyle(
-                      color: Color(0xFF17365D),
+                      color: Cristal.texto,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   subtitle: Text(resultado.subtitulo),
                   trailing: const Icon(
                     Icons.chevron_right,
-                    color: Colors.blueGrey,
+                    color: Cristal.textoSuave,
                   ),
                   onTap: () {
                     Navigator.push(

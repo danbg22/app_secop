@@ -5,6 +5,7 @@ import '../../services/supervision_service.dart';
 import '../gestion_contractual/estilo_contractual.dart';
 import 'componentes_supervision.dart';
 import 'informe_contratista_screen.dart';
+import '../../tema/cristal.dart';
 
 /// Informes de ejecución en el portal del contratista. Solo aparece cuando el
 /// equipo configuró la supervisión del contrato.
@@ -87,7 +88,7 @@ class _InformesContratistaViewState extends State<InformesContratistaView> {
                     '${plan.periodicidad.etiqueta} · supervisor ${plan.supervisorNombre}. Reporta tus actividades, '
                     'tu planilla y tus documentos; la app arma el informe y la cuenta de cobro.',
                 icono: Icons.event_note_rounded,
-                colorBorde: devueltos > 0 ? const Color(0xFFFCD34D) : null,
+                colorBorde: devueltos > 0 ? Cristal.ambarBorde : null,
                 children: [
                   if (proximo != null) ...[
                     _Proximo(
@@ -100,7 +101,7 @@ class _InformesContratistaViewState extends State<InformesContratistaView> {
                   ] else if (abiertos.isEmpty)
                     Text(
                       'Tu primer informe se habilita el ${fechaLegible(plan.periodos.first.desde)}.',
-                      style: const TextStyle(color: EstiloContractual.texto),
+                      style: const TextStyle(color: Cristal.textoMedio),
                     ),
                   for (final p in lista)
                     _FilaPeriodo(
@@ -117,7 +118,7 @@ class _InformesContratistaViewState extends State<InformesContratistaView> {
                       child: TextButton(
                         onPressed: () => setState(() => _verTodos = !_verTodos),
                         style: TextButton.styleFrom(
-                          foregroundColor: EstiloContractual.navy,
+                          foregroundColor: Cristal.texto,
                         ),
                         child: Text(
                           _verTodos
@@ -159,10 +160,10 @@ class _Proximo extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: devuelto ? const Color(0xFFFFFBEB) : const Color(0xFFF4F7FB),
+        color: devuelto ? Cristal.ambarVidrio : Cristal.vidrioSuave,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: devuelto ? const Color(0xFFFCD34D) : const Color(0xFFDCE4EF),
+          color: devuelto ? Cristal.ambarBorde : Cristal.borde,
         ),
       ),
       child: Wrap(
@@ -182,9 +183,7 @@ class _Proximo extends StatelessWidget {
                           ? 'Termina tu informe N.º ${periodo.numero}'
                           : 'Diligencia tu informe N.º ${periodo.numero}'),
                 style: TextStyle(
-                  color: devuelto
-                      ? const Color(0xFF92400E)
-                      : EstiloContractual.navy,
+                  color: devuelto ? Cristal.ambar : Cristal.texto,
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
                 ),
@@ -195,9 +194,7 @@ class _Proximo extends StatelessWidget {
                 '${vencido ? 'venció el' : 'vence el'} ${fechaLegible(periodo.limite)}'
                 '${iniciado && faltan != null && faltan > 0 ? ' · te faltan $faltan' : ''}',
                 style: TextStyle(
-                  color: vencido
-                      ? const Color(0xFFB91C1C)
-                      : EstiloContractual.texto,
+                  color: vencido ? Cristal.rojo : Cristal.textoMedio,
                   fontSize: 13,
                 ),
               ),
@@ -210,7 +207,7 @@ class _Proximo extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: Color(0xFF92400E),
+                      color: Cristal.ambar,
                       fontSize: 12.8,
                     ),
                   ),
@@ -250,6 +247,7 @@ class _FilaPeriodo extends StatelessWidget {
   Widget build(BuildContext context) {
     final estado = informe?.estado ?? EstadoInforme.pendiente;
     return InkWell(
+      hoverDuration: Cristal.micro,
       onTap: onAbrir,
       borderRadius: BorderRadius.circular(10),
       child: Padding(
@@ -261,7 +259,7 @@ class _FilaPeriodo extends StatelessWidget {
               child: Text(
                 'N.º ${periodo.numero}',
                 style: const TextStyle(
-                  color: EstiloContractual.gris,
+                  color: Cristal.textoSuave,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
@@ -272,9 +270,7 @@ class _FilaPeriodo extends StatelessWidget {
               child: Text(
                 '${fechaLegible(periodo.desde, conDia: false)} – ${fechaLegible(periodo.hasta, conDia: false)}',
                 style: TextStyle(
-                  color: futuro
-                      ? EstiloContractual.gris
-                      : EstiloContractual.navy,
+                  color: futuro ? Cristal.textoSuave : Cristal.texto,
                   fontSize: 13.5,
                   fontWeight: FontWeight.w600,
                 ),
@@ -283,14 +279,14 @@ class _FilaPeriodo extends StatelessWidget {
             if (futuro)
               const Text(
                 'Próximo',
-                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                style: TextStyle(color: Cristal.textoTenue, fontSize: 12),
               )
             else
               ChipEstadoInforme(estado),
             const SizedBox(width: 6),
             Icon(
               Icons.chevron_right_rounded,
-              color: futuro ? Colors.transparent : EstiloContractual.gris,
+              color: futuro ? Colors.transparent : Cristal.textoSuave,
             ),
           ],
         ),

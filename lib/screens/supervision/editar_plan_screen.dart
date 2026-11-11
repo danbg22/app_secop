@@ -6,6 +6,7 @@ import '../../services/supervision_service.dart';
 import '../gestion_contractual/estilo_contractual.dart';
 import 'componentes_supervision.dart';
 import 'plantilla_informe_screen.dart';
+import '../../tema/cristal.dart';
 
 /// Configuración de la supervisión de un contrato: periodos, presupuesto,
 /// obligaciones y quién aprueba cada etapa del informe.
@@ -176,10 +177,10 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
 
   Future<void> _pegarVarias() async {
     final c = TextEditingController();
-    final ok = await showDialog<bool>(
+    final ok = await mostrarDialogoCristal<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: Cristal.flotante,
         title: const Text('Pegar obligaciones'),
         content: SizedBox(
           width: 560,
@@ -411,7 +412,7 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
                 '${periodos.length} informes: el primero del ${fechaLegible(periodos.first.desde, conDia: false)} '
                 'al ${fechaLegible(periodos.first.hasta, conDia: false)}.',
                 style: const TextStyle(
-                  color: EstiloContractual.gris,
+                  color: Cristal.textoSuave,
                   fontSize: 12.3,
                 ),
               ),
@@ -449,7 +450,7 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
                   child: Text(
                     'Aporte mínimo mensual del contratista: ${formatoCop(aporte.totalContratista())} (IBC ${formatoCop(aporte.ibc)}).',
                     style: const TextStyle(
-                      color: Color(0xFF0369A1),
+                      color: Color(0xFF38BDF8),
                       fontSize: 12.6,
                       fontWeight: FontWeight.w600,
                     ),
@@ -517,16 +518,14 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
               },
               icon: const Icon(Icons.tune_rounded, size: 17),
               label: const Text('Plantilla de la entidad'),
-              style: TextButton.styleFrom(
-                foregroundColor: EstiloContractual.navy,
-              ),
+              style: TextButton.styleFrom(foregroundColor: Cristal.texto),
             ),
             children: [
               for (final (i, e) in plantilla.etapas.indexed) ...[
                 Text(
                   '${i + 1}. ${e.nombre}',
                   style: const TextStyle(
-                    color: EstiloContractual.navy,
+                    color: Cristal.texto,
                     fontWeight: FontWeight.w800,
                     fontSize: 14,
                   ),
@@ -570,7 +569,7 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
               const Text(
                 'Supervisor del contrato (firma el informe de supervisión)',
                 style: TextStyle(
-                  color: EstiloContractual.navy,
+                  color: Cristal.texto,
                   fontWeight: FontWeight.w800,
                   fontSize: 14,
                 ),
@@ -597,9 +596,7 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
               onPressed: _pegarVarias,
               icon: const Icon(Icons.content_paste_rounded, size: 17),
               label: const Text('Pegar varias'),
-              style: TextButton.styleFrom(
-                foregroundColor: EstiloContractual.navy,
-              ),
+              style: TextButton.styleFrom(foregroundColor: Cristal.texto),
             ),
             children: [
               for (final (i, c) in _obligaciones.indexed)
@@ -614,13 +611,13 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
                         height: 26,
                         alignment: Alignment.center,
                         decoration: const BoxDecoration(
-                          color: Color(0xFFF1F5F9),
+                          color: Cristal.vidrioSuave,
                           shape: BoxShape.circle,
                         ),
                         child: Text(
                           '${i + 1}',
                           style: const TextStyle(
-                            color: EstiloContractual.navy,
+                            color: Cristal.texto,
                             fontWeight: FontWeight.w800,
                             fontSize: 12,
                           ),
@@ -645,7 +642,7 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
                               }),
                         icon: const Icon(
                           Icons.close_rounded,
-                          color: EstiloContractual.gris,
+                          color: Cristal.textoSuave,
                         ),
                       ),
                     ],
@@ -660,9 +657,7 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
                   }),
                   icon: const Icon(Icons.add_rounded),
                   label: const Text('Agregar obligación'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: EstiloContractual.navy,
-                  ),
+                  style: TextButton.styleFrom(foregroundColor: Cristal.texto),
                 ),
               ),
             ],
@@ -679,7 +674,7 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
                       height: 16,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        color: Cristal.texto,
                       ),
                     )
                   : const Icon(Icons.save_outlined, size: 18),

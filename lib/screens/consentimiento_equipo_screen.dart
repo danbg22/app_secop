@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/consent_service.dart';
 import '../services/equipo_juridico_service.dart';
 import 'escoger_rol_screen.dart';
+import '../tema/cristal.dart';
 
 /// Autorización de tratamiento de datos para los abogados de un equipo
 /// jurídico. Su cuenta la creó el titular del equipo, así que nunca pasaron
@@ -19,9 +20,6 @@ class ConsentimientoEquipoScreen extends StatefulWidget {
 
 class _ConsentimientoEquipoScreenState
     extends State<ConsentimientoEquipoScreen> {
-  static const Color _navy = Color(0xFF0E2646);
-  static const Color _texto = Color(0xFF364F6B);
-
   bool _acepta = false;
   bool _guardando = false;
   String? _error;
@@ -62,7 +60,7 @@ class _ConsentimientoEquipoScreenState
         'El titular de tu equipo';
 
     return Scaffold(
-      backgroundColor: OnboardingUnifiedBackground.bgCream,
+      backgroundColor: Colors.transparent,
       body: OnboardingUnifiedBackground(
         showScenicPhoto: false,
         child: SafeArea(
@@ -83,7 +81,7 @@ class _ConsentimientoEquipoScreenState
                       'Bienvenido(a) al equipo jurídico',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: _navy,
+                        color: Cristal.texto,
                         fontSize: mobile ? 25 : 32,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.6,
@@ -95,7 +93,7 @@ class _ConsentimientoEquipoScreenState
                       'empezar necesitamos tu autorización para tratar tus datos personales.',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
-                        color: _texto,
+                        color: Cristal.textoMedio,
                         fontSize: 15,
                         height: 1.45,
                       ),
@@ -104,11 +102,11 @@ class _ConsentimientoEquipoScreenState
                     // Material (no Container con color) para que la casilla
                     // muestre su efecto al tocarla.
                     Material(
-                      color: Colors.white,
+                      color: Cristal.vidrio,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(22),
                         side: const BorderSide(
-                          color: Color(0xFFE6ECF5),
+                          color: Cristal.borde,
                           width: 1.3,
                         ),
                       ),
@@ -120,7 +118,7 @@ class _ConsentimientoEquipoScreenState
                             const Text(
                               'Política de privacidad y tratamiento de datos personales',
                               style: TextStyle(
-                                color: _navy,
+                                color: Cristal.texto,
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -132,7 +130,7 @@ class _ConsentimientoEquipoScreenState
                                 child: Text(
                                   ConsentService.textoPolitica,
                                   style: TextStyle(
-                                    color: Color(0xFF334155),
+                                    color: Cristal.textoCuerpo,
                                     fontSize: 13.5,
                                     height: 1.5,
                                   ),
@@ -147,11 +145,14 @@ class _ConsentimientoEquipoScreenState
                                   : (v) => setState(() => _acepta = v ?? false),
                               controlAffinity: ListTileControlAffinity.leading,
                               contentPadding: EdgeInsets.zero,
-                              activeColor: _navy,
+                              activeColor: Cristal.acento,
                               title: const Text(
                                 'Autorizo de forma previa, expresa e informada el tratamiento '
                                 'de mis datos personales según esta política.',
-                                style: TextStyle(color: _navy, fontSize: 13.8),
+                                style: TextStyle(
+                                  color: Cristal.texto,
+                                  fontSize: 13.8,
+                                ),
                               ),
                             ),
                             if (_error != null) ...[
@@ -159,7 +160,7 @@ class _ConsentimientoEquipoScreenState
                               Text(
                                 _error!,
                                 style: const TextStyle(
-                                  color: Color(0xFFB91C1C),
+                                  color: Cristal.rojo,
                                   fontSize: 13,
                                 ),
                               ),
@@ -172,11 +173,9 @@ class _ConsentimientoEquipoScreenState
                                     ? _aceptar
                                     : null,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: _navy,
-                                  foregroundColor: Colors.white,
-                                  disabledBackgroundColor: const Color(
-                                    0xFFCBD5E1,
-                                  ),
+                                  backgroundColor: Cristal.acento,
+                                  foregroundColor: Cristal.texto,
+                                  disabledBackgroundColor: Cristal.vidrioFuerte,
                                   elevation: 0,
                                   shape: const StadiumBorder(),
                                 ),
@@ -186,7 +185,7 @@ class _ConsentimientoEquipoScreenState
                                         height: 20,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2.2,
-                                          color: Colors.white,
+                                          color: Cristal.texto,
                                         ),
                                       )
                                     : const Text(
@@ -204,7 +203,7 @@ class _ConsentimientoEquipoScreenState
                               child: const Text(
                                 'No acepto · cerrar sesión',
                                 style: TextStyle(
-                                  color: Color(0xFF64748B),
+                                  color: Cristal.textoSuave,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),

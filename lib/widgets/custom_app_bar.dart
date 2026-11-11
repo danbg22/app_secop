@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../screens/perfil_usuario_screen.dart';
 import '../services/auth_service.dart';
 import 'user_profile_header_action.dart';
+import '../tema/cristal.dart';
 
 /// Cabecera estandarizada de Contrata Legal para todas las pantallas del SaaS.
 /// Unifica buscador opcional, título/navegación opcional, una única campana de
@@ -39,8 +40,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final List<Widget> extraActions;
   final bool isProfileScreen;
 
-  static const Color _navy = Color(0xFF1A2B4C);
-
   @override
   Size get preferredSize => const Size.fromHeight(60);
 
@@ -50,13 +49,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     final isMobile = screenW < 640;
 
     return Container(
+      // Sin relleno: la barra deja ver el fondo; solo una línea la separa.
       decoration: BoxDecoration(
-        color: transparent ? Colors.transparent : const Color(0xFFFFFDF8),
         border: transparent
             ? null
-            : const Border(
-                bottom: BorderSide(color: Color(0xFFEDE6D6), width: 1),
-              ),
+            : const Border(bottom: BorderSide(color: Cristal.borde)),
       ),
       padding: EdgeInsets.symmetric(
         horizontal: isMobile ? 14 : 26,
@@ -80,9 +77,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     Navigator.of(context).pushReplacementNamed('/home');
                   }
                 },
-                icon: Icon(
+                icon: const Icon(
                   Icons.arrow_back_rounded,
-                  color: darkTheme ? Colors.white : _navy,
+                  color: Cristal.texto,
                   size: 21,
                 ),
               ),
@@ -90,7 +87,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             ],
             if (showLogo) ...[
               Image.asset(
-                'assets/images/logo.png',
+                'assets/images/logo_fondo_oscuro.png',
                 height: isMobile ? 34 : 40,
                 fit: BoxFit.contain,
                 alignment: Alignment.centerLeft,
@@ -106,7 +103,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: darkTheme ? Colors.white : _navy,
+                    color: Cristal.texto,
                     fontSize: isMobile ? 16 : 18,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.2,
@@ -126,29 +123,29 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                       child: TextField(
                         controller: searchController,
                         onSubmitted: onSearchSubmitted,
-                        style: const TextStyle(fontSize: 13, color: _navy),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Cristal.texto,
+                        ),
                         decoration: InputDecoration(
                           hintText: 'Busca contratos, entidades...',
                           hintStyle: TextStyle(
-                            color: Colors.blueGrey.shade400,
+                            color: Cristal.textoSuave,
                             fontSize: 13,
                           ),
                           prefixIcon: IconButton(
                             tooltip: 'Buscar en SECOP + SIGEP',
                             padding: EdgeInsets.zero,
-                            onPressed: () => onSearchSubmitted?.call(
-                              searchController!.text,
-                            ),
+                            onPressed: () =>
+                                onSearchSubmitted?.call(searchController!.text),
                             icon: const Icon(
                               Icons.search_rounded,
-                              color: _navy,
+                              color: Cristal.texto,
                               size: 19,
                             ),
                           ),
                           filled: true,
-                          fillColor: transparent
-                              ? Colors.white.withValues(alpha: 0.78)
-                              : const Color(0xFFF1F4F9),
+                          fillColor: Cristal.campo,
                           contentPadding: const EdgeInsets.symmetric(
                             vertical: 0,
                             horizontal: 12,
@@ -159,14 +156,12 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(20),
-                            borderSide: const BorderSide(
-                              color: Color(0xFFE2E8F0),
-                            ),
+                            borderSide: const BorderSide(color: Cristal.borde),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(20),
                             borderSide: const BorderSide(
-                              color: _navy,
+                              color: Cristal.acentoClaro,
                               width: 1.2,
                             ),
                           ),
@@ -223,8 +218,6 @@ class CustomUserHeaderActions extends StatelessWidget {
   final bool isProfileScreen;
   final bool compactAvatarOnly;
 
-  static const Color _navy = Color(0xFF1A2B4C);
-
   static void showNoNotificationsSnackBar(BuildContext context) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -234,15 +227,13 @@ class CustomUserHeaderActions extends StatelessWidget {
             children: [
               Icon(
                 Icons.notifications_off_outlined,
-                color: Colors.white,
+                color: Cristal.texto,
                 size: 18,
               ),
               SizedBox(width: 10),
               Text('Sin notificaciones'),
             ],
           ),
-          backgroundColor: _navy,
-          behavior: SnackBarBehavior.floating,
           duration: Duration(seconds: 2),
         ),
       );
@@ -257,9 +248,7 @@ class CustomUserHeaderActions extends StatelessWidget {
     if (value == 'profile') {
       if (isProfileScreen) return;
       Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => const PerfilUsuarioScreen(),
-        ),
+        MaterialPageRoute<void>(builder: (_) => const PerfilUsuarioScreen()),
       );
       return;
     }
@@ -302,7 +291,7 @@ class CustomUserHeaderActions extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: _navy,
+                  color: Cristal.texto,
                   fontWeight: FontWeight.w800,
                   fontSize: 13.5,
                 ),
@@ -313,7 +302,7 @@ class CustomUserHeaderActions extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: Color(0xFF64748B),
+                  color: Cristal.textoSuave,
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                 ),
@@ -322,7 +311,7 @@ class CustomUserHeaderActions extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFECFDF5),
+                  color: const Color(0x1F10B981),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -330,7 +319,7 @@ class CustomUserHeaderActions extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Color(0xFF15803D),
+                    color: Cristal.verde,
                     fontSize: 10.8,
                     fontWeight: FontWeight.w800,
                   ),
@@ -349,13 +338,13 @@ class CustomUserHeaderActions extends StatelessWidget {
             Icon(
               Icons.add_moderator_outlined,
               size: 19,
-              color: Color(0xFF1D4ED8),
+              color: Cristal.acentoClaro,
             ),
             SizedBox(width: 10),
             Text(
               'Acumular / Añadir rol',
               style: TextStyle(
-                color: Color(0xFF1D4ED8),
+                color: Cristal.acentoClaro,
                 fontSize: 13.3,
                 fontWeight: FontWeight.w800,
               ),
@@ -368,16 +357,12 @@ class CustomUserHeaderActions extends StatelessWidget {
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         child: Row(
           children: [
-            Icon(
-              Icons.person_outline_rounded,
-              size: 19,
-              color: _navy,
-            ),
+            Icon(Icons.person_outline_rounded, size: 19, color: Cristal.texto),
             SizedBox(width: 10),
             Text(
               'Ver perfil',
               style: TextStyle(
-                color: _navy,
+                color: Cristal.texto,
                 fontSize: 13.3,
                 fontWeight: FontWeight.w600,
               ),
@@ -391,22 +376,18 @@ class CustomUserHeaderActions extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
           decoration: BoxDecoration(
-            color: const Color(0xFFFEF2F2),
+            color: Cristal.rojoVidrio,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFFFECACA)),
+            border: Border.all(color: Cristal.rojoBorde),
           ),
           child: const Row(
             children: [
-              Icon(
-                Icons.logout_rounded,
-                size: 18,
-                color: Color(0xFFDC2626),
-              ),
+              Icon(Icons.logout_rounded, size: 18, color: Cristal.rojo),
               SizedBox(width: 10),
               Text(
                 'Cerrar sesión',
                 style: TextStyle(
-                  color: Color(0xFFDC2626),
+                  color: Cristal.rojo,
                   fontSize: 13.2,
                   fontWeight: FontWeight.w700,
                 ),
@@ -428,25 +409,25 @@ class CustomUserHeaderActions extends StatelessWidget {
         final String email = AuthService.getActiveUserEmail();
         final ImageProvider<Object>? avatarImage =
             AuthService.getActiveUserAvatarImageProvider();
-        final String initial =
-            fullName.isNotEmpty ? fullName[0].toUpperCase() : 'U';
+        final String initial = fullName.isNotEmpty
+            ? fullName[0].toUpperCase()
+            : 'U';
 
         final double screenW = MediaQuery.sizeOf(context).width;
         final bool isCompact = screenW < 520;
-        final Color textColor = darkTheme ? Colors.white : _navy;
-        final Color subtextColor =
-            darkTheme ? Colors.white70 : const Color(0xFF475569);
+        const Color textColor = Cristal.texto;
+        const Color subtextColor = Cristal.textoMedio;
 
         final Widget avatarWidget = CircleAvatar(
           radius: isCompact ? 16 : 18,
           backgroundImage: avatarImage,
-          backgroundColor: const Color(0xFFB81D4E),
-          foregroundColor: Colors.white,
+          backgroundColor: Cristal.avatar,
+          foregroundColor: Cristal.texto,
           child: avatarImage == null
               ? Text(
                   initial,
                   style: TextStyle(
-                    color: Colors.white,
+                    color: Cristal.texto,
                     fontWeight: FontWeight.w800,
                     fontSize: isCompact ? 13 : 14,
                   ),
@@ -474,23 +455,14 @@ class CustomUserHeaderActions extends StatelessWidget {
             PopupMenuButton<String>(
               tooltip: 'Opciones de cuenta',
               offset: const Offset(0, 46),
-              elevation: 8,
-              color: Colors.white,
-              surfaceTintColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-                side: const BorderSide(color: Color(0xFFE2E8F0)),
-              ),
               onSelected: (value) => handleMenuSelection(
                 context: context,
                 value: value,
                 onLogout: onLogout,
                 isProfileScreen: isProfileScreen,
               ),
-              itemBuilder: (_) => buildStandardMenuItems(
-                fullName: fullName,
-                email: email,
-              ),
+              itemBuilder: (_) =>
+                  buildStandardMenuItems(fullName: fullName, email: email),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
                 child: Row(

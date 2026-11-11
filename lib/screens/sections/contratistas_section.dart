@@ -11,9 +11,6 @@ class ContratistasSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ContratistasScreen(
-      isEmbeddedInDashboard: true,
-      onLogout: onLogout,
-    );
+    return ContratistasScreen(isEmbeddedInDashboard: true, onLogout: onLogout);
   }
 }

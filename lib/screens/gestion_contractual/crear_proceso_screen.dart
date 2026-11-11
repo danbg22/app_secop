@@ -5,6 +5,7 @@ import '../../data/modalidades_contratacion.dart';
 import '../../services/procesos_contratacion_service.dart';
 import 'estilo_contractual.dart';
 import 'proceso_detalle_screen.dart';
+import '../../tema/cristal.dart';
 
 /// Formulario de creación de un proceso: campos comunes más los propios de
 /// la modalidad, con la vista previa de etapas y documentos exigidos.
@@ -121,18 +122,15 @@ class _CrearProcesoScreenState extends State<CrearProcesoScreen> {
         helperText: ayuda,
         helperMaxLines: 2,
         filled: true,
-        fillColor: Colors.white,
+        fillColor: Cristal.campo,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFD8DEE8)),
+          borderSide: const BorderSide(color: Cristal.borde),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: EstiloContractual.navy,
-            width: 1.5,
-          ),
+          borderSide: const BorderSide(color: Cristal.acentoClaro, width: 1.5),
         ),
       );
 
@@ -194,16 +192,16 @@ class _CrearProcesoScreenState extends State<CrearProcesoScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
+                color: Cristal.azulVidrio,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFBFDBFE)),
+                border: Border.all(color: Cristal.acentoBorde),
               ),
               child: const Text(
                 'Registra aquí el proceso que la entidad adelanta en SECOP II para que el equipo '
                 'jurídico controle plazos, documentos, observaciones y verificación de ofertas. '
                 'Publicación, recepción de ofertas y adjudicación se hacen únicamente en SECOP II.',
                 style: TextStyle(
-                  color: Color(0xFF1E3A8A),
+                  color: Cristal.acentoClaro,
                   fontSize: 12.6,
                   height: 1.4,
                 ),
@@ -299,7 +297,7 @@ class _CrearProcesoScreenState extends State<CrearProcesoScreen> {
                         height: 16,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: Cristal.texto,
                         ),
                       )
                     : const Icon(Icons.arrow_forward_rounded, size: 19),
@@ -335,7 +333,7 @@ class _CrearProcesoScreenState extends State<CrearProcesoScreen> {
                 color: _m.color,
                 shape: BoxShape.circle,
               ),
-              child: Icon(_m.icono, color: Colors.white),
+              child: Icon(_m.icono, color: Cristal.sobre(_m.color)),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -351,7 +349,7 @@ class _CrearProcesoScreenState extends State<CrearProcesoScreen> {
         const SizedBox(height: 8),
         Text(
           _m.fundamento,
-          style: const TextStyle(color: EstiloContractual.gris, fontSize: 12.5),
+          style: const TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
         ),
         const SizedBox(height: 20),
         if (mobile) ...[
@@ -399,14 +397,14 @@ class _ResumenRequisitos extends StatelessWidget {
                       ? Icons.check_circle_outline_rounded
                       : Icons.radio_button_unchecked,
                   size: 16,
-                  color: d.obligatorio ? m.color : EstiloContractual.gris,
+                  color: d.obligatorio ? m.color : Cristal.textoSuave,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     d.obligatorio ? d.nombre : '${d.nombre} (si aplica)',
                     style: const TextStyle(
-                      color: EstiloContractual.navy,
+                      color: Cristal.texto,
                       fontSize: 12.8,
                     ),
                   ),
@@ -421,9 +419,9 @@ class _ResumenRequisitos extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: m.fondo.withValues(alpha: 0.55),
+        color: m.fondo,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: m.color.withValues(alpha: 0.25)),
+        border: Border.all(color: m.color.withValues(alpha: 0.4)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -431,7 +429,7 @@ class _ResumenRequisitos extends StatelessWidget {
           const Text(
             'Lo que exige esta modalidad',
             style: TextStyle(
-              color: EstiloContractual.navy,
+              color: Cristal.texto,
               fontSize: 16,
               fontWeight: FontWeight.w800,
             ),
@@ -440,10 +438,7 @@ class _ResumenRequisitos extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               'Escogencia: ${m.criterioEvaluacion}',
-              style: const TextStyle(
-                color: EstiloContractual.texto,
-                fontSize: 12.8,
-              ),
+              style: const TextStyle(color: Cristal.textoMedio, fontSize: 12.8),
             ),
           ],
           const SizedBox(height: 16),
@@ -461,8 +456,8 @@ class _ResumenRequisitos extends StatelessWidget {
                       backgroundColor: m.color,
                       child: Text(
                         '${i + 1}',
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: Cristal.sobre(m.color),
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
                         ),
@@ -484,7 +479,7 @@ class _ResumenRequisitos extends StatelessWidget {
                           ],
                         ),
                         style: const TextStyle(
-                          color: EstiloContractual.navy,
+                          color: Cristal.texto,
                           fontSize: 12.8,
                         ),
                       ),

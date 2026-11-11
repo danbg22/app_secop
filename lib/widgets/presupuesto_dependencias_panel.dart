@@ -4,6 +4,7 @@ import '../data/estructura_sena.dart';
 import '../services/presupuesto_dependencias_service.dart';
 import '../services/reporte_contratos_service.dart';
 import 'reporte_contratos_flujo.dart';
+import '../tema/cristal.dart';
 
 /// Presupuesto asignado y ejecutado por cada dependencia (unidad de
 /// contratación de SECOP II) de una entidad. Al tocar una dependencia se
@@ -37,10 +38,6 @@ class PresupuestoDependenciasPanel extends StatefulWidget {
 
 class _PresupuestoDependenciasPanelState
     extends State<PresupuestoDependenciasPanel> {
-  static const Color _navy = Color(0xFF1A2B4C);
-  static const Color _gris = Color(0xFF64748B);
-  static const Color _borde = Color(0xFFE2E8F0);
-
   List<DependenciaPresupuesto>? _dependencias;
   String? _error;
   String _filtro = '';
@@ -259,7 +256,7 @@ class _PresupuestoDependenciasPanelState
       child: Text(
         t,
         style: const TextStyle(
-          color: _navy,
+          color: Cristal.texto,
           fontSize: 13,
           fontWeight: FontWeight.w800,
         ),
@@ -271,9 +268,12 @@ class _PresupuestoDependenciasPanelState
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFEEF2F6)),
+        border: Border.all(color: Cristal.borde),
       ),
-      child: Text(t, style: const TextStyle(color: _gris, fontSize: 12.5)),
+      child: Text(
+        t,
+        style: const TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
+      ),
     );
 
     return [
@@ -281,7 +281,11 @@ class _PresupuestoDependenciasPanelState
         'Organizado como el SENA: la Dirección General y las direcciones regionales, '
         'cada una con su despacho y sus centros de formación. Son quienes tienen '
         'ordenador del gasto y firman los contratos.',
-        style: TextStyle(color: _gris, fontSize: 12.5, height: 1.45),
+        style: TextStyle(
+          color: Cristal.textoSuave,
+          fontSize: 12.5,
+          height: 1.45,
+        ),
       ),
       const SizedBox(height: 14),
       if (nacional.isNotEmpty) ...[
@@ -305,7 +309,7 @@ class _PresupuestoDependenciasPanelState
           child: Text(
             'Direcciones regionales (${arbol.regionales.length})',
             style: const TextStyle(
-              color: _navy,
+              color: Cristal.texto,
               fontSize: 15,
               fontWeight: FontWeight.w800,
             ),
@@ -435,15 +439,8 @@ class _PresupuestoDependenciasPanelState
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Cristal.vidrio,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: _navy.withValues(alpha: 0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       padding: EdgeInsets.all(mobile ? 16 : 22),
       child: Column(
@@ -462,7 +459,7 @@ class _PresupuestoDependenciasPanelState
                   const Text(
                     'Presupuesto por dependencia',
                     style: TextStyle(
-                      color: _navy,
+                      color: Cristal.texto,
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
                     ),
@@ -476,7 +473,10 @@ class _PresupuestoDependenciasPanelState
                         : '${!variasCuentas && deps!.isNotEmpty && widget.cuentaSecop == null ? '${deps.first.cuentaSecop} · ' : ''}'
                               '${widget.alcance} · ${deps!.length} dependencias · '
                               '${_millones(totalAsignado)} asignados',
-                    style: const TextStyle(color: _gris, fontSize: 12.5),
+                    style: const TextStyle(
+                      color: Cristal.textoSuave,
+                      fontSize: 12.5,
+                    ),
                   ),
                 ],
               ),
@@ -489,19 +489,19 @@ class _PresupuestoDependenciasPanelState
                     hintText: 'Buscar dependencia (ej. despacho, Cesar)…',
                     hintStyle: const TextStyle(
                       fontSize: 12.5,
-                      color: Color(0xFF94A3B8),
+                      color: Cristal.textoTenue,
                     ),
                     prefixIcon: const Icon(Icons.search_rounded, size: 18),
                     isDense: true,
                     filled: true,
-                    fillColor: const Color(0xFFF8FAFC),
+                    fillColor: Cristal.campo,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: _borde),
+                      borderSide: const BorderSide(color: Cristal.borde),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: _borde),
+                      borderSide: const BorderSide(color: Cristal.borde),
                     ),
                   ),
                 ),
@@ -557,7 +557,7 @@ class _PresupuestoDependenciasPanelState
               padding: const EdgeInsets.only(top: 10),
               child: Text(
                 'Se muestran 80 de ${visibles.length} dependencias. Usa el buscador para encontrar la tuya.',
-                style: const TextStyle(color: _gris, fontSize: 12),
+                style: const TextStyle(color: Cristal.textoSuave, fontSize: 12),
               ),
             ),
           const SizedBox(height: 14),
@@ -566,7 +566,11 @@ class _PresupuestoDependenciasPanelState
             'registra en cada proceso. Asignado: presupuesto oficial de sus procesos, sin cancelados ni borradores. '
             'Contratado y ejecutado: valor y pagos de los contratos de esos procesos, según lo que la entidad '
             'reporta en SECOP II. Los gastos que no pasan por contratación (como la nómina) no aparecen aquí.',
-            style: TextStyle(color: _gris, fontSize: 11.5, height: 1.45),
+            style: TextStyle(
+              color: Cristal.textoSuave,
+              fontSize: 11.5,
+              height: 1.45,
+            ),
           ),
         ],
       ),
@@ -597,24 +601,22 @@ class _FilaDependencia extends StatelessWidget {
   final VoidCallback onReintentar;
   final String Function(double) millones;
 
-  static const Color _navy = Color(0xFF1A2B4C);
-  static const Color _gris = Color(0xFF64748B);
-
   @override
   Widget build(BuildContext context) {
     final d = dependencia;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: abierta ? const Color(0xFFF8FAFC) : Colors.white,
+        color: abierta ? Cristal.vidrioSuave : Cristal.vidrio,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: abierta ? const Color(0xFFCBD5E1) : const Color(0xFFEEF2F6),
+          color: abierta ? Cristal.bordeFuerte : Cristal.borde,
         ),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
+          hoverDuration: Cristal.micro,
           onTap: onTap,
           borderRadius: BorderRadius.circular(14),
           child: Padding(
@@ -627,7 +629,7 @@ class _FilaDependencia extends StatelessWidget {
                   Text(
                     d.nombre,
                     style: const TextStyle(
-                      color: _navy,
+                      color: Cristal.texto,
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
                     ),
@@ -635,7 +637,10 @@ class _FilaDependencia extends StatelessWidget {
                   if (mostrarCuenta && d.cuentaSecop.isNotEmpty)
                     Text(
                       d.cuentaSecop,
-                      style: const TextStyle(color: _gris, fontSize: 11.8),
+                      style: const TextStyle(
+                        color: Cristal.textoSuave,
+                        fontSize: 11.8,
+                      ),
                     ),
                   const SizedBox(height: 4),
                   Row(
@@ -643,7 +648,7 @@ class _FilaDependencia extends StatelessWidget {
                       Text(
                         millones(d.asignadoCop),
                         style: const TextStyle(
-                          color: _navy,
+                          color: Cristal.texto,
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
                         ),
@@ -652,14 +657,17 @@ class _FilaDependencia extends StatelessWidget {
                       Expanded(
                         child: Text(
                           'asignado · ${d.procesos} procesos',
-                          style: const TextStyle(color: _gris, fontSize: 11.5),
+                          style: const TextStyle(
+                            color: Cristal.textoSuave,
+                            fontSize: 11.5,
+                          ),
                         ),
                       ),
                       Icon(
                         abierta
                             ? Icons.expand_less_rounded
                             : Icons.expand_more_rounded,
-                        color: _gris,
+                        color: Cristal.textoSuave,
                       ),
                     ],
                   ),
@@ -673,7 +681,7 @@ class _FilaDependencia extends StatelessWidget {
                             Text(
                               d.nombre,
                               style: const TextStyle(
-                                color: _navy,
+                                color: Cristal.texto,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -684,7 +692,7 @@ class _FilaDependencia extends StatelessWidget {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                  color: _gris,
+                                  color: Cristal.textoSuave,
                                   fontSize: 11.8,
                                 ),
                               ),
@@ -698,7 +706,7 @@ class _FilaDependencia extends StatelessWidget {
                           Text(
                             millones(d.asignadoCop),
                             style: const TextStyle(
-                              color: _navy,
+                              color: Cristal.texto,
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
                             ),
@@ -706,7 +714,7 @@ class _FilaDependencia extends StatelessWidget {
                           Text(
                             'asignado · ${d.procesos} procesos',
                             style: const TextStyle(
-                              color: _gris,
+                              color: Cristal.textoSuave,
                               fontSize: 11.5,
                             ),
                           ),
@@ -716,7 +724,7 @@ class _FilaDependencia extends StatelessWidget {
                         abierta
                             ? Icons.expand_less_rounded
                             : Icons.expand_more_rounded,
-                        color: _gris,
+                        color: Cristal.textoSuave,
                       ),
                     ],
                   ),
@@ -727,7 +735,7 @@ class _FilaDependencia extends StatelessWidget {
                     value: proporcion.clamp(0, 1),
                     minHeight: 6,
                     color: const Color(0xFF93C5FD),
-                    backgroundColor: const Color(0xFFF1F5F9),
+                    backgroundColor: Cristal.vidrioFuerte,
                   ),
                 ),
                 if (abierta && ejecucion != null) ...[
@@ -744,7 +752,7 @@ class _FilaDependencia extends StatelessWidget {
                                     ? '${snap.error}'
                                     : 'No fue posible consultar los contratos de esta dependencia.',
                                 style: const TextStyle(
-                                  color: Color(0xFFB91C1C),
+                                  color: Cristal.rojo,
                                   fontSize: 12.5,
                                 ),
                               ),
@@ -771,7 +779,10 @@ class _FilaDependencia extends StatelessWidget {
                               SizedBox(width: 10),
                               Text(
                                 'Consultando contratos y pagos en SECOP II…',
-                                style: TextStyle(color: _gris, fontSize: 12.5),
+                                style: TextStyle(
+                                  color: Cristal.textoSuave,
+                                  fontSize: 12.5,
+                                ),
                               ),
                             ],
                           ),
@@ -790,9 +801,9 @@ class _FilaDependencia extends StatelessWidget {
                             OutlinedButton.icon(
                               onPressed: onReporte,
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: _navy,
+                                foregroundColor: Cristal.texto,
                                 side: const BorderSide(
-                                  color: Color(0xFFCBD5E1),
+                                  color: Cristal.bordeFuerte,
                                 ),
                                 shape: const StadiumBorder(),
                               ),
@@ -831,9 +842,6 @@ class _DetalleEjecucion extends StatelessWidget {
   final EjecucionDependencia e;
   final String Function(double) millones;
 
-  static const Color _navy = Color(0xFF1A2B4C);
-  static const Color _gris = Color(0xFF64748B);
-
   @override
   Widget build(BuildContext context) {
     final pctContratado = asignado <= 0
@@ -853,9 +861,9 @@ class _DetalleEjecucion extends StatelessWidget {
       width: ancho,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Cristal.vidrio,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: Cristal.borde),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -863,7 +871,7 @@ class _DetalleEjecucion extends StatelessWidget {
           Text(
             titulo.toUpperCase(),
             style: const TextStyle(
-              color: _gris,
+              color: Cristal.textoSuave,
               fontSize: 10.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.4,
@@ -878,7 +886,10 @@ class _DetalleEjecucion extends StatelessWidget {
               fontWeight: FontWeight.w800,
             ),
           ),
-          Text(nota, style: const TextStyle(color: _gris, fontSize: 11.5)),
+          Text(
+            nota,
+            style: const TextStyle(color: Cristal.textoSuave, fontSize: 11.5),
+          ),
         ],
       ),
     );
@@ -899,28 +910,28 @@ class _DetalleEjecucion extends StatelessWidget {
                   'Asignado',
                   millones(asignado),
                   'Presupuesto oficial de sus procesos',
-                  _navy,
+                  Cristal.texto,
                 ),
                 cifra(
                   ancho,
                   'Contratado',
                   millones(e.contratadoCop),
                   '${e.contratos} contratos · $pctContratado % de lo asignado',
-                  const Color(0xFF1D4ED8),
+                  Cristal.acentoClaro,
                 ),
                 cifra(
                   ancho,
                   'Ejecutado (pagado)',
                   millones(e.pagadoCop),
                   '$pctEjecutado % de lo contratado',
-                  const Color(0xFF15803D),
+                  Cristal.verde,
                 ),
                 cifra(
                   ancho,
                   'Por ejecutar',
                   millones(e.pendienteCop),
                   'Pendiente según SECOP II',
-                  const Color(0xFFB45309),
+                  Cristal.ambar,
                 ),
               ],
             );
@@ -940,15 +951,12 @@ class _DetalleEjecucion extends StatelessWidget {
                     (v / base).clamp(0.0, 1.0) * c.maxWidth;
                 return Stack(
                   children: [
-                    Container(color: const Color(0xFFF1F5F9)),
+                    Container(color: Cristal.vidrioSuave),
                     Container(
                       width: ancho(e.contratadoCop),
-                      color: const Color(0xFFBFDBFE),
+                      color: Cristal.acentoClaro.withValues(alpha: 0.45),
                     ),
-                    Container(
-                      width: ancho(e.pagadoCop),
-                      color: const Color(0xFF16A34A),
-                    ),
+                    Container(width: ancho(e.pagadoCop), color: Cristal.verde),
                   ],
                 );
               },
@@ -960,7 +968,7 @@ class _DetalleEjecucion extends StatelessWidget {
             padding: const EdgeInsets.only(top: 8),
             child: Text(
               'Incluye los ${e.procesosConsultados} procesos de mayor valor de ${e.procesosTotales}.',
-              style: const TextStyle(color: _gris, fontSize: 11.5),
+              style: const TextStyle(color: Cristal.textoSuave, fontSize: 11.5),
             ),
           ),
       ],
@@ -981,12 +989,12 @@ class _Mensaje extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 24),
       child: Column(
         children: [
-          Icon(icono, color: const Color(0xFF94A3B8), size: 30),
+          Icon(icono, color: Cristal.textoTenue, size: 30),
           const SizedBox(height: 8),
           Text(
             texto,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+            style: const TextStyle(color: Cristal.textoSuave, fontSize: 13),
           ),
           ?accion,
         ],
@@ -1029,18 +1037,15 @@ class _GrupoSena extends StatelessWidget {
   final VoidCallback onTap;
   final List<Widget> hijos;
 
-  static const Color _navy = Color(0xFF0E2646);
-  static const Color _gris = Color(0xFF64748B);
-
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: abierto ? const Color(0xFFF8FAFC) : Colors.white,
+        color: abierto ? Cristal.vidrioSuave : Cristal.vidrio,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: abierto ? const Color(0xFFCBD5E1) : const Color(0xFFE2E8F0),
+          color: abierto ? Cristal.bordeFuerte : Cristal.borde,
         ),
       ),
       child: Column(
@@ -1049,6 +1054,7 @@ class _GrupoSena extends StatelessWidget {
           Material(
             color: Colors.transparent,
             child: InkWell(
+              hoverDuration: Cristal.micro,
               onTap: onTap,
               borderRadius: BorderRadius.circular(16),
               child: Padding(
@@ -1065,7 +1071,7 @@ class _GrupoSena extends StatelessWidget {
                               Text(
                                 titulo,
                                 style: const TextStyle(
-                                  color: _navy,
+                                  color: Cristal.texto,
                                   fontSize: 15.5,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -1074,7 +1080,7 @@ class _GrupoSena extends StatelessWidget {
                               Text(
                                 detalle,
                                 style: const TextStyle(
-                                  color: _gris,
+                                  color: Cristal.textoSuave,
                                   fontSize: 12.3,
                                 ),
                               ),
@@ -1088,14 +1094,17 @@ class _GrupoSena extends StatelessWidget {
                             Text(
                               valor,
                               style: const TextStyle(
-                                color: _navy,
+                                color: Cristal.texto,
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
                             const Text(
                               'asignado',
-                              style: TextStyle(color: _gris, fontSize: 11.5),
+                              style: TextStyle(
+                                color: Cristal.textoSuave,
+                                fontSize: 11.5,
+                              ),
                             ),
                           ],
                         ),
@@ -1103,7 +1112,7 @@ class _GrupoSena extends StatelessWidget {
                           abierto
                               ? Icons.expand_less_rounded
                               : Icons.expand_more_rounded,
-                          color: _gris,
+                          color: Cristal.textoSuave,
                         ),
                       ],
                     ),
@@ -1113,8 +1122,8 @@ class _GrupoSena extends StatelessWidget {
                       child: LinearProgressIndicator(
                         value: proporcion.clamp(0, 1),
                         minHeight: 6,
-                        color: const Color(0xFF0E2646),
-                        backgroundColor: const Color(0xFFF1F5F9),
+                        color: Cristal.acentoClaro,
+                        backgroundColor: Cristal.vidrioFuerte,
                       ),
                     ),
                   ],

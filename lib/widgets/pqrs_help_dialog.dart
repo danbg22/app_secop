@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../services/auth_service.dart';
 import '../services/pqrs_service.dart';
+import '../tema/cristal.dart';
 
 /// Modal / BottomSheet SaaS para radicación directa de Peticiones, Quejas,
 /// Reclamos, Sugerencias o Soporte (PQRS) desde la propia aplicación,
@@ -30,7 +31,7 @@ class PqrsHelpDialog extends StatefulWidget {
         ),
       );
     } else {
-      await showDialog<void>(
+      await mostrarDialogoCristal<void>(
         context: context,
         builder: (_) => Dialog(
           backgroundColor: Colors.transparent,
@@ -52,8 +53,6 @@ class PqrsHelpDialog extends StatefulWidget {
 }
 
 class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
-  static const Color _navy = Color(0xFF0B224C);
-  static const Color _gold = Color(0xFFF5B82E);
   static final RegExp _emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
 
   static const List<String> _tiposPqrs = <String>[
@@ -130,9 +129,7 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
           behavior: SnackBarBehavior.floating,
           backgroundColor: const Color(0xFFDC2626),
           content: Text(
-            detalle.isNotEmpty
-                ? detalle
-                : 'Ocurrió un inconveniente al enviar tu solicitud. Inténtalo nuevamente.',
+            detalle.isNotEmpty ? detalle : 'Ocurrió un inconveniente al enviar tu solicitud. Inténtalo nuevamente.',
           ),
         ),
       );
@@ -146,8 +143,9 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
       ..showSnackBar(
         SnackBar(
           behavior: SnackBarBehavior.floating,
-          backgroundColor:
-              descargado ? const Color(0xFF15803D) : const Color(0xFF0B224C),
+          backgroundColor: descargado
+              ? const Color(0xFF15803D)
+              : Cristal.flotante,
           content: Text(
             descargado
                 ? 'Archivo CSV descargado (listo para Google Drive o Excel).'
@@ -166,35 +164,37 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
       labelText: label,
       hintText: hint,
       alignLabelWithHint: icon == null,
-      prefixIcon: icon != null ? Icon(icon, size: 19, color: _navy) : null,
+      prefixIcon: icon != null
+          ? Icon(icon, size: 19, color: Cristal.texto)
+          : null,
       labelStyle: const TextStyle(
-        color: Color(0xFF475569),
+        color: Cristal.textoMedio,
         fontSize: 13.5,
         fontWeight: FontWeight.w600,
       ),
-      hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+      hintStyle: const TextStyle(color: Cristal.textoTenue, fontSize: 13),
       filled: true,
-      fillColor: const Color(0xFFF8FAFC),
+      fillColor: Cristal.campo,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        borderSide: const BorderSide(color: Cristal.borde),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        borderSide: const BorderSide(color: Cristal.borde),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: _navy, width: 1.5),
+        borderSide: const BorderSide(color: Cristal.acentoClaro, width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFDC2626)),
+        borderSide: const BorderSide(color: Cristal.rojo),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFDC2626), width: 1.5),
+        borderSide: const BorderSide(color: Cristal.rojo, width: 1.5),
       ),
     );
   }
@@ -207,15 +207,13 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
           width: 42,
           height: 42,
           decoration: BoxDecoration(
-            color: const Color(0xFFFFF4D6),
+            color: Cristal.doradoVidrio,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: _gold.withValues(alpha: 0.55),
-            ),
+            border: Border.all(color: Cristal.dorado.withValues(alpha: 0.55)),
           ),
           child: const Icon(
             Icons.support_agent_rounded,
-            color: _navy,
+            color: Cristal.texto,
             size: 23,
           ),
         ),
@@ -227,7 +225,7 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
               const Text(
                 'Centro de Ayuda y PQRS',
                 style: TextStyle(
-                  color: _navy,
+                  color: Cristal.texto,
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                 ),
@@ -238,7 +236,7 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
                     ? 'Solicitudes radicadas desde tu dispositivo.'
                     : 'Envíanos tu consulta, queja, reclamo o solicitud de soporte.',
                 style: const TextStyle(
-                  color: Color(0xFF64748B),
+                  color: Cristal.textoSuave,
                   fontSize: 12.8,
                   height: 1.35,
                 ),
@@ -253,8 +251,8 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
               onPressed: () =>
                   setState(() => _mostrarHistorial = !_mostrarHistorial),
               style: TextButton.styleFrom(
-                foregroundColor: _navy,
-                backgroundColor: const Color(0xFFEEF3FA),
+                foregroundColor: Cristal.texto,
+                backgroundColor: Cristal.vidrioSuave,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
                   vertical: 7,
@@ -286,7 +284,7 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
           onPressed: () => Navigator.of(context).pop(),
           icon: const Icon(
             Icons.close_rounded,
-            color: Color(0xFF64748B),
+            color: Cristal.textoSuave,
             size: 20,
           ),
         ),
@@ -303,9 +301,9 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
         Container(
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: const Color(0xFFF0FDF4),
+            color: Cristal.verdeVidrio,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFBBF7D0)),
+            border: Border.all(color: Cristal.verdeBorde),
           ),
           child: Column(
             children: [
@@ -313,12 +311,12 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
                 width: 48,
                 height: 48,
                 decoration: const BoxDecoration(
-                  color: Color(0xFFDCFCE7),
+                  color: Cristal.verdeVidrio,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.check_circle_rounded,
-                  color: Color(0xFF15803D),
+                  color: Cristal.verde,
                   size: 28,
                 ),
               ),
@@ -327,7 +325,7 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
                 '¡Solicitud enviada exitosamente!',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: _navy,
+                  color: Cristal.texto,
                   fontSize: 16.5,
                   fontWeight: FontWeight.w800,
                 ),
@@ -337,7 +335,7 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
                 'Tu formulario quedó registrado directamente en nuestro repositorio sin necesidad de usar tu correo externo.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Color(0xFF475569),
+                  color: Cristal.textoMedio,
                   fontSize: 12.6,
                   height: 1.35,
                 ),
@@ -349,9 +347,9 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
                   vertical: 9,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Cristal.vidrio,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF86EFAC)),
+                  border: Border.all(color: Cristal.verdeBorde),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -359,7 +357,7 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
                     const Text(
                       'Radicado: ',
                       style: TextStyle(
-                        color: Color(0xFF475569),
+                        color: Cristal.textoMedio,
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,
                       ),
@@ -367,13 +365,14 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
                     SelectableText(
                       record.radicado,
                       style: const TextStyle(
-                        color: _navy,
+                        color: Cristal.texto,
                         fontSize: 13.5,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                     const SizedBox(width: 8),
                     InkWell(
+                      hoverDuration: Cristal.micro,
                       onTap: () {
                         Clipboard.setData(ClipboardData(text: record.radicado));
                         ScaffoldMessenger.maybeOf(context)?.showSnackBar(
@@ -390,7 +389,7 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
                         child: Icon(
                           Icons.copy_rounded,
                           size: 15,
-                          color: _navy,
+                          color: Cristal.texto,
                         ),
                       ),
                     ),
@@ -404,9 +403,9 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
+            color: Cristal.vidrioSuave,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: Cristal.borde),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -414,7 +413,7 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
               Text(
                 '${record.tipoSolicitud} · ${record.asunto}',
                 style: const TextStyle(
-                  color: _navy,
+                  color: Cristal.texto,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
@@ -424,7 +423,7 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
                 Text(
                   'Correo de respuesta: ${record.correoContacto}',
                   style: const TextStyle(
-                    color: Color(0xFF64748B),
+                    color: Cristal.textoSuave,
                     fontSize: 12,
                   ),
                 ),
@@ -439,7 +438,7 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
             TextButton(
               onPressed: () => setState(() => _ultimoRadicado = null),
               style: TextButton.styleFrom(
-                foregroundColor: _navy,
+                foregroundColor: Cristal.texto,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
                   vertical: 12,
@@ -454,8 +453,8 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _navy,
-                foregroundColor: Colors.white,
+                backgroundColor: Cristal.acento,
+                foregroundColor: Cristal.texto,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 22,
@@ -496,9 +495,9 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
               return Container(
                 padding: const EdgeInsets.all(13),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: Cristal.vidrioSuave,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: Cristal.borde),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -508,7 +507,7 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
                         Text(
                           item.radicado,
                           style: const TextStyle(
-                            color: _navy,
+                            color: Cristal.texto,
                             fontSize: 12.5,
                             fontWeight: FontWeight.w800,
                           ),
@@ -520,13 +519,13 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
                             vertical: 2.5,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFDCFCE7),
+                            color: Cristal.verdeVidrio,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
                             item.estado,
                             style: const TextStyle(
-                              color: Color(0xFF166534),
+                              color: Cristal.verde,
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
                             ),
@@ -538,7 +537,7 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
                     Text(
                       '${item.tipoSolicitud} · $fechaCorta',
                       style: const TextStyle(
-                        color: Color(0xFF64748B),
+                        color: Cristal.textoSuave,
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
                       ),
@@ -549,7 +548,7 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: _navy,
+                        color: Cristal.texto,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
@@ -567,8 +566,8 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
             OutlinedButton.icon(
               onPressed: _exportarCsv,
               style: OutlinedButton.styleFrom(
-                foregroundColor: _navy,
-                side: const BorderSide(color: Color(0xFFCBD5E1)),
+                foregroundColor: Cristal.texto,
+                side: const BorderSide(color: Cristal.bordeFuerte),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
                   vertical: 11,
@@ -585,7 +584,7 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
             ),
             TextButton(
               onPressed: () => setState(() => _mostrarHistorial = false),
-              style: TextButton.styleFrom(foregroundColor: _navy),
+              style: TextButton.styleFrom(foregroundColor: Cristal.texto),
               child: const Text(
                 'Volver al formulario',
                 style: TextStyle(fontWeight: FontWeight.w700),
@@ -614,11 +613,13 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
                   label: Text(tipo),
                   selected: _tipoSolicitud == tipo,
                   onSelected: (_) => setState(() => _tipoSolicitud = tipo),
-                  selectedColor: _navy,
-                  backgroundColor: const Color(0xFFF1F5F9),
-                  checkmarkColor: _gold,
+                  selectedColor: Cristal.acento,
+                  backgroundColor: Cristal.vidrioSuave,
+                  checkmarkColor: Cristal.dorado,
                   labelStyle: TextStyle(
-                    color: _tipoSolicitud == tipo ? Colors.white : _navy,
+                    color: _tipoSolicitud == tipo
+                        ? Cristal.texto
+                        : Cristal.texto,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -626,8 +627,8 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
                     borderRadius: BorderRadius.circular(20),
                     side: BorderSide(
                       color: _tipoSolicitud == tipo
-                          ? _navy
-                          : const Color(0xFFE2E8F0),
+                          ? Cristal.acentoClaro
+                          : Cristal.borde,
                     ),
                   ),
                 ),
@@ -638,7 +639,7 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
             controller: _correoController,
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
-            style: const TextStyle(fontSize: 13.8, color: _navy),
+            style: const TextStyle(fontSize: 13.8, color: Cristal.texto),
             decoration: _inputDecoration(
               label: 'Correo de contacto para respuesta',
               hint: 'tucorreo@ejemplo.com',
@@ -656,7 +657,7 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
           TextFormField(
             controller: _asuntoController,
             textInputAction: TextInputAction.next,
-            style: const TextStyle(fontSize: 13.8, color: _navy),
+            style: const TextStyle(fontSize: 13.8, color: Cristal.texto),
             decoration: _inputDecoration(
               label: 'Asunto',
               hint: 'Ej. Duda sobre proceso contractual o reporte técnico',
@@ -674,11 +675,10 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
             controller: _mensajeController,
             maxLines: 4,
             minLines: 4,
-            style: const TextStyle(fontSize: 13.8, color: _navy),
+            style: const TextStyle(fontSize: 13.8, color: Cristal.texto),
             decoration: _inputDecoration(
               label: 'Mensaje o descripción detallada',
-              hint:
-                  'Describe aquí tu solicitud, queja o sugerencia para que nuestro equipo te responda...',
+              hint: 'Describe aquí tu solicitud, queja o sugerencia para que nuestro equipo te responda...',
             ),
             validator: (value) {
               if (value == null || value.trim().length < 10) {
@@ -689,28 +689,21 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
           ),
           const SizedBox(height: 12),
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 9,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: Cristal.vidrioSuave,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: Cristal.borde),
             ),
             child: const Row(
               children: [
-                Icon(
-                  Icons.cloud_done_outlined,
-                  size: 17,
-                  color: Color(0xFF15803D),
-                ),
+                Icon(Icons.cloud_done_outlined, size: 17, color: Cristal.verde),
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Envío directo desde la plataforma: tu solicitud queda radicada automáticamente sin abrir tu correo.',
                     style: TextStyle(
-                      color: Color(0xFF475569),
+                      color: Cristal.textoMedio,
                       fontSize: 11.7,
                       fontWeight: FontWeight.w500,
                     ),
@@ -724,10 +717,11 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               TextButton(
-                onPressed:
-                    _isSending ? null : () => Navigator.of(context).pop(),
+                onPressed: _isSending
+                    ? null
+                    : () => Navigator.of(context).pop(),
                 style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF475569),
+                  foregroundColor: Cristal.textoMedio,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 12,
@@ -742,8 +736,8 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
               ElevatedButton.icon(
                 onPressed: _isSending ? null : _enviarPqrs,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _navy,
-                  foregroundColor: Colors.white,
+                  backgroundColor: Cristal.acento,
+                  foregroundColor: Cristal.texto,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,
@@ -759,7 +753,7 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
                         height: 16,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: Cristal.texto,
                         ),
                       )
                     : const Icon(Icons.send_rounded, size: 17),
@@ -782,18 +776,11 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Cristal.vidrio,
         borderRadius: widget.isBottomSheet
             ? const BorderRadius.vertical(top: Radius.circular(24))
             : BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFEDE6D6)),
-        boxShadow: [
-          BoxShadow(
-            color: _navy.withValues(alpha: 0.14),
-            blurRadius: 28,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        border: Border.all(color: Cristal.borde),
       ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24, 20, 24, 22),
@@ -808,7 +795,7 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFCBD5E1),
+                    color: Cristal.vidrioIntenso,
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),

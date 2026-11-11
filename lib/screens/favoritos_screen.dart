@@ -5,6 +5,7 @@ import '../services/favorites_service.dart';
 import '../widgets/user_profile_header_action.dart';
 import 'detalle_screen.dart';
 import 'perfil_contratista_screen.dart';
+import '../tema/cristal.dart';
 
 class FavoritosScreen extends StatefulWidget {
   const FavoritosScreen({super.key, this.onLogout});
@@ -73,17 +74,17 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
     if (estadoLower.contains('celebrado') ||
         estadoLower.contains('liquidado') ||
         estadoLower.contains('terminado')) {
-      return Colors.green;
+      return Cristal.verde;
     }
     if (estadoLower.contains('enviado') ||
         estadoLower.contains('convocado') ||
         estadoLower.contains('adjudicado')) {
-      return Colors.orange;
+      return Cristal.ambar;
     }
     if (estadoLower.contains('borrador') || estadoLower.contains('cancelado')) {
-      return Colors.grey;
+      return Cristal.textoTenue;
     }
-    return Colors.blue;
+    return Color(0xFF38BDF8);
   }
 
   String? _obtenerDocumento(Map<String, dynamic> perfil) {
@@ -105,13 +106,13 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
               Icon(
                 Icons.bookmark_border_rounded,
                 size: 76,
-                color: Colors.grey.shade400,
+                color: Cristal.textoTenue,
               ),
               const SizedBox(height: 16),
               Text(
                 'Aún no tienes perfiles guardados. Empieza a explorar para añadirlos aquí',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.blueGrey.shade500, fontSize: 16),
+                style: TextStyle(color: Cristal.textoSuave, fontSize: 16),
               ),
             ],
           ),
@@ -129,7 +130,7 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
         final documento = _obtenerDocumento(perfil);
 
         return Card(
-          color: Colors.white,
+          color: Cristal.vidrio,
           elevation: 1,
           margin: const EdgeInsets.only(bottom: 12),
           shape: RoundedRectangleBorder(
@@ -141,13 +142,13 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
               vertical: 6,
             ),
             leading: CircleAvatar(
-              backgroundColor: Colors.blue.shade50,
-              child: Icon(Icons.person, color: Colors.blue.shade800),
+              backgroundColor: Cristal.azulVidrio,
+              child: Icon(Icons.person, color: Cristal.acentoClaro),
             ),
             title: Text(
               nombre,
               style: const TextStyle(
-                color: Color(0xFF17365D),
+                color: Cristal.texto,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -168,7 +169,7 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
             trailing: IconButton(
               tooltip: 'Eliminar de favoritos',
               onPressed: () => _eliminarContratista(id),
-              icon: Icon(Icons.delete_outline, color: Colors.red.shade400),
+              icon: Icon(Icons.delete_outline, color: Color(0xFFEF5350)),
             ),
           ),
         );
@@ -182,13 +183,13 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.star_border, size: 80, color: Colors.grey.shade400),
+            Icon(Icons.star_border, size: 80, color: Cristal.textoTenue),
             const SizedBox(height: 16),
             Text(
               'No tienes contratos guardados',
               style: TextStyle(
                 fontSize: 18,
-                color: Colors.blueGrey.shade400,
+                color: Cristal.textoSuave,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -196,7 +197,7 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
             Text(
               'Toca la estrella en los resultados para hacer seguimiento.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade500),
+              style: TextStyle(color: Cristal.textoTenue),
             ),
           ],
         ),
@@ -223,6 +224,7 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
             borderRadius: BorderRadius.circular(16),
           ),
           child: InkWell(
+            hoverDuration: Cristal.micro,
             borderRadius: BorderRadius.circular(16),
             onTap: () async {
               await Navigator.push(
@@ -248,7 +250,7 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
-                            color: Colors.blueGrey,
+                            color: Cristal.textoSuave,
                           ),
                         ),
                       ),
@@ -257,7 +259,7 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
                         onPressed: () => _eliminarFavorito(idUnico),
                         icon: const Icon(
                           Icons.star,
-                          color: Colors.orange,
+                          color: Cristal.ambar,
                           size: 24,
                         ),
                       ),
@@ -276,11 +278,12 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
                       const Icon(
                         Icons.person_outline,
                         size: 16,
-                        color: Colors.grey,
+                        color: Cristal.textoTenue,
                       ),
                       const SizedBox(width: 4),
                       Expanded(
                         child: InkWell(
+                          hoverDuration: Cristal.micro,
                           onTap: () {
                             final proveedor = contrato['proveedor_adjudicado']
                                 ?.toString();
@@ -305,7 +308,7 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
                                 'Por definir',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.blue.shade700,
+                              color: Cristal.acentoClaro,
                               fontWeight: FontWeight.bold,
                               decoration: TextDecoration.underline,
                             ),
@@ -323,7 +326,7 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
                       Text(
                         formatoMoneda.format(valor),
                         style: const TextStyle(
-                          color: Colors.black87,
+                          color: Color(0xDDFFFFFF),
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
                         ),
@@ -359,7 +362,7 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
     return DefaultTabController(
       length: 2,
       child: ColoredBox(
-        color: const Color(0xFFFFF8EE),
+        color: Cristal.vidrioSuave,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -379,7 +382,7 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
                         Text(
                           'Mis favoritos',
                           style: TextStyle(
-                            color: const Color(0xFF1A2B4C),
+                            color: Cristal.texto,
                             fontWeight: FontWeight.w800,
                             fontSize: isMobile ? 22 : 30,
                             height: 1.05,
@@ -390,7 +393,7 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
                           width: 36,
                           height: 3.5,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF5B82E),
+                            color: Cristal.dorado,
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -406,14 +409,14 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
               padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 32),
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Cristal.vidrio,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: Cristal.borde),
                 ),
                 child: const TabBar(
-                  labelColor: Color(0xFF1A2B4C),
-                  unselectedLabelColor: Color(0xFF64748B),
-                  indicatorColor: Color(0xFF1A2B4C),
+                  labelColor: Cristal.texto,
+                  unselectedLabelColor: Cristal.textoTenue,
+                  indicatorColor: Cristal.dorado,
                   dividerColor: Colors.transparent,
                   labelStyle: TextStyle(
                     fontWeight: FontWeight.w700,

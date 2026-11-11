@@ -9,6 +9,7 @@ import 'estado_secop.dart';
 import 'estilo_contractual.dart';
 import 'proceso_detalle_screen.dart';
 import 'selector_modalidad_screen.dart';
+import '../../tema/cristal.dart';
 
 /// Importa un proceso que ya existe en SECOP II: se busca por ID o enlace,
 /// se revisa lo que reporta SECOP II y se guarda en el equipo.
@@ -158,7 +159,7 @@ class _ImportarProcesoScreenState extends State<ImportarProcesoScreen> {
                         hintText: 'CO1.REQ.1234567 · CO1.NTC.1234567 · https://community.secop.gov.co/…',
                         prefixIcon: const Icon(Icons.link_rounded),
                         filled: true,
-                        fillColor: Colors.white,
+                        fillColor: Cristal.campo,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
@@ -175,7 +176,7 @@ class _ImportarProcesoScreenState extends State<ImportarProcesoScreen> {
                             height: 16,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Colors.white,
+                              color: Cristal.texto,
                             ),
                           )
                         : const Icon(Icons.search_rounded, size: 19),
@@ -189,7 +190,7 @@ class _ImportarProcesoScreenState extends State<ImportarProcesoScreen> {
               const SizedBox(height: 10),
               const Text(
                 'Datos Abiertos se actualiza una vez al día: un proceso publicado hoy puede aparecer mañana.',
-                style: TextStyle(color: EstiloContractual.gris, fontSize: 12),
+                style: TextStyle(color: Cristal.textoSuave, fontSize: 12),
               ),
             ],
           ),
@@ -198,7 +199,7 @@ class _ImportarProcesoScreenState extends State<ImportarProcesoScreen> {
           const SizedBox(height: 14),
           _Aviso(
             icono: Icons.error_outline_rounded,
-            color: const Color(0xFFB91C1C),
+            color: Cristal.rojo,
             texto: _error!,
           ),
         ],
@@ -206,7 +207,7 @@ class _ImportarProcesoScreenState extends State<ImportarProcesoScreen> {
           const SizedBox(height: 14),
           _Aviso(
             icono: Icons.search_off_rounded,
-            color: const Color(0xFFB45309),
+            color: Cristal.ambar,
             texto:
                 'Datos Abiertos aún no reporta este proceso. Si lo acabas de publicar, puedes registrarlo '
                 'a mano con su ID y sincronizarlo cuando aparezca.',
@@ -235,9 +236,7 @@ class _ImportarProcesoScreenState extends State<ImportarProcesoScreen> {
         .toList();
     return Container(
       padding: EdgeInsets.all(mobile ? 16 : 24),
-      decoration: EstiloContractual.tarjeta(
-        colorBorde: const Color(0xFFBFDBFE),
-      ),
+      decoration: EstiloContractual.tarjeta(colorBorde: Cristal.acentoBorde),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -250,13 +249,13 @@ class _ImportarProcesoScreenState extends State<ImportarProcesoScreen> {
               if (r.fase.isNotEmpty && r.fase != r.estado)
                 EtiquetaColor(
                   texto: r.fase,
-                  color: EstiloContractual.navy,
-                  fondo: const Color(0xFFF1F5F9),
+                  color: Cristal.texto,
+                  fondo: Cristal.vidrioSuave,
                 ),
               EtiquetaColor(
                 texto: r.idProceso,
-                color: EstiloContractual.gris,
-                fondo: const Color(0xFFF8FAFC),
+                color: Cristal.textoSuave,
+                fondo: Cristal.vidrioSuave,
               ),
             ],
           ),
@@ -264,7 +263,7 @@ class _ImportarProcesoScreenState extends State<ImportarProcesoScreen> {
           Text(
             r.nombre.isEmpty ? r.referencia : r.nombre,
             style: const TextStyle(
-              color: EstiloContractual.navy,
+              color: Cristal.texto,
               fontSize: 20,
               fontWeight: FontWeight.w800,
             ),
@@ -315,7 +314,7 @@ class _ImportarProcesoScreenState extends State<ImportarProcesoScreen> {
               padding: EdgeInsets.only(bottom: 12),
               child: _Aviso(
                 icono: Icons.info_outline_rounded,
-                color: Color(0xFF1D4ED8),
+                color: Cristal.acentoClaro,
                 texto:
                     'Este proceso es de prestación de servicios. Si aún no tienes el expediente del contratista, '
                     'créalo con "Estructurar nuevo proceso" para verificar sus documentos.',
@@ -328,7 +327,7 @@ class _ImportarProcesoScreenState extends State<ImportarProcesoScreen> {
               labelText: 'Modalidad para el seguimiento',
               helperText: 'Detectada a partir de SECOP II. Define el cronograma y los requisitos que se verifican.',
               filled: true,
-              fillColor: Colors.white,
+              fillColor: Cristal.campo,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -366,7 +365,7 @@ class _ImportarProcesoScreenState extends State<ImportarProcesoScreen> {
                         height: 16,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: Cristal.texto,
                         ),
                       )
                     : const Icon(Icons.cloud_download_outlined, size: 19),
@@ -393,7 +392,7 @@ class _ImportarProcesoScreenState extends State<ImportarProcesoScreen> {
         Text(
           valor.isEmpty ? '—' : valor,
           style: const TextStyle(
-            color: EstiloContractual.navy,
+            color: Cristal.texto,
             fontSize: 13.5,
             fontWeight: FontWeight.w700,
           ),
