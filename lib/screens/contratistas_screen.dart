@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../services/busqueda_personas.dart';
+import '../widgets/directorio_sigep.dart';
 import '../utils/app_scroll_behavior.dart';
 import '../utils/csv_exporter.dart';
 import '../widgets/user_profile_header_action.dart';
@@ -30,6 +30,7 @@ class ContractorSummaryRecord {
     required this.entitiesCount,
     this.sigepStatus = SigepRoleStatus.contratista,
     this.sigepEntityCargo,
+    this.idSigep,
   });
 
   final String initials;
@@ -47,9 +48,13 @@ class ContractorSummaryRecord {
   final SigepRoleStatus sigepStatus;
   final String? sigepEntityCargo;
 
+  /// Hoja de vida en el directorio del SIGEP.
+  final String? idSigep;
+
   ContractorSummaryRecord copyWith({
     SigepRoleStatus? sigepStatus,
     String? sigepEntityCargo,
+    String? idSigep,
   }) {
     return ContractorSummaryRecord(
       initials: initials,
@@ -66,6 +71,7 @@ class ContractorSummaryRecord {
       entitiesCount: entitiesCount,
       sigepStatus: sigepStatus ?? this.sigepStatus,
       sigepEntityCargo: sigepEntityCargo ?? this.sigepEntityCargo,
+      idSigep: idSigep ?? this.idSigep,
     );
   }
 }
@@ -592,8 +598,10 @@ class _ContratistasScreenState extends State<ContratistasScreen>
             }
             if (r.completo) {
               fallidas.addAll(r.fuentesFallidas);
-              if (r.fallo) {
-                fallaTotal = true;
+              if (r.fallo) fallaTotal = true;
+              // Si alguna fuente no respondió, el resultado se muestra pero
+              // no se guarda: la siguiente búsqueda vuelve a consultar.
+              if (r.parcial) {
                 _ContratistasPersistenceStore.incompleteTerms.add(key);
               } else {
                 _ContratistasPersistenceStore.incompleteTerms.remove(key);
@@ -634,6 +642,7 @@ class _ContratistasScreenState extends State<ContratistasScreen>
           FuentePersona.secopII => 'SECOP II',
           FuentePersona.secopI => 'SECOP I',
           FuentePersona.servidores => 'La fuente de servidores públicos',
+          FuentePersona.sigep => 'El directorio del SIGEP',
         },
       )
       .join(' y ');
@@ -668,12 +677,12 @@ class _ContratistasScreenState extends State<ContratistasScreen>
       inferSector: _inferSector,
       formatDate: _formatIsoToDdMmYyyy,
     );
-    return p.servidorPublico
-        ? record.copyWith(
-            sigepStatus: SigepRoleStatus.servidorPublico,
-            sigepEntityCargo: p.cargoEntidad ?? 'Servidor público',
-          )
-        : record;
+    return record.copyWith(
+      sigepStatus: p.servidorPublico ? SigepRoleStatus.servidorPublico : null,
+      sigepEntityCargo:
+          p.cargoEntidad ?? (p.servidorPublico ? 'Servidor público' : null),
+      idSigep: p.idSigep,
+    );
   }
 
   List<ContractorSummaryRecord> _selectBestMatchesForTerm(
@@ -822,6 +831,9 @@ class _ContratistasScreenState extends State<ContratistasScreen>
           documentoProveedor: contractor.rawDocumentDigits,
           totalContractsSeed: contractor.totalContracts,
           totalValueSeed: contractor.totalValue,
+          idSigep: contractor.idSigep,
+          servidorPublico:
+              contractor.sigepStatus == SigepRoleStatus.servidorPublico,
         ),
       ),
     );
@@ -1090,11 +1102,11 @@ class _ContratistasScreenState extends State<ContratistasScreen>
                       formatCurrency: _formatCopCurrency,
                       aviso: _avisoBusqueda,
                       onRetry: _reintentarBusqueda,
-                      mostrarNotaServidores:
-                          !isDefaultView &&
-                          _activeBulkTerms.any(
-                            (t) => !BusquedaPersonas.esDocumento(t),
-                          ),
+                      terminoSigep: isDefaultView
+                          ? null
+                          : _activeBulkTerms
+                                .where((t) => !BusquedaPersonas.esDocumento(t))
+                                .firstOrNull,
                     ),
                   ],
                 ),
@@ -1633,14 +1645,8 @@ class ContratistasResultsTable extends StatelessWidget {
     required this.formatCurrency,
     this.aviso,
     this.onRetry,
-    this.mostrarNotaServidores = false,
+    this.terminoSigep,
   });
-
-  /// Directorio de servidores públicos del SIGEP (Función Pública). Es la
-  /// misma dirección que enlaza el conjunto oficial de PEP en Datos Abiertos.
-  static final Uri directorioSigep = Uri.parse(
-    'https://www1.funcionpublica.gov.co/dafpIndexerBHV/hvSigep',
-  );
 
   final List<ContractorSummaryRecord> rows;
   final int totalFoundCount;
@@ -1660,36 +1666,42 @@ class ContratistasResultsTable extends StatelessWidget {
   final String? aviso;
   final VoidCallback? onRetry;
 
-  /// Nota sobre la cobertura de servidores públicos (búsquedas por nombre).
-  final bool mostrarNotaServidores;
+  /// Nombre buscado (búsquedas por nombre): se ofrece buscarlo en el
+  /// directorio del SIGEP, que tiene a todos los servidores públicos.
+  final String? terminoSigep;
 
-  Widget _notaServidores() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 14, 22, 6),
+  Widget _notaServidores(BuildContext context, String termino) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+      padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+      decoration: BoxDecoration(
+        color: Cristal.vidrioSuave,
+        borderRadius: BorderRadius.circular(Cristal.radioCampo),
+        border: Border.all(color: Cristal.borde),
+      ),
       child: Wrap(
         crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 4,
+        spacing: 14,
+        runSpacing: 10,
         children: [
-          const Text(
-            'Servidores públicos: se muestran los que figuran en Datos '
-            'Abiertos (personas expuestas políticamente y declaraciones de '
-            'bienes y rentas). Si no aparece, búscalo en el',
-            style: TextStyle(color: Cristal.textoSuave, fontSize: 12),
-          ),
-          TextButton(
-            onPressed: () => launchUrl(
-              directorioSigep,
-              mode: LaunchMode.externalApplication,
-            ),
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
             child: const Text(
-              'directorio del SIGEP',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+              '¿Buscas a un servidor público que no aparece? Datos Abiertos solo '
+              'publica con nombre a los de alto nivel y a quienes declaran bienes '
+              'y rentas. Todos los demás están en el directorio del SIGEP de '
+              'Función Pública: el botón abre ahí la misma búsqueda.',
+              style: TextStyle(
+                color: Cristal.textoMedio,
+                fontSize: 12.5,
+                height: 1.4,
+              ),
             ),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => DirectorioSigep.buscar(context, termino),
+            icon: const Icon(Icons.travel_explore_rounded, size: 18),
+            label: Text('Buscar "$termino" en el SIGEP'),
           ),
         ],
       ),
@@ -1990,7 +2002,8 @@ class ContratistasResultsTable extends StatelessWidget {
                         rowNumber: startItem + i,
                         record: rows[i],
                       ),
-                  if (mostrarNotaServidores) _notaServidores(),
+                  if (terminoSigep != null)
+                    _notaServidores(context, terminoSigep!),
                 ],
               );
 

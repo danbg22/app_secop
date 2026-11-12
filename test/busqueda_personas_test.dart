@@ -162,4 +162,74 @@ void main() {
       expect(personas, isEmpty);
     });
   });
+
+  group('directorio del SIGEP', () {
+    test('se une por nombre exacto con quien ya tiene contratos', () {
+      final personas = BusquedaPersonas.unir(
+        {
+          FuentePersona.secopII: [
+            {
+              'proveedor_adjudicado': 'JUAN CARLOS BERMUDEZ CUELLO',
+              'documento_proveedor': '1234567',
+              'contratos': '3',
+            },
+          ],
+          FuentePersona.sigep: [
+            {
+              'id_sigep': 'S1-2-3',
+              'nombre': 'Juan Carlos Bermúdez Cuello',
+              'tipo': 'Servidor Público',
+              'entidad': 'ALCALDIA DE VALLEDUPAR',
+            },
+          ],
+        },
+        const ['CUELLO'],
+      );
+      expect(personas, hasLength(1));
+      expect(personas.single.contratos, 3);
+      expect(personas.single.servidorPublico, isTrue);
+      expect(personas.single.idSigep, 'S1-2-3');
+      expect(personas.single.cargoEntidad, 'ALCALDIA DE VALLEDUPAR');
+    });
+
+    test('quien solo está en el SIGEP aparece sin contratos', () {
+      final personas = BusquedaPersonas.unir(
+        {
+          FuentePersona.sigep: [
+            {
+              'id_sigep': 'S9-8-7',
+              'nombre': 'FABIAN ALBERTO CUELLO REDONDO',
+              'tipo': 'Servidor Público',
+              'entidad': 'DEFENSORIA DEL PUEBLO',
+            },
+            {
+              'id_sigep': 'S5-5-5',
+              'nombre': 'CARLOS ALBERTO CUELLO GUTIERREZ',
+              'tipo': 'Contratista',
+              'entidad': 'SERVICIO NACIONAL DE APRENDIZAJE',
+            },
+            // La búsqueda del SIGEP también coincide por entidad: se descarta.
+            {
+              'id_sigep': 'S6-6-6',
+              'nombre': 'PEDRO PEREZ',
+              'tipo': 'Servidor Público',
+              'entidad': 'FABIAN CUELLO S.A.S.',
+            },
+          ],
+        },
+        const ['CUELLO'],
+      );
+      expect(personas, hasLength(2));
+      final fabian = personas.firstWhere((p) => p.idSigep == 'S9-8-7');
+      expect(fabian.servidorPublico, isTrue);
+      expect(fabian.contratos, 0);
+      expect(fabian.fuentes, {FuentePersona.sigep});
+      final carlos = personas.firstWhere((p) => p.idSigep == 'S5-5-5');
+      expect(carlos.servidorPublico, isFalse);
+      expect(
+        carlos.cargoEntidad,
+        'Contratista · SERVICIO NACIONAL DE APRENDIZAJE',
+      );
+    });
+  });
 }

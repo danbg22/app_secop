@@ -2,9 +2,18 @@ import 'dart:async';
 
 import '../data/colombia_entities_database.dart';
 import 'datos_abiertos.dart';
+import 'directorio_sigep_service.dart';
 
 /// De dónde salió una persona encontrada.
-enum FuentePersona { secopII, secopI, servidores }
+enum FuentePersona {
+  secopII,
+  secopI,
+  servidores,
+
+  /// Directorio del SIGEP II, a través del intermediario (si está
+  /// configurado): servidores públicos y contratistas con hoja de vida.
+  sigep,
+}
 
 /// Una persona o empresa encontrada en las fuentes abiertas, ya unida entre
 /// fuentes por su documento.
@@ -20,6 +29,7 @@ class PersonaEncontrada {
     Set<FuentePersona>? fuentes,
     this.servidorPublico = false,
     this.cargoEntidad,
+    this.idSigep,
   }) : fuentes = fuentes ?? {};
 
   String nombre;
@@ -40,6 +50,9 @@ class PersonaEncontrada {
 
   /// "Cargo · Entidad" del registro de servidor público.
   String? cargoEntidad;
+
+  /// Hoja de vida en el directorio del SIGEP (p. ej. `S2876680-5794-4`).
+  String? idSigep;
 }
 
 /// Resultado de una búsqueda: las personas y si alguna fuente no respondió.
@@ -221,10 +234,29 @@ class BusquedaPersonas {
       FuentePersona.servidores: documento
           ? _servidoresPorDocumento(digitos, fresco)
           : _servidoresPorNombre(palabras, fresco),
+      // El directorio del SIGEP busca por nombre, no por documento.
+      if (!documento && DirectorioSigepService.disponible)
+        FuentePersona.sigep: DirectorioSigepService.buscar(limpia).then(
+          (personas) => [
+            for (final p in personas)
+              {
+                'id_sigep': p.id,
+                'nombre': p.nombre,
+                'tipo': p.tipo,
+                'entidad': p.entidad,
+              },
+          ],
+        ),
     };
 
     final datos = <FuentePersona, List<Map<String, dynamic>>>{};
-    final fallidas = <FuentePersona>{};
+    final fallidas = <FuentePersona>{
+      // El directorio del SIGEP está en una pausa breve tras fallar: cuenta
+      // como fuente que no respondió (la búsqueda no se guarda como
+      // completa).
+      if (!documento && DirectorioSigepService.enPausaTemporal)
+        FuentePersona.sigep,
+    };
     final avisos = StreamController<FuentePersona>();
     for (final MapEntry(key: fuente, value: consultaFuente)
         in fuentes.entries) {
@@ -345,6 +377,40 @@ class BusquedaPersonas {
       if (p == null) continue;
       p.servidorPublico = true;
       p.cargoEntidad ??= cargoEntidad(f);
+    }
+
+    // Directorio del SIGEP: no trae documento, así que se une por nombre
+    // exacto con quien ya apareció (p. ej. un servidor que también fue
+    // contratista); si no, es una persona nueva.
+    final porNombre = <String, PersonaEncontrada>{
+      for (final p in porClave.values) normalizar(p.nombre): p,
+    };
+    for (final f
+        in datos[FuentePersona.sigep] ?? const <Map<String, dynamic>>[]) {
+      final nombre = '${f['nombre'] ?? ''}'.trim();
+      final id = '${f['id_sigep'] ?? ''}';
+      if (nombre.isEmpty || id.isEmpty) continue;
+      if (palabras.isNotEmpty && !nombreCoincide(nombre, palabras)) continue;
+      final servidor = '${f['tipo'] ?? ''}'.toUpperCase().startsWith(
+        'SERVIDOR',
+      );
+      final entidad = '${f['entidad'] ?? ''}'.trim();
+      final p =
+          porNombre[normalizar(nombre)] ??
+          porClave.putIfAbsent(
+            'SIGEP:$id',
+            () => PersonaEncontrada(
+              nombre: nombre,
+              documento: '',
+              tipoDocumento: '',
+            ),
+          );
+      p.fuentes.add(FuentePersona.sigep);
+      p.idSigep ??= id;
+      if (servidor) p.servidorPublico = true;
+      if (entidad.isNotEmpty) {
+        p.cargoEntidad ??= servidor ? entidad : 'Contratista · $entidad';
+      }
     }
 
     final personas = porClave.values.toList()

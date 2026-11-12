@@ -1,0 +1,6 @@
+# Funciones de Netlify de Contrata Legal (el sitio sigue compilándose y
+# publicándose como hasta ahora).
+#   netlify/functions/sigep.mjs → /api/sigep (directorio del SIGEP)
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"

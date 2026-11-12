@@ -1,0 +1,8 @@
+# Servidor de desarrollo web (flutter run): reenvía /api/sigep al
+# intermediario local del directorio del SIGEP (tool/sigep_local.dart). Así,
+# en desarrollo, la app lo usa en su mismo dominio, igual que publicada en
+# Netlify (netlify/functions/sigep.mjs), sin reenviar otro puerto.
+server:
+  proxy:
+    - prefix: "/api/sigep"
+      target: "http://127.0.0.1:8787/"

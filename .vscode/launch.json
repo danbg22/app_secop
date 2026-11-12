@@ -1,0 +1,14 @@
+{
+  // "Run" en VS Code: enciende el intermediario local del directorio del
+  // SIGEP y luego la app (que en desarrollo lo usa sola en localhost).
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Contrata Legal",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "preLaunchTask": "Directorio SIGEP (local)"
+    }
+  ]
+}

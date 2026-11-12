@@ -1,0 +1,23 @@
+{
+  // Intermediario local del directorio del SIGEP (tool/sigep_local.dart):
+  // lo arranca "Run" antes de la app (ver launch.json).
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Directorio SIGEP (local)",
+      "type": "shell",
+      "command": "dart run tool/sigep_local.dart",
+      "isBackground": true,
+      "presentation": { "reveal": "silent", "panel": "dedicated" },
+      "problemMatcher": {
+        "owner": "sigep",
+        "pattern": { "regexp": "^__sin_problemas__$" },
+        "background": {
+          "activatesOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "escuchando en"
+        }
+      }
+    }
+  ]
+}

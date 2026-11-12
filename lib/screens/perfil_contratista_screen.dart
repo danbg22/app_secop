@@ -5,18 +5,20 @@ import 'package:intl/intl.dart';
 
 import '../services/favorites_service.dart';
 import '../services/auth_service.dart';
-import '../services/security_service.dart';
 import '../services/sigep_service.dart';
 import '../utils/anios_secop.dart';
 import '../utils/contract_financial_calculator.dart';
 import '../utils/secop_i.dart';
 import '../widgets/collapsible_side_menu.dart';
+import '../widgets/directorio_sigep.dart';
 import '../widgets/route_security_guard.dart';
 import '../widgets/user_profile_header_action.dart';
 import 'detalle_screen.dart';
 import 'home_screen.dart';
 import '../tema/cristal.dart';
 import '../services/datos_abiertos.dart';
+import '../services/directorio_sigep_service.dart';
+import '../services/busqueda_personas.dart';
 
 class PerfilContratistaScreen extends StatefulWidget {
   final String? nombreContratista;
@@ -26,6 +28,12 @@ class PerfilContratistaScreen extends StatefulWidget {
   final int? totalContractsSeed;
   final double? totalValueSeed;
 
+  /// Hoja de vida en el directorio del SIGEP, si se conoce.
+  final String? idSigep;
+
+  /// La búsqueda ya lo identificó como servidor público.
+  final bool servidorPublico;
+
   const PerfilContratistaScreen({
     super.key,
     this.nombreContratista,
@@ -34,6 +42,8 @@ class PerfilContratistaScreen extends StatefulWidget {
     this.documentoProveedor,
     this.totalContractsSeed,
     this.totalValueSeed,
+    this.idSigep,
+    this.servidorPublico = false,
   }) : assert(nombreContratista != null || nombreBuscado != null);
 
   @override
@@ -49,6 +59,14 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
   bool _perfilFavoritoGuardado = false;
   Set<String> _contratosFavoritosIds = {};
   bool? esServidorPublico;
+
+  /// Hoja de vida oficial en el SIGEP (la publica el conjunto de personas
+  /// expuestas políticamente).
+  Uri? _hojaDeVidaSigep;
+
+  /// Hoja de vida leída del directorio del SIGEP (con intermediario).
+  HojaDeVidaSigep? _hojaSigep;
+  bool _cargandoHojaSigep = false;
   String? errorSigep;
   String? errorCarga;
   double valorTotalAcumulado = 0;
@@ -131,10 +149,194 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.servidorPublico) esServidorPublico = true;
     _cargarEstadoFavorito();
     _cargarFavoritosContratosLocales();
     _cargarHistorialContratista();
     _consultarSigep();
+    _cargarHojaSigep();
+  }
+
+  /// Trae la hoja de vida del directorio del SIGEP: por su identificador si
+  /// llegó desde la búsqueda, o buscando el nombre exacto (un servidor que
+  /// también fue contratista). Solo con el intermediario configurado.
+  Future<void> _cargarHojaSigep() async {
+    if (!DirectorioSigepService.disponible) return;
+    setState(() => _cargandoHojaSigep = true);
+    try {
+      var id = widget.idSigep;
+      var esServidor = false;
+      if (id == null) {
+        final buscado = BusquedaPersonas.normalizar(_nombreAuditar);
+        final coincidencias = (await DirectorioSigepService.buscar(
+          _nombreAuditar,
+        )).where((p) => BusquedaPersonas.normalizar(p.nombre) == buscado);
+        // Con homónimos exactos no se adivina.
+        if (coincidencias.length == 1) {
+          id = coincidencias.single.id;
+          esServidor = coincidencias.single.esServidorPublico;
+        }
+      }
+      final hoja = id == null
+          ? null
+          : await DirectorioSigepService.hojaDeVida(id);
+      if (!mounted) return;
+      setState(() {
+        _hojaSigep = hoja;
+        if (hoja != null) {
+          _hojaDeVidaSigep = hoja.enlace;
+          // Cargo vigente que no es de contratista: servidor público.
+          final cargoVigente = hoja.experiencia.any(
+            (c) =>
+                c.fin.toUpperCase() == 'ACTUAL' &&
+                !c.cargo.toUpperCase().contains('CONTRATISTA'),
+          );
+          if (esServidor || cargoVigente) esServidorPublico = true;
+        }
+      });
+    } catch (_) {
+      // Sin hoja de vida: el perfil sigue con lo de SECOP.
+    } finally {
+      if (mounted) setState(() => _cargandoHojaSigep = false);
+    }
+  }
+
+  /// Hoja de vida pública del SIGEP: cargo actual, formación y experiencia.
+  Widget _buildHojaSigep(bool isMobile) {
+    final hoja = _hojaSigep;
+    if (hoja == null) {
+      return _cargandoHojaSigep
+          ? const Padding(
+              padding: EdgeInsets.only(bottom: 16),
+              child: LinearProgressIndicator(minHeight: 2),
+            )
+          : const SizedBox.shrink();
+    }
+    const etiqueta = TextStyle(
+      color: Cristal.textoSuave,
+      fontSize: 11.5,
+      fontWeight: FontWeight.w800,
+      letterSpacing: 0.4,
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: PanelCristal(
+        padding: EdgeInsets.all(isMobile ? 16 : 22),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.badge_outlined, color: Cristal.dorado),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    'Hoja de vida en el SIGEP',
+                    style: TextStyle(
+                      color: Cristal.texto,
+                      fontSize: 16.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () => DirectorioSigep.abrirHojaDeVida(hoja.enlace),
+                  icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                  label: const Text('Ver en el SIGEP'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            const Text(
+              'Información pública del directorio de Función Pública.',
+              style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
+            ),
+            const SizedBox(height: 14),
+            if (hoja.cargo.isNotEmpty) ...[
+              const Text('CARGO ACTUAL', style: etiqueta),
+              const SizedBox(height: 4),
+              Text(
+                [
+                  hoja.cargo,
+                  if (hoja.entidad.isNotEmpty) hoja.entidad,
+                  if (hoja.dependencia.isNotEmpty) hoja.dependencia,
+                ].join(' · '),
+                style: const TextStyle(
+                  color: Cristal.texto,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
+            if (hoja.formacion.isNotEmpty) ...[
+              const Text('FORMACIÓN ACADÉMICA', style: etiqueta),
+              const SizedBox(height: 6),
+              for (final f in hoja.formacion)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    '•  $f',
+                    style: const TextStyle(
+                      color: Cristal.textoCuerpo,
+                      fontSize: 13,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 10),
+            ],
+            if (hoja.experiencia.isNotEmpty) ...[
+              const Text('EXPERIENCIA LABORAL', style: etiqueta),
+              const SizedBox(height: 6),
+              for (final c in hoja.experiencia)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              c.cargo,
+                              style: const TextStyle(
+                                color: Cristal.texto,
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            Text(
+                              c.entidad,
+                              style: const TextStyle(
+                                color: Cristal.textoMedio,
+                                fontSize: 12.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        '${c.inicio} – ${c.fin}',
+                        style: TextStyle(
+                          color: c.fin.toUpperCase() == 'ACTUAL'
+                              ? Cristal.verde
+                              : Cristal.textoSuave,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   String _toTitleCase(String text) {
@@ -180,16 +382,49 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
       );
       if (!mounted) return;
       setState(() {
-        esServidorPublico = resultado != null;
+        // Datos Abiertos no trae a todos los servidores: no figurar ahí no
+        // quita lo que ya mostró la búsqueda o el directorio del SIGEP.
+        esServidorPublico = esServidorPublico == true || resultado != null;
+        _hojaDeVidaSigep =
+            DirectorioSigep.hojaDeVida(resultado?['enlace_hoja_vida_sigep']) ??
+            _hojaDeVidaSigep;
         errorSigep = null;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        esServidorPublico = false;
+        esServidorPublico ??= false;
         errorSigep = null;
       });
     }
+  }
+
+  /// La píldora del SIGEP como acción: abre la hoja de vida oficial si la
+  /// hay, o la búsqueda del nombre en el directorio del SIGEP. Datos Abiertos no
+  /// trae a todos los servidores públicos: "no figura" no significa que no
+  /// lo sea.
+  Widget _accionSigep(Widget pildora) {
+    final hojaDeVida = _hojaDeVidaSigep;
+    final esServidor = esServidorPublico == true;
+    if (esServidor && hojaDeVida == null) return pildora;
+    return Tooltip(
+      message: esServidor
+          ? 'Abrir su hoja de vida en el SIGEP (Función Pública)'
+          : 'No figura como servidor público en Datos Abiertos, que solo trae '
+                'a los de alto nivel y a quienes declaran bienes y rentas. '
+                'Abre su búsqueda en el directorio completo del SIGEP.',
+      child: InkWell(
+        hoverDuration: Cristal.micro,
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => hojaDeVida != null
+            ? DirectorioSigep.abrirHojaDeVida(hojaDeVida)
+            : DirectorioSigep.buscar(
+                context,
+                widget.nombreContratista ?? _nombreAuditar,
+              ),
+        child: pildora,
+      ),
+    );
   }
 
   Future<void> _cargarEstadoFavorito() async {
@@ -345,27 +580,32 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
         lista.forEach(addContractIfNew);
       }
 
-      // Fallback tolerante por palabras del nombre si SECOP II no encontró nada
+      // Si SECOP II no encontró nada por documento ni por nombre exacto:
+      // todas las palabras del nombre, en cualquier orden y sin importar
+      // tildes, con el índice de texto completo (un LIKE por palabra sin
+      // índice tardaba segundos o se agotaba).
       if (allContracts.isEmpty && _nombreAuditar.isNotEmpty) {
-        final tokens = SecurityService.sanitizeSoqlToken(
-          _nombreAuditar
-              .toUpperCase()
-              .replaceAll('Á', 'A')
-              .replaceAll('É', 'E')
-              .replaceAll('Í', 'I')
-              .replaceAll('Ó', 'O')
-              .replaceAll('Ú', 'U'),
-          maxLength: 100,
-        ).split(RegExp(r'\s+')).where((w) => w.length >= 2).take(6).toList();
-        if (tokens.isNotEmpty) {
-          final fallback = await consultar('jbjy-vk9h', {
-            r'$where': tokens
-                .map((t) => "upper(proveedor_adjudicado) LIKE '%$t%'")
-                .join(' AND '),
-            r'$order': 'fecha_de_firma DESC',
+        final palabras = BusquedaPersonas.tokens(_nombreAuditar);
+        final q = BusquedaPersonas.textoCompleto(palabras);
+        if (q.isNotEmpty) {
+          final porPalabras = await consultar('jbjy-vk9h', {
+            r'$select': _camposHistorial,
+            r'$q': q,
+            r'$where': BusquedaPersonas.whereTodasLasPalabras(
+              'proveedor_adjudicado',
+              palabras,
+            ),
             r'$limit': '2000',
           });
-          fallback.forEach(addContractIfNew);
+          for (final c in porPalabras) {
+            if (c is Map &&
+                BusquedaPersonas.nombreCoincide(
+                  '${c['proveedor_adjudicado'] ?? ''}',
+                  palabras,
+                )) {
+              addContractIfNew(c);
+            }
+          }
         }
       }
 
@@ -597,73 +837,81 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                   runSpacing: 6,
                   children: [
                     // Pill 1: Contratista (SECOP)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Cristal.verdeVidrio,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.check_circle,
-                            size: 14,
-                            color: Cristal.verde,
-                          ),
-                          SizedBox(width: 5),
-                          Text(
-                            'Contratista (SECOP)',
-                            style: TextStyle(
+                    // Solo si tiene contratos en SECOP (o mientras se consultan).
+                    if (isLoading || cantidadContratos > 0)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Cristal.verdeVidrio,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.check_circle,
+                              size: 14,
                               color: Cristal.verde,
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
                             ),
-                          ),
-                        ],
+                            SizedBox(width: 5),
+                            Text(
+                              'Contratista (SECOP)',
+                              style: TextStyle(
+                                color: Cristal.verde,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
                     // Pill 2: Estado SIGEP
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: esServidorPublico == true
-                            ? Cristal.ambarVidrio
-                            : Cristal.vidrioSuave,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            esServidorPublico == true
-                                ? Icons.verified_user_outlined
-                                : Icons.info_outline,
-                            size: 14,
-                            color: esServidorPublico == true
-                                ? Cristal.ambar
-                                : Cristal.textoMedio,
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            esServidorPublico == true
-                                ? 'Servidor Público (SIGEP)'
-                                : 'No registra en SIGEP',
-                            style: TextStyle(
+                    _accionSigep(
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: esServidorPublico == true
+                              ? Cristal.ambarVidrio
+                              : Cristal.vidrioSuave,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              esServidorPublico == true
+                                  ? Icons.verified_user_outlined
+                                  : Icons.travel_explore_rounded,
+                              size: 14,
                               color: esServidorPublico == true
                                   ? Cristal.ambar
                                   : Cristal.textoMedio,
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 5),
+                            Text(
+                              esServidorPublico == true
+                                  ? (_hojaDeVidaSigep != null
+                                        ? 'Servidor Público · ver hoja de vida'
+                                        : 'Servidor Público (SIGEP)')
+                                  : (_hojaDeVidaSigep != null
+                                        ? 'Hoja de vida en el SIGEP'
+                                        : 'Buscar en el directorio SIGEP'),
+                              style: TextStyle(
+                                color: esServidorPublico == true
+                                    ? Cristal.ambar
+                                    : Cristal.textoMedio,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -717,73 +965,81 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                         runSpacing: 8,
                         children: [
                           // Pill 1: Contratista (SECOP)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Cristal.verdeVidrio,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.check_circle,
-                                  size: 16,
-                                  color: Cristal.verde,
-                                ),
-                                SizedBox(width: 7),
-                                Text(
-                                  'Contratista (SECOP)',
-                                  style: TextStyle(
+                          // Solo si tiene contratos en SECOP (o mientras se consultan).
+                          if (isLoading || cantidadContratos > 0)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Cristal.verdeVidrio,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.check_circle,
+                                    size: 16,
                                     color: Cristal.verde,
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w700,
                                   ),
-                                ),
-                              ],
+                                  SizedBox(width: 7),
+                                  Text(
+                                    'Contratista (SECOP)',
+                                    style: TextStyle(
+                                      color: Cristal.verde,
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
                           // Pill 2: Estado SIGEP
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: esServidorPublico == true
-                                  ? Cristal.ambarVidrio
-                                  : Cristal.vidrioSuave,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  esServidorPublico == true
-                                      ? Icons.verified_user_outlined
-                                      : Icons.info_outline,
-                                  size: 16,
-                                  color: esServidorPublico == true
-                                      ? Cristal.ambar
-                                      : Cristal.textoMedio,
-                                ),
-                                const SizedBox(width: 7),
-                                Text(
-                                  esServidorPublico == true
-                                      ? 'Servidor Público (SIGEP)'
-                                      : 'No registra en SIGEP',
-                                  style: TextStyle(
+                          _accionSigep(
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: esServidorPublico == true
+                                    ? Cristal.ambarVidrio
+                                    : Cristal.vidrioSuave,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    esServidorPublico == true
+                                        ? Icons.verified_user_outlined
+                                        : Icons.travel_explore_rounded,
+                                    size: 16,
                                     color: esServidorPublico == true
                                         ? Cristal.ambar
                                         : Cristal.textoMedio,
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w600,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 7),
+                                  Text(
+                                    esServidorPublico == true
+                                        ? (_hojaDeVidaSigep != null
+                                              ? 'Servidor Público · ver hoja de vida'
+                                              : 'Servidor Público (SIGEP)')
+                                        : (_hojaDeVidaSigep != null
+                                              ? 'Hoja de vida en el SIGEP'
+                                              : 'Buscar en el directorio SIGEP'),
+                                    style: TextStyle(
+                                      color: esServidorPublico == true
+                                          ? Cristal.ambar
+                                          : Cristal.textoMedio,
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ],
@@ -1281,6 +1537,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                     SizedBox(height: isMobile ? 16 : 22),
                     _buildContractorIdentityCard(isMobile),
                     const SizedBox(height: 16),
+                    _buildHojaSigep(isMobile),
                     _buildKpiSummaryRow(isMobile),
                     const SizedBox(height: 24),
                     Column(
