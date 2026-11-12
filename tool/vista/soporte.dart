@@ -53,9 +53,14 @@ Widget appCristal(Widget home) => MaterialApp(
 );
 
 /// Fija el tamaño de la ventana de la captura.
-void ventana(WidgetTester tester, double ancho, double alto) {
-  tester.view.physicalSize = Size(ancho, alto);
-  tester.view.devicePixelRatio = 1;
+void ventana(
+  WidgetTester tester,
+  double ancho,
+  double alto, {
+  double escala = 1,
+}) {
+  tester.view.physicalSize = Size(ancho * escala, alto * escala);
+  tester.view.devicePixelRatio = escala;
   addTearDown(tester.view.reset);
 }
 

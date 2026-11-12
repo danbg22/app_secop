@@ -7,10 +7,12 @@ import 'package:flutter/material.dart';
 /// hacia arriba y hacia abajo), para que se perciba a través de los paneles
 /// de vidrio sin competir con el texto.
 ///
-/// La foto y sus fundidos se pintan en una sola capa recortada a la caja.
-/// (Con `ShaderMask` sobre la imagen, el navegador dejaba ver una fila de
-/// píxeles sin fundir en el borde inferior: una raya a lo ancho de la
-/// pantalla.)
+/// La foto y sus fundidos se pintan en una sola capa recortada a la caja, y
+/// los fundidos cubren toda la capa (`drawPaint`), sin borde propio. Con una
+/// máscara del tamaño de la caja (`ShaderMask` o `drawRect`), cuando el borde
+/// caía en medio píxel (escala de pantalla de 125 %) el suavizado dejaba esa
+/// fila medio enmascarada: pasaba la mitad de la foto opaca y se veía una
+/// raya clara a lo ancho de la pantalla.
 class FotoAmbiente extends StatefulWidget {
   const FotoAmbiente({
     super.key,
@@ -171,8 +173,7 @@ class _PintorFoto extends CustomPainter {
       filterQuality: FilterQuality.medium,
     );
     // Fundido horizontal: transparente a la izquierda.
-    canvas.drawRect(
-      caja,
+    canvas.drawPaint(
       Paint()
         ..blendMode = BlendMode.dstIn
         ..shader = LinearGradient(
@@ -186,8 +187,7 @@ class _PintorFoto extends CustomPainter {
     );
     // Fundido vertical.
     if (fundidoInferior > 0 || fundidoSuperior > 0) {
-      canvas.drawRect(
-        caja,
+      canvas.drawPaint(
         Paint()
           ..blendMode = BlendMode.dstIn
           ..shader = LinearGradient(
