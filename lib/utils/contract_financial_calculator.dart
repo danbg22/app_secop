@@ -549,9 +549,6 @@ class ContractFieldCatalog {
         ),
         ('identific_representante_legal', 'Documento del representante'),
         ('nacionalidad_representante_legal', 'Nacionalidad del representante'),
-        ('domicilio_representante_legal', 'Domicilio del representante'),
-        ('g_nero_representante_legal', 'Género del representante'),
-        ('genero_representante_legal', 'Género del representante'),
         ('nombre_del_banco', 'Banco'),
         ('tipo_de_cuenta', 'Tipo de cuenta'),
       ],
@@ -635,6 +632,18 @@ class ContractFieldCatalog {
     'descripcion_del_proceso',
     'urlproceso',
     'ruta_proceso_en_secop_i',
+    ..._datosPersonalesOcultos,
+  };
+
+  /// Datos personales que SECOP publica pero la app no muestra (principio de
+  /// finalidad, Ley 1581 de 2012): para la transparencia del contrato basta
+  /// con el nombre y la identificación; la dirección de residencia y el
+  /// género de la persona no aportan al control social.
+  static const Set<String> _datosPersonalesOcultos = {
+    'domicilio_representante_legal',
+    'g_nero_representante_legal',
+    'genero_representante_legal',
+    'sexo_replegal',
   };
 
   static const Set<String> _moneyHints = {

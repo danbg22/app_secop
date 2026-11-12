@@ -13,6 +13,7 @@ import '../utils/pdf_unificado.dart';
 import '../utils/realtime_tab_bridge.dart';
 import 'archivo_fragmentado.dart';
 import 'auth_service.dart';
+import 'consent_service.dart';
 import 'equipo_juridico_service.dart';
 import 'security_service.dart';
 import 'supervision_service.dart';
@@ -1577,12 +1578,21 @@ class JuridicoContratacionService {
     return actualizado;
   }
 
-  /// Valida el ingreso del contratista invitado solicitando únicamente nombre completo y cédula.
+  /// Valida el ingreso del contratista invitado solicitando únicamente nombre
+  /// completo y cédula, con su autorización de tratamiento de datos (Ley 1581
+  /// de 2012): la primera vez que acepta cada versión de la política queda
+  /// registrada en la trazabilidad del contrato como evidencia.
   static Future<ExpedienteContratoPs> validarEIngresarContratistaInvitado({
     required String tokenInvitado,
     required String nombreCompleto,
     required String cedula,
+    required bool autorizaTratamientoDatos,
   }) async {
+    if (!autorizaTratamientoDatos) {
+      throw ArgumentError(
+        'Para ingresar debes autorizar el tratamiento de tus datos personales.',
+      );
+    }
     final exp = await obtenerExpedientePorTokenInvitado(tokenInvitado);
     if (exp == null) {
       throw ArgumentError(
@@ -1633,6 +1643,30 @@ class JuridicoContratacionService {
           'Acceso validado con cédula $cleanCedula en el contrato ${exp.numeroContrato}.',
     );
 
+    final actorRol = 'Contratista (CC $cleanCedula)';
+    final marcaPolitica =
+        'Política de datos versión ${ConsentService.versionPolitica}';
+    final yaAutorizo = exp.trazabilidad.any(
+      (e) =>
+          e.tipo == 'AUTORIZACION_DATOS' &&
+          e.actorRol == actorRol &&
+          e.detalle.contains(marcaPolitica),
+    );
+    final eventoAutorizacion = yaAutorizo
+        ? null
+        : EventoTrazabilidadContrato(
+            id: 'EVT-${SecurityService.generateSecureTokenHex(6)}',
+            fechaIso: ahoraIso,
+            tipo: 'AUTORIZACION_DATOS',
+            actorNombre: cleanNombre,
+            actorRol: actorRol,
+            titulo: 'Autorizó el tratamiento de sus datos personales',
+            detalle:
+                '$marcaPolitica. Autorización previa, expresa e informada '
+                '(Ley 1581 de 2012) dada al ingresar al enlace del contrato '
+                '${exp.numeroContrato}.',
+          );
+
     final actualizado = exp.copyWith(
       contratistaNombreEsperado: exp.contratistaNombreEsperado.isEmpty
           ? cleanNombre
@@ -1643,6 +1677,7 @@ class JuridicoContratacionService {
       actualizadoEnMs: ahoraMs,
       trazabilidad: <EventoTrazabilidadContrato>[
         eventoIngreso,
+        ?eventoAutorizacion,
         ...exp.trazabilidad,
       ],
     );

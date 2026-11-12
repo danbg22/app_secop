@@ -10,16 +10,69 @@ import '../tema/cristal.dart';
 /// jurídico. Su cuenta la creó el titular del equipo, así que nunca pasaron
 /// por la aceptación del registro (Ley 1581 de 2012, Decreto 1377 de 2013):
 /// sin aceptarla no se activa el acceso al equipo.
-class ConsentimientoEquipoScreen extends StatefulWidget {
+class ConsentimientoEquipoScreen extends StatelessWidget {
   const ConsentimientoEquipoScreen({super.key});
 
   @override
-  State<ConsentimientoEquipoScreen> createState() =>
-      _ConsentimientoEquipoScreenState();
+  Widget build(BuildContext context) {
+    final equipo =
+        EquipoJuridicoService.membresia.value?.masterNombre ??
+        'El titular de tu equipo';
+    return ConsentimientoDatosScreen(
+      titulo: 'Bienvenido(a) al equipo jurídico',
+      mensaje:
+          '$equipo te agregó a su equipo en Contrata Legal. Antes de '
+          'empezar necesitamos tu autorización para tratar tus datos personales.',
+      textoBoton: 'Aceptar y entrar al equipo',
+      alAceptar: EquipoJuridicoService.aceptarPoliticaDatos,
+    );
+  }
 }
 
-class _ConsentimientoEquipoScreenState
-    extends State<ConsentimientoEquipoScreen> {
+/// Autorización de tratamiento de datos de quien ya inició sesión y no la
+/// ha dado para la versión vigente de la política: cuentas creadas con
+/// Google o Apple, o antes de un cambio de la política.
+class ConsentimientoUsuarioScreen extends StatelessWidget {
+  const ConsentimientoUsuarioScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const ConsentimientoDatosScreen(
+      titulo: 'Tu autorización de datos personales',
+      mensaje:
+          'Antes de seguir usando Contrata Legal necesitamos tu autorización '
+          'para tratar tus datos personales (Ley 1581 de 2012). Lee la '
+          'política: explica qué datos tratamos, para qué y cómo ejercer tus '
+          'derechos.',
+      textoBoton: 'Aceptar y continuar',
+      alAceptar: ConsentService.aceptarUsuarioActual,
+    );
+  }
+}
+
+/// Pantalla de autorización: la política vigente, la casilla y el registro
+/// de la evidencia con [alAceptar]. AuthGate pasa al panel en cuanto queda
+/// registrada.
+class ConsentimientoDatosScreen extends StatefulWidget {
+  const ConsentimientoDatosScreen({
+    super.key,
+    required this.titulo,
+    required this.mensaje,
+    required this.textoBoton,
+    required this.alAceptar,
+  });
+
+  final String titulo;
+  final String mensaje;
+  final String textoBoton;
+  final Future<void> Function() alAceptar;
+
+  @override
+  State<ConsentimientoDatosScreen> createState() =>
+      _ConsentimientoDatosScreenState();
+}
+
+class _ConsentimientoDatosScreenState extends State<ConsentimientoDatosScreen> {
   bool _acepta = false;
   bool _guardando = false;
   String? _error;
@@ -30,8 +83,7 @@ class _ConsentimientoEquipoScreenState
       _error = null;
     });
     try {
-      // AuthGate pasa al panel en cuanto queda registrada la aceptación.
-      await EquipoJuridicoService.aceptarPoliticaDatos();
+      await widget.alAceptar();
     } catch (_) {
       if (mounted) {
         setState(
@@ -55,9 +107,6 @@ class _ConsentimientoEquipoScreenState
   @override
   Widget build(BuildContext context) {
     final mobile = MediaQuery.sizeOf(context).width < 640;
-    final equipo =
-        EquipoJuridicoService.membresia.value?.masterNombre ??
-        'El titular de tu equipo';
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -78,7 +127,7 @@ class _ConsentimientoEquipoScreenState
                     const Center(child: ContrataLegalHdLogo(height: 52)),
                     const SizedBox(height: 26),
                     Text(
-                      'Bienvenido(a) al equipo jurídico',
+                      widget.titulo,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Cristal.texto,
@@ -89,8 +138,7 @@ class _ConsentimientoEquipoScreenState
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      '$equipo te agregó a su equipo en Contrata Legal. Antes de '
-                      'empezar necesitamos tu autorización para tratar tus datos personales.',
+                      widget.mensaje,
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: Cristal.textoMedio,
@@ -125,7 +173,7 @@ class _ConsentimientoEquipoScreenState
                             ),
                             const SizedBox(height: 12),
                             ConstrainedBox(
-                              constraints: const BoxConstraints(maxHeight: 300),
+                              constraints: const BoxConstraints(maxHeight: 340),
                               child: const SingleChildScrollView(
                                 child: Text(
                                   ConsentService.textoPolitica,
@@ -147,8 +195,7 @@ class _ConsentimientoEquipoScreenState
                               contentPadding: EdgeInsets.zero,
                               activeColor: Cristal.acento,
                               title: const Text(
-                                'Autorizo de forma previa, expresa e informada el tratamiento '
-                                'de mis datos personales según esta política.',
+                                ConsentService.textoCasilla,
                                 style: TextStyle(
                                   color: Cristal.texto,
                                   fontSize: 13.8,
@@ -188,9 +235,9 @@ class _ConsentimientoEquipoScreenState
                                           color: Cristal.texto,
                                         ),
                                       )
-                                    : const Text(
-                                        'Aceptar y entrar al equipo',
-                                        style: TextStyle(
+                                    : Text(
+                                        widget.textoBoton,
+                                        style: const TextStyle(
                                           fontSize: 15,
                                           fontWeight: FontWeight.w800,
                                         ),

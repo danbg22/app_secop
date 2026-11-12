@@ -8,6 +8,7 @@ import 'screens/pasarela_pago_wompi_screen.dart';
 import 'screens/portada_screen.dart';
 import 'screens/portal_contratista_invitado_screen.dart';
 import 'services/auth_service.dart';
+import 'services/consent_service.dart';
 import 'services/equipo_juridico_service.dart';
 import 'services/juridico_contratacion_service.dart';
 
@@ -25,9 +26,12 @@ class AuthGate extends StatelessWidget {
       }
     }
 
-    return ValueListenableBuilder<int>(
-      valueListenable: AuthService.authStateVersion,
-      builder: (context, _, _) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        AuthService.authStateVersion,
+        ConsentService.cambios,
+      ]),
+      builder: (context, _) {
         return StreamBuilder<User?>(
           stream: FirebaseAuth.instance.userChanges(),
           builder: (context, snapshot) {
@@ -39,6 +43,21 @@ class AuthGate extends StatelessWidget {
             }
 
             if (snapshot.hasData || AuthService.hasActiveSession) {
+              // Autorización de tratamiento de datos (Ley 1581 de 2012):
+              // nadie entra a la app sin haber aceptado la versión vigente de
+              // la política. El abogado de un equipo ve la versión con el
+              // nombre del equipo que lo agregó.
+              if (EquipoJuridicoService.consentimientoPendiente) {
+                return const ConsentimientoEquipoScreen();
+              }
+              if (ConsentService.verificando) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
+              if (ConsentService.pendiente) {
+                return const ConsentimientoUsuarioScreen();
+              }
               // Bloqueo de ciberseguridad estricto: ninguna cuenta registrada
               // sin pago aprobado en Wompi puede entrar al panel principal,
               // ni devolviéndose con el botón Atrás ni recargando la URL.
@@ -47,11 +66,6 @@ class AuthGate extends StatelessWidget {
                   rolId: AuthService.getPendingRegistrationRoleId(),
                   esFlujoRegistro: true,
                 );
-              }
-              // Abogado de un equipo que aún no autoriza el tratamiento de
-              // sus datos: debe aceptarlo antes de entrar (Ley 1581 de 2012).
-              if (EquipoJuridicoService.consentimientoPendiente) {
-                return const ConsentimientoEquipoScreen();
               }
               return const MainDashboard();
             }

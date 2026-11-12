@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../services/consent_service.dart';
 import '../services/juridico_contratacion_service.dart';
 import '../utils/document_file_picker.dart';
 import 'supervision/informes_contratista_view.dart';
@@ -33,6 +34,10 @@ class _PortalContratistaInvitadoScreenState
   bool _cargando = true;
   bool _accesoValidado = false;
   bool _validandoIngreso = false;
+
+  /// Autorización de tratamiento de datos (Ley 1581 de 2012): sin ella no
+  /// se ingresa al contrato.
+  bool _autorizaDatos = false;
   String? _apartadoSubiendoId;
   String? _mensajeErrorIngreso;
   bool _trazabilidadAbierta = true;
@@ -111,6 +116,7 @@ class _PortalContratistaInvitadoScreenState
             tokenInvitado: exp.tokenInvitado,
             nombreCompleto: _nombreController.text,
             cedula: _cedulaController.text,
+            autorizaTratamientoDatos: _autorizaDatos,
           );
       if (!mounted) return;
       setState(() {
@@ -470,6 +476,9 @@ class _PortalContratistaInvitadoScreenState
                   ),
                 ),
 
+                const SizedBox(height: 14),
+                _casillaAutorizacionDatos(),
+
                 if (_mensajeErrorIngreso != null) ...[
                   const SizedBox(height: 12),
                   Container(
@@ -495,7 +504,9 @@ class _PortalContratistaInvitadoScreenState
                 const SizedBox(height: 20),
 
                 FilledButton(
-                  onPressed: _validandoIngreso ? null : _ingresarAlContrato,
+                  onPressed: _validandoIngreso || !_autorizaDatos
+                      ? null
+                      : _ingresarAlContrato,
                   style: FilledButton.styleFrom(
                     backgroundColor: Cristal.acento,
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -514,6 +525,123 @@ class _PortalContratistaInvitadoScreenState
         ),
       ),
     );
+  }
+
+  /// Casilla de autorización del tratamiento de datos, con la política a
+  /// un toque. Quien ingresa la marca cada vez: no se presume aceptada.
+  Widget _casillaAutorizacionDatos() {
+    // Material (no Container con color) para que la casilla muestre su
+    // efecto al tocarla.
+    return Material(
+      color: Cristal.campo,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: const BorderSide(color: Cristal.borde),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(4, 6, 12, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CheckboxListTile(
+              value: _autorizaDatos,
+              onChanged: _validandoIngreso
+                  ? null
+                  : (v) => setState(() {
+                      _autorizaDatos = v ?? false;
+                      if (_autorizaDatos) _mensajeErrorIngreso = null;
+                    }),
+              controlAffinity: ListTileControlAffinity.leading,
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              activeColor: Cristal.acento,
+              title: const Text(
+                ConsentService.textoCasilla,
+                style: TextStyle(
+                  color: Cristal.texto,
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+              ),
+              subtitle: const Padding(
+                padding: EdgeInsets.only(top: 4),
+                child: Text(
+                  'Incluye tu cédula, dirección, celular, cuenta bancaria y los '
+                  'documentos del contrato, que verá el equipo jurídico que te '
+                  'envió este enlace.',
+                  style: TextStyle(
+                    color: Cristal.textoSuave,
+                    fontSize: 12,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 12),
+              child: TextButton.icon(
+                onPressed: _verPoliticaDatos,
+                icon: const Icon(Icons.policy_outlined, size: 17),
+                label: const Text(
+                  'Leer la política de datos',
+                  style: TextStyle(fontSize: 12.8, fontWeight: FontWeight.w700),
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: Cristal.acentoClaro,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _verPoliticaDatos() async {
+    final acepta = await mostrarDialogoCristal<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(
+          'Política de privacidad y tratamiento de datos personales',
+          style: TextStyle(
+            color: Cristal.texto,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560, maxHeight: 440),
+          child: const SingleChildScrollView(
+            child: Text(
+              ConsentService.textoPolitica,
+              style: TextStyle(
+                color: Cristal.textoCuerpo,
+                fontSize: 13.5,
+                height: 1.5,
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cerrar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: Cristal.acento),
+            child: const Text('Autorizo'),
+          ),
+        ],
+      ),
+    );
+    if (acepta == true && mounted) {
+      setState(() {
+        _autorizaDatos = true;
+        _mensajeErrorIngreso = null;
+      });
+    }
   }
 
   /// Paso 2: Vista limpia de cargue y subsanación de documentos del contratista.

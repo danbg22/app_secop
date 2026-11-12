@@ -249,6 +249,7 @@ class AuthService {
     // (incluido el acceso de administrador) en toda la app.
     _auth.authStateChanges().listen((_) => authStateVersion.value++);
     EquipoJuridicoService.iniciar();
+    ConsentService.iniciar();
     unawaited(
       _auth.authStateChanges().first.then((_) => refrescarVerificacionCorreo()),
     );
