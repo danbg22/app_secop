@@ -11,6 +11,7 @@ void main() {
   for (final consulta in [
     'fabian cuello',
     'cuello fabian',
+    'fabian cuel',
     'muñoz',
     'nunez',
     'sandra erazo',

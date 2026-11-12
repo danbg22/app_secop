@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../utils/secop_i.dart';
 import 'security_service.dart';
+import '../utils/nit.dart';
 
 /// Entidad con procesos publicados en SECOP I. Las entidades de régimen
 /// especial (p. ej. universidades públicas, Ley 30 de 1992) no publican en
@@ -105,12 +106,12 @@ class SecopIProcesosService {
 
     final nombres = <String>{};
     if (tokens.isNotEmpty) {
+      // Sin orden en el servidor: con texto completo ($q) lo vuelve lento.
       final candidatos = await _consultar({
         r'$select': 'nombre_entidad,count(*) as n',
         r'$q': tokens.join(' '),
         r'$group': 'nombre_entidad',
-        r'$order': 'n DESC',
-        r'$limit': '50',
+        r'$limit': '200',
       });
       for (final c in candidatos.whereType<Map>()) {
         final nombre = (c['nombre_entidad'] ?? '').toString();
@@ -119,9 +120,12 @@ class SecopIProcesosService {
       }
     }
 
+    // SECOP I guarda el NIT con guion y dígito de verificación
+    // ("892300285-6"); se consultan todas sus formas.
     final nits = nitsCatalogo
         .map((n) => n.replaceAll(RegExp(r'[^0-9]'), ''))
         .where((n) => n.length >= 8)
+        .expand(Nit.formas)
         .toSet();
     if (nombres.isEmpty && nits.isEmpty) return const [];
 

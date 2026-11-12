@@ -7,10 +7,12 @@ import 'package:flutter/material.dart';
 import '../../data/colombia_entities_database.dart';
 import '../../data/logos_entidades.dart';
 import '../../services/auth_service.dart';
+import '../../services/busqueda_personas.dart';
 import '../../services/secop_i_procesos_service.dart';
 import '../../services/security_service.dart';
 import '../../utils/anios_secop.dart';
 import '../../utils/app_scroll_behavior.dart';
+import '../../utils/nit.dart';
 import '../../widgets/user_profile_header_action.dart';
 import '../perfil_entidad_screen.dart';
 import '../procesos_secop_i_screen.dart';
@@ -504,13 +506,19 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     String condicion, {
     required bool soloVigencia,
     int limite = 20,
+    String? textoCompleto,
   }) {
     return _consultarSecop({
+      // Con texto completo ($q) no se ordena en el servidor (lo vuelve
+      // lento); quien llama ordena.
+      if (textoCompleto != null && textoCompleto.isNotEmpty)
+        r'$q': textoCompleto
+      else
+        r'$order': 'total_valor DESC',
       r'$select': _selectAgregadoEntidad,
       r'$where':
           '$_filtroValorValido AND ${_filtroPeriodo(soloVigencia: soloVigencia)} AND ($condicion)',
       r'$group': _groupAgregadoEntidad,
-      r'$order': 'total_valor DESC',
       r'$limit': '$limite',
     });
   }
@@ -633,6 +641,17 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       }
       return tokens.every((t) => searchable.contains(t));
     }).toList();
+  }
+
+  /// Búsqueda explícita (Enter o "Buscar").
+  void _buscarEntidades() {
+    _searchDebounce?.cancel();
+    if (_searchController.text.trim().isEmpty) {
+      _mostrarRankingNacional();
+      return;
+    }
+    setState(() => _isLoadingLive = true);
+    _runFastEntitiesQuery(forceRefresh: true);
   }
 
   void _onSearchChanged(String value) {
@@ -937,46 +956,58 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     };
     final tokens = SecurityService.sanitizeSoqlToken(clean, maxLength: 100)
         .split(RegExp(r'\s+'))
-        .map((t) => t.replaceAll(RegExp(r'[^A-Z0-9Ñ]'), ''))
+        .map(
+          (t) =>
+              BusquedaPersonas.normalizar(t)
+                  .replaceAll(RegExp(r'[^A-Z0-9]'), ''),
+        )
         .where((t) => t.length >= 2 && !conectores.contains(t))
         .take(5)
         .toList();
-
-    // Siglas y nombres conocidos ("SENA", "UIS", "ICBF") se traducen al NIT
-    // con el catálogo; el texto se busca en el nombre registrado en SECOP.
+    // Siglas y nombres conocidos ("SENA", "UIS", "UPC") se traducen al NIT
+    // con el catálogo, en las formas en que SECOP lo guarda (con y sin
+    // dígito de verificación: la UPC es 8923002856 en SECOP II).
     final nitsCatalogo = _buscarEnCatalogo(queryText)
-        .map((e) => e.nit.replaceAll(RegExp(r'[^0-9]'), ''))
-        .where((n) => n.length >= 8)
+        .expand((e) => Nit.formas(e.nit))
+        .where((n) => RegExp(r'^\d{8,10}$').hasMatch(n))
         .toSet()
-        .take(5)
+        .take(10)
         .toList();
-
-    final condiciones = <String>[
-      if (tokens.isNotEmpty)
-        '(${tokens.map((t) => "upper(nombre_entidad) LIKE '%$t%'").join(' AND ')})',
-      if (nitsCatalogo.isNotEmpty) 'nit_entidad in (${nitsCatalogo.join(',')})',
-    ];
-    if (condiciones.isEmpty) return null;
-    final condicion = condiciones.join(' OR ');
-
-    // Límite amplio: entidades como el SENA tienen decenas de regionales y
-    // grupos que se consolidan en una sola tarjeta.
-    var soloVigencia = true;
-    var rawList = await _consultarAgregadoEntidades(
-      condicion,
-      soloVigencia: true,
-      limite: 500,
-    );
-    if (rawList.isEmpty) {
-      // Sin contratos en la vigencia actual: se consulta el histórico.
-      soloVigencia = false;
-      rawList = await _consultarAgregadoEntidades(
-        condicion,
-        soloVigencia: false,
-        limite: 500,
-      );
+    // El nombre se busca con el índice de texto completo ($q) más un filtro
+    // por la columna del nombre que tolera tildes. Un LIKE solo, sin
+    // índice, recorría todo SECOP II y podía pasar de un minuto.
+    final texto = BusquedaPersonas.textoCompleto(tokens);
+    Future<List<dynamic>> consultar(bool soloVigencia) async {
+      final partes = await Future.wait([
+        if (texto.isNotEmpty)
+          _consultarAgregadoEntidades(
+            BusquedaPersonas.whereTodasLasPalabras('nombre_entidad', tokens),
+            soloVigencia: soloVigencia,
+            limite: 500,
+            textoCompleto: texto,
+          ),
+        if (nitsCatalogo.isNotEmpty)
+          _consultarAgregadoEntidades(
+            'nit_entidad in (${nitsCatalogo.join(',')})',
+            soloVigencia: soloVigencia,
+            limite: 500,
+          ),
+      ]);
+      final vistos = <String>{};
+      return [
+        for (final parte in partes)
+          for (final fila in parte)
+            if (fila is Map &&
+                vistos.add('${fila['nombre_entidad']}|${fila['nit_entidad']}'))
+              fila,
+      ];
     }
 
+    if (texto.isEmpty && nitsCatalogo.isEmpty) return null;
+    // Vigencia actual e histórico a la vez (antes, uno después del otro).
+    final porPeriodo = await Future.wait([consultar(true), consultar(false)]);
+    final soloVigencia = porPeriodo[0].isNotEmpty;
+    final rawList = soloVigencia ? porPeriodo[0] : porPeriodo[1];
     final consolidado = _parseAndConsolidateSecopEntities(rawList, clean);
     if (consolidado.isEmpty) return null;
     final (porNit, unicos) = await _contarContratistas(
@@ -1225,15 +1256,20 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
               height: 42,
               child: TextField(
                 controller: _searchController,
-                onChanged: _onSearchChanged,
-                onSubmitted: (_) => _runFastEntitiesQuery(forceRefresh: true),
+                // Se consulta al presionar Enter o "Buscar", no mientras se
+                // escribe. Al borrar todo vuelve el ranking nacional.
+                onChanged: (valor) {
+                  if (valor.trim().isEmpty) _onSearchChanged('');
+                },
+                onSubmitted: (_) => _buscarEntidades(),
+                textInputAction: TextInputAction.search,
                 style: const TextStyle(
                   color: Cristal.texto,
                   fontSize: 13.2,
                   fontWeight: FontWeight.w600,
                 ),
                 decoration: InputDecoration(
-                  hintText: 'Buscar entidad verificada en SECOP II (ej. SENA, Alcaldía de Santa Marta, INVIAS, ICBF...)',
+                  hintText: 'Escribe la entidad y presiona Enter (ej. SENA, Alcaldía de Santa Marta, INVIAS, ICBF...)',
                   hintStyle: const TextStyle(
                     color: Cristal.textoTenue,
                     fontSize: 12.8,
@@ -1256,20 +1292,23 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                             ),
                           ),
                         )
-                      : (_searchController.text.isNotEmpty
-                            ? IconButton(
-                                tooltip: 'Limpiar búsqueda',
-                                onPressed: () {
-                                  _searchController.clear();
-                                  _onSearchChanged('');
-                                },
-                                icon: const Icon(
-                                  Icons.close_rounded,
-                                  size: 18,
-                                  color: Cristal.textoSuave,
+                      : ValueListenableBuilder<TextEditingValue>(
+                          valueListenable: _searchController,
+                          builder: (context, valor, _) => valor.text.isEmpty
+                              ? const SizedBox.shrink()
+                              : IconButton(
+                                  tooltip: 'Limpiar búsqueda',
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    _onSearchChanged('');
+                                  },
+                                  icon: const Icon(
+                                    Icons.close_rounded,
+                                    size: 18,
+                                    color: Cristal.textoSuave,
+                                  ),
                                 ),
-                              )
-                            : null),
+                        ),
                   filled: true,
                   fillColor: Cristal.campo,
                   contentPadding: const EdgeInsets.symmetric(
@@ -1293,6 +1332,15 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                   ),
                 ),
               ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          SizedBox(
+            height: 42,
+            child: FilledButton.icon(
+              onPressed: _isLoadingLive ? null : _buscarEntidades,
+              icon: const Icon(Icons.search_rounded, size: 18),
+              label: const Text('Buscar'),
             ),
           ),
         ],
@@ -3495,7 +3543,7 @@ class _CompareEntitiesUnfilteredDialogState
       _loadingLiveA = true;
     });
 
-    _debounceA = Timer(const Duration(milliseconds: 280), () async {
+    _debounceA = Timer(Duration.zero, () async {
       final bundle = await widget.fetchLiveSearchBundle(trimmed);
       if (!mounted || _searchCtrlA.text.trim() != trimmed) return;
       setState(() {
@@ -3524,7 +3572,7 @@ class _CompareEntitiesUnfilteredDialogState
       _loadingLiveB = true;
     });
 
-    _debounceB = Timer(const Duration(milliseconds: 280), () async {
+    _debounceB = Timer(Duration.zero, () async {
       final bundle = await widget.fetchLiveSearchBundle(trimmed);
       if (!mounted || _searchCtrlB.text.trim() != trimmed) return;
       setState(() {
@@ -3633,14 +3681,19 @@ class _CompareEntitiesUnfilteredDialogState
             height: 36,
             child: TextField(
               controller: controller,
-              onChanged: onQueryChanged,
+              // Se consulta al presionar Enter, no mientras se escribe.
+              onChanged: (valor) {
+                if (valor.trim().isEmpty) onQueryChanged('');
+              },
+              onSubmitted: onQueryChanged,
+              textInputAction: TextInputAction.search,
               style: const TextStyle(
                 color: Cristal.texto,
                 fontSize: 12.2,
                 fontWeight: FontWeight.w600,
               ),
               decoration: InputDecoration(
-                hintText: 'Buscar otra entidad en SECOP II (ej. SENA, Santa Marta...)',
+                hintText: 'Escribe otra entidad y presiona Enter (ej. SENA, Santa Marta...)',
                 hintStyle: const TextStyle(
                   color: Cristal.textoTenue,
                   fontSize: 11.5,

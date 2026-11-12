@@ -44,6 +44,16 @@ void main() {
       );
     });
 
+    test('tolera que la última palabra quede a medias', () {
+      expect(BusquedaPersonas.textosCompletos(['IVAN', 'BOLANO', 'CASTI']), [
+        'IVAN BOLANO CASTI',
+        'IVAN BOLANO',
+      ]);
+      expect(BusquedaPersonas.textosCompletos(['CUELLO']), ['CUELLO']);
+      // Sin palabras largas en lo que queda, no hay segunda consulta.
+      expect(BusquedaPersonas.textosCompletos(['DE', 'LA']), isEmpty);
+    });
+
     test('el texto completo descarta palabras de menos de tres letras', () {
       expect(
         BusquedaPersonas.textoCompleto(['ANA', 'DE', 'LA', 'CRUZ']),

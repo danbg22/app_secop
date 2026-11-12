@@ -170,6 +170,21 @@ class BusquedaPersonas {
   static String textoCompleto(List<String> tokens) =>
       tokens.where((t) => t.length >= 3).join(' ');
 
+  /// Textos para `$q`: con todas las palabras y, si hay varias, sin la
+  /// última, por si quedó a medias ("ivan bolaño casti"): el índice de texto
+  /// completo solo encuentra palabras enteras, y el filtro por la columna
+  /// del nombre ([whereTodasLasPalabras]) igual exige la palabra incompleta.
+  static List<String> textosCompletos(List<String> tokens) {
+    final todos = textoCompleto(tokens);
+    final sinUltima = tokens.length >= 2
+        ? textoCompleto(tokens.sublist(0, tokens.length - 1))
+        : '';
+    return {
+      if (todos.isNotEmpty) todos,
+      if (sinUltima.isNotEmpty) sinUltima,
+    }.toList();
+  }
+
   /// Todas las palabras aparecen en el nombre (normalizado).
   static bool nombreCoincide(String nombre, List<String> tokens) {
     final n = normalizar(nombre);
@@ -470,7 +485,6 @@ class BusquedaPersonas {
     bool fresco, [
     List<String> nitsSigla = const [],
   ]) async {
-    final q = textoCompleto(palabras);
     final unido = palabras.join(' ');
     final r = await Future.wait([
       // Prefijo por el índice del nombre: responde mientras se escribe
@@ -508,12 +522,12 @@ class BusquedaPersonas {
           ),
         ),
       // Cada palabra en cualquier posición, con el índice de texto completo.
-      if (q.isNotEmpty)
+      for (final texto in textosCompletos(palabras))
         _opcional(
           DatosAbiertos.filas(
             _secopII,
             {
-              r'$q': q,
+              r'$q': texto,
               r'$select': _aggSecopII,
               r'$where': whereTodasLasPalabras(
                 'proveedor_adjudicado',
@@ -531,7 +545,27 @@ class BusquedaPersonas {
     if (r.every((l) => l == null)) {
       throw const DatosAbiertosException('SECOP II no respondió.');
     }
-    return [for (final l in r.reversed) ...?l];
+    // Las consultas se solapan: cada grupo (proveedor + documento) una vez,
+    // para no sumar dos veces sus contratos.
+    return _sinRepetir(
+      r,
+      (f) =>
+          '${f['proveedor_adjudicado']}|${f['tipodocproveedor']}|'
+          '${f['documento_proveedor']}',
+    );
+  }
+
+  /// Une listas de filas agregadas sin repetir un mismo grupo.
+  static List<Map<String, dynamic>> _sinRepetir(
+    List<List<Map<String, dynamic>>?> listas,
+    String Function(Map<String, dynamic> fila) clave,
+  ) {
+    final vistos = <String>{};
+    return [
+      for (final lista in listas)
+        for (final fila in lista ?? const <Map<String, dynamic>>[])
+          if (vistos.add(clave(fila))) fila,
+    ];
   }
 
   /// Una consulta que puede fallar sin tumbar a las demás (null si falla).
@@ -580,23 +614,38 @@ class BusquedaPersonas {
     List<String> palabras,
     bool fresco,
   ) async {
-    final q = textoCompleto(palabras);
-    if (q.isEmpty) return const [];
-    return DatosAbiertos.filas(
-      _secopI,
-      {
-        r'$q': q,
-        r'$select': _aggSecopI,
-        r'$where': whereTodasLasPalabras(
-          'nom_razon_social_contratista',
-          palabras,
+    final textos = textosCompletos(palabras);
+    if (textos.isEmpty) return const [];
+    final r = await Future.wait([
+      for (final texto in textos)
+        _opcional(
+          DatosAbiertos.filas(
+            _secopI,
+            {
+              r'$q': texto,
+              r'$select': _aggSecopI,
+              r'$where': whereTodasLasPalabras(
+                'nom_razon_social_contratista',
+                palabras,
+              ),
+              r'$group': _grupoSecopI,
+              r'$limit': '200',
+            },
+            timeout: _timeout,
+            cache: _ttl,
+            fresco: fresco,
+          ),
         ),
-        r'$group': _grupoSecopI,
-        r'$limit': '200',
-      },
-      timeout: _timeout,
-      cache: _ttl,
-      fresco: fresco,
+    ]);
+    if (r.every((l) => l == null)) {
+      throw const DatosAbiertosException('SECOP I no respondió.');
+    }
+    return _sinRepetir(
+      r,
+      (f) =>
+          '${f['nom_razon_social_contratista']}|'
+          '${f['tipo_identifi_del_contratista']}|'
+          '${f['identificacion_del_contratista']}',
     );
   }
 

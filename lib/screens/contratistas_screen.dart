@@ -129,7 +129,6 @@ class _ContratistasScreenState extends State<ContratistasScreen>
   static const int _maxBulkCombinations = 5;
 
   late final TextEditingController _searchController;
-  Timer? _liveSearchDebounce;
   List<ContractorSummaryRecord> _contractors = [];
   List<String> _activeBulkTerms = const [];
   bool _isLoading = false;
@@ -397,7 +396,6 @@ class _ContratistasScreenState extends State<ContratistasScreen>
 
   @override
   void dispose() {
-    _liveSearchDebounce?.cancel();
     _ContratistasPersistenceStore.searchText = _searchController.text;
     _searchController.dispose();
     super.dispose();
@@ -498,7 +496,6 @@ class _ContratistasScreenState extends State<ContratistasScreen>
   /// Se invoca tanto al escribir en tiempo real (desde la primera letra o dígito)
   /// como al presionar "Buscar" o borrar una combinación.
   Future<void> _executeBulkSearch() async {
-    _liveSearchDebounce?.cancel();
     final rawText = _searchController.text.trim();
     final terms = _parseBulkQueryTerms(rawText);
 
@@ -551,16 +548,14 @@ class _ContratistasScreenState extends State<ContratistasScreen>
       return;
     }
 
+    // Se consulta al presionar Enter o "Buscar" (no mientras se escribe):
+    // así no se busca con palabras a medias ni se traba la escritura.
     final int requestId = ++_latestRequestId;
-    // Espera a que el usuario haga una pausa al escribir: evita una consulta
-    // por cada letra (las respuestas viejas igual se descartan).
-    _liveSearchDebounce = Timer(const Duration(milliseconds: 320), () {
-      _runFastSocrataBulkQuery(
-        allTerms: terms,
-        termsToFetch: queryableMissing,
-        requestId: requestId,
-      );
-    });
+    _runFastSocrataBulkQuery(
+      allTerms: terms,
+      termsToFetch: queryableMissing,
+      requestId: requestId,
+    );
   }
 
   /// Consulta cada término en SECOP II, SECOP I y las fuentes abiertas de
@@ -778,7 +773,6 @@ class _ContratistasScreenState extends State<ContratistasScreen>
   }
 
   void _clearSearchManually() {
-    _liveSearchDebounce?.cancel();
     _latestRequestId++;
     _searchController.clear();
     _ContratistasPersistenceStore.exceededMaxTerms = false;
@@ -1266,7 +1260,7 @@ class ContratistasBulkSearchBar extends StatelessWidget {
                   SizedBox(width: 6),
                   Flexible(
                     child: Text(
-                      'Búsqueda en tiempo real: escribe nombre y apellido, razón social, cédula o NIT (hasta 5 separados por coma)',
+                      'Escribe nombre y apellido, razón social, cédula o NIT (hasta 5 separados por coma) y presiona Enter o Buscar',
                       style: TextStyle(
                         color: Cristal.texto,
                         fontSize: 12,
@@ -1337,7 +1331,6 @@ class ContratistasBulkSearchBar extends StatelessWidget {
                   builder: (context, value, _) {
                     return TextField(
                       controller: controller,
-                      onChanged: (_) => onSearchTriggered(),
                       onSubmitted: (_) => onSearchTriggered(),
                       style: const TextStyle(
                         color: Cristal.texto,
