@@ -6,11 +6,11 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_ai/firebase_ai.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/auth_service.dart';
+import '../services/datos_abiertos.dart';
 import '../services/favorites_service.dart';
 import '../services/ia_config.dart';
 import '../services/secop_document_intelligence_service.dart';
@@ -180,7 +180,12 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
         r'$where': clauses.join(' AND '),
         r'$limit': '1',
       });
-      final res = await http.get(uri).timeout(const Duration(seconds: 15));
+      // Con caché: volver a abrir el mismo contrato es instantáneo.
+      final res = await DatosAbiertos.obtener(
+        uri,
+        timeout: const Duration(seconds: 9),
+        cache: DatosAbiertos.ttlPorDefecto,
+      );
       if (res.statusCode == 200) {
         final decoded = json.decode(utf8.decode(res.bodyBytes));
         if (decoded is List && decoded.isNotEmpty && decoded.first is Map) {

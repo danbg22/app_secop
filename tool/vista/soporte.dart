@@ -62,11 +62,18 @@ void ventana(WidgetTester tester, double ancho, double alto) {
 /// Decodifica las imágenes ya montadas (en las pruebas no se cargan solas).
 Future<void> cargarImagenes(WidgetTester tester) async {
   final elementos = find.byType(Image).evaluate().toList();
+  final fotos = find.byType(FotoAmbiente).evaluate().toList();
   await tester.runAsync(() async {
     for (final e in elementos) {
       final w = e.widget as Image;
       try {
         await precacheImage(w.image, e).timeout(const Duration(seconds: 8));
+      } catch (_) {}
+    }
+    for (final e in fotos) {
+      final w = e.widget as FotoAmbiente;
+      try {
+        await precacheImage(w.proveedor, e).timeout(const Duration(seconds: 8));
       } catch (_) {}
     }
   });

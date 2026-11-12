@@ -6,6 +6,7 @@ import 'package:firebase_ai/firebase_ai.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'datos_abiertos.dart';
 import 'favorites_service.dart';
 import 'ia_config.dart';
 import 'security_service.dart';
@@ -353,9 +354,11 @@ class SecopDocumentIntelligenceService {
                 r'$limit': '1',
               },
             );
-            final res = await http
-                .get(lookupUri)
-                .timeout(const Duration(seconds: 6));
+            final res = await DatosAbiertos.obtener(
+              lookupUri,
+              timeout: const Duration(seconds: 6),
+              cache: DatosAbiertos.ttlPorDefecto,
+            );
             if (res.statusCode == 200) {
               final list = json.decode(res.body);
               if (list is List && list.isNotEmpty && list.first is Map) {
@@ -430,6 +433,24 @@ class SecopDocumentIntelligenceService {
 
   static final RegExp _idSecopIIValido = RegExp(r'^CO1\.[A-Z]+\.\d+$');
 
+  /// Datasets de archivos que pueden tener documentos del contrato: los de
+  /// los años desde uno antes de la firma (estudios previos y pliegos del
+  /// proceso) hasta el fin del contrato o el año actual. Sin fechas, todos.
+  static List<String> _datasetsParaContrato(Map contrato) {
+    int? anio(String campo) =>
+        int.tryParse((contrato[campo] ?? '').toString().split('-').first);
+    final firma = anio('fecha_de_firma') ?? anio('fecha_de_inicio_del_contrato');
+    if (firma == null) return _datasetsArchivosSecopII;
+    final actual = DateTime.now().year;
+    final fin = (anio('fecha_de_fin_del_contrato') ?? actual).clamp(firma, actual);
+    final elegidos = <String>{};
+    for (var a = firma - 1; a <= fin; a++) {
+      final i = (a - 2021).clamp(0, _datasetsArchivosSecopII.length - 1);
+      elegidos.add(_datasetsArchivosSecopII[i]);
+    }
+    return elegidos.toList();
+  }
+
   /// Consulta en Datos Abiertos los archivos publicados en SECOP II para el
   /// contrato: los cargados al contrato (`n_mero_de_contrato`) y los del
   /// proceso que no pertenecen a ningún contrato (estudios previos, pliegos...).
@@ -449,34 +470,37 @@ class SecopDocumentIntelligenceService {
     final proceso = leerId('proceso_de_compra');
     if (idContrato.isEmpty && proceso.isEmpty) return null;
 
+    // Cada condición va en su propia consulta: unidas con OR, SECOP no usa
+    // los índices y en los conjuntos de 2022 y 2026 la consulta pasaba de
+    // un minuto; por separado cada una responde en menos de medio segundo.
     final clauses = <String>[
       if (idContrato.isNotEmpty) "n_mero_de_contrato = '$idContrato'",
       if (proceso.isNotEmpty)
         idContrato.isNotEmpty
-            ? "(proceso = '$proceso' AND n_mero_de_contrato IS NULL)"
+            ? "proceso = '$proceso' AND n_mero_de_contrato IS NULL"
             : "proceso = '$proceso'",
     ];
-    final where = clauses.join(' OR ');
 
-    Future<List<Map>?> consultar(String dataset) async {
-      try {
-        final uri = Uri.https('www.datos.gov.co', '/resource/$dataset.json', {
-          r'$select': 'id_documento,nombre_archivo,fecha_carga,'
-              'n_mero_de_contrato,url_descarga_documento',
-          r'$where': where,
-          r'$limit': '2000',
-        });
-        final res = await http.get(uri).timeout(const Duration(seconds: 15));
-        if (res.statusCode != 200) return null;
-        final decoded = json.decode(utf8.decode(res.bodyBytes));
-        return decoded is List ? decoded.whereType<Map>().toList() : null;
-      } catch (_) {
-        return null;
-      }
-    }
+    // La dirección del proceso se resuelve mientras llegan los archivos.
+    final urlProceso = resolverUrlProcesoOficial(contrato);
 
-    final respuestas =
-        await Future.wait(_datasetsArchivosSecopII.map(consultar));
+    Future<List<Map>?> consultar(String dataset, String where) => DatosAbiertos
+        .filas(
+          dataset,
+          {
+            r'$select': 'id_documento,nombre_archivo,fecha_carga,'
+                'n_mero_de_contrato,url_descarga_documento',
+            r'$where': where,
+            r'$limit': '2000',
+          },
+          timeout: const Duration(seconds: 10),
+        )
+        .then<List<Map>?>((filas) => filas, onError: (Object _) => null);
+
+    final respuestas = await Future.wait([
+      for (final dataset in _datasetsParaContrato(contrato))
+        for (final where in clauses) consultar(dataset, where),
+    ]);
     if (respuestas.every((r) => r == null)) return null;
 
     final filas = respuestas.whereType<List<Map>>().expand((r) => r).toList()
@@ -523,8 +547,7 @@ class SecopDocumentIntelligenceService {
       for (final g in SecopDocumentGroup.values) ...porGrupo[g]!.values,
     ];
 
-    final secopUrl =
-        construirUrlVistaDocumental(await resolverUrlProcesoOficial(contrato));
+    final secopUrl = construirUrlVistaDocumental(await urlProceso);
     if (docs.isEmpty) {
       return SecopExtractionResult(
         status: SecopExtractionStatus.emptyOfficialList,

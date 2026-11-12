@@ -1,15 +1,17 @@
-import 'dart:ui' show ImageFilter;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
 /// La foto de Valledupar como luz de ambiente del fondo: atenuada y
-/// fundida con el fondo de la aplicación hacia la izquierda y hacia abajo,
-/// para que se perciba a través de los paneles de vidrio sin competir con
-/// el texto.
+/// fundida con el fondo de la aplicación hacia la izquierda (y, si se pide,
+/// hacia arriba y hacia abajo), para que se perciba a través de los paneles
+/// de vidrio sin competir con el texto.
 ///
-/// Usa el recorte limpio de la foto (sin las ondas claras del diseño
-/// anterior). Va detrás del contenido, normalmente en un `Positioned`.
-class FotoAmbiente extends StatelessWidget {
+/// La foto y sus fundidos se pintan en una sola capa recortada a la caja.
+/// (Con `ShaderMask` sobre la imagen, el navegador dejaba ver una fila de
+/// píxeles sin fundir en el borde inferior: una raya a lo ancho de la
+/// pantalla.)
+class FotoAmbiente extends StatefulWidget {
   const FotoAmbiente({
     super.key,
     this.alineacion = const Alignment(0.15, -0.25),
@@ -18,8 +20,7 @@ class FotoAmbiente extends StatelessWidget {
     this.pleno = 0.72,
     this.fundidoInferior = 0.4,
     this.fundidoSuperior = 0,
-    this.desenfoque = 0,
-  });
+  }) : difusa = false;
 
   /// Franja de cabecera de una pantalla: la foto desenfocada y tenue, como
   /// una luz cálida detrás del título y de las primeras tarjetas, sin
@@ -32,8 +33,7 @@ class FotoAmbiente extends StatelessWidget {
     this.pleno = 0.8,
     this.fundidoInferior = 0.55,
     this.fundidoSuperior = 0,
-    this.desenfoque = 10,
-  });
+  }) : difusa = true;
 
   /// Qué parte de la foto queda a la vista cuando se recorta al encajar.
   final Alignment alineacion;
@@ -55,64 +55,176 @@ class FotoAmbiente extends StatelessWidget {
   /// el encabezado sobre el fondo liso en pantallas angostas).
   final double fundidoSuperior;
 
-  /// Desenfoque de la propia foto (sigma). Cero: nítida.
-  final double desenfoque;
+  /// Usa la versión ya desenfocada de la foto (un desenfoque en vivo
+  /// cuesta en cada cuadro al desplazar la página).
+  final bool difusa;
 
-  static const String _recurso = 'assets/images/fondo_valledupar_recorte.jpg';
+  static const AssetImage nitida = AssetImage(
+    'assets/images/fondo_valledupar_recorte.jpg',
+  );
+  static const AssetImage desenfocada = AssetImage(
+    'assets/images/fondo_valledupar_difuso.jpg',
+  );
+
+  ImageProvider get proveedor => difusa ? desenfocada : nitida;
+
+  @override
+  State<FotoAmbiente> createState() => _FotoAmbienteState();
+}
+
+class _FotoAmbienteState extends State<FotoAmbiente> {
+  ImageStream? _flujo;
+  ImageInfo? _imagen;
+  late final ImageStreamListener _oyente = ImageStreamListener((info, _) {
+    if (!mounted) return;
+    setState(() {
+      _imagen?.dispose();
+      _imagen = info;
+    });
+  }, onError: (_, _) {});
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _resolver();
+  }
+
+  @override
+  void didUpdateWidget(FotoAmbiente oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.difusa != widget.difusa) _resolver();
+  }
+
+  void _resolver() {
+    final flujo = widget.proveedor.resolve(
+      createLocalImageConfiguration(context),
+    );
+    if (flujo.key == _flujo?.key) return;
+    _flujo?.removeListener(_oyente);
+    _flujo = flujo..addListener(_oyente);
+  }
+
+  @override
+  void dispose() {
+    _flujo?.removeListener(_oyente);
+    _imagen?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    Widget foto = Image.asset(
-      _recurso,
+    final imagen = _imagen?.image;
+    return IgnorePointer(
+      child: RepaintBoundary(
+        child: CustomPaint(
+          size: Size.infinite,
+          painter: imagen == null
+              ? null
+              : _PintorFoto(
+                  imagen: imagen,
+                  alineacion: widget.alineacion,
+                  opacidad: widget.opacidad,
+                  inicio: widget.inicio,
+                  pleno: widget.pleno,
+                  fundidoInferior: widget.fundidoInferior,
+                  fundidoSuperior: widget.fundidoSuperior,
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PintorFoto extends CustomPainter {
+  const _PintorFoto({
+    required this.imagen,
+    required this.alineacion,
+    required this.opacidad,
+    required this.inicio,
+    required this.pleno,
+    required this.fundidoInferior,
+    required this.fundidoSuperior,
+  });
+
+  final ui.Image imagen;
+  final Alignment alineacion;
+  final double opacidad;
+  final double inicio;
+  final double pleno;
+  final double fundidoInferior;
+  final double fundidoSuperior;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+    final caja = Offset.zero & size;
+    canvas
+      ..save()
+      ..clipRect(caja)
+      ..saveLayer(caja, Paint());
+    paintImage(
+      canvas: canvas,
+      rect: caja,
+      image: imagen,
       fit: BoxFit.cover,
       alignment: alineacion,
       filterQuality: FilterQuality.medium,
-      excludeFromSemantics: true,
-      errorBuilder: (_, _, _) => const SizedBox.expand(),
     );
-    if (desenfoque > 0) {
-      // El desenfoque pinta más allá de su caja: se recorta.
-      foto = ClipRect(
-        child: ImageFiltered(
-          imageFilter: ImageFilter.blur(
-            sigmaX: desenfoque,
-            sigmaY: desenfoque,
-            tileMode: TileMode.clamp,
-          ),
-          child: foto,
-        ),
-      );
-    }
-    if (fundidoInferior > 0 || fundidoSuperior > 0) {
-      foto = ShaderMask(
-        blendMode: BlendMode.dstIn,
-        shaderCallback: (rect) => LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            fundidoSuperior > 0 ? Colors.transparent : Colors.black,
-            Colors.black,
-            Colors.black,
-            fundidoInferior > 0 ? Colors.transparent : Colors.black,
-          ],
-          stops: [0, fundidoSuperior, 1 - fundidoInferior, 1],
-        ).createShader(rect),
-        child: foto,
-      );
-    }
-    return IgnorePointer(
-      child: ShaderMask(
-        blendMode: BlendMode.dstIn,
-        shaderCallback: (rect) => LinearGradient(
+    // Fundido horizontal: transparente a la izquierda.
+    canvas.drawRect(
+      caja,
+      Paint()
+        ..blendMode = BlendMode.dstIn
+        ..shader = LinearGradient(
           colors: [
             Colors.transparent,
             Colors.black.withValues(alpha: opacidad * 0.55),
             Colors.black.withValues(alpha: opacidad),
           ],
           stops: [inicio, (inicio + pleno) / 2, pleno],
-        ).createShader(rect),
-        child: foto,
-      ),
+        ).createShader(caja),
     );
+    // Fundido vertical.
+    if (fundidoInferior > 0 || fundidoSuperior > 0) {
+      canvas.drawRect(
+        caja,
+        Paint()
+          ..blendMode = BlendMode.dstIn
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            // El fundido inferior termina en cero antes del borde: la
+            // última franja queda vacía aunque el navegador redondee la
+            // posición de la caja a medio píxel.
+            colors: [
+              fundidoSuperior > 0 ? Colors.transparent : Colors.black,
+              Colors.black,
+              Colors.black,
+              fundidoInferior > 0 ? Colors.transparent : Colors.black,
+              fundidoInferior > 0 ? Colors.transparent : Colors.black,
+            ],
+            stops: [
+              0,
+              fundidoSuperior,
+              (1 - fundidoInferior).clamp(fundidoSuperior, 0.94),
+              0.94,
+              1,
+            ],
+          ).createShader(caja),
+      );
+    }
+    canvas
+      ..restore()
+      ..restore();
   }
+
+  @override
+  bool shouldRepaint(_PintorFoto old) =>
+      old.imagen != imagen ||
+      old.alineacion != alineacion ||
+      old.opacidad != opacidad ||
+      old.inicio != inicio ||
+      old.pleno != pleno ||
+      old.fundidoInferior != fundidoInferior ||
+      old.fundidoSuperior != fundidoSuperior;
 }

@@ -1,12 +1,12 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 
 import 'perfil_contratista_screen.dart';
 import '../services/security_service.dart';
 import '../services/sigep_service.dart';
 import '../tema/cristal.dart';
+import '../services/datos_abiertos.dart';
 
 class ResultadosBusquedaScreen extends StatefulWidget {
   final String query;
@@ -176,7 +176,11 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
   }
 
   Future<List<Map<String, dynamic>>> _buscarSecop(Uri uri) async {
-    final response = await http.get(uri).timeout(const Duration(seconds: 10));
+    final response = await DatosAbiertos.obtener(
+      uri,
+      timeout: const Duration(seconds: 9),
+      cache: DatosAbiertos.ttlPorDefecto,
+    );
     if (response.statusCode != 200) return [];
     final decoded = json.decode(response.body);
     if (decoded is List) {

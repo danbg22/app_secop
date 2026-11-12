@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 
 import '../../data/colombia_entities_database.dart';
 import '../../data/logos_entidades.dart';
@@ -16,6 +15,7 @@ import '../../widgets/user_profile_header_action.dart';
 import '../perfil_entidad_screen.dart';
 import '../procesos_secop_i_screen.dart';
 import '../../tema/cristal.dart';
+import '../../services/datos_abiertos.dart';
 
 enum EntityEmblemType {
   alcaldiaCoatOfArms,
@@ -486,11 +486,11 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     Map<String, String> params,
   ) async {
     try {
-      final resp = await http
-          .get(
-            Uri.https('www.datos.gov.co', '/resource/jbjy-vk9h.json', params),
-          )
-          .timeout(const Duration(seconds: 15));
+      final resp = await DatosAbiertos.obtener(
+        DatosAbiertos.uri('jbjy-vk9h', params),
+        timeout: const Duration(seconds: 12),
+        cache: DatosAbiertos.ttlPorDefecto,
+      );
       if (resp.statusCode != 200) return const [];
       final decoded = jsonDecode(utf8.decode(resp.bodyBytes));
       return decoded is List ? decoded : const [];

@@ -74,6 +74,7 @@ flutter:
   assets:
     - assets/contratos_bucaramanga_mvp.json
     - assets/images/fondo_valledupar_recorte.jpg
+    - assets/images/fondo_valledupar_difuso.jpg
     - assets/images/logo.png
     - assets/images/logo_fondo_oscuro.png
     - assets/logos_entidades/

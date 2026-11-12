@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
 import '../services/favorites_service.dart';
@@ -17,6 +16,7 @@ import '../widgets/user_profile_header_action.dart';
 import 'detalle_screen.dart';
 import 'home_screen.dart';
 import '../tema/cristal.dart';
+import '../services/datos_abiertos.dart';
 
 class PerfilContratistaScreen extends StatefulWidget {
   final String? nombreContratista;
@@ -281,15 +281,11 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
         Map<String, String> params,
       ) async {
         try {
-          final res = await http
-              .get(
-                Uri.https(
-                  'www.datos.gov.co',
-                  '/resource/$dataset.json',
-                  params,
-                ),
-              )
-              .timeout(const Duration(seconds: 15));
+          final res = await DatosAbiertos.obtener(
+            DatosAbiertos.uri(dataset, params),
+            timeout: const Duration(seconds: 12),
+            cache: DatosAbiertos.ttlPorDefecto,
+          );
           if (res.statusCode != 200) return const [];
           final decoded = json.decode(utf8.decode(res.bodyBytes));
           return decoded is List ? decoded : const [];

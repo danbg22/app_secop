@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/colombia_secop_catalog.dart';
@@ -18,6 +17,7 @@ import '../../widgets/user_profile_header_action.dart';
 import '../detalle_screen.dart';
 import '../perfil_contratista_screen.dart';
 import '../../tema/cristal.dart';
+import '../../services/datos_abiertos.dart';
 
 class ContractRecord {
   const ContractRecord({
@@ -1646,9 +1646,11 @@ class _ContratosSectionState extends State<ContratosSection> {
               r'$where': baseClauses.join(' AND '),
             },
           );
-          final response = await http
-              .get(uri)
-              .timeout(const Duration(seconds: 10));
+          final response = await DatosAbiertos.obtener(
+            uri,
+            timeout: const Duration(seconds: 10),
+            cache: DatosAbiertos.ttlPorDefecto,
+          );
           if (response.statusCode != 200) return [];
           return parseJsonResponse(response.body);
         }
@@ -1677,9 +1679,11 @@ class _ContratosSectionState extends State<ContratosSection> {
               ].join(' AND '),
             },
           );
-          final response = await http
-              .get(uri)
-              .timeout(const Duration(seconds: 15));
+          final response = await DatosAbiertos.obtener(
+            uri,
+            timeout: const Duration(seconds: 15),
+            cache: DatosAbiertos.ttlPorDefecto,
+          );
           if (response.statusCode != 200) return [];
           return parseJsonResponse(response.body);
         }
@@ -1699,9 +1703,11 @@ class _ContratosSectionState extends State<ContratosSection> {
                 r'$where': indexedWhere.join(' AND '),
               },
             );
-            final response = await http
-                .get(uri)
-                .timeout(const Duration(seconds: 8));
+            final response = await DatosAbiertos.obtener(
+              uri,
+              timeout: const Duration(seconds: 8),
+              cache: DatosAbiertos.ttlPorDefecto,
+            );
             if (response.statusCode == 200) {
               final indexedParsed = parseJsonResponse(response.body);
               if (indexedParsed.isNotEmpty) {
@@ -1729,9 +1735,11 @@ class _ContratosSectionState extends State<ContratosSection> {
                 r'$where': baseClauses.join(' AND '),
               },
             );
-            final response = await http
-                .get(uri)
-                .timeout(const Duration(seconds: 8));
+            final response = await DatosAbiertos.obtener(
+              uri,
+              timeout: const Duration(seconds: 8),
+              cache: DatosAbiertos.ttlPorDefecto,
+            );
             if (response.statusCode != 200) return [];
             return parseJsonResponse(response.body, verifyQueryTokens: true);
           } catch (_) {
@@ -1767,9 +1775,11 @@ class _ContratosSectionState extends State<ContratosSection> {
                 r'$where': likeClauses.join(' AND '),
               },
             );
-            final response = await http
-                .get(uri)
-                .timeout(const Duration(seconds: 10));
+            final response = await DatosAbiertos.obtener(
+              uri,
+              timeout: const Duration(seconds: 10),
+              cache: DatosAbiertos.ttlPorDefecto,
+            );
             if (response.statusCode == 200) {
               return parseJsonResponse(response.body);
             }
@@ -1821,21 +1831,24 @@ class _ContratosSectionState extends State<ContratosSection> {
             }
           }
 
+          // Texto: índice de texto completo ($q), que además ignora
+          // tildes. Un LIKE '%palabra%' sobre el objeto recorre todo SECOP I
+          // y no terminaba ni en un minuto; con $q tampoco se ordena en el
+          // servidor (también lo vuelve lento): se ordena aquí.
+          String? textoCompleto;
           if (queryText.isNotEmpty) {
             final cleanQ = SecurityService.sanitizeSoqlToken(
               queryText,
               maxLength: 80,
             );
             final digits = cleanQ.replaceAll(RegExp(r'[^0-9]'), '');
-            final qNorm = _normalizar(cleanQ);
-            if (digits.length >= 4) {
+            if (digits.length >= 4 &&
+                RegExp(r'^[0-9.\-\s]+$').hasMatch(cleanQ)) {
               whereClauses.add(
-                "(starts_with(identificacion_del_contratista, '$digits') OR upper(numero_de_contrato) LIKE '%$digits%')",
+                "starts_with(identificacion_del_contratista, '$digits')",
               );
-            } else if (qNorm.isNotEmpty) {
-              whereClauses.add(
-                "(upper(nom_razon_social_contratista) LIKE '%$qNorm%' OR upper(detalle_del_objeto_a_contratar) LIKE '%$qNorm%')",
-              );
+            } else if (cleanQ.isNotEmpty) {
+              textoCompleto = cleanQ;
             }
           }
 
@@ -1844,14 +1857,19 @@ class _ContratosSectionState extends State<ContratosSection> {
             '/resource/${SecopI.dataset}.json',
             <String, String>{
               r'$limit': '$queryLimit',
-              r'$order': 'fecha_de_firma_del_contrato DESC',
+              if (textoCompleto != null)
+                r'$q': textoCompleto
+              else
+                r'$order': 'fecha_de_firma_del_contrato DESC',
               r'$where': whereClauses.join(' AND '),
             },
           );
 
-          final response = await http
-              .get(uri)
-              .timeout(const Duration(seconds: 10));
+          final response = await DatosAbiertos.obtener(
+            uri,
+            timeout: const Duration(seconds: 10),
+            cache: DatosAbiertos.ttlPorDefecto,
+          );
           if (response.statusCode == 200) {
             final decoded = json.decode(utf8.decode(response.bodyBytes));
             if (decoded is List) {
@@ -1872,21 +1890,33 @@ class _ContratosSectionState extends State<ContratosSection> {
         return [];
       }
 
+      final anioNum = int.tryParse(_selectedAnio);
+      final esAnioHistoricoSecop1 = anioNum != null && anioNum <= 2019;
+      // SECOP I se consulta a la vez que SECOP II cuando puede hacer falta
+      // (antes se esperaba a SECOP II para empezar); si al final no se
+      // necesita, su resultado se descarta.
+      final puedeNecesitarSecop1 =
+          interpretacion == null &&
+          (esAnioHistoricoSecop1 ||
+              _selectedAnio.isNotEmpty ||
+              queryText.isNotEmpty);
+      final secop1Futuro = puedeNecesitarSecop1
+          ? fetchSecopIContracts()
+          : null;
+
       var results = await runSoqlQuery(applyYearFilter: true);
       if (!mounted || requestId != _latestRequestId) return;
 
-      final anioNum = int.tryParse(_selectedAnio);
-      final esAnioHistoricoSecop1 = anioNum != null && anioNum <= 2019;
       final necesitaSecop1 =
-          interpretacion == null &&
+          puedeNecesitarSecop1 &&
           (esAnioHistoricoSecop1 ||
               (_selectedAnio.isNotEmpty && results.length < 20) ||
               (_selectedAnio.isEmpty &&
                   results.length < 60 &&
                   queryText.isNotEmpty));
 
-      if (necesitaSecop1) {
-        final secop1Results = await fetchSecopIContracts();
+      if (necesitaSecop1 && secop1Futuro != null) {
+        final secop1Results = await secop1Futuro;
         if (secop1Results.isNotEmpty) {
           results = _mergeAndDeduplicateRecords(results, secop1Results);
         }

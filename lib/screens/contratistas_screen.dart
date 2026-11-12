@@ -1,12 +1,9 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 
-import '../data/colombia_entities_database.dart';
-import '../services/security_service.dart';
-import '../services/sigep_service.dart';
+import '../services/busqueda_personas.dart';
 import '../utils/app_scroll_behavior.dart';
 import '../utils/csv_exporter.dart';
 import '../widgets/user_profile_header_action.dart';
@@ -87,6 +84,23 @@ class _ContratistasPersistenceStore {
   /// Caché en memoria por término normalizado para recalcular al instante
   /// cuando el usuario borra o agrega una combinación separada por coma.
   static final Map<String, List<ContractorSummaryRecord>> termResultsCache = {};
+
+  /// Cuándo se guardó cada término; pasados [vigencia] se vuelve a consultar.
+  static final Map<String, DateTime> termResultsTime = {};
+
+  /// Términos cuya consulta no terminó o falló: se reintentan en la
+  /// siguiente búsqueda en lugar de quedarse con la lista incompleta.
+  static final Set<String> incompleteTerms = {};
+
+  static const Duration vigencia = Duration(minutes: 12);
+
+  static bool tieneVigente(String key) {
+    final momento = termResultsTime[key];
+    return termResultsCache.containsKey(key) &&
+        !incompleteTerms.contains(key) &&
+        momento != null &&
+        DateTime.now().difference(momento) < vigencia;
+  }
 }
 
 class ContratistasScreen extends StatefulWidget {
@@ -114,6 +128,9 @@ class _ContratistasScreenState extends State<ContratistasScreen>
   List<String> _activeBulkTerms = const [];
   bool _isLoading = false;
   int _latestRequestId = 0;
+
+  /// Aviso cuando alguna fuente no respondió (null: todo bien).
+  String? _avisoBusqueda;
 
   String _sortBy = 'Mayor valor contratado';
   int _currentPage = 1;
@@ -423,18 +440,6 @@ class _ContratistasScreenState extends State<ContratistasScreen>
     return 'TXT:${_normalizar(clean).replaceAll(RegExp(r'\s+'), ' ')}';
   }
 
-  static String _toTitleCaseWords(String input) {
-    return input
-        .split(RegExp(r'\s+'))
-        .where((w) => w.isNotEmpty)
-        .map(
-          (w) => w.length == 1
-              ? w.toUpperCase()
-              : '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}',
-        )
-        .join(' ');
-  }
-
   /// Combina los resultados en caché para las combinaciones activas (hasta 5)
   /// manteniendo el orden de búsqueda y evitando duplicados.
   List<ContractorSummaryRecord> _combineCachedTerms(List<String> terms) {
@@ -509,9 +514,7 @@ class _ContratistasScreenState extends State<ContratistasScreen>
     // Recálculo instantáneo con lo que ya esté en caché (por ejemplo al borrar 1 de las 5 combinaciones)
     final missingTerms = terms
         .where(
-          (t) => !_ContratistasPersistenceStore.termResultsCache.containsKey(
-            _termCacheKey(t),
-          ),
+          (t) => !_ContratistasPersistenceStore.tieneVigente(_termCacheKey(t)),
         )
         .toList();
 
@@ -522,6 +525,7 @@ class _ContratistasScreenState extends State<ContratistasScreen>
       _ContratistasPersistenceStore.hasExecutedCustomSearch = true;
       _contractors = immediateCombined;
       _isLoading = missingTerms.isNotEmpty;
+      if (missingTerms.isEmpty) _avisoBusqueda = null;
     });
     _syncStateToPersistenceStore();
 
@@ -542,7 +546,9 @@ class _ContratistasScreenState extends State<ContratistasScreen>
     }
 
     final int requestId = ++_latestRequestId;
-    _liveSearchDebounce = Timer(const Duration(milliseconds: 140), () {
+    // Espera a que el usuario haga una pausa al escribir: evita una consulta
+    // por cada letra (las respuestas viejas igual se descartan).
+    _liveSearchDebounce = Timer(const Duration(milliseconds: 320), () {
       _runFastSocrataBulkQuery(
         allTerms: terms,
         termsToFetch: queryableMissing,
@@ -551,258 +557,135 @@ class _ContratistasScreenState extends State<ContratistasScreen>
     });
   }
 
-  /// Consulta ultra-rápida (< 300 ms) en tiempo real por Cédula, NIT o Nombre y Apellido
-  /// usando los índices B-tree de `documento_proveedor` y `proveedor_adjudicado` en SECOP II.
+  /// Consulta cada término en SECOP II, SECOP I y las fuentes abiertas de
+  /// servidores públicos ([BusquedaPersonas]), todos en paralelo. La tabla
+  /// se actualiza cada vez que responde una fuente; las respuestas de una
+  /// búsqueda anterior se descartan.
+  ///
+  /// Un término solo queda en caché si la consulta terminó y al menos una
+  /// fuente de contratos respondió: una falla nunca se guarda como "sin
+  /// resultados" (se reintenta en la siguiente búsqueda y se avisa).
   Future<void> _runFastSocrataBulkQuery({
     required List<String> allTerms,
     required List<String> termsToFetch,
     required int requestId,
   }) async {
-    try {
-      final termClauses = <String>[];
-      for (final term in termsToFetch) {
-        final cleanTerm = SecurityService.sanitizeSoqlToken(
-          term,
-          maxLength: 80,
-        );
-        if (cleanTerm.isEmpty) continue;
-        final isNumericTerm = RegExp(r'^[0-9.\-\s]+$').hasMatch(cleanTerm);
-        final digitsOnly = cleanTerm.replaceAll(RegExp(r'[^0-9]'), '');
-        final normName = _normalizar(cleanTerm)
-            .replaceAll(RegExp(r'\s+'), ' ')
-            .trim();
-        final subConditions = <String>[];
+    final fallidas = <FuentePersona>{};
+    var fallaTotal = false;
 
-        if (digitsOnly.isNotEmpty && isNumericTerm) {
-          // Búsqueda indexada por número de cédula o NIT (desde 1 dígito en adelante)
-          subConditions.add("starts_with(documento_proveedor, '$digitsOnly')");
-          if (digitsOnly.length == 10 &&
-              (digitsOnly.startsWith('8') || digitsOnly.startsWith('9'))) {
-            final baseNit = digitsOnly.substring(0, 9);
-            subConditions.add("starts_with(documento_proveedor, '$baseNit')");
-          }
-          final formattedDots = _formatDotsOnly(digitsOnly);
-          if (formattedDots != digitsOnly && digitsOnly.length >= 4) {
-            subConditions.add(
-              "starts_with(documento_proveedor, '$formattedDots')",
+    await Future.wait(
+      termsToFetch.map((term) async {
+        final key = _termCacheKey(term);
+        try {
+          await for (final r in BusquedaPersonas.buscarProgresivo(term)) {
+            if (!mounted || requestId != _latestRequestId) return;
+            final records = _selectBestMatchesForTerm(
+              r.personas.map(_recordFromPersona).toList(),
+              term,
+              alreadyFiltered: true,
             );
-          }
-        }
-
-        if (normName.isNotEmpty && !isNumericTerm) {
-          // Siglas de entidades públicas que también son contratistas
-          // ("UIS" -> NIT de la Universidad Industrial de Santander).
-          for (final nit in ColombiaEntitiesDatabase.nitsPorSigla(normName)) {
-            if (nit.length >= 8) {
-              subConditions.add("documento_proveedor = '$nit'");
+            final store = _ContratistasPersistenceStore.termResultsCache;
+            // Mientras faltan fuentes, no se pisa un resultado completo
+            // anterior con uno parcial más corto.
+            if (r.completo || records.length >= (store[key]?.length ?? 0)) {
+              store[key] = records;
             }
-          }
-
-          // Búsqueda en tiempo real por Nombre y Apellido o Razón Social (desde 1 letra en adelante)
-          final titleName = _toTitleCaseWords(normName);
-          final words = normName.split(' ').where((w) => w.isNotEmpty).toList();
-
-          // 1. Coincidencia directa de prefijo con el índice B-tree (ej. "C", "CARLOS", "CARLOS RODRIGUEZ")
-          subConditions.add("starts_with(proveedor_adjudicado, '$normName')");
-          if (titleName != normName) {
-            subConditions.add(
-              "starts_with(proveedor_adjudicado, '$titleName')",
-            );
-          }
-
-          // 2. Si el usuario escribe Nombre + Apellido (2 o más palabras, ej. "SANDRA ERAZO" o "CARLOS RODRIGUEZ"),
-          // buscamos usando el índice B-tree en la primera palabra + filtro de apellido (soportando segundo nombre intermedio)
-          // y también en orden inverso (APELLIDO NOMBRE).
-          if (words.length >= 2) {
-            final firstWord = words.first;
-            final lastWord = words.last;
-            final firstTitle = _toTitleCaseWords(firstWord);
-            final otherWordsFromFirst = words.skip(1).toList();
-            final likeChecksFromFirst = otherWordsFromFirst
-                .map((w) => "upper(proveedor_adjudicado) LIKE '%$w%'")
-                .join(' AND ');
-
-            subConditions.add(
-              "((starts_with(proveedor_adjudicado, '$firstWord ') OR starts_with(proveedor_adjudicado, '$firstTitle ')) AND $likeChecksFromFirst)",
-            );
-
-            // Orden inverso: APELLIDO + NOMBRE
-            subConditions.add(
-              "starts_with(proveedor_adjudicado, '$lastWord $firstWord')",
-            );
-            if (lastWord.length >= 2) {
-              subConditions.add(
-                "(starts_with(proveedor_adjudicado, '$lastWord ') AND upper(proveedor_adjudicado) LIKE '%$firstWord%')",
-              );
+            if (r.completo) {
+              fallidas.addAll(r.fuentesFallidas);
+              if (r.fallo) {
+                fallaTotal = true;
+                _ContratistasPersistenceStore.incompleteTerms.add(key);
+              } else {
+                _ContratistasPersistenceStore.incompleteTerms.remove(key);
+                _ContratistasPersistenceStore.termResultsTime[key] =
+                    DateTime.now();
+              }
+            } else {
+              _ContratistasPersistenceStore.incompleteTerms.add(key);
             }
+            setState(() => _contractors = _combineCachedTerms(allTerms));
           }
+        } catch (_) {
+          fallaTotal = true;
+          _ContratistasPersistenceStore.incompleteTerms.add(key);
         }
-
-        if (subConditions.isNotEmpty) {
-          termClauses.add('(${subConditions.join(' OR ')})');
-        }
-      }
-
-      if (termClauses.isEmpty) {
-        if (!mounted || requestId != _latestRequestId) return;
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      final whereClause = termClauses.join(' OR ');
-
-      final uri = Uri.https(
-        'www.datos.gov.co',
-        '/resource/jbjy-vk9h.json',
-        <String, String>{
-          r'$select':
-              'proveedor_adjudicado,tipodocproveedor,documento_proveedor,'
-              'count(*) as contratos,sum(valor_del_contrato) as total_valor,'
-              'max(fecha_de_firma) as ultima_fecha,'
-              'count(distinct nombre_entidad) as entidades',
-          r'$where': whereClause,
-          r'$group':
-              'proveedor_adjudicado,tipodocproveedor,documento_proveedor',
-          r'$limit': '120',
-        },
-      );
-
-      final response = await http.get(uri).timeout(const Duration(seconds: 10));
-
-      final groupedMap = <String, _ContractorAccumulator>{};
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
-        for (final rawItem in data) {
-          if (rawItem is! Map) continue;
-          final rawName = (rawItem['proveedor_adjudicado'] ?? '')
-              .toString()
-              .trim();
-          if (rawName.isEmpty || rawName.toUpperCase() == 'NO DEFINIDO') {
-            continue;
-          }
-          final rawDoc = (rawItem['documento_proveedor'] ?? '')
-              .toString()
-              .trim();
-          final rawTipoDoc = (rawItem['tipodocproveedor'] ?? '').toString();
-          final digits = rawDoc.replaceAll(RegExp(r'[^0-9]'), '');
-          final contracts =
-              int.tryParse(rawItem['contratos']?.toString() ?? '1') ?? 1;
-          final totalVal =
-              double.tryParse(rawItem['total_valor']?.toString() ?? '0') ?? 0;
-          final rawDate = (rawItem['ultima_fecha'] ?? '').toString();
-          final entitiesCnt =
-              int.tryParse(rawItem['entidades']?.toString() ?? '1') ?? 1;
-
-          final groupKey = _canonicalContractorKey(digits, rawName);
-
-          final acc = groupedMap.putIfAbsent(
-            groupKey,
-            () => _ContractorAccumulator(
-              rawName: rawName,
-              rawDoc: rawDoc,
-              rawTipoDoc: rawTipoDoc,
-              digits: digits,
-            ),
-          );
-          acc.addAggregatedGroup(
-            contracts: contracts,
-            value: totalVal,
-            isoDate: rawDate,
-            entitiesCount: entitiesCnt,
-          );
-        }
-      }
-
-      // Si la consulta en SECOP II no arrojó resultados o falló, se buscan coincidencias locales
-      if (groupedMap.isEmpty) {
-        for (final seed in _initialSeedContractors) {
-          if (termsToFetch.any((t) => _matchesSingleTerm(seed, t))) {
-            final key = _canonicalContractorKey(
-              seed.rawDocumentDigits,
-              seed.rawSearchName,
-            );
-            groupedMap[key] = _ContractorAccumulator.fromRecord(seed);
-          }
-        }
-      }
-
-      final fetchedRecords = groupedMap.values
-          .map(
-            (acc) => acc.buildRecord(
-              formatNit: _formatDocument,
-              beautifyName: _beautifyName,
-              buildInitials: _computeInitials,
-              inferSector: _inferSector,
-              formatDate: _formatIsoToDdMmYyyy,
-            ),
-          )
-          .toList();
-
-      // Clasificar y guardar en caché por cada término consultado.
-      // Si el usuario escribió la cédula/NIT completa (>= 6 dígitos) y hay coincidencia exacta,
-      // dejamos los resultados exactos de ese NIT/cédula.
-      for (final term in termsToFetch) {
-        final matchesForTerm = _selectBestMatchesForTerm(fetchedRecords, term);
-        _ContratistasPersistenceStore.termResultsCache[_termCacheKey(term)] =
-            matchesForTerm;
-      }
-
-      if (!mounted || requestId != _latestRequestId) return;
-
-      final combinedResults = _combineCachedTerms(allTerms);
-
-      setState(() {
-        _contractors = combinedResults;
-        _isLoading = false;
-        _currentPage = 1;
-      });
-      _syncStateToPersistenceStore();
-
-      // Cruzar con SIGEP en segundo plano sin bloquear la tabla
-      _verifyContractorsWithSigep(combinedResults.take(12).toList(), requestId);
-    } catch (_) {
-      if (!mounted || requestId != _latestRequestId) return;
-      for (final term in termsToFetch) {
-        final fallback = _initialSeedContractors
-            .where((item) => _matchesSingleTerm(item, term))
-            .toList();
-        _ContratistasPersistenceStore.termResultsCache[_termCacheKey(term)] =
-            fallback;
-      }
-      setState(() {
-        _contractors = _combineCachedTerms(allTerms);
-        _isLoading = false;
-      });
-      _syncStateToPersistenceStore();
-    }
-  }
-
-  String _canonicalContractorKey(String digits, String rawName) {
-    if (digits.length == 10 &&
-        (digits.startsWith('8') || digits.startsWith('9'))) {
-      return digits.substring(0, 9);
-    }
-    if (digits.length >= 5) return digits;
-    return _normalizar(rawName);
-  }
-
-  static String _formatDotsOnly(String digits) {
-    return digits.replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (m) => '${m[1]}.',
+      }),
     );
+
+    if (!mounted || requestId != _latestRequestId) return;
+    setState(() {
+      _contractors = _combineCachedTerms(allTerms);
+      _isLoading = false;
+      _currentPage = 1;
+      _avisoBusqueda = fallaTotal
+          ? 'SECOP no respondió a tiempo. Los resultados pueden estar '
+                'incompletos.'
+          : fallidas.isEmpty
+          ? null
+          : '${_nombresFuentes(fallidas)} no respondió a tiempo; los '
+                'resultados pueden estar incompletos.';
+    });
+    _syncStateToPersistenceStore();
+  }
+
+  static String _nombresFuentes(Set<FuentePersona> fuentes) => fuentes
+      .map(
+        (f) => switch (f) {
+          FuentePersona.secopII => 'SECOP II',
+          FuentePersona.secopI => 'SECOP I',
+          FuentePersona.servidores => 'La fuente de servidores públicos',
+        },
+      )
+      .join(' y ');
+
+  /// Vuelve a consultar los términos activos sin usar la caché.
+  void _reintentarBusqueda() {
+    for (final term in _activeBulkTerms) {
+      _ContratistasPersistenceStore.incompleteTerms.add(_termCacheKey(term));
+    }
+    _executeBulkSearch();
+  }
+
+  ContractorSummaryRecord _recordFromPersona(PersonaEncontrada p) {
+    final acc = _ContractorAccumulator(
+      rawName: p.nombre,
+      rawDoc: p.documento,
+      rawTipoDoc: p.tipoDocumento,
+      digits: p.documento,
+    );
+    if (p.contratos > 0) {
+      acc.addAggregatedGroup(
+        contracts: p.contratos,
+        value: p.valor,
+        isoDate: p.ultimaFecha,
+        entitiesCount: p.entidades,
+      );
+    }
+    final record = acc.buildRecord(
+      formatNit: _formatDocument,
+      beautifyName: _beautifyName,
+      buildInitials: _computeInitials,
+      inferSector: _inferSector,
+      formatDate: _formatIsoToDdMmYyyy,
+    );
+    return p.servidorPublico
+        ? record.copyWith(
+            sigepStatus: SigepRoleStatus.servidorPublico,
+            sigepEntityCargo: p.cargoEntidad ?? 'Servidor público',
+          )
+        : record;
   }
 
   List<ContractorSummaryRecord> _selectBestMatchesForTerm(
     List<ContractorSummaryRecord> candidates,
-    String term,
-  ) {
+    String term, {
+    bool alreadyFiltered = false,
+  }) {
     final tDigits = term.replaceAll(RegExp(r'[^0-9]'), '');
     final tNorm = _normalizar(term).replaceAll(RegExp(r'\s+'), ' ').trim();
-    final matching = candidates
-        .where((c) => _matchesSingleTerm(c, term))
-        .toList();
+    final matching = alreadyFiltered
+        ? List<ContractorSummaryRecord>.of(candidates)
+        : candidates.where((c) => _matchesSingleTerm(c, term)).toList();
 
     if (tDigits.length >= 6 && RegExp(r'^[0-9.\-\s]+$').hasMatch(term)) {
       final base9 =
@@ -877,54 +760,6 @@ class _ContratistasScreenState extends State<ContratistasScreen>
     return false;
   }
 
-  /// Cruza la lista de contratistas con [SigepService] para determinar visualmente
-  /// si cada persona está registrada como "Servidor Público" o "Contratista".
-  Future<void> _verifyContractorsWithSigep(
-    List<ContractorSummaryRecord> targets,
-    int requestId,
-  ) async {
-    // Las verificaciones son independientes: se hacen en paralelo y cada fila
-    // se actualiza en cuanto llega su respuesta.
-    await Future.wait(
-      targets.map((target) async {
-        if (!mounted || requestId != _latestRequestId) return;
-        if (target.personType == 'Persona jurídica') return;
-
-        try {
-          final match = await SigepService.verificarServidorPublico(
-            target.rawSearchName,
-            documento: target.rawDocumentDigits,
-          );
-          if (!mounted || requestId != _latestRequestId) return;
-
-          final updatedStatus = match != null
-              ? SigepRoleStatus.servidorPublico
-              : SigepRoleStatus.contratista;
-          final cargoInfo = match != null
-              ? (match['nombre_entidad'] ??
-                        match['denominacion_cargo'] ??
-                        'Vinculado en SIGEP II')
-                    .toString()
-              : null;
-
-          final idx = _contractors.indexWhere(
-            (c) =>
-                c.nit == target.nit && c.rawSearchName == target.rawSearchName,
-          );
-          if (idx != -1) {
-            setState(() {
-              _contractors[idx] = _contractors[idx].copyWith(
-                sigepStatus: updatedStatus,
-                sigepEntityCargo: cargoInfo,
-              );
-            });
-            _syncStateToPersistenceStore();
-          }
-        } catch (_) {}
-      }),
-    );
-  }
-
   bool _matchesAnyBulkTerm(ContractorSummaryRecord record, List<String> terms) {
     if (terms.isEmpty) return true;
     for (final term in terms) {
@@ -939,6 +774,7 @@ class _ContratistasScreenState extends State<ContratistasScreen>
     _searchController.clear();
     _ContratistasPersistenceStore.exceededMaxTerms = false;
     setState(() {
+      _avisoBusqueda = null;
       _activeBulkTerms = const [];
       _isLoading = false;
       _currentPage = 1;
@@ -1252,6 +1088,13 @@ class _ContratistasScreenState extends State<ContratistasScreen>
                       onOpenProfile: _openContractorProfile,
                       onExportPressed: _exportToCsv,
                       formatCurrency: _formatCopCurrency,
+                      aviso: _avisoBusqueda,
+                      onRetry: _reintentarBusqueda,
+                      mostrarNotaServidores:
+                          !isDefaultView &&
+                          _activeBulkTerms.any(
+                            (t) => !BusquedaPersonas.esDocumento(t),
+                          ),
                     ),
                   ],
                 ),
@@ -1788,7 +1631,16 @@ class ContratistasResultsTable extends StatelessWidget {
     required this.onOpenProfile,
     required this.onExportPressed,
     required this.formatCurrency,
+    this.aviso,
+    this.onRetry,
+    this.mostrarNotaServidores = false,
   });
+
+  /// Directorio de servidores públicos del SIGEP (Función Pública). Es la
+  /// misma dirección que enlaza el conjunto oficial de PEP en Datos Abiertos.
+  static final Uri directorioSigep = Uri.parse(
+    'https://www1.funcionpublica.gov.co/dafpIndexerBHV/hvSigep',
+  );
 
   final List<ContractorSummaryRecord> rows;
   final int totalFoundCount;
@@ -1803,6 +1655,46 @@ class ContratistasResultsTable extends StatelessWidget {
   final ValueChanged<ContractorSummaryRecord> onOpenProfile;
   final VoidCallback onExportPressed;
   final String Function(double) formatCurrency;
+
+  /// Alguna fuente no respondió: se avisa en lugar de callar.
+  final String? aviso;
+  final VoidCallback? onRetry;
+
+  /// Nota sobre la cobertura de servidores públicos (búsquedas por nombre).
+  final bool mostrarNotaServidores;
+
+  Widget _notaServidores() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 14, 22, 6),
+      child: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 4,
+        children: [
+          const Text(
+            'Servidores públicos: se muestran los que figuran en Datos '
+            'Abiertos (personas expuestas políticamente y declaraciones de '
+            'bienes y rentas). Si no aparece, búscalo en el',
+            style: TextStyle(color: Cristal.textoSuave, fontSize: 12),
+          ),
+          TextButton(
+            onPressed: () => launchUrl(
+              directorioSigep,
+              mode: LaunchMode.externalApplication,
+            ),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text(
+              'directorio del SIGEP',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   static const TextStyle _headerColStyle = TextStyle(
     color: Cristal.textoCuerpo,
@@ -1962,6 +1854,42 @@ class ContratistasResultsTable extends StatelessWidget {
               color: Cristal.acentoClaro,
               backgroundColor: Cristal.vidrioFuerte,
             ),
+          if (aviso != null && !isLoading)
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+              decoration: BoxDecoration(
+                color: Cristal.ambarVidrio,
+                borderRadius: BorderRadius.circular(Cristal.radioCampo),
+                border: Border.all(color: Cristal.ambarBorde),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.cloud_off_rounded,
+                    color: Cristal.ambar,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      aviso!,
+                      style: const TextStyle(
+                        color: Cristal.textoCuerpo,
+                        fontSize: 12.8,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  if (onRetry != null)
+                    TextButton.icon(
+                      onPressed: onRetry,
+                      icon: const Icon(Icons.refresh_rounded, size: 17),
+                      label: const Text('Reintentar'),
+                    ),
+                ],
+              ),
+            ),
           LayoutBuilder(
             builder: (context, tableConstraints) {
               final tableContent = Column(
@@ -2062,6 +1990,7 @@ class ContratistasResultsTable extends StatelessWidget {
                         rowNumber: startItem + i,
                         record: rows[i],
                       ),
+                  if (mostrarNotaServidores) _notaServidores(),
                 ],
               );
 
@@ -2454,22 +2383,10 @@ class _ContractorAccumulator {
     required this.digits,
   });
 
-  factory _ContractorAccumulator.fromRecord(ContractorSummaryRecord r) {
-    final acc = _ContractorAccumulator(
-      rawName: r.rawSearchName,
-      rawDoc: r.nit,
-      rawTipoDoc: r.personType == 'Persona jurídica' ? 'NIT' : 'CC',
-      digits: r.rawDocumentDigits,
-    );
-    acc._presetRecord = r;
-    return acc;
-  }
-
   final String rawName;
   final String rawDoc;
   final String rawTipoDoc;
   final String digits;
-  ContractorSummaryRecord? _presetRecord;
 
   int contractsCount = 0;
   double totalValue = 0;
@@ -2483,7 +2400,6 @@ class _ContractorAccumulator {
     required String isoDate,
     required int entitiesCount,
   }) {
-    _presetRecord = null;
     contractsCount += contracts;
     totalValue += value;
     if (isoDate.compareTo(latestIsoDate) > 0) {
@@ -2501,7 +2417,6 @@ class _ContractorAccumulator {
     required String Function(String) inferSector,
     required String Function(String) formatDate,
   }) {
-    if (_presetRecord != null) return _presetRecord!;
     final displayName = beautifyName(rawName);
     final isJuridica =
         rawTipoDoc.toUpperCase().contains('NIT') ||

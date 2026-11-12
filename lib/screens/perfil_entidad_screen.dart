@@ -13,6 +13,7 @@ import 'detalle_screen.dart';
 import 'perfil_contratista_screen.dart';
 import 'sections/entidades_section.dart';
 import '../tema/cristal.dart';
+import '../services/datos_abiertos.dart';
 
 class PerfilEntidadScreen extends StatefulWidget {
   const PerfilEntidadScreen({super.key, required this.entity});
@@ -323,9 +324,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   int _contractsPage = 1;
   static const int _contractsPageSize = 8;
 
-  // Explorador de contratos. La búsqueda recorre toda la entidad (todas las
-  // vigencias) e ignora regional, unidad y modalidad; elegir cualquiera de
-  // esos filtros cancela la búsqueda.
+  // Explorador de contratos. La búsqueda y los filtros (regional, vigencia,
+  // dependencia, unidad, modalidad) se suman (Y lógico): escribir no borra
+  // los filtros y elegir un filtro no borra lo escrito.
   String? _selectedUnidad;
   String? _selectedDependencia;
   // Conteo real por dependencia interna: id -> (contratos, valor).
@@ -340,6 +341,11 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   String _filtroUnidades = '';
   int _contratosRequestId = 0;
   bool _generandoReporte = false;
+
+  /// Contratos por modalidad con la búsqueda y los demás filtros activos
+  /// (todos menos la modalidad). Null: sin búsqueda ni filtros, los chips
+  /// usan los totales de la vigencia.
+  Map<String, int>? _conteoModalidadesFiltro;
 
   int _contractorsPage = 1;
   static const int _contractorsPageSize = 8;
@@ -757,22 +763,17 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     return 'Regional $clean';
   }
 
-  /// GET a Datos Abiertos con un reintento: datos.gov.co a veces corta la
-  /// conexión o responde 429/5xx de forma transitoria, y sin reintento una
-  /// sola consulta fallida deja la página sin datos.
+  /// GET a Datos Abiertos con reintentos, petición de respaldo y caché de
+  /// 12 minutos ([DatosAbiertos]): datos.gov.co a veces corta la conexión,
+  /// deja colgada una consulta o responde 429/5xx de forma transitoria.
   static Future<http.Response> _getSecop(
     Uri uri, {
     Duration timeout = const Duration(seconds: 12),
-  }) async {
-    try {
-      final resp = await http.get(uri).timeout(timeout);
-      if (resp.statusCode != 429 && resp.statusCode < 500) return resp;
-    } catch (_) {
-      // Se reintenta abajo; si vuelve a fallar, el error sube al llamador.
-    }
-    await Future<void>.delayed(const Duration(milliseconds: 900));
-    return http.get(uri).timeout(timeout);
-  }
+  }) => DatosAbiertos.obtener(
+    uri,
+    timeout: timeout,
+    cache: DatosAbiertos.ttlPorDefecto,
+  );
 
   Future<void> _fetchLiveEntityProfileData() async {
     if (!mounted) return;
@@ -1153,7 +1154,6 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
               .round()
               .clamp(0, 100);
         }
-        _selectedModality = 'Todas';
         _contractsPage = 1;
         _isLoadingLive = false;
       });
@@ -1162,9 +1162,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       _fetchConteoDependencias(whereEntityYear);
       // La muestra inicial solo sirve sin filtros; con unidad o búsqueda
       // activas se consulta la página exacta.
-      if (_selectedUnidad != null ||
-          _selectedDependencia != null ||
-          _busqueda.isNotEmpty) {
+      if (_hayFiltrosContratos) {
         _fetchContractsPageFromSecop(page: 1);
       }
     } catch (_) {
@@ -1238,24 +1236,47 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       if (modalityOverride != null) _selectedModality = modalityOverride;
       _contractsPage = page;
       _isLoadingContractsPage = true;
+      // Con un filtro nuevo, la página anterior ya no corresponde: no se
+      // deja a la vista mientras llega la nueva (al pasar de página sí,
+      // atenuada).
+      if (page == 1) {
+        _pagedContractsList = [];
+        _totalMatchingContractsForTable = 0;
+        _totalMatchingCopForTable = 0;
+      }
     });
 
-    final whereClause = _busqueda.isNotEmpty
-        ? _buildEntityWhereClause(
-            onlyYear2026: false,
-            includeRegionalFilter: false,
-            busqueda: _busqueda,
-          )
-        : _buildEntityWhereClause(
-            onlyYear2026: _onlyCurrentYear2026,
-            includeRegionalFilter: true,
-            customModalityName: _selectedModality,
-            unidad: _selectedUnidad,
-            dependencia: _selectedDependencia,
-            forceYear: _activeBudgetYear,
-          );
+    // Búsqueda y filtros se suman: regional, vigencia, dependencia, unidad,
+    // modalidad y el texto escrito.
+    String where({bool conModalidad = true}) => _buildEntityWhereClause(
+      onlyYear2026: _onlyCurrentYear2026,
+      includeRegionalFilter: true,
+      customModalityName: conModalidad ? _selectedModality : null,
+      unidad: _selectedUnidad,
+      dependencia: _selectedDependencia,
+      busqueda: _busqueda,
+      forceYear: _activeBudgetYear,
+    );
+    final whereClause = where();
     final whereEnc = Uri.encodeComponent(whereClause);
     final offset = math.max(0, (page - 1) * _contractsPageSize);
+
+    // Contadores de los chips de modalidad con lo mismo que filtra la tabla
+    // (menos la modalidad), para que "Licitación pública · 3" diga cuántas
+    // hay con esa búsqueda y esa dependencia. Solo al cambiar de filtro, no
+    // al pasar de página.
+    final recontarModalidades = page == 1;
+    final hayFiltrosSinModalidad =
+        _busqueda.isNotEmpty ||
+        _selectedUnidad != null ||
+        _selectedDependencia != null;
+    if (recontarModalidades) {
+      if (hayFiltrosSinModalidad) {
+        _contarModalidades(where(conModalidad: false), requestId);
+      } else if (_conteoModalidadesFiltro != null) {
+        setState(() => _conteoModalidadesFiltro = null);
+      }
+    }
 
     try {
       final responses = await Future.wait([
@@ -1310,6 +1331,38 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     }
   }
 
+  Future<void> _contarModalidades(
+    String whereSinModalidad,
+    int requestId,
+  ) async {
+    try {
+      final resp = await _getSecop(
+        Uri.parse(
+          'https://www.datos.gov.co/resource/jbjy-vk9h.json?'
+          '\$select=modalidad_de_contratacion,count(*)%20as%20contratos'
+          '&\$where=${Uri.encodeComponent(whereSinModalidad)}'
+          '&\$group=modalidad_de_contratacion',
+        ),
+        timeout: const Duration(seconds: 15),
+      );
+      if (resp.statusCode != 200) return;
+      final conteo = <String, int>{};
+      for (final fila in jsonDecode(resp.body) as List<dynamic>) {
+        if (fila is! Map) continue;
+        final nombre = _normalizeModalityLabel(
+          '${fila['modalidad_de_contratacion'] ?? ''}',
+        );
+        conteo[nombre] =
+            (conteo[nombre] ?? 0) +
+            (int.tryParse('${fila['contratos'] ?? 0}') ?? 0);
+      }
+      if (!mounted || requestId != _contratosRequestId) return;
+      setState(() => _conteoModalidadesFiltro = conteo);
+    } catch (_) {
+      // Sin conteo: los chips muestran los totales de la vigencia.
+    }
+  }
+
   void _cancelarBusqueda() {
     _busquedaController.clear();
     _busqueda = '';
@@ -1321,15 +1374,12 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       if (_busqueda.isNotEmpty) _limpiarBusqueda();
       return;
     }
-    // La búsqueda anula la navegación: unidad, dependencia y modalidad dejan
-    // de aplicar.
+    // La búsqueda se suma a los filtros activos (no los borra).
     setState(() {
       _busqueda = consulta;
-      _selectedUnidad = null;
-      _selectedDependencia = null;
       _selectedTabIndex = 1;
     });
-    _fetchContractsPageFromSecop(page: 1, modalityOverride: 'Todas');
+    _fetchContractsPageFromSecop(page: 1);
   }
 
   void _limpiarBusqueda() {
@@ -1339,7 +1389,6 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
 
   void _seleccionarUnidad(String? unidad, {bool irAContratos = false}) {
     setState(() {
-      _cancelarBusqueda();
       _selectedUnidad = unidad;
       if (irAContratos) _selectedTabIndex = 1;
     });
@@ -1348,7 +1397,6 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
 
   void _seleccionarDependencia(String? id, {bool irAContratos = false}) {
     setState(() {
-      _cancelarBusqueda();
       _selectedDependencia = id;
       if (irAContratos) _selectedTabIndex = 1;
     });
@@ -1356,17 +1404,13 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   }
 
   void _seleccionarModalidad(String modalidad) {
-    setState(() {
-      _cancelarBusqueda();
-      _selectedTabIndex = 1;
-    });
+    setState(() => _selectedTabIndex = 1);
     _fetchContractsPageFromSecop(page: 1, modalityOverride: modalidad);
   }
 
   void _seleccionarRegional(String? departamento) {
     if (departamento == _selectedRegionalDept) return;
     setState(() {
-      _cancelarBusqueda();
       _selectedRegionalDept = departamento;
       _selectedUnidad = null;
     });
@@ -1375,7 +1419,6 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
 
   void _seleccionarVigencia(int? anio) {
     setState(() {
-      _cancelarBusqueda();
       _selectedContratosYear = anio;
       _onlyCurrentYear2026 = anio != null;
     });
@@ -1638,7 +1681,10 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       textInputAction: TextInputAction.search,
       style: const TextStyle(fontSize: 14, color: Cristal.texto),
       decoration: InputDecoration(
-        hintText: mobile ? 'Número, objeto o contratista' : 'Buscar contrato en toda la entidad: número, palabra del objeto o contratista…',
+        hintText: mobile
+            ? 'Número, objeto o contratista'
+            : 'Buscar contrato: número, palabra del objeto o contratista '
+                  '(se suma a los filtros)…',
         hintStyle: const TextStyle(fontSize: 13.5, color: Cristal.textoTenue),
         prefixIcon: const Icon(Icons.search_rounded, color: Cristal.texto),
         suffixIcon: ValueListenableBuilder<TextEditingValue>(
@@ -1961,9 +2007,18 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       ),
     );
 
+    // Con búsqueda o filtros, los contadores cuentan lo mismo que la tabla.
+    final filtro = _conteoModalidadesFiltro;
     final modalidades = <(String, int)>[
-      ('Todas', _totalContratos),
-      for (final m in _modalityStats) (m.name, m.contractsCount),
+      if (filtro == null) ...[
+        ('Todas', _totalContratos),
+        for (final m in _modalityStats) (m.name, m.contractsCount),
+      ] else ...[
+        ('Todas', filtro.values.fold(0, (a, b) => a + b)),
+        for (final m in _modalityStats) (m.name, filtro[m.name] ?? 0),
+        for (final e in filtro.entries)
+          if (!_modalityStats.any((m) => m.name == e.key)) (e.key, e.value),
+      ],
     ];
 
     return Container(
@@ -2086,12 +2141,8 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
 
     final chips = <Widget>[
       if (_busqueda.isNotEmpty)
-        chip(
-          'Búsqueda: "$_busqueda" · toda la entidad, todas las vigencias',
-          _limpiarBusqueda,
-          busqueda: true,
-        )
-      else ...[
+        chip('Búsqueda: "$_busqueda"', _limpiarBusqueda, busqueda: true),
+      ...[
         if (_selectedRegionalDept != null)
           chip(
             _formatRegionalDisplayName(_selectedRegionalDept!),
@@ -2202,7 +2253,11 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           )
         else
           TextButton.icon(
-            onPressed: _fetchLiveEntityProfileData,
+            onPressed: () {
+              // "Actualizar" trae los datos de nuevo, sin la caché.
+              DatosAbiertos.limpiarCache();
+              _fetchLiveEntityProfileData();
+            },
             icon: const Icon(Icons.refresh_rounded, size: 16),
             label: const Text(
               'Actualizar datos',
@@ -2874,7 +2929,8 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         if (_selectedRegionalDept != null)
           ('Regional', _formatRegionalDisplayName(_selectedRegionalDept!)),
         ('Unidad de contratación (SECOP II)', unidad.etiqueta),
-      ] else if (_busqueda.isEmpty) ...[
+      ] else ...[
+        // Los filtros de la pantalla se suman, como en la lista.
         if (_selectedRegionalDept != null)
           ('Regional', _formatRegionalDisplayName(_selectedRegionalDept!)),
         if (_selectedUnidad != null) ('Cuenta en SECOP II', _selectedUnidad!),
@@ -2884,8 +2940,8 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
             _nombreDependencia(_dependenciaSeleccionada!),
           ),
         if (_selectedModality != 'Todas') ('Modalidad', _selectedModality),
-      ] else
-        ('Búsqueda', '"$_busqueda"'),
+        if (_busqueda.isNotEmpty) ('Búsqueda', '"$_busqueda"'),
+      ],
       ('Periodo (fecha de firma)', periodoTexto(o.desde, o.corte)),
       if (o.soloPrestacionServicios)
         (
@@ -2901,23 +2957,17 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     void Function(String) progreso,
   ) async {
     final rango = (desde: o.desde, corte: o.corte);
-    final where = _busqueda.isNotEmpty
-        ? _buildEntityWhereClause(
-            onlyYear2026: false,
-            includeRegionalFilter: false,
-            busqueda: _busqueda,
-            rango: rango,
-            soloPrestacionServicios: o.soloPrestacionServicios,
-          )
-        : _buildEntityWhereClause(
-            onlyYear2026: false,
-            includeRegionalFilter: true,
-            customModalityName: _selectedModality,
-            unidad: _selectedUnidad,
-            dependencia: _selectedDependencia,
-            rango: rango,
-            soloPrestacionServicios: o.soloPrestacionServicios,
-          );
+    // Búsqueda y filtros se suman, igual que en la lista de la pantalla.
+    final where = _buildEntityWhereClause(
+      onlyYear2026: false,
+      includeRegionalFilter: true,
+      customModalityName: _selectedModality,
+      unidad: _selectedUnidad,
+      dependencia: _selectedDependencia,
+      busqueda: _busqueda,
+      rango: rango,
+      soloPrestacionServicios: o.soloPrestacionServicios,
+    );
     final whereEnc = Uri.encodeComponent(where);
     final conteo = await _getSecop(
       Uri.parse(
@@ -2981,7 +3031,8 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         descripcionFiltros: porPalabras
             ? 'La dependencia se identifica por palabras clave del objeto del contrato: es una '
                   'aproximación y puede dejar contratos por fuera.'
-            : 'Regional, modalidad, cuenta o búsqueda que tienes aplicados en la lista.',
+            : 'Regional, dependencia, cuenta, modalidad y búsqueda que tienes '
+                  'aplicados en la lista, todos juntos.',
       ),
     );
     if (o == null || !mounted) return;
@@ -3049,21 +3100,23 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                   : (_selectedModality != 'Todas'
                         ? _selectedModality
                         : 'Contratos de la entidad')));
-    final alcance = buscando
-        ? 'Toda la entidad · todas las vigencias'
-        : [
-            _selectedRegionalDept == null
-                ? 'Consolidado nacional'
-                : _formatRegionalDisplayName(_selectedRegionalDept!),
-            _onlyCurrentYear2026
-                ? 'Vigencia $_activeBudgetYear'
-                : 'Historial 2015–${AniosSecop.actual}',
-            if (_selectedUnidad != null && _dependenciaSeleccionada != null)
-              _nombreDependencia(_dependenciaSeleccionada!),
-            if ((_selectedUnidad != null || _selectedDependencia != null) &&
-                _selectedModality != 'Todas')
-              _selectedModality,
-          ].join(' · ');
+    final alcance = [
+      _selectedRegionalDept == null
+          ? 'Consolidado nacional'
+          : _formatRegionalDisplayName(_selectedRegionalDept!),
+      _onlyCurrentYear2026
+          ? 'Vigencia $_activeBudgetYear'
+          : 'Historial 2015–${AniosSecop.actual}',
+      if ((buscando || _selectedUnidad != null) &&
+          _dependenciaSeleccionada != null)
+        _nombreDependencia(_dependenciaSeleccionada!),
+      if (buscando && _selectedUnidad != null) _selectedUnidad!,
+      if ((buscando ||
+              _selectedUnidad != null ||
+              _selectedDependencia != null) &&
+          _selectedModality != 'Todas')
+        _selectedModality,
+    ].join(' · ');
 
     return Container(
       decoration: BoxDecoration(
@@ -3094,7 +3147,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        '$alcance · ${_formatIntWithDots(total)} contrato${total == 1 ? '' : 's'} · ${_formatShortMillions(totalCop)}',
+                        _isLoadingContractsPage && filtrado && total == 0
+                            ? '$alcance · consultando…'
+                            : '$alcance · ${_formatIntWithDots(total)} contrato${total == 1 ? '' : 's'} · ${_formatShortMillions(totalCop)}',
                         style: const TextStyle(
                           color: Cristal.textoSuave,
                           fontSize: 12.5,
@@ -3184,7 +3239,11 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
               )
             else
               for (var i = 0; i < pageItems.length; i++) ...[
-                _buildContractRowWidget(pageItems[i]),
+                AnimatedOpacity(
+                  opacity: _isLoadingContractsPage ? 0.4 : 1,
+                  duration: Cristal.micro,
+                  child: _buildContractRowWidget(pageItems[i]),
+                ),
                 if (i < pageItems.length - 1)
                   const Divider(height: 1, color: Cristal.borde),
               ],

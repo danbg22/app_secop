@@ -62,4 +62,18 @@ void main() {
       ),
     );
   }
+
+  for (final consulta in ['fabian cuello', 'gustavo petro']) {
+    testWidgets('contratistas: $consulta', (t) async {
+      sesionConTodosLosRoles(true);
+      addTearDown(() => sesionConTodosLosRoles(false));
+      ventana(t, 1366, 1000);
+      await t.pumpWidget(appCristal(const HomeScreen(initialIndex: 4)));
+      await t.pump(const Duration(milliseconds: 400));
+      await t.enterText(find.byType(TextField).first, consulta);
+      await t.pump(const Duration(milliseconds: 400));
+      await esperarRed(t, 10);
+      await capturar(t, 'buscar_${consulta.replaceAll(' ', '_')}');
+    });
+  }
 }
