@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+import '../services/presupuesto_dependencias_service.dart';
 import '../services/reporte_contratos_modelo.dart';
 import '../services/reporte_contratos_service.dart';
 import '../utils/anios_secop.dart';
@@ -355,7 +356,24 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     super.initState();
     _initBaselineMetrics();
     _detectInitialRegionalFromEntityCard();
+    // El presupuesto por dependencia (y lo ejecutado de cada una) se empieza
+    // a consultar desde ya, en paralelo con el resumen: cuando se abra la
+    // pestaña Dependencias, ya está listo.
+    _precargarPresupuesto();
     _fetchLiveEntityProfileData();
+  }
+
+  /// Precarga el panel de presupuesto por dependencia con el alcance activo
+  /// (las consultas repetidas se comparten, no se duplican).
+  void _precargarPresupuesto() {
+    final nit = _nitEntidad.replaceAll(RegExp(r'[^0-9]'), '');
+    if (nit.length < 8) return;
+    PresupuestoDependenciasService.precargar(
+      nit: nit,
+      anio: _onlyCurrentYear2026 ? _activeBudgetYear : null,
+      departamento: _selectedRegionalDept,
+      cuentaSecop: _selectedUnidad,
+    );
   }
 
   @override
@@ -1157,6 +1175,8 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         _contractsPage = 1;
         _isLoadingLive = false;
       });
+      // Con la vigencia y el NIT ya confirmados en SECOP II.
+      _precargarPresupuesto();
       // La clasificación por dependencias es la consulta más pesada: va
       // aparte para no retrasar ni tumbar la carga principal.
       _fetchConteoDependencias(whereEntityYear);

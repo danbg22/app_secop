@@ -3,6 +3,9 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../utils/nit.dart';
+import 'datos_abiertos.dart';
+
 /// Presupuesto por dependencia con datos públicos de SECOP II.
 ///
 /// SECOP II registra en cada proceso la "unidad de contratación" que lo
@@ -84,6 +87,80 @@ class EjecucionDependencia {
   bool get completa => procesosConsultados >= procesosTotales;
 }
 
+/// Contratos y pagos de todos los procesos de un alcance (entidad, vigencia,
+/// regional o cuenta), consultados de una vez: da la ejecución de cada
+/// dependencia al instante, sin consultar una por una al tocarla.
+class EjecucionMasiva {
+  EjecucionMasiva._(this._portafoliosPorUnidad, this._porPortafolio);
+
+  /// Con las filas de las dos consultas: portafolios por unidad (procesos,
+  /// p6dx-8zbt) y sumas por portafolio (contratos, jbjy-vk9h).
+  factory EjecucionMasiva.desdeFilas(
+    List<dynamic> procesos,
+    List<dynamic> contratos,
+  ) {
+    double numero(dynamic v) => double.tryParse('${v ?? ''}') ?? 0;
+    final porUnidad = <String, Set<String>>{};
+    for (final f in procesos.cast<Map<String, dynamic>>()) {
+      final portafolio = '${f['id_del_portafolio'] ?? ''}';
+      if (portafolio.isEmpty) continue;
+      porUnidad
+          .putIfAbsent(
+            '${'${f['entidad'] ?? ''}'.trim()}|${f['nombre_de_la_unidad_de'] ?? ''}',
+            () => <String>{},
+          )
+          .add(portafolio);
+    }
+    return EjecucionMasiva._(porUnidad, {
+      for (final f in contratos.cast<Map<String, dynamic>>())
+        if ('${f['proceso_de_compra'] ?? ''}'.isNotEmpty)
+          '${f['proceso_de_compra']}': [
+            numero(f['n']),
+            numero(f['contratado']),
+            numero(f['pagado']),
+            numero(f['facturado']),
+            numero(f['pendiente']),
+          ],
+    });
+  }
+
+  /// `cuenta|unidad tal como se escribió` → portafolios de sus procesos.
+  final Map<String, Set<String>> _portafoliosPorUnidad;
+
+  /// Portafolio (`proceso_de_compra`) → contratos, contratado, pagado,
+  /// facturado y pendiente.
+  final Map<String, List<double>> _porPortafolio;
+
+  /// Ejecución de [d] (y de sus partes, si es agrupada).
+  EjecucionDependencia de(DependenciaPresupuesto d) {
+    final portafolios = <String>{};
+    for (final parte in d.partes.isEmpty ? [d] : d.partes) {
+      for (final v in parte.variantes) {
+        portafolios.addAll(
+          _portafoliosPorUnidad['${parte.cuentaSecop}|$v'] ?? const {},
+        );
+      }
+    }
+    final total = List<double>.filled(5, 0);
+    for (final p in portafolios) {
+      final suma = _porPortafolio[p];
+      if (suma == null) continue;
+      for (var i = 0; i < 5; i++) {
+        total[i] += suma[i];
+      }
+    }
+    return EjecucionDependencia(
+      contratos: total[0].round(),
+      contratadoCop: total[1],
+      pagadoCop: total[2],
+      facturadoCop: total[3],
+      pendienteCop: total[4],
+      procesosConsultados: d.procesos,
+      procesosTotales: d.procesos,
+    );
+  }
+}
+
 class PresupuestoDependenciasService {
   PresupuestoDependenciasService._();
 
@@ -93,6 +170,45 @@ class PresupuestoDependenciasService {
       'https://www.datos.gov.co/resource/jbjy-vk9h.json';
   static const int _maxProcesosDetalle = 4000;
   static const int _lote = 80;
+
+  /// Filas máximas de cada consulta de la ejecución masiva. Si se alcanzan,
+  /// el alcance es demasiado grande y se consulta dependencia por
+  /// dependencia.
+  static const int _maxFilasMasiva = 100000;
+
+  /// Consultas recientes (en curso o terminadas) por alcance: la precarga
+  /// del perfil de la entidad y el panel comparten la misma.
+  static final Map<String, ({DateTime hora, Future<Object?> futuro})>
+  _recientes = {};
+
+  static Future<T> _compartida<T>(String clave, Future<T> Function() crear) {
+    final previa = _recientes[clave];
+    if (previa != null &&
+        DateTime.now().difference(previa.hora) < DatosAbiertos.ttlPorDefecto) {
+      return previa.futuro.then((v) => v as T);
+    }
+    final futuro = crear();
+    _recientes[clave] = (hora: DateTime.now(), futuro: futuro);
+    // Un error no se guarda: la próxima vez se vuelve a intentar.
+    futuro
+        .then<void>(
+          (_) {},
+          onError: (Object _) {
+            if (identical(_recientes[clave]?.futuro, futuro)) {
+              _recientes.remove(clave);
+            }
+          },
+        )
+        .ignore();
+    return futuro;
+  }
+
+  /// SECOP guarda el NIT con o sin dígito de verificación: se trabaja con
+  /// los 9 primeros dígitos.
+  static String _nitBase(String nit) {
+    final digitos = nit.replaceAll(RegExp(r'[^0-9]'), '');
+    return digitos.length > 9 ? digitos.substring(0, 9) : digitos;
+  }
 
   static String _sinTildes(String t) => t
       .toUpperCase()
@@ -226,40 +342,81 @@ class PresupuestoDependenciasService {
       "entidad='${_sql(cuentaSecop)}'",
   ].join(' AND ');
 
-  /// GET con dos reintentos: Datos Abiertos a veces corta la conexión o
-  /// responde 5xx/429 cuando recibe varias consultas seguidas.
-  static Future<List<dynamic>> _get(String base, String query) async {
+  /// GET con el cliente de Datos Abiertos de la app: token de aplicación
+  /// (sin frenado por consultas simultáneas), reintentos, petición de
+  /// respaldo y caché.
+  static Future<List<dynamic>> _get(
+    String base,
+    String query, {
+    Duration timeout = const Duration(seconds: 40),
+    bool pesada = false,
+  }) async {
     final uri = Uri.parse(base).replace(queryParameters: {r'$query': query});
-    const intentos = 3;
-    for (var intento = 1; ; intento++) {
-      String motivo;
-      try {
-        final r = await http.get(uri).timeout(const Duration(seconds: 40));
-        if (r.statusCode == 200) {
-          return jsonDecode(utf8.decode(r.bodyBytes)) as List<dynamic>;
-        }
-        motivo = 'Datos Abiertos respondió con error ${r.statusCode}.';
-        if (r.statusCode < 500 && r.statusCode != 429) {
-          throw PresupuestoDependenciasException(motivo);
-        }
-      } on PresupuestoDependenciasException {
-        rethrow;
-      } on TimeoutException {
-        motivo =
-            'Datos Abiertos tardó demasiado en responder. Intenta de nuevo.';
-      } catch (_) {
-        motivo =
-            'No fue posible conectar con Datos Abiertos. Revisa tu conexión.';
-      }
-      if (intento >= intentos) throw PresupuestoDependenciasException(motivo);
-      await Future<void>.delayed(Duration(milliseconds: 700 * intento));
+    final http.Response r;
+    try {
+      r = await DatosAbiertos.obtener(
+        uri,
+        timeout: timeout,
+        cache: DatosAbiertos.ttlPorDefecto,
+        // Las pesadas tardan unos segundos de por sí: el respaldo solo
+        // para cuando la consulta se quedó colgada.
+        respaldoTras: pesada ? const Duration(seconds: 8) : null,
+      );
+    } on DatosAbiertosException {
+      throw const PresupuestoDependenciasException(
+        'Datos Abiertos no respondió a tiempo. Revisa tu conexión e intenta de nuevo.',
+      );
     }
+    if (r.statusCode != 200) {
+      throw PresupuestoDependenciasException(
+        'Datos Abiertos respondió con error ${r.statusCode}.',
+      );
+    }
+    return jsonDecode(utf8.decode(r.bodyBytes)) as List<dynamic>;
   }
 
   static double _num(dynamic v) => double.tryParse('${v ?? ''}') ?? 0;
 
+  /// Empieza a consultar las dependencias de un alcance y su ejecución, para
+  /// que el panel de presupuesto aparezca completo apenas se abra.
+  static void precargar({
+    required String nit,
+    int? anio,
+    String? departamento,
+    String? cuentaSecop,
+  }) {
+    if (_nitBase(nit).length < 8) return;
+    dependencias(
+      nit: nit,
+      anio: anio,
+      departamento: departamento,
+      cuentaSecop: cuentaSecop,
+    ).ignore();
+    ejecucionMasiva(
+      nit: nit,
+      anio: anio,
+      departamento: departamento,
+      cuentaSecop: cuentaSecop,
+    ).ignore();
+  }
+
   /// Dependencias de la entidad con su presupuesto asignado, de mayor a menor.
   static Future<List<DependenciaPresupuesto>> dependencias({
+    required String nit,
+    int? anio,
+    String? departamento,
+    String? cuentaSecop,
+  }) => _compartida(
+    ['dependencias', _nitBase(nit), anio, departamento, cuentaSecop].join('|'),
+    () => _dependencias(
+      nit: _nitBase(nit),
+      anio: anio,
+      departamento: departamento,
+      cuentaSecop: cuentaSecop,
+    ),
+  );
+
+  static Future<List<DependenciaPresupuesto>> _dependencias({
     required String nit,
     int? anio,
     String? departamento,
@@ -317,6 +474,78 @@ class PresupuestoDependenciasService {
           departamento: e.value.departamento,
         ),
     ]..sort((a, b) => b.asignadoCop.compareTo(a.asignadoCop));
+  }
+
+  /// Contratos y pagos de todas las dependencias del alcance con dos
+  /// consultas: los portafolios de cada unidad (procesos) y la suma de
+  /// contratos por portafolio (contratos). Null si no aplica: historial
+  /// completo (demasiados contratos) o un alcance que supera el límite de
+  /// filas; entonces el panel consulta cada dependencia al tocarla.
+  static Future<EjecucionMasiva?> ejecucionMasiva({
+    required String nit,
+    int? anio,
+    String? departamento,
+    String? cuentaSecop,
+  }) {
+    final base = _nitBase(nit);
+    if (anio == null || base.length < 8) return Future.value(null);
+    return _compartida(
+      ['ejecucion', base, anio, departamento, cuentaSecop].join('|'),
+      () => _ejecucionMasiva(
+        nit: base,
+        anio: anio,
+        departamento: departamento,
+        cuentaSecop: cuentaSecop,
+      ),
+    );
+  }
+
+  static Future<EjecucionMasiva?> _ejecucionMasiva({
+    required String nit,
+    required int anio,
+    String? departamento,
+    String? cuentaSecop,
+  }) async {
+    // En contratos el NIT es numérico; puede estar con o sin dígito de
+    // verificación.
+    final nits = {
+      nit,
+      if (nit.length == 9) '$nit${Nit.digitoVerificacion(nit)}',
+    }.join(',');
+    final resultados = await Future.wait([
+      _get(
+        _procesos,
+        'SELECT entidad, nombre_de_la_unidad_de, id_del_portafolio '
+        'WHERE ${_filtroBase(nit: nit, anio: anio, departamento: departamento, cuentaSecop: cuentaSecop)} '
+        'GROUP BY entidad, nombre_de_la_unidad_de, id_del_portafolio '
+        'LIMIT $_maxFilasMasiva',
+        pesada: true,
+      ),
+      _get(
+        _contratos,
+        // Los contratos de los procesos de una vigencia se firman en ella o
+        // poco después (o antes, si el proceso se volvió a publicar): medio
+        // año de margen a cada lado. Los que no tienen fecha de firma
+        // también cuentan.
+        'SELECT proceso_de_compra, count(*) AS n, '
+        'sum(valor_del_contrato) AS contratado, sum(valor_pagado) AS pagado, '
+        'sum(valor_facturado) AS facturado, '
+        'sum(valor_pendiente_de_ejecucion) AS pendiente '
+        'WHERE nit_entidad in ($nits) '
+        "AND (fecha_de_firma IS NULL OR (fecha_de_firma >= '${anio - 1}-07-01' "
+        "AND fecha_de_firma < '${anio + 1}-07-01')) "
+        '${departamento != null && departamento.isNotEmpty ? "AND departamento='${_sql(departamento)}' " : ''}'
+        '${cuentaSecop != null && cuentaSecop.isNotEmpty ? "AND nombre_entidad='${_sql(cuentaSecop)}' " : ''}'
+        'GROUP BY proceso_de_compra LIMIT $_maxFilasMasiva',
+        pesada: true,
+      ),
+    ]);
+    final (procesos, contratos) = (resultados[0], resultados[1]);
+    if (procesos.length >= _maxFilasMasiva ||
+        contratos.length >= _maxFilasMasiva) {
+      return null;
+    }
+    return EjecucionMasiva.desdeFilas(procesos, contratos);
   }
 
   /// Contratado y pagado de una dependencia, sumando los contratos de sus

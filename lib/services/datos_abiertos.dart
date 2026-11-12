@@ -95,7 +95,10 @@ class DatosAbiertos {
   static void limpiarCache() => _cache.clear();
 
   /// GET con reintentos. Con [cache] guarda la respuesta 200 ese tiempo;
-  /// con [fresco] ignora lo guardado y vuelve a consultar.
+  /// con [fresco] ignora lo guardado y vuelve a consultar. [respaldoTras]
+  /// cambia cuándo se lanza la petición de respaldo (por defecto
+  /// [cobertura]): las consultas pesadas, que tardan varios segundos de por
+  /// sí, la esperan más para no duplicarse sin necesidad.
   ///
   /// Devuelve la última respuesta del servidor aunque no sea 200 (como
   /// `http.get`); lanza [DatosAbiertosException] solo si nunca hubo
@@ -105,6 +108,7 @@ class DatosAbiertos {
     Duration timeout = const Duration(seconds: 9),
     Duration? cache,
     bool fresco = false,
+    Duration? respaldoTras,
   }) {
     final clave = uri.toString();
     if (cache != null && !fresco) {
@@ -116,13 +120,15 @@ class DatosAbiertos {
     final pendiente = _enVuelo[clave];
     if (pendiente != null) return pendiente;
 
-    final futuro = _conReintentos(uri, timeout).then((respuesta) {
-      if (cache != null && respuesta.statusCode == 200) {
-        _cache[clave] = _Entrada(respuesta, DateTime.now().add(cache));
-        _podarCache();
-      }
-      return respuesta;
-    });
+    final futuro = _conReintentos(uri, timeout, respaldoTras ?? cobertura).then(
+      (respuesta) {
+        if (cache != null && respuesta.statusCode == 200) {
+          _cache[clave] = _Entrada(respuesta, DateTime.now().add(cache));
+          _podarCache();
+        }
+        return respuesta;
+      },
+    );
     _enVuelo[clave] = futuro;
     futuro.whenComplete(() => _enVuelo.remove(clave)).ignore();
     return futuro;
@@ -216,14 +222,18 @@ class DatosAbiertos {
     ];
   }
 
-  static Future<http.Response> _conReintentos(Uri uri, Duration timeout) async {
+  static Future<http.Response> _conReintentos(
+    Uri uri,
+    Duration timeout,
+    Duration respaldo,
+  ) async {
     Object? ultimoError;
     for (var intento = 0; intento <= esperas.length; intento++) {
       if (intento > 0) await Future<void>.delayed(esperas[intento - 1]);
       try {
         // El tiempo límite cuenta desde que la petición sale, no mientras
         // espera turno.
-        final respuesta = await _conRespaldo(uri, timeout);
+        final respuesta = await _conRespaldo(uri, timeout, respaldo);
         if (_usarToken && _esTokenRechazado(respuesta)) {
           debugPrint('Datos Abiertos rechazó el token; se sigue sin él.');
           _tokenRechazado = true;
@@ -248,9 +258,13 @@ class DatosAbiertos {
     );
   }
 
-  /// Una petición; si tarda más de [cobertura], otra igual en paralelo. Gana
-  /// la primera respuesta; solo falla si fallan las dos.
-  static Future<http.Response> _conRespaldo(Uri uri, Duration timeout) {
+  /// Una petición; si tarda más de [tras], otra igual en paralelo. Gana la
+  /// primera respuesta; solo falla si fallan las dos.
+  static Future<http.Response> _conRespaldo(
+    Uri uri,
+    Duration timeout,
+    Duration tras,
+  ) {
     final listo = Completer<http.Response>();
     var pendientes = 0;
     void lanzar() {
@@ -273,7 +287,7 @@ class DatosAbiertos {
     }
 
     lanzar();
-    final respaldo = Timer(cobertura, () {
+    final respaldo = Timer(tras, () {
       if (!listo.isCompleted) lanzar();
     });
     return listo.future.whenComplete(respaldo.cancel);

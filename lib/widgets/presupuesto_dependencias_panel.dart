@@ -7,8 +7,10 @@ import 'reporte_contratos_flujo.dart';
 import '../tema/cristal.dart';
 
 /// Presupuesto asignado y ejecutado por cada dependencia (unidad de
-/// contratación de SECOP II) de una entidad. Al tocar una dependencia se
-/// consultan sus contratos y pagos.
+/// contratación de SECOP II) de una entidad. Los contratos y pagos de todas
+/// las dependencias se consultan de una vez al cargar (el perfil de la
+/// entidad ya los empieza a precargar al abrirse), así que al tocar una
+/// dependencia su detalle aparece enseguida.
 class PresupuestoDependenciasPanel extends StatefulWidget {
   const PresupuestoDependenciasPanel({
     super.key,
@@ -44,6 +46,12 @@ class _PresupuestoDependenciasPanelState
   String? _abierta;
   final Map<String, Future<EjecucionDependencia>> _ejecuciones = {};
   int _consulta = 0;
+
+  /// Ejecución de todas las dependencias del alcance (null mientras llega,
+  /// o si el alcance es el historial completo).
+  Future<EjecucionMasiva?>? _masivaEnCurso;
+  EjecucionMasiva? _masiva;
+  final Map<String, EjecucionDependencia> _ejecucionLista = {};
 
   // Vista por estructura del SENA: Dirección General y regionales.
   bool get _esSena => esNitSena(widget.nit) && widget.cuentaSecop == null;
@@ -83,7 +91,25 @@ class _PresupuestoDependenciasPanelState
       _ejecuciones.clear();
       _regionalesAbiertas.clear();
       _nacionalAbierto = false;
+      _masiva = null;
+      _ejecucionLista.clear();
     });
+    // En paralelo con la lista de dependencias.
+    final masiva = PresupuestoDependenciasService.ejecucionMasiva(
+      nit: widget.nit,
+      anio: widget.anio,
+      departamento: widget.departamento,
+      cuentaSecop: widget.cuentaSecop,
+    );
+    _masivaEnCurso = masiva;
+    masiva.then(
+      (m) {
+        if (!mounted || id != _consulta) return;
+        setState(() => _masiva = m);
+      },
+      // Sin ejecución masiva: cada dependencia se consulta al tocarla.
+      onError: (Object _) {},
+    ).ignore();
     try {
       final deps = await PresupuestoDependenciasService.dependencias(
         nit: widget.nit,
@@ -114,17 +140,40 @@ class _PresupuestoDependenciasPanelState
   void _alternar(DependenciaPresupuesto d) {
     setState(() {
       _abierta = _abierta == d.clave ? null : d.clave;
-      if (_abierta != null) {
-        _ejecuciones.putIfAbsent(
-          d.clave,
-          () => PresupuestoDependenciasService.ejecucion(
-            d,
-            nit: widget.nit,
-            anio: widget.anio,
-          ),
-        );
+      if (_abierta != null && _lista(d) == null) {
+        _ejecuciones.putIfAbsent(d.clave, () => _ejecucionDe(d));
       }
     });
+  }
+
+  /// Ejecución de [d] ya consultada (precarga masiva), o null.
+  EjecucionDependencia? _lista(DependenciaPresupuesto d) {
+    final m = _masiva;
+    if (m == null) return null;
+    return _ejecucionLista.putIfAbsent(d.clave, () => m.de(d));
+  }
+
+  /// Espera la consulta masiva si está en curso; sin ella, consulta solo
+  /// esta dependencia.
+  Future<EjecucionDependencia> _ejecucionDe(DependenciaPresupuesto d) async {
+    EjecucionMasiva? m = _masiva;
+    if (m == null && _masivaEnCurso != null) {
+      try {
+        m = await _masivaEnCurso;
+      } catch (_) {}
+    }
+    if (m != null) return m.de(d);
+    return PresupuestoDependenciasService.ejecucion(
+      d,
+      nit: widget.nit,
+      anio: widget.anio,
+    );
+  }
+
+  /// Suma de lo pagado de [deps], o null si la ejecución aún no llega.
+  double? _pagado(Iterable<DependenciaPresupuesto> deps) {
+    if (_masiva == null) return null;
+    return deps.fold<double>(0, (s, d) => s + (_lista(d)?.pagadoCop ?? 0));
   }
 
   static String _millones(double cop) {
@@ -237,17 +286,13 @@ class _PresupuestoDependenciasPanelState
       dependencia: d,
       proporcion: d.asignadoCop / maxNodo,
       abierta: _abierta == d.clave,
+      lista: _lista(d),
       ejecucion: _ejecuciones[d.clave],
       mostrarCuenta: false,
       onTap: () => _alternar(d),
       onReporte: () => _reporte(d),
-      onReintentar: () => setState(
-        () => _ejecuciones[d.clave] = PresupuestoDependenciasService.ejecucion(
-          d,
-          nit: widget.nit,
-          anio: widget.anio,
-        ),
-      ),
+      onReintentar: () =>
+          setState(() => _ejecuciones[d.clave] = _ejecucionDe(d)),
       millones: _millones,
     );
 
@@ -294,6 +339,8 @@ class _PresupuestoDependenciasPanelState
           detalle:
               'Nivel nacional · ${arbol.nacional.length} dependencias que contratan',
           valor: _millones(totalNacional),
+          pagado: _pagado(arbol.nacional),
+          millones: _millones,
           proporcion:
               totalNacional /
               (totalNacional > maxRegional ? totalNacional : maxRegional),
@@ -338,6 +385,8 @@ class _PresupuestoDependenciasPanelState
                         '$centros de ${r.centros.length} centro${r.centros.length == 1 ? '' : 's'} con procesos',
                       ].join(' · '),
                 valor: _millones(totalRegional[r]!),
+                pagado: _pagado(nodos.values),
+                millones: _millones,
                 proporcion: totalRegional[r]! / maxRegional,
                 abierto:
                     _regionalesAbiertas.contains(r.nombre) ||
@@ -538,18 +587,13 @@ class _PresupuestoDependenciasPanelState
                 dependencia: d,
                 proporcion: maximo <= 0 ? 0 : d.asignadoCop / maximo,
                 abierta: _abierta == d.clave,
+                lista: _lista(d),
                 ejecucion: _ejecuciones[d.clave],
                 mostrarCuenta: variasCuentas,
                 onTap: () => _alternar(d),
                 onReporte: () => _reporte(d),
-                onReintentar: () => setState(
-                  () => _ejecuciones[d.clave] =
-                      PresupuestoDependenciasService.ejecucion(
-                        d,
-                        nit: widget.nit,
-                        anio: widget.anio,
-                      ),
-                ),
+                onReintentar: () =>
+                    setState(() => _ejecuciones[d.clave] = _ejecucionDe(d)),
                 millones: _millones,
               ),
           if (visibles.length > 80)
@@ -588,6 +632,7 @@ class _FilaDependencia extends StatelessWidget {
     required this.onTap,
     required this.onReintentar,
     required this.millones,
+    this.lista,
     this.onReporte,
   });
 
@@ -595,22 +640,65 @@ class _FilaDependencia extends StatelessWidget {
   final VoidCallback? onReporte;
   final double proporcion;
   final bool abierta;
+
+  /// Ejecución ya precargada: se muestra sin esperar.
+  final EjecucionDependencia? lista;
   final Future<EjecucionDependencia>? ejecucion;
   final bool mostrarCuenta;
   final VoidCallback onTap;
   final VoidCallback onReintentar;
   final String Function(double) millones;
 
+  Widget _detalle(EjecucionDependencia e) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _DetalleEjecucion(
+        asignado: dependencia.asignadoCop,
+        e: e,
+        millones: millones,
+      ),
+      if (onReporte != null) ...[
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: onReporte,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Cristal.texto,
+            side: const BorderSide(color: Cristal.bordeFuerte),
+            shape: const StadiumBorder(),
+          ),
+          icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+          label: const Text(
+            'Reporte de sus contratos (Excel o PDF)',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+        ),
+      ],
+    ],
+  );
+
   @override
   Widget build(BuildContext context) {
     final d = dependencia;
-    return Container(
+    // Lo pagado, en cuanto llega la precarga: se ve sin abrir la fila.
+    final ejecutado = lista == null
+        ? null
+        : Text(
+            '${millones(lista!.pagadoCop)} ejecutado',
+            style: const TextStyle(
+              color: Cristal.verde,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+            ),
+          );
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOutCubic,
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: abierta ? Cristal.vidrioSuave : Cristal.vidrio,
+        color: abierta ? Cristal.azulVidrio : Cristal.vidrio,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: abierta ? Cristal.bordeFuerte : Cristal.borde,
+          color: abierta ? Cristal.acentoBorde : Cristal.borde,
         ),
       ),
       child: Material(
@@ -671,6 +759,7 @@ class _FilaDependencia extends StatelessWidget {
                       ),
                     ],
                   ),
+                  ?ejecutado,
                 ] else
                   Row(
                     children: [
@@ -718,6 +807,7 @@ class _FilaDependencia extends StatelessWidget {
                               fontSize: 11.5,
                             ),
                           ),
+                          ?ejecutado,
                         ],
                       ),
                       Icon(
@@ -738,7 +828,10 @@ class _FilaDependencia extends StatelessWidget {
                     backgroundColor: Cristal.vidrioFuerte,
                   ),
                 ),
-                if (abierta && ejecucion != null) ...[
+                if (abierta && lista != null) ...[
+                  const SizedBox(height: 12),
+                  _detalle(lista!),
+                ] else if (abierta && ejecucion != null) ...[
                   const SizedBox(height: 12),
                   FutureBuilder<EjecucionDependencia>(
                     future: ejecucion,
@@ -788,37 +881,7 @@ class _FilaDependencia extends StatelessWidget {
                           ),
                         );
                       }
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _DetalleEjecucion(
-                            asignado: d.asignadoCop,
-                            e: snap.data!,
-                            millones: millones,
-                          ),
-                          if (onReporte != null) ...[
-                            const SizedBox(height: 10),
-                            OutlinedButton.icon(
-                              onPressed: onReporte,
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Cristal.texto,
-                                side: const BorderSide(
-                                  color: Cristal.bordeFuerte,
-                                ),
-                                shape: const StadiumBorder(),
-                              ),
-                              icon: const Icon(
-                                Icons.picture_as_pdf_outlined,
-                                size: 18,
-                              ),
-                              label: const Text(
-                                'Reporte de sus contratos (Excel o PDF)',
-                                style: TextStyle(fontWeight: FontWeight.w800),
-                              ),
-                            ),
-                          ],
-                        ],
-                      );
+                      return _detalle(snap.data!);
                     },
                   ),
                 ],
@@ -1027,11 +1090,17 @@ class _GrupoSena extends StatelessWidget {
     required this.abierto,
     required this.onTap,
     required this.hijos,
+    required this.millones,
+    this.pagado,
   });
 
   final String titulo;
   final String detalle;
   final String valor;
+
+  /// Lo pagado del grupo, cuando ya llegó la precarga.
+  final double? pagado;
+  final String Function(double) millones;
   final double proporcion;
   final bool abierto;
   final VoidCallback onTap;
@@ -1039,20 +1108,37 @@ class _GrupoSena extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+    // La regional abierta se distingue de las demás: fondo más oscuro, borde
+    // y cabecera en azul y una sombra que la separa de las de arriba y abajo.
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      margin: EdgeInsets.only(bottom: abierto ? 14 : 10, top: abierto ? 4 : 0),
       decoration: BoxDecoration(
-        color: abierto ? Cristal.vidrioSuave : Cristal.vidrio,
+        color: abierto ? Cristal.vidrioOscuro : Cristal.vidrio,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: abierto ? Cristal.bordeFuerte : Cristal.borde,
+          color: abierto ? Cristal.acentoBorde : Cristal.borde,
+          width: abierto ? 1.4 : 1,
         ),
+        boxShadow: abierto
+            ? const [
+                BoxShadow(
+                  color: Cristal.sombra,
+                  blurRadius: 22,
+                  offset: Offset(0, 8),
+                ),
+              ]
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Material(
-            color: Colors.transparent,
+            color: abierto ? Cristal.acentoVidrio : Colors.transparent,
+            borderRadius: abierto
+                ? const BorderRadius.vertical(top: Radius.circular(15))
+                : BorderRadius.circular(16),
             child: InkWell(
               hoverDuration: Cristal.micro,
               onTap: onTap,
@@ -1079,8 +1165,10 @@ class _GrupoSena extends StatelessWidget {
                               const SizedBox(height: 2),
                               Text(
                                 detalle,
-                                style: const TextStyle(
-                                  color: Cristal.textoSuave,
+                                style: TextStyle(
+                                  color: abierto
+                                      ? Cristal.textoMedio
+                                      : Cristal.textoSuave,
                                   fontSize: 12.3,
                                 ),
                               ),
@@ -1099,20 +1187,33 @@ class _GrupoSena extends StatelessWidget {
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
-                            const Text(
+                            Text(
                               'asignado',
                               style: TextStyle(
-                                color: Cristal.textoSuave,
+                                color: abierto
+                                    ? Cristal.textoMedio
+                                    : Cristal.textoSuave,
                                 fontSize: 11.5,
                               ),
                             ),
+                            if (pagado != null)
+                              Text(
+                                '${millones(pagado!)} ejecutado',
+                                style: const TextStyle(
+                                  color: Cristal.verde,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                           ],
                         ),
                         Icon(
                           abierto
                               ? Icons.expand_less_rounded
                               : Icons.expand_more_rounded,
-                          color: Cristal.textoSuave,
+                          color: abierto
+                              ? Cristal.acentoClaro
+                              : Cristal.textoSuave,
                         ),
                       ],
                     ),
@@ -1135,7 +1236,7 @@ class _GrupoSena extends StatelessWidget {
             Padding(
               padding: EdgeInsets.fromLTRB(
                 MediaQuery.sizeOf(context).width < 520 ? 8 : 14,
-                0,
+                12,
                 MediaQuery.sizeOf(context).width < 520 ? 8 : 14,
                 8,
               ),

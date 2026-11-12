@@ -1900,9 +1900,7 @@ class _ContratosSectionState extends State<ContratosSection> {
           (esAnioHistoricoSecop1 ||
               _selectedAnio.isNotEmpty ||
               queryText.isNotEmpty);
-      final secop1Futuro = puedeNecesitarSecop1
-          ? fetchSecopIContracts()
-          : null;
+      final secop1Futuro = puedeNecesitarSecop1 ? fetchSecopIContracts() : null;
 
       var results = await runSoqlQuery(applyYearFilter: true);
       if (!mounted || requestId != _latestRequestId) return;
@@ -3514,10 +3512,10 @@ class _ContratosSectionState extends State<ContratosSection> {
         Row(
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
               decoration: BoxDecoration(
                 color: Cristal.doradoVidrio,
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(7),
                 border: Border.all(
                   color: Cristal.dorado.withValues(alpha: 0.65),
                 ),
@@ -3525,24 +3523,20 @@ class _ContratosSectionState extends State<ContratosSection> {
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.category_outlined,
-                    size: 12.5,
-                    color: Cristal.texto,
-                  ),
-                  SizedBox(width: 4),
+                  Icon(Icons.category_outlined, size: 15, color: Cristal.texto),
+                  SizedBox(width: 5),
                   Text(
                     'Sectores',
                     style: TextStyle(
                       color: Cristal.texto,
-                      fontSize: 11,
+                      fontSize: 13,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 10),
             const Expanded(
               child: Text(
                 'Selecciona un sector como macrofiltro para ver todos sus contratos relacionados:',
@@ -3550,7 +3544,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: Cristal.textoSuave,
-                  fontSize: 11,
+                  fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -3567,12 +3561,12 @@ class _ContratosSectionState extends State<ContratosSection> {
                 },
                 borderRadius: BorderRadius.circular(6),
                 child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   child: Text(
                     'Ver todos los sectores',
                     style: TextStyle(
                       color: Cristal.acentoClaro,
-                      fontSize: 11,
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -3580,7 +3574,7 @@ class _ContratosSectionState extends State<ContratosSection> {
               ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         HorizontalWebScroll(
           child: Row(
             children: [
@@ -3602,19 +3596,19 @@ class _ContratosSectionState extends State<ContratosSection> {
                         });
                         _fetchLiveSecopContracts(silent: true);
                       },
-                      borderRadius: BorderRadius.circular(11),
+                      borderRadius: BorderRadius.circular(14),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 160),
-                        constraints: const BoxConstraints(minWidth: 132),
+                        constraints: const BoxConstraints(minWidth: 176),
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 11,
-                          vertical: 8,
+                          horizontal: 16,
+                          vertical: 14,
                         ),
                         decoration: BoxDecoration(
                           color: isSelected
                               ? Cristal.acentoVidrio
                               : Cristal.vidrioSuave,
-                          borderRadius: BorderRadius.circular(11),
+                          borderRadius: BorderRadius.circular(14),
                           border: Border.all(
                             color: isSelected ? Cristal.dorado : Cristal.borde,
                             width: isSelected ? 1.5 : 1,
@@ -3633,23 +3627,23 @@ class _ContratosSectionState extends State<ContratosSection> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Container(
-                              width: 30,
-                              height: 30,
+                              width: 40,
+                              height: 40,
                               decoration: BoxDecoration(
                                 color: isSelected
                                     ? Cristal.dorado.withValues(alpha: 0.2)
                                     : sec.softBg,
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(10),
                               ),
                               child: Icon(
                                 sec.icon,
-                                size: 16,
+                                size: 21,
                                 color: isSelected
                                     ? Cristal.dorado
                                     : sec.accentColor,
                               ),
                             ),
-                            const SizedBox(width: 9),
+                            const SizedBox(width: 12),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisSize: MainAxisSize.min,
@@ -3659,32 +3653,30 @@ class _ContratosSectionState extends State<ContratosSection> {
                                   children: [
                                     Text(
                                       sec.label,
-                                      style: TextStyle(
-                                        color: isSelected
-                                            ? Cristal.texto
-                                            : Cristal.texto,
-                                        fontSize: 12,
+                                      style: const TextStyle(
+                                        color: Cristal.texto,
+                                        fontSize: 14.5,
                                         fontWeight: FontWeight.w800,
                                       ),
                                     ),
                                     if (isSelected) ...[
-                                      const SizedBox(width: 5),
+                                      const SizedBox(width: 6),
                                       const Icon(
                                         Icons.check_circle,
-                                        size: 12,
+                                        size: 15,
                                         color: Cristal.dorado,
                                       ),
                                     ],
                                   ],
                                 ),
-                                const SizedBox(height: 1),
+                                const SizedBox(height: 3),
                                 Text(
                                   sec.subtitle,
                                   style: TextStyle(
                                     color: isSelected
                                         ? Cristal.textoApagado
                                         : Cristal.textoSuave,
-                                    fontSize: 10,
+                                    fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -3697,7 +3689,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                   },
                 ),
                 if (i < _sectorMacroOptions.length - 1)
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 12),
               ],
             ],
           ),
@@ -3713,10 +3705,10 @@ class _ContratosSectionState extends State<ContratosSection> {
 
     Widget activeFilterChip(String text, VoidCallback onRemove) {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
         decoration: BoxDecoration(
           color: Cristal.doradoVidrio,
-          borderRadius: BorderRadius.circular(7),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Cristal.dorado.withValues(alpha: 0.6)),
         ),
         child: Row(
@@ -3726,269 +3718,307 @@ class _ContratosSectionState extends State<ContratosSection> {
               text,
               style: const TextStyle(
                 color: Cristal.texto,
-                fontSize: 11,
+                fontSize: 12.5,
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(width: 5),
+            const SizedBox(width: 6),
             InkWell(
               hoverDuration: Cristal.micro,
               onTap: onRemove,
-              child: const Icon(Icons.close, size: 13, color: Cristal.texto),
+              child: const Icon(Icons.close, size: 15, color: Cristal.texto),
             ),
           ],
         ),
       );
     }
 
+    final movil = MediaQuery.sizeOf(context).width < 768;
+    // Alto común de la barra de búsqueda y sus botones.
+    const double altoControles = 46;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      padding: EdgeInsets.symmetric(
+        horizontal: movil ? 14 : 20,
+        vertical: movil ? 14 : 18,
+      ),
       decoration: BoxDecoration(
         color: Cristal.vidrio,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Cristal.borde),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Barra de búsqueda rápida en tiempo real + Botón Buscar + Filtros avanzados
-          Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 230, maxWidth: 460),
-                child: SizedBox(
-                  height: 36,
-                  child: TextField(
-                    controller: _contractsSearchController,
-                    onChanged: (_) {
-                      // Sin setState por tecla: reconstruía toda la sección.
-                      // La búsqueda (y su setState) se lanza al dejar de escribir.
-                      _searchDebounce?.cancel();
-                      _searchDebounce = Timer(
-                        const Duration(milliseconds: 350),
-                        () => _executeContractSearch(silent: true),
-                      );
-                    },
-                    onSubmitted: (_) => _executeContractSearch(silent: false),
-                    style: const TextStyle(fontSize: 12, color: Cristal.texto),
-                    decoration: InputDecoration(
-                      hintText: 'Pregunta como hablas: "alimentación en el Cesar", "obras de más de 500 millones en 2025"…',
-                      hintStyle: TextStyle(
-                        color: Cristal.textoSuave,
-                        fontSize: 12,
-                      ),
-                      isDense: true,
-                      filled: true,
-                      fillColor: Cristal.campo,
-                      prefixIcon: const Icon(
-                        Icons.search,
-                        color: Cristal.texto,
-                        size: 18,
-                      ),
-                      suffixIcon: _contractsSearchController.text.isNotEmpty
-                          ? IconButton(
+          // Barra de búsqueda + Buscar + vigencia + filtros avanzados. En
+          // pantallas anchas van en una sola fila y el buscador ocupa el
+          // espacio que sobra; en las angostas se acomodan en varias.
+          LayoutBuilder(
+            builder: (context, c) {
+              final buscador = SizedBox(
+                height: altoControles,
+                child: TextField(
+                  controller: _contractsSearchController,
+                  // Se consulta al presionar Enter o "Buscar", no mientras
+                  // se escribe: así no se busca con palabras a medias ni
+                  // se traba la escritura.
+                  onSubmitted: (_) => _executeContractSearch(silent: false),
+                  textInputAction: TextInputAction.search,
+                  style: const TextStyle(fontSize: 14, color: Cristal.texto),
+                  decoration: InputDecoration(
+                    hintText: 'Pregunta como hablas y presiona Enter: "alimentación en el Cesar", "obras de más de 500 millones en 2025"…',
+                    hintStyle: TextStyle(
+                      color: Cristal.textoSuave,
+                      fontSize: 13.5,
+                    ),
+                    isDense: true,
+                    filled: true,
+                    fillColor: Cristal.campo,
+                    prefixIcon: const Icon(
+                      Icons.search,
+                      color: Cristal.texto,
+                      size: 20,
+                    ),
+                    suffixIcon: ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: _contractsSearchController,
+                      builder: (context, valor, _) => valor.text.isEmpty
+                          ? const SizedBox.shrink()
+                          : IconButton(
+                              tooltip: 'Limpiar búsqueda',
                               onPressed: () {
                                 _contractsSearchController.clear();
                                 _executeContractSearch(silent: true);
                               },
-                              icon: const Icon(Icons.clear, size: 15),
-                            )
-                          : null,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 0,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(9),
-                        borderSide: const BorderSide(color: Cristal.borde),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(9),
-                        borderSide: const BorderSide(color: Cristal.borde),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(9),
-                        borderSide: const BorderSide(
-                          color: Cristal.acentoClaro,
-                          width: 1.3,
-                        ),
+                              icon: const Icon(Icons.clear, size: 17),
+                            ),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 0,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(11),
+                      borderSide: const BorderSide(color: Cristal.borde),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(11),
+                      borderSide: const BorderSide(color: Cristal.borde),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(11),
+                      borderSide: const BorderSide(
+                        color: Cristal.acentoClaro,
+                        width: 1.3,
                       ),
                     ),
                   ),
                 ),
-              ),
-              SizedBox(
-                height: 36,
-                child: ElevatedButton.icon(
-                  onPressed: () => _executeContractSearch(silent: false),
-                  icon: _isLoadingSecop
-                      ? const SizedBox(
-                          width: 13,
-                          height: 13,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
+              );
+              final controles = <Widget>[
+                SizedBox(
+                  height: altoControles,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _executeContractSearch(silent: false),
+                    icon: _isLoadingSecop
+                        ? const SizedBox(
+                            width: 15,
+                            height: 15,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Cristal.dorado,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.search,
+                            size: 18,
                             color: Cristal.dorado,
                           ),
-                        )
-                      : const Icon(
-                          Icons.search,
-                          size: 15,
-                          color: Cristal.dorado,
-                        ),
-                  label: const Text(
-                    'Buscar',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12.5,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Cristal.acento,
-                    foregroundColor: Cristal.texto,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(9),
-                    ),
-                  ),
-                ),
-              ),
-              // Selector rápido de Vigencia (2015 a 2026)
-              Container(
-                height: 36,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  color: _selectedAnio.isNotEmpty
-                      ? Cristal.doradoVidrio
-                      : Cristal.vidrioSuave,
-                  borderRadius: BorderRadius.circular(9),
-                  border: Border.all(
-                    color: _selectedAnio.isNotEmpty
-                        ? Cristal.dorado
-                        : Cristal.borde,
-                  ),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedAnio.isEmpty ? '' : _selectedAnio,
-                    icon: const Icon(
-                      Icons.calendar_today_outlined,
-                      size: 14,
-                      color: Cristal.texto,
-                    ),
-                    isDense: true,
-                    style: const TextStyle(
-                      color: Cristal.texto,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    items: [
-                      const DropdownMenuItem(
-                        value: '',
-                        child: Text('Vigencia: Todas (2015–2026)'),
+                    label: const Text(
+                      'Buscar',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
                       ),
-                      for (final anio in _anioOptions)
-                        DropdownMenuItem(value: anio, child: Text('Año $anio')),
-                    ],
-                    onChanged: (val) {
-                      setState(() {
-                        _selectedAnio = val ?? '';
-                        _currentPage = 1;
-                      });
-                      _fetchLiveSecopContracts(silent: true);
-                    },
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Cristal.acento,
+                      foregroundColor: Cristal.texto,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              SizedBox(
-                height: 36,
-                child: OutlinedButton(
-                  onPressed: _showAdvancedFiltersDialog,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Cristal.texto,
-                    backgroundColor: activeCount > 0
+                // Selector rápido de Vigencia (2015 a 2026)
+                Container(
+                  height: altoControles,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  decoration: BoxDecoration(
+                    color: _selectedAnio.isNotEmpty
                         ? Cristal.doradoVidrio
                         : Cristal.vidrioSuave,
-                    side: BorderSide(
-                      color: activeCount > 0 ? Cristal.dorado : Cristal.borde,
-                      width: activeCount > 0 ? 1.4 : 1,
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(9),
+                    borderRadius: BorderRadius.circular(11),
+                    border: Border.all(
+                      color: _selectedAnio.isNotEmpty
+                          ? Cristal.dorado
+                          : Cristal.borde,
                     ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.tune_rounded,
-                        size: 15,
-                        color: Cristal.texto,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        activeCount > 0
-                            ? 'Filtros avanzados ($activeCount)'
-                            : 'Filtros avanzados',
-                        style: const TextStyle(
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedAnio.isEmpty ? '' : _selectedAnio,
+                      icon: const Padding(
+                        padding: EdgeInsets.only(left: 8),
+                        child: Icon(
+                          Icons.calendar_today_outlined,
+                          size: 16,
                           color: Cristal.texto,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(width: 4),
-                      const Icon(
-                        Icons.keyboard_arrow_down,
-                        size: 16,
+                      isDense: true,
+                      // Con la fuente de la app: el estilo del menú no la
+                      // hereda del tema.
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
                         color: Cristal.texto,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
                       ),
-                    ],
-                  ),
-                ),
-              ),
-              if (hasAnyFilter)
-                TextButton.icon(
-                  onPressed: _resetAllFilters,
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                  ),
-                  icon: const Icon(
-                    Icons.refresh,
-                    size: 14,
-                    color: Cristal.texto,
-                  ),
-                  label: const Text(
-                    'Limpiar todo',
-                    style: TextStyle(
-                      color: Cristal.texto,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
+                      items: [
+                        const DropdownMenuItem(
+                          value: '',
+                          child: Text('Vigencia: Todas (2015–2026)'),
+                        ),
+                        for (final anio in _anioOptions)
+                          DropdownMenuItem(
+                            value: anio,
+                            child: Text('Año $anio'),
+                          ),
+                      ],
+                      onChanged: (val) {
+                        setState(() {
+                          _selectedAnio = val ?? '';
+                          _currentPage = 1;
+                        });
+                        _fetchLiveSecopContracts(silent: true);
+                      },
                     ),
                   ),
                 ),
-            ],
+                SizedBox(
+                  height: altoControles,
+                  child: OutlinedButton(
+                    onPressed: _showAdvancedFiltersDialog,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Cristal.texto,
+                      backgroundColor: activeCount > 0
+                          ? Cristal.doradoVidrio
+                          : Cristal.vidrioSuave,
+                      side: BorderSide(
+                        color: activeCount > 0 ? Cristal.dorado : Cristal.borde,
+                        width: activeCount > 0 ? 1.4 : 1,
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.tune_rounded,
+                          size: 18,
+                          color: Cristal.texto,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          activeCount > 0
+                              ? 'Filtros avanzados ($activeCount)'
+                              : 'Filtros avanzados',
+                          style: const TextStyle(
+                            color: Cristal.texto,
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(
+                          Icons.keyboard_arrow_down,
+                          size: 18,
+                          color: Cristal.texto,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (hasAnyFilter)
+                  TextButton.icon(
+                    onPressed: _resetAllFilters,
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    icon: const Icon(
+                      Icons.refresh,
+                      size: 16,
+                      color: Cristal.texto,
+                    ),
+                    label: const Text(
+                      'Limpiar todo',
+                      style: TextStyle(
+                        color: Cristal.texto,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+              ];
+              if (c.maxWidth >= 900) {
+                return Row(
+                  children: [
+                    Expanded(child: buscador),
+                    for (final w in controles) ...[
+                      const SizedBox(width: 10),
+                      w,
+                    ],
+                  ],
+                );
+              }
+              return Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      minWidth: 280,
+                      maxWidth: 600,
+                    ),
+                    child: buscador,
+                  ),
+                  ...controles,
+                ],
+              );
+            },
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: movil ? 16 : 20),
           // Tarjetas de Sectores (Macrofiltro)
           _buildSectoresMacroFilter(),
           if (hasAnyFilter) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 14),
             Wrap(
               crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 6,
-              runSpacing: 5,
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 const Text(
                   'Activos:',
                   style: TextStyle(
                     color: Cristal.texto,
-                    fontSize: 11,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -4132,24 +4162,24 @@ class _ContratosSectionState extends State<ContratosSection> {
       String? subtitleText,
     }) {
       return Container(
-        padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 11),
+        padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 16),
         decoration: BoxDecoration(
           color: Cristal.vidrio,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: Cristal.borde),
         ),
         child: Row(
           children: [
             Container(
-              width: 30,
-              height: 30,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color: iconBackground,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: iconColor, size: 16),
+              child: Icon(icon, color: iconColor, size: 21),
             ),
-            const SizedBox(width: 9),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -4161,10 +4191,11 @@ class _ContratosSectionState extends State<ContratosSection> {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Cristal.textoSuave,
-                      fontSize: 10.5,
+                      fontSize: 12.5,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+                  const SizedBox(height: 2),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.baseline,
                     textBaseline: TextBaseline.alphabetic,
@@ -4178,14 +4209,14 @@ class _ContratosSectionState extends State<ContratosSection> {
                             maxLines: 1,
                             style: const TextStyle(
                               color: Cristal.texto,
-                              fontSize: 15.5,
+                              fontSize: 19,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
                         ),
                       ),
                       if (subtitleText != null) ...[
-                        const SizedBox(width: 5),
+                        const SizedBox(width: 6),
                         Flexible(
                           child: Text(
                             subtitleText,
@@ -4193,7 +4224,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: Cristal.textoSuave,
-                              fontSize: 9.5,
+                              fontSize: 11.5,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -4250,11 +4281,11 @@ class _ContratosSectionState extends State<ContratosSection> {
           return Row(
             children: [
               Expanded(child: kpiCardBoxes[0]),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(child: kpiCardBoxes[1]),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(child: kpiCardBoxes[2]),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(child: kpiCardBoxes[3]),
             ],
           );
@@ -4263,13 +4294,13 @@ class _ContratosSectionState extends State<ContratosSection> {
         return HorizontalWebScroll(
           child: Row(
             children: [
-              SizedBox(width: 235, child: kpiCardBoxes[0]),
-              const SizedBox(width: 10),
-              SizedBox(width: 235, child: kpiCardBoxes[1]),
-              const SizedBox(width: 10),
-              SizedBox(width: 235, child: kpiCardBoxes[2]),
-              const SizedBox(width: 10),
-              SizedBox(width: 235, child: kpiCardBoxes[3]),
+              SizedBox(width: 250, child: kpiCardBoxes[0]),
+              const SizedBox(width: 12),
+              SizedBox(width: 250, child: kpiCardBoxes[1]),
+              const SizedBox(width: 12),
+              SizedBox(width: 250, child: kpiCardBoxes[2]),
+              const SizedBox(width: 12),
+              SizedBox(width: 250, child: kpiCardBoxes[3]),
             ],
           ),
         );
@@ -4368,8 +4399,9 @@ class _ContratosSectionState extends State<ContratosSection> {
                     ),
                   ),
                   style: const TextStyle(
+                    fontFamily: 'Inter',
                     color: Cristal.texto,
-                    fontSize: 11.5,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w700,
                   ),
                   items: const [
@@ -5019,7 +5051,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                 Padding(
                   padding: EdgeInsets.fromLTRB(
                     horizontalPad,
-                    12,
+                    16,
                     horizontalPad,
                     14,
                   ),
@@ -5027,13 +5059,13 @@ class _ContratosSectionState extends State<ContratosSection> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       _buildHeaderSection(),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 16),
                       _buildFiltersPanel(),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 16),
                       _buildKPIsRow(),
-                      const SizedBox(height: 9),
+                      const SizedBox(height: 24),
                       _buildTableHeader(),
-                      const SizedBox(height: 7),
+                      const SizedBox(height: 10),
                       _buildContractsTable(),
                       _buildPaginationRow(),
                     ],
