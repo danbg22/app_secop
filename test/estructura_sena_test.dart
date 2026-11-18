@@ -14,9 +14,15 @@ void main() {
     );
     expect(despacho.nivel, NivelSena.despachoRegional);
     expect(despacho.regional?.nombre, 'Cesar');
+    // CBC (Centro Biotecnológico del Caribe) es hoy el Centro de Atención
+    // Integral al Campesino (CAIC).
     expect(
       ubicar(cesar, 'UNIDAD DE CONTRATACIÓN CBC..').nodo,
-      'Centro Biotecnológico del Caribe',
+      'Centro de Atención Integral al Campesino',
+    );
+    expect(
+      ubicar(cesar, 'UNIDAD DE CONTRATACIÓN CAIC').nodo,
+      'Centro de Atención Integral al Campesino',
     );
     expect(
       ubicar(cesar, 'UNIDAD DE CONTRATACION CAE***').nodo,

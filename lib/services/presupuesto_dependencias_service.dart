@@ -72,6 +72,8 @@ class EjecucionDependencia {
     required this.pendienteCop,
     required this.procesosConsultados,
     required this.procesosTotales,
+    this.procesosSinFecha = 0,
+    this.asignadoSinFechaCop = 0,
   });
 
   final int contratos;
@@ -80,6 +82,13 @@ class EjecucionDependencia {
   final double facturadoCop;
   final double pendienteCop;
 
+  /// Procesos que SECOP II publica sin ninguna fecha (suelen ser
+  /// contrataciones directas ya adjudicadas) y que se ubican en la vigencia
+  /// por la firma de sus contratos, con su presupuesto oficial. No están en
+  /// [DependenciaPresupuesto.asignadoCop].
+  final int procesosSinFecha;
+  final double asignadoSinFechaCop;
+
   /// Si la dependencia tiene muchísimos procesos se consulta una muestra.
   final int procesosConsultados;
   final int procesosTotales;
@@ -87,58 +96,139 @@ class EjecucionDependencia {
   bool get completa => procesosConsultados >= procesosTotales;
 }
 
+/// Órdenes de compra de la Tienda Virtual del Estado Colombiano (Acuerdos
+/// Marco y grandes superficies) de una cuenta de la entidad en la vigencia.
+/// No pasan por los procesos de SECOP II ni dicen qué dependencia compra:
+/// solo el nombre de la cuenta ("SENA - Regional Cesar").
+class OrdenesTienda {
+  const OrdenesTienda({
+    required this.cuenta,
+    required this.departamento,
+    required this.ordenes,
+    required this.valorCop,
+  });
+
+  final String cuenta;
+  final String departamento;
+  final int ordenes;
+  final double valorCop;
+}
+
 /// Contratos y pagos de todos los procesos de un alcance (entidad, vigencia,
 /// regional o cuenta), consultados de una vez: da la ejecución de cada
-/// dependencia al instante, sin consultar una por una al tocarla.
+/// dependencia al instante, sin consultar una por una al tocarla. Cuenta
+/// los contratos firmados en la vigencia (como los compromisos del
+/// presupuesto), y aparte las órdenes de la Tienda Virtual.
 class EjecucionMasiva {
-  EjecucionMasiva._(this._portafoliosPorUnidad, this._porPortafolio);
+  EjecucionMasiva._(
+    this._portafoliosPorUnidad,
+    this._porPortafolio,
+    this._sinFechaPorUnidad,
+    this.tienda,
+  );
 
-  /// Con las filas de las dos consultas: portafolios por unidad (procesos,
-  /// p6dx-8zbt) y sumas por portafolio (contratos, jbjy-vk9h).
-  factory EjecucionMasiva.desdeFilas(
-    List<dynamic> procesos,
-    List<dynamic> contratos,
-  ) {
+  /// Con las filas de las consultas:
+  /// - [procesos]: portafolios por unidad de los procesos publicados en
+  ///   [anio] (p6dx-8zbt).
+  /// - [procesosSinFecha]: los mismos datos, con su presupuesto (`pb`), de
+  ///   los procesos sin fecha de publicación.
+  /// - [contratos]: sumas por portafolio y año de firma (`af`), con los
+  ///   firmados en [anio] y los que no tienen fecha de firma (jbjy-vk9h).
+  /// - [tienda]: órdenes de la Tienda Virtual por cuenta.
+  factory EjecucionMasiva.desdeFilas({
+    required int anio,
+    required List<dynamic> procesos,
+    required List<dynamic> contratos,
+    List<dynamic> procesosSinFecha = const [],
+    List<OrdenesTienda> tienda = const [],
+  }) {
     double numero(dynamic v) => double.tryParse('${v ?? ''}') ?? 0;
+    String unidad(Map<String, dynamic> f) =>
+        '${'${f['entidad'] ?? ''}'.trim()}|${f['nombre_de_la_unidad_de'] ?? ''}';
+
     final porUnidad = <String, Set<String>>{};
+    final delAnio = <String>{};
     for (final f in procesos.cast<Map<String, dynamic>>()) {
       final portafolio = '${f['id_del_portafolio'] ?? ''}';
       if (portafolio.isEmpty) continue;
-      porUnidad
-          .putIfAbsent(
-            '${'${f['entidad'] ?? ''}'.trim()}|${f['nombre_de_la_unidad_de'] ?? ''}',
-            () => <String>{},
-          )
-          .add(portafolio);
+      delAnio.add(portafolio);
+      porUnidad.putIfAbsent(unidad(f), () => <String>{}).add(portafolio);
     }
-    return EjecucionMasiva._(porUnidad, {
-      for (final f in contratos.cast<Map<String, dynamic>>())
-        if ('${f['proceso_de_compra'] ?? ''}'.isNotEmpty)
-          '${f['proceso_de_compra']}': [
-            numero(f['n']),
-            numero(f['contratado']),
-            numero(f['pagado']),
-            numero(f['facturado']),
-            numero(f['pendiente']),
-          ],
-    });
+
+    // Un contrato cuenta si se firmó en la vigencia, o si no tiene fecha de
+    // firma y su proceso es de la vigencia.
+    final porPortafolio = <String, List<double>>{};
+    for (final f in contratos.cast<Map<String, dynamic>>()) {
+      final portafolio = '${f['proceso_de_compra'] ?? ''}';
+      if (portafolio.isEmpty) continue;
+      final firma = f['af'];
+      final cuenta = firma == null
+          ? delAnio.contains(portafolio)
+          : '$firma' == '$anio';
+      if (!cuenta) continue;
+      final suma = porPortafolio.putIfAbsent(
+        portafolio,
+        () => List<double>.filled(5, 0),
+      );
+      final valores = [
+        numero(f['n']),
+        numero(f['contratado']),
+        numero(f['pagado']),
+        numero(f['facturado']),
+        numero(f['pendiente']),
+      ];
+      for (var i = 0; i < 5; i++) {
+        suma[i] += valores[i];
+      }
+    }
+
+    // Procesos sin fecha: entran a la vigencia si tienen contratos firmados
+    // en ella.
+    final sinFecha = <String, List<double>>{};
+    for (final f in procesosSinFecha.cast<Map<String, dynamic>>()) {
+      final portafolio = '${f['id_del_portafolio'] ?? ''}';
+      if (portafolio.isEmpty ||
+          delAnio.contains(portafolio) ||
+          !porPortafolio.containsKey(portafolio)) {
+        continue;
+      }
+      final clave = unidad(f);
+      if (!porUnidad.putIfAbsent(clave, () => <String>{}).add(portafolio)) {
+        continue;
+      }
+      final suma = sinFecha.putIfAbsent(clave, () => [0, 0]);
+      suma[0] += 1;
+      suma[1] += numero(f['pb']);
+    }
+    return EjecucionMasiva._(porUnidad, porPortafolio, sinFecha, tienda);
   }
 
   /// `cuenta|unidad tal como se escribió` → portafolios de sus procesos.
   final Map<String, Set<String>> _portafoliosPorUnidad;
 
   /// Portafolio (`proceso_de_compra`) → contratos, contratado, pagado,
-  /// facturado y pendiente.
+  /// facturado y pendiente de la vigencia.
   final Map<String, List<double>> _porPortafolio;
+
+  /// `cuenta|unidad` → procesos sin fecha de la vigencia y su presupuesto.
+  final Map<String, List<double>> _sinFechaPorUnidad;
+
+  /// Órdenes de la Tienda Virtual por cuenta (sin dependencia).
+  final List<OrdenesTienda> tienda;
 
   /// Ejecución de [d] (y de sus partes, si es agrupada).
   EjecucionDependencia de(DependenciaPresupuesto d) {
     final portafolios = <String>{};
+    var procesosSinFecha = 0.0, asignadoSinFecha = 0.0;
     for (final parte in d.partes.isEmpty ? [d] : d.partes) {
       for (final v in parte.variantes) {
-        portafolios.addAll(
-          _portafoliosPorUnidad['${parte.cuentaSecop}|$v'] ?? const {},
-        );
+        final clave = '${parte.cuentaSecop}|$v';
+        portafolios.addAll(_portafoliosPorUnidad[clave] ?? const {});
+        final sf = _sinFechaPorUnidad[clave];
+        if (sf != null) {
+          procesosSinFecha += sf[0];
+          asignadoSinFecha += sf[1];
+        }
       }
     }
     final total = List<double>.filled(5, 0);
@@ -157,6 +247,8 @@ class EjecucionMasiva {
       pendienteCop: total[4],
       procesosConsultados: d.procesos,
       procesosTotales: d.procesos,
+      procesosSinFecha: procesosSinFecha.round(),
+      asignadoSinFechaCop: asignadoSinFecha,
     );
   }
 }
@@ -168,6 +260,8 @@ class PresupuestoDependenciasService {
       'https://www.datos.gov.co/resource/p6dx-8zbt.json';
   static const String _contratos =
       'https://www.datos.gov.co/resource/jbjy-vk9h.json';
+  static const String _tiendaVirtual =
+      'https://www.datos.gov.co/resource/rgxm-mmea.json';
   static const int _maxProcesosDetalle = 4000;
   static const int _lote = 80;
 
@@ -507,11 +601,21 @@ class PresupuestoDependenciasService {
     String? cuentaSecop,
   }) async {
     // En contratos el NIT es numérico; puede estar con o sin dígito de
-    // verificación.
-    final nits = {
+    // verificación. En la Tienda Virtual es texto.
+    final nits = [
       nit,
       if (nit.length == 9) '$nit${Nit.digitoVerificacion(nit)}',
-    }.join(',');
+    ];
+    final filtroSinAnio = _filtroBase(
+      nit: nit,
+      departamento: departamento,
+      cuentaSecop: cuentaSecop,
+    );
+    // Una cuenta de SECOP II no se puede emparejar con las de la Tienda
+    // Virtual: con una cuenta elegida, sin órdenes. Va en paralelo.
+    final tienda = cuentaSecop != null && cuentaSecop.isNotEmpty
+        ? Future.value(const <OrdenesTienda>[])
+        : _ordenesTienda(nits: nits, anio: anio, departamento: departamento);
     final resultados = await Future.wait([
       _get(
         _procesos,
@@ -522,30 +626,100 @@ class PresupuestoDependenciasService {
         pesada: true,
       ),
       _get(
+        _procesos,
+        'SELECT entidad, nombre_de_la_unidad_de, id_del_portafolio, '
+        'max(precio_base) AS pb '
+        'WHERE $filtroSinAnio AND fecha_de_ultima_publicaci IS NULL '
+        'GROUP BY entidad, nombre_de_la_unidad_de, id_del_portafolio '
+        'LIMIT $_maxFilasMasiva',
+      ),
+      _get(
         _contratos,
-        // Los contratos de los procesos de una vigencia se firman en ella o
-        // poco después (o antes, si el proceso se volvió a publicar): medio
-        // año de margen a cada lado. Los que no tienen fecha de firma
-        // también cuentan.
-        'SELECT proceso_de_compra, count(*) AS n, '
+        // Los firmados en la vigencia, como los compromisos del presupuesto,
+        // y los que no tienen fecha de firma (cuentan si su proceso es de
+        // la vigencia).
+        'SELECT proceso_de_compra, date_extract_y(fecha_de_firma) AS af, '
+        'count(*) AS n, '
         'sum(valor_del_contrato) AS contratado, sum(valor_pagado) AS pagado, '
         'sum(valor_facturado) AS facturado, '
         'sum(valor_pendiente_de_ejecucion) AS pendiente '
-        'WHERE nit_entidad in ($nits) '
-        "AND (fecha_de_firma IS NULL OR (fecha_de_firma >= '${anio - 1}-07-01' "
-        "AND fecha_de_firma < '${anio + 1}-07-01')) "
+        'WHERE nit_entidad in (${nits.join(',')}) '
+        "AND ((fecha_de_firma >= '$anio-01-01' AND fecha_de_firma < '${anio + 1}-01-01') "
+        'OR fecha_de_firma IS NULL) '
         '${departamento != null && departamento.isNotEmpty ? "AND departamento='${_sql(departamento)}' " : ''}'
         '${cuentaSecop != null && cuentaSecop.isNotEmpty ? "AND nombre_entidad='${_sql(cuentaSecop)}' " : ''}'
-        'GROUP BY proceso_de_compra LIMIT $_maxFilasMasiva',
+        'GROUP BY proceso_de_compra, af LIMIT $_maxFilasMasiva',
         pesada: true,
       ),
     ]);
-    final (procesos, contratos) = (resultados[0], resultados[1]);
+    final (procesos, sinFecha, contratos) = (
+      resultados[0],
+      resultados[1],
+      resultados[2],
+    );
     if (procesos.length >= _maxFilasMasiva ||
+        sinFecha.length >= _maxFilasMasiva ||
         contratos.length >= _maxFilasMasiva) {
       return null;
     }
-    return EjecucionMasiva.desdeFilas(procesos, contratos);
+    return EjecucionMasiva.desdeFilas(
+      anio: anio,
+      procesos: procesos,
+      procesosSinFecha: sinFecha,
+      contratos: contratos,
+      tienda: await tienda,
+    );
+  }
+
+  /// Órdenes de la Tienda Virtual de la entidad en la vigencia, por cuenta.
+  /// Si la Tienda Virtual no responde, sin órdenes (el resto del panel no
+  /// depende de ellas).
+  static Future<List<OrdenesTienda>> _ordenesTienda({
+    required List<String> nits,
+    required int anio,
+    String? departamento,
+  }) async {
+    try {
+      final filas = await _get(
+        _tiendaVirtual,
+        'SELECT entidad, departamento, count(*) AS n, sum(total) AS v '
+        "WHERE nit_entidad in (${nits.map((n) => "'$n'").join(',')}) "
+        "AND a_o='$anio' AND estado not in ('Cancelado','Cancelada') "
+        'GROUP BY entidad, departamento LIMIT 5000',
+        pesada: true,
+      );
+      return [
+        for (final f in filas.cast<Map<String, dynamic>>())
+          if (departamento == null ||
+              departamento.isEmpty ||
+              mismoDepartamento('${f['departamento'] ?? ''}', departamento))
+            OrdenesTienda(
+              cuenta: '${f['entidad'] ?? ''}'.trim(),
+              departamento: '${f['departamento'] ?? ''}',
+              ordenes: int.tryParse('${f['n'] ?? 0}') ?? 0,
+              valorCop: _num(f['v']),
+            ),
+      ]..sort((a, b) => b.valorCop.compareTo(a.valorCop));
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// Cada fuente escribe distinto los departamentos ("Bogotá, D.C." y
+  /// "Distrito Capital de Bogotá").
+  static bool mismoDepartamento(String a, String b) {
+    String n(String t) =>
+        _sinTildes(t)
+            .replaceAll(RegExp(r'[^A-Z ]'), ' ')
+            .replaceAll(RegExp(r'\s+'), ' ')
+            .trim();
+    final x = n(a), y = n(b);
+    if (x.isEmpty || y.isEmpty) return false;
+    for (final comun in ['BOGOTA', 'SAN ANDRES']) {
+      if (x.contains(comun) && y.contains(comun)) return true;
+    }
+    // Sin "contiene": Santander no es Norte de Santander.
+    return x == y;
   }
 
   /// Contratado y pagado de una dependencia, sumando los contratos de sus

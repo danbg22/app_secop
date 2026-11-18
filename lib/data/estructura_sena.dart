@@ -359,10 +359,14 @@ const List<RegionalSena> regionalesSena = [
     claves: ['CESAR'],
     departamento: 'CESAR',
     centros: [
+      // Antes Centro Biotecnológico del Caribe (CBC): desde 2026 es el
+      // Centro de Atención Integral al Campesino (CAIC). En SECOP II sigue
+      // contratando como "UNIDAD DE CONTRATACIÓN CBC"; se muestra con su
+      // nombre actual.
       CentroSena(
-        'Centro Biotecnológico del Caribe',
-        siglas: ['CBC'],
-        frases: ['BIOTECNOLOGICO DEL CARIBE'],
+        'Centro de Atención Integral al Campesino',
+        siglas: ['CBC', 'CAIC'],
+        frases: ['BIOTECNOLOGICO DEL CARIBE', 'ATENCION INTEGRAL AL CAMPESINO'],
       ),
       CentroSena(
         'Centro Agroempresarial',
