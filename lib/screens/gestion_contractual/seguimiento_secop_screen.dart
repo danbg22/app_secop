@@ -95,10 +95,10 @@ class _SeguimientoSecopScreenState extends State<SeguimientoSecopScreen> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.fiber_new_rounded,
                         size: 18,
-                        color: Color(0xFFFB923C),
+                        color: Cristal.legible(const Color(0xFFFB923C)),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -180,7 +180,7 @@ class _SeguimientoSecopScreenState extends State<SeguimientoSecopScreen> {
               children: [
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 620),
-                  child: const Column(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
@@ -253,7 +253,7 @@ class _SeguimientoSecopScreenState extends State<SeguimientoSecopScreen> {
                   _FiltroChip(
                     texto: 'Con novedades ($novedades)',
                     activo: _soloNovedades,
-                    color: const Color(0xFFFB923C),
+                    color: Cristal.legible(const Color(0xFFFB923C)),
                     icono: Icons.fiber_new_rounded,
                     onTap: () =>
                         setState(() => _soloNovedades = !_soloNovedades),
@@ -290,7 +290,7 @@ class _SeguimientoSecopScreenState extends State<SeguimientoSecopScreen> {
                 ),
               )
             else if (visibles.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(30),
                 child: Center(
                   child: Text(
@@ -435,7 +435,7 @@ class _TarjetaSeguimiento extends StatelessWidget {
                         child: EtiquetaColor(
                           texto:
                               '$novedades novedad${novedades == 1 ? '' : 'es'}',
-                          color: const Color(0xFFFB923C),
+                          color: Cristal.legible(const Color(0xFFFB923C)),
                           fondo: Cristal.ambarVidrio,
                           icono: Icons.fiber_new_rounded,
                         ),
@@ -445,7 +445,7 @@ class _TarjetaSeguimiento extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(
                   p.numeroProceso,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
@@ -460,7 +460,7 @@ class _TarjetaSeguimiento extends StatelessWidget {
                       : p.objeto,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.textoMedio,
                     fontSize: 13,
                     height: 1.35,
@@ -471,10 +471,7 @@ class _TarjetaSeguimiento extends StatelessWidget {
                   p.entidadNombre,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Cristal.textoSuave,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Cristal.textoSuave, fontSize: 12),
                 ),
                 const SizedBox(height: 14),
                 Wrap(
@@ -517,8 +514,8 @@ class _TarjetaSeguimiento extends StatelessWidget {
                       p.secopNovedades.last,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFFFB923C),
+                      style: TextStyle(
+                        color: Cristal.legible(const Color(0xFFFB923C)),
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,
                       ),
@@ -526,7 +523,7 @@ class _TarjetaSeguimiento extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 12),
-                const Divider(height: 1, color: Cristal.borde),
+                Divider(height: 1, color: Cristal.borde),
                 const SizedBox(height: 10),
                 Row(
                   children: [
@@ -545,7 +542,7 @@ class _TarjetaSeguimiento extends StatelessWidget {
                             : (p.secopSincronizadoEnIso.isEmpty
                                   ? 'Aún no se ha sincronizado'
                                   : 'Sincronizado ${haceCuanto(p.secopSincronizadoEnIso)}'),
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.textoSuave,
                           fontSize: 12,
                         ),
@@ -606,7 +603,7 @@ class _Mini extends StatelessWidget {
           texto,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
+          style: TextStyle(
             color: Cristal.texto,
             fontSize: 12.5,
             fontWeight: FontWeight.w600,
@@ -627,13 +624,9 @@ class _Vacio extends StatelessWidget {
     decoration: EstiloContractual.tarjeta(),
     child: Column(
       children: [
-        const Icon(
-          Icons.cloud_download_outlined,
-          size: 42,
-          color: Cristal.texto,
-        ),
+        Icon(Icons.cloud_download_outlined, size: 42, color: Cristal.texto),
         const SizedBox(height: 10),
-        const Text(
+        Text(
           'Aún no hay procesos en seguimiento',
           style: TextStyle(
             color: Cristal.texto,
@@ -642,7 +635,7 @@ class _Vacio extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        const Text(
+        Text(
           'Importa un proceso de SECOP II con su ID o enlace para seguir su estado y sus documentos.',
           textAlign: TextAlign.center,
           style: TextStyle(color: Cristal.textoMedio),

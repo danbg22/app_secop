@@ -126,11 +126,11 @@ class _CrearProcesoScreenState extends State<CrearProcesoScreen> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Cristal.borde),
+          borderSide: BorderSide(color: Cristal.borde),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Cristal.acentoClaro, width: 1.5),
+          borderSide: BorderSide(color: Cristal.acentoClaro, width: 1.5),
         ),
       );
 
@@ -196,7 +196,7 @@ class _CrearProcesoScreenState extends State<CrearProcesoScreen> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Cristal.acentoBorde),
               ),
-              child: const Text(
+              child: Text(
                 'Registra aquí el proceso que la entidad adelanta en SECOP II para que el equipo '
                 'jurídico controle plazos, documentos, observaciones y verificación de ofertas. '
                 'Publicación, recepción de ofertas y adjudicación se hacen únicamente en SECOP II.',
@@ -208,10 +208,7 @@ class _CrearProcesoScreenState extends State<CrearProcesoScreen> {
               ),
             ),
             const SizedBox(height: 18),
-            const Text(
-              'Datos del proceso',
-              style: EstiloContractual.tituloGrupo,
-            ),
+            Text('Datos del proceso', style: EstiloContractual.tituloGrupo),
             const SizedBox(height: 14),
             par(
               TextFormField(
@@ -292,7 +289,7 @@ class _CrearProcesoScreenState extends State<CrearProcesoScreen> {
                 onPressed: _guardando ? null : _crear,
                 style: EstiloContractual.botonPrincipal(),
                 icon: _guardando
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 16,
                         height: 16,
                         child: CircularProgressIndicator(
@@ -349,7 +346,7 @@ class _CrearProcesoScreenState extends State<CrearProcesoScreen> {
         const SizedBox(height: 8),
         Text(
           _m.fundamento,
-          style: const TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
+          style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
         ),
         const SizedBox(height: 20),
         if (mobile) ...[
@@ -403,10 +400,7 @@ class _ResumenRequisitos extends StatelessWidget {
                 Expanded(
                   child: Text(
                     d.obligatorio ? d.nombre : '${d.nombre} (si aplica)',
-                    style: const TextStyle(
-                      color: Cristal.texto,
-                      fontSize: 12.8,
-                    ),
+                    style: TextStyle(color: Cristal.texto, fontSize: 12.8),
                   ),
                 ),
               ],
@@ -426,7 +420,7 @@ class _ResumenRequisitos extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Lo que exige esta modalidad',
             style: TextStyle(
               color: Cristal.texto,
@@ -438,12 +432,12 @@ class _ResumenRequisitos extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               'Escogencia: ${m.criterioEvaluacion}',
-              style: const TextStyle(color: Cristal.textoMedio, fontSize: 12.8),
+              style: TextStyle(color: Cristal.textoMedio, fontSize: 12.8),
             ),
           ],
           const SizedBox(height: 16),
           if (m.etapas.isNotEmpty) ...[
-            const Text('Etapas', style: EstiloContractual.tituloGrupo),
+            Text('Etapas', style: EstiloContractual.tituloGrupo),
             const SizedBox(height: 8),
             for (var i = 0; i < m.etapas.length; i++)
               Padding(
@@ -478,10 +472,7 @@ class _ResumenRequisitos extends StatelessWidget {
                               TextSpan(text: ' · ${m.etapas[i].plazo}'),
                           ],
                         ),
-                        style: const TextStyle(
-                          color: Cristal.texto,
-                          fontSize: 12.8,
-                        ),
+                        style: TextStyle(color: Cristal.texto, fontSize: 12.8),
                       ),
                     ),
                   ],

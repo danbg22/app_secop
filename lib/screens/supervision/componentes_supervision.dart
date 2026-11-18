@@ -37,11 +37,11 @@ InputDecoration decoracionCampo(
   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
   enabledBorder: OutlineInputBorder(
     borderRadius: BorderRadius.circular(12),
-    borderSide: const BorderSide(color: Cristal.borde),
+    borderSide: BorderSide(color: Cristal.borde),
   ),
   focusedBorder: OutlineInputBorder(
     borderRadius: BorderRadius.circular(12),
-    borderSide: const BorderSide(color: Cristal.acentoClaro, width: 1.5),
+    borderSide: BorderSide(color: Cristal.acentoClaro, width: 1.5),
   ),
 );
 
@@ -143,7 +143,7 @@ class TarjetaSupervision extends StatelessWidget {
                       children: [
                         Text(
                           titulo!,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.texto,
                             fontSize: 16.5,
                             fontWeight: FontWeight.w800,
@@ -153,7 +153,7 @@ class TarjetaSupervision extends StatelessWidget {
                           const SizedBox(height: 3),
                           Text(
                             subtitulo!,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.textoMedio,
                               fontSize: 12.8,
                               height: 1.4,
@@ -280,7 +280,7 @@ class RielEtapas extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: centrado ? TextAlign.center : TextAlign.start,
-              style: const TextStyle(color: Cristal.textoSuave, fontSize: 11.5),
+              style: TextStyle(color: Cristal.textoSuave, fontSize: 11.5),
             ),
           ],
         );
@@ -451,7 +451,7 @@ class HistorialInforme extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (eventos.isEmpty) {
-      return const Text(
+      return Text(
         'Sin movimientos todavía.',
         style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
       );
@@ -469,7 +469,7 @@ class HistorialInforme extends StatelessWidget {
                   margin: const EdgeInsets.only(top: 5),
                   width: 8,
                   height: 8,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: Cristal.acento,
                     shape: BoxShape.circle,
                   ),
@@ -481,7 +481,7 @@ class HistorialInforme extends StatelessWidget {
                     children: [
                       Text(
                         e.accion,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.texto,
                           fontSize: 12.8,
                           fontWeight: FontWeight.w700,
@@ -489,7 +489,7 @@ class HistorialInforme extends StatelessWidget {
                       ),
                       Text(
                         '${e.actor} · ${formatoFecha(e.fechaIso)}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.textoSuave,
                           fontSize: 11.5,
                         ),
@@ -497,7 +497,7 @@ class HistorialInforme extends StatelessWidget {
                       if (e.detalle.isNotEmpty)
                         Text(
                           e.detalle,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.textoMedio,
                             fontSize: 12,
                           ),

@@ -218,7 +218,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
     padding: const EdgeInsets.only(top: 16, bottom: 8),
     child: Text(
       t,
-      style: const TextStyle(
+      style: TextStyle(
         color: Cristal.texto,
         fontWeight: FontWeight.w800,
         fontSize: 13.5,
@@ -264,7 +264,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
               children: [
                 Text(
                   titulo,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontWeight: FontWeight.w800,
                     fontSize: 13.4,
@@ -273,7 +273,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
                 const SizedBox(height: 2),
                 Text(
                   detalle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.textoSuave,
                     fontSize: 12.3,
                     height: 1.35,
@@ -305,7 +305,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
     future: widget.unidades,
     builder: (context, snap) {
       if (snap.hasError) {
-        return const Padding(
+        return Padding(
           padding: EdgeInsets.only(bottom: 10),
           child: Text(
             'No fue posible consultar las unidades de contratación.',
@@ -371,9 +371,9 @@ class _DialogoReporteState extends State<DialogoReporte> {
       backgroundColor: Cristal.flotante,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: Cristal.bordeFuerte),
+        side: BorderSide(color: Cristal.bordeFuerte),
       ),
-      title: const Text(
+      title: Text(
         'Exportar reporte de contratos',
         style: TextStyle(color: Cristal.texto, fontWeight: FontWeight.w800),
       ),
@@ -396,7 +396,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
                 _seccion('Contratos de'),
                 Text(
                   '${widget.unidadFija!.etiqueta} (criterio exacto de SECOP II)',
-                  style: const TextStyle(color: Cristal.texto, fontSize: 13.2),
+                  style: TextStyle(color: Cristal.texto, fontSize: 13.2),
                 ),
               ] else if (widget.unidades != null) ...[
                 _seccion('¿Qué contratos incluir?'),
@@ -475,7 +475,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
                 contentPadding: EdgeInsets.zero,
                 value: _soloPs,
                 onChanged: (v) => setState(() => _soloPs = v),
-                title: const Text(
+                title: Text(
                   'Solo prestación de servicios profesionales y de apoyo a la gestión',
                   style: TextStyle(
                     color: Cristal.texto,
@@ -483,7 +483,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                subtitle: const Text(
+                subtitle: Text(
                   'Numeral 3 del artículo 32 de la Ley 80 de 1993.',
                   style: TextStyle(color: Cristal.textoSuave, fontSize: 12),
                 ),
@@ -497,7 +497,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
                     children: [
                       Text(
                         'Columnas del reporte (${_columnas.length})',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.texto,
                           fontWeight: FontWeight.w800,
                           fontSize: 13.5,
@@ -506,7 +506,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
                       const Spacer(),
                       Text(
                         _verColumnas ? 'Ocultar' : 'Agregar o quitar',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.acentoClaro,
                           fontWeight: FontWeight.w700,
                           fontSize: 12.8,
@@ -519,10 +519,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
               if (!_verColumnas)
                 Text(
                   _columnas.map((c) => c.titulo).join(' · '),
-                  style: const TextStyle(
-                    color: Cristal.textoSuave,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Cristal.textoSuave, fontSize: 12),
                 )
               else
                 Wrap(
@@ -567,7 +564,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
                 ],
               ),
               if (_pdf)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(top: 6),
                   child: Text(
                     'El PDF admite hasta $maxFilasPdf contratos; para más, usa la hoja de cálculo.',
@@ -593,13 +590,11 @@ class _DialogoReporteState extends State<DialogoReporte> {
                             children: [
                               TextSpan(
                                 text: '$k: ',
-                                style: const TextStyle(
-                                  color: Cristal.textoSuave,
-                                ),
+                                style: TextStyle(color: Cristal.textoSuave),
                               ),
                               TextSpan(
                                 text: v,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Cristal.texto,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -627,7 +622,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
               : null,
           style: FilledButton.styleFrom(
             backgroundColor: Cristal.acento,
-            foregroundColor: Cristal.texto,
+            foregroundColor: Cristal.blanco,
           ),
           icon: const Icon(Icons.download_rounded, size: 18),
           label: const Text('Generar'),
@@ -664,7 +659,7 @@ Future<void> generarReporteContratos(
         backgroundColor: Cristal.flotante,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
-          side: const BorderSide(color: Cristal.bordeFuerte),
+          side: BorderSide(color: Cristal.bordeFuerte),
         ),
         content: Row(
           children: [
@@ -679,7 +674,7 @@ Future<void> generarReporteContratos(
                 valueListenable: estado,
                 builder: (_, t, _) => Text(
                   t,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontWeight: FontWeight.w600,
                   ),

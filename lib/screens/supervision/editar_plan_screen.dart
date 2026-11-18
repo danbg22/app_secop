@@ -411,10 +411,7 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
               Text(
                 '${periodos.length} informes: el primero del ${fechaLegible(periodos.first.desde, conDia: false)} '
                 'al ${fechaLegible(periodos.first.hasta, conDia: false)}.',
-                style: const TextStyle(
-                  color: Cristal.textoSuave,
-                  fontSize: 12.3,
-                ),
+                style: TextStyle(color: Cristal.textoSuave, fontSize: 12.3),
               ),
             ],
           ),
@@ -449,8 +446,8 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
                     'Aporte mínimo mensual del contratista: ${formatoCop(aporte.totalContratista())} (IBC ${formatoCop(aporte.ibc)}).',
-                    style: const TextStyle(
-                      color: Color(0xFF38BDF8),
+                    style: TextStyle(
+                      color: Cristal.legible(const Color(0xFF38BDF8)),
                       fontSize: 12.6,
                       fontWeight: FontWeight.w600,
                     ),
@@ -524,7 +521,7 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
               for (final (i, e) in plantilla.etapas.indexed) ...[
                 Text(
                   '${i + 1}. ${e.nombre}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontWeight: FontWeight.w800,
                     fontSize: 14,
@@ -566,7 +563,7 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
               ],
               const Divider(height: 1),
               const SizedBox(height: 14),
-              const Text(
+              Text(
                 'Supervisor del contrato (firma el informe de supervisión)',
                 style: TextStyle(
                   color: Cristal.texto,
@@ -610,13 +607,13 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
                         width: 26,
                         height: 26,
                         alignment: Alignment.center,
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           color: Cristal.vidrioSuave,
                           shape: BoxShape.circle,
                         ),
                         child: Text(
                           '${i + 1}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.texto,
                             fontWeight: FontWeight.w800,
                             fontSize: 12,
@@ -640,7 +637,7 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
                                 _obligaciones.removeAt(i).dispose();
                                 _ids.removeAt(i);
                               }),
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.close_rounded,
                           color: Cristal.textoSuave,
                         ),
@@ -669,7 +666,7 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
               onPressed: _guardando ? null : _guardar,
               style: EstiloContractual.botonPrincipal(),
               icon: _guardando
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(

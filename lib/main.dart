@@ -14,6 +14,7 @@ import 'screens/login_screen.dart';
 import 'screens/portada_screen.dart';
 import 'screens/registro_screen.dart';
 import 'services/auth_service.dart';
+import 'services/datos_abiertos.dart';
 import 'services/juridico_contratacion_service.dart';
 import 'tema/cristal.dart';
 import 'utils/app_scroll_behavior.dart';
@@ -25,6 +26,10 @@ Future<void> main() async {
   await _activarAppCheck();
   await AuthService.restoreSessionFromPrefs();
   AuthService.refrescarVerificacionAlIniciar();
+  // Consultas a Datos Abiertos de la última hora, guardadas en el navegador.
+  await DatosAbiertos.iniciarPersistencia();
+  // Modo claro u oscuro que eligió la persona en este navegador.
+  await Cristal.cargarModo();
   runApp(const MyApp());
 }
 
@@ -51,13 +56,21 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Al cambiar entre claro y oscuro se reconstruye toda la app con el
+    // tema nuevo, sin perder la ruta ni lo escrito.
+    return ModoCristalScope(builder: (context) => _app());
+  }
+
+  Widget _app() {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Contrata Legal',
       scrollBehavior: const AppScrollBehavior(),
-      // Lenguaje visual "Liquid Glass" (lib/tema): tema oscuro de vidrio y
-      // un único fondo de manchas difuminadas detrás de todas las rutas.
+      // Lenguaje visual "Liquid Glass" (lib/tema): vidrio en modo oscuro o
+      // claro y un único fondo de manchas difuminadas detrás de las rutas.
       theme: temaCristal(),
+      // Sin animación del tema: el cambio de modo repinta todo de una vez.
+      themeAnimationDuration: Duration.zero,
       builder: (context, child) => FondoCristal(child: child!),
       home: const AuthGate(),
       routes: {

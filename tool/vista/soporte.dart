@@ -44,8 +44,18 @@ Future<void> cargarFuentes() async {
   }
 }
 
+/// Con `--dart-define=MODO_CLARO=true` las capturas salen en modo claro y
+/// se guardan con el sufijo `_claro`.
+///   flutter test tool/vista/gestion_test.dart --update-goldens --dart-define=MODO_CLARO=true
+const bool modoClaro = bool.fromEnvironment('MODO_CLARO');
+
 /// La app tal como se arma en main.dart: tema Cristal y fondo de manchas.
-Widget appCristal(Widget home) => MaterialApp(
+Widget appCristal(Widget home) {
+  Cristal.modo.value = modoClaro ? ModoCristal.claro : ModoCristal.oscuro;
+  return _appCristal(home);
+}
+
+Widget _appCristal(Widget home) => MaterialApp(
   debugShowCheckedModeBanner: false,
   theme: temaCristal(),
   builder: (context, child) => FondoCristal(child: child!),
@@ -107,6 +117,6 @@ Future<void> capturar(WidgetTester tester, String nombre) async {
   }
   await expectLater(
     find.byType(MaterialApp),
-    matchesGoldenFile('capturas/$nombre.png'),
+    matchesGoldenFile('capturas/$nombre${modoClaro ? '_claro' : ''}.png'),
   );
 }

@@ -101,6 +101,11 @@ class _HomeScreenState extends State<HomeScreen> {
     ).pushNamedAndRemoveUntil('/portada', (route) => false);
   }
 
+  /// Favoritos refleja lo que se marcó en otras secciones y Gestión tiene
+  /// su propia sincronización periódica: se construyen de nuevo al entrar.
+  /// Las demás conservan lo buscado y sus resultados (ver [SeccionesVivas]).
+  static const Set<int> _seccionesQueSeRecrean = {7, 8};
+
   Widget _buildCurrentView(int activeIndex) {
     switch (activeIndex) {
       case 0:
@@ -140,19 +145,19 @@ class _HomeScreenState extends State<HomeScreen> {
   BottomNavigationBarItem _buildMobileNavItem(int sectionIdx) {
     switch (sectionIdx) {
       case 0:
-        return const BottomNavigationBarItem(
+        return BottomNavigationBarItem(
           icon: Icon(Icons.home_outlined),
           activeIcon: Icon(Icons.home_rounded, color: Cristal.dorado),
           label: 'Inicio',
         );
       case 2:
-        return const BottomNavigationBarItem(
+        return BottomNavigationBarItem(
           icon: Icon(Icons.description_outlined),
           activeIcon: Icon(Icons.description_rounded, color: Cristal.dorado),
           label: 'Contratos',
         );
       case 3:
-        return const BottomNavigationBarItem(
+        return BottomNavigationBarItem(
           icon: Icon(Icons.account_balance_outlined),
           activeIcon: Icon(
             Icons.account_balance_rounded,
@@ -161,25 +166,25 @@ class _HomeScreenState extends State<HomeScreen> {
           label: 'Entidades',
         );
       case 4:
-        return const BottomNavigationBarItem(
+        return BottomNavigationBarItem(
           icon: Icon(Icons.people_outline),
           activeIcon: Icon(Icons.people_alt_rounded, color: Cristal.dorado),
           label: 'Contratistas',
         );
       case 7:
-        return const BottomNavigationBarItem(
+        return BottomNavigationBarItem(
           icon: Icon(Icons.star_border_rounded),
           activeIcon: Icon(Icons.star_rounded, color: Cristal.dorado),
           label: 'Favoritos',
         );
       case 8:
-        return const BottomNavigationBarItem(
+        return BottomNavigationBarItem(
           icon: Icon(Icons.gavel_outlined),
           activeIcon: Icon(Icons.gavel_rounded, color: Cristal.dorado),
           label: 'Gestión',
         );
       case 9:
-        return const BottomNavigationBarItem(
+        return BottomNavigationBarItem(
           icon: Icon(Icons.event_note_outlined),
           activeIcon: Icon(Icons.event_note_rounded, color: Cristal.dorado),
           label: 'Proyección',
@@ -221,7 +226,7 @@ class _HomeScreenState extends State<HomeScreen> {
               title: Row(
                 children: [
                   Image.asset(
-                    'assets/images/logo_fondo_oscuro.png',
+                    Cristal.logo,
                     height: 34,
                     fit: BoxFit.contain,
                     alignment: Alignment.centerLeft,
@@ -232,7 +237,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Text(
                       CollapsibleSideMenu.opcionesMenu[activeIndex].titulo,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.texto,
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
@@ -250,14 +255,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Container(height: 1, color: Cristal.borde),
               ),
             ),
-            body: CambioLiquido(
-              clave: activeIndex,
-              expandir: true,
-              child: Column(children: [_buildCurrentView(activeIndex)]),
+            body: SeccionesVivas(
+              activa: activeIndex,
+              construir: _buildCurrentView,
+              recrear: _seccionesQueSeRecrean,
             ),
             bottomNavigationBar: mobileTabs.length >= 2
                 ? DecoratedBox(
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: Cristal.vidrioSuave,
                       border: Border(top: BorderSide(color: Cristal.borde)),
                     ),
@@ -301,10 +306,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   onLogout: _cerrarSesion,
                 ),
                 Expanded(
-                  child: CambioLiquido(
-                    clave: activeIndex,
-                    expandir: true,
-                    child: Column(children: [_buildCurrentView(activeIndex)]),
+                  child: SeccionesVivas(
+                    activa: activeIndex,
+                    construir: _buildCurrentView,
+                    recrear: _seccionesQueSeRecrean,
                   ),
                 ),
               ],

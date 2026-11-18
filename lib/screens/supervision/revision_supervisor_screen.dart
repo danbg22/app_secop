@@ -377,7 +377,7 @@ class _RevisionSupervisorScreenState extends State<RevisionSupervisorScreen> {
           ),
         if (inf.anexos.isNotEmpty) ...[
           const SizedBox(height: 10),
-          const Text(
+          Text(
             'Anexos',
             style: TextStyle(
               color: Cristal.texto,
@@ -426,7 +426,7 @@ class _RevisionSupervisorScreenState extends State<RevisionSupervisorScreen> {
               Text(
                 '${etapa.responsableNombre.isEmpty ? etapa.responsableEmail : etapa.responsableNombre} debe revisar y verificar '
                 'el informe. No requiere acción de tu parte en este momento.',
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.textoMedio,
                   fontSize: 13,
                   height: 1.45,
@@ -446,14 +446,14 @@ class _RevisionSupervisorScreenState extends State<RevisionSupervisorScreen> {
             if (d != null)
               Text(
                 '${d.etapaNombre} · ${d.actor}: ${d.observacion}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.ambar,
                   fontSize: 13,
                   height: 1.45,
                 ),
               ),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               'Cuando lo corrija y lo reenvíe, vuelve a la etapa que lo devolvió.',
               style: TextStyle(color: Cristal.textoSuave, fontSize: 12.3),
             ),
@@ -592,7 +592,7 @@ class _RevisionSupervisorScreenState extends State<RevisionSupervisorScreen> {
           ),
         ),
         if (!todosChecks)
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 6),
             child: Text(
               'Marca los tres puntos para aprobar.',
@@ -604,7 +604,7 @@ class _RevisionSupervisorScreenState extends State<RevisionSupervisorScreen> {
           padding: EdgeInsets.symmetric(vertical: 18),
           child: Divider(height: 1),
         ),
-        const Text(
+        Text(
           'Devolver con observaciones',
           style: TextStyle(
             color: Cristal.texto,
@@ -613,7 +613,7 @@ class _RevisionSupervisorScreenState extends State<RevisionSupervisorScreen> {
           ),
         ),
         const SizedBox(height: 4),
-        const Text(
+        Text(
           'Marca lo que debe corregir y explícale cómo. El contratista lo verá primero al abrir su informe.',
           style: TextStyle(color: Cristal.textoMedio, fontSize: 12.6),
         ),
@@ -658,7 +658,7 @@ class _RevisionSupervisorScreenState extends State<RevisionSupervisorScreen> {
                   'Informe devuelto al contratista.',
                 ),
           style: EstiloContractual.botonSecundario().copyWith(
-            foregroundColor: const WidgetStatePropertyAll(Cristal.ambar),
+            foregroundColor: WidgetStatePropertyAll(Cristal.ambar),
           ),
           icon: const Icon(Icons.undo_rounded, size: 18),
           label: const Text(
@@ -729,7 +729,7 @@ class _Hoja extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          border: Border.all(color: Cristal.legible(const Color(0xFFE2E8F0))),
           boxShadow: [
             BoxShadow(
               color: Cristal.sombra,
@@ -797,7 +797,7 @@ class _Hoja extends StatelessWidget {
                 decoration: BoxDecoration(
                   border: const Border(bottom: BorderSide(color: _linea)),
                   color: inf.estaDevuelto('obligacion:${o.id}')
-                      ? const Color(0xFFFFFBEB)
+                      ? Cristal.legible(const Color(0xFFFFFBEB))
                       : null,
                 ),
                 child: Row(
@@ -913,7 +913,7 @@ class _FilaSoporte extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(vertical: 8),
-    decoration: const BoxDecoration(
+    decoration: BoxDecoration(
       border: Border(bottom: BorderSide(color: Cristal.borde)),
     ),
     child: Row(
@@ -936,7 +936,7 @@ class _FilaSoporte extends StatelessWidget {
             children: [
               Text(
                 titulo,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
                   fontSize: 13.2,
                   fontWeight: FontWeight.w700,

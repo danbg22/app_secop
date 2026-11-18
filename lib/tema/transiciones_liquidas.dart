@@ -180,6 +180,92 @@ Future<T?> mostrarDialogoCristal<T>({
   );
 }
 
+/// Secciones de la app que siguen vivas al cambiar de pestaña: lo buscado,
+/// los filtros y los resultados se conservan y no se vuelve a consultar al
+/// regresar. Las de [recrear] se construyen de nuevo cada vez (por ejemplo,
+/// las que deben reflejar cambios hechos en otra parte). La sección que
+/// entra lo hace con el mismo leve deslizamiento de [CambioLiquido].
+class SeccionesVivas extends StatefulWidget {
+  const SeccionesVivas({
+    super.key,
+    required this.activa,
+    required this.construir,
+    this.recrear = const {},
+  });
+
+  final int activa;
+  final Widget Function(int indice) construir;
+  final Set<int> recrear;
+
+  @override
+  State<SeccionesVivas> createState() => _SeccionesVivasState();
+}
+
+class _SeccionesVivasState extends State<SeccionesVivas>
+    with SingleTickerProviderStateMixin {
+  final List<int> _visitadas = [];
+  late final AnimationController _entrada = AnimationController(
+    vsync: this,
+    duration: Cristal.cambio,
+    value: 1,
+  );
+  late final Animation<double> _curva = CurvedAnimation(
+    parent: _entrada,
+    curve: Curves.easeOutCubic,
+  );
+  double _sentido = 1;
+
+  @override
+  void didUpdateWidget(SeccionesVivas oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.activa != widget.activa) {
+      _sentido = widget.activa < oldWidget.activa ? -1 : 1;
+      _entrada.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _entrada.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _visitadas.removeWhere(
+      (i) => widget.recrear.contains(i) && i != widget.activa,
+    );
+    if (!_visitadas.contains(widget.activa)) _visitadas.add(widget.activa);
+    final orden = [..._visitadas]..sort();
+    const quieta = AlwaysStoppedAnimation<double>(1);
+    return IndexedStack(
+      index: orden.indexOf(widget.activa),
+      sizing: StackFit.expand,
+      children: [
+        for (final i in orden)
+          // La misma estructura para todas (activa o no), para que ninguna
+          // pierda su estado al cambiar de pestaña.
+          KeyedSubtree(
+            key: ValueKey<int>(i),
+            child: FadeTransition(
+              opacity: i == widget.activa ? _curva : quieta,
+              child: SlideTransition(
+                position: i == widget.activa
+                    ? Tween<Offset>(
+                        begin: Offset(_desliz * _sentido, 0),
+                        end: Offset.zero,
+                      ).animate(_curva)
+                    : const AlwaysStoppedAnimation<Offset>(Offset.zero),
+                // Las secciones devuelven un Expanded: necesitan un Flex.
+                child: Column(children: [widget.construir(i)]),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _RutaDialogoCristal<T> extends DialogRoute<T> {
   _RutaDialogoCristal({
     required super.context,

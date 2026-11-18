@@ -62,10 +62,7 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
-                'Supervisión del contrato',
-                style: EstiloContractual.titulo,
-              ),
+              Text('Supervisión del contrato', style: EstiloContractual.titulo),
               const SizedBox(height: 6),
               Text(
                 '${_exp.contratistaNombreEsperado} · Contrato ${_exp.numeroContrato}',
@@ -105,13 +102,13 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
     final puede = SupervisionService.puedeConfigurar(_exp);
     return TarjetaSupervision(
       children: [
-        const Icon(
+        Icon(
           Icons.assignment_turned_in_outlined,
           size: 44,
           color: Cristal.texto,
         ),
         const SizedBox(height: 12),
-        const Text(
+        Text(
           'Activa los informes de ejecución de este contrato',
           textAlign: TextAlign.center,
           style: TextStyle(
@@ -121,7 +118,7 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'Define los periodos, el valor, las obligaciones y quién aprueba cada etapa. El contratista diligencia '
           'cada informe desde el mismo enlace del expediente, sin Word ni Excel, y la app arma el informe, la cuenta '
           'de cobro y el informe de supervisión.',
@@ -144,7 +141,7 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
                     style: EstiloContractual.etiquetaBoton,
                   ),
                 )
-              : const Text(
+              : Text(
                   'Pídele al titular del equipo que la configure.',
                   style: TextStyle(color: Cristal.textoSuave),
                 ),
@@ -207,7 +204,7 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
         const SizedBox(height: 18),
         Row(
           children: [
-            const Text(
+            Text(
               'Avance del pago',
               style: TextStyle(
                 color: Cristal.texto,
@@ -218,7 +215,7 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
             const Spacer(),
             Text(
               '${formatoCop(aprobado)} de ${formatoCop(total)}',
-              style: const TextStyle(color: Cristal.textoMedio, fontSize: 12.5),
+              style: TextStyle(color: Cristal.textoMedio, fontSize: 12.5),
             ),
           ],
         ),
@@ -236,11 +233,11 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
                     Container(color: Cristal.vidrioSuave),
                     Container(
                       width: ancho(aprobado),
-                      color: const Color(0xFF86EFAC),
+                      color: Cristal.legible(const Color(0xFF86EFAC)),
                     ),
                     Container(
                       width: ancho(pagado),
-                      color: const Color(0xFF2DD4BF),
+                      color: Cristal.legible(const Color(0xFF2DD4BF)),
                     ),
                   ],
                 );
@@ -249,12 +246,15 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        const Wrap(
+        Wrap(
           spacing: 16,
           children: [
-            _Leyenda(color: Color(0xFF2DD4BF), texto: 'Pagado'),
             _Leyenda(
-              color: Color(0xFF86EFAC),
+              color: Cristal.legible(const Color(0xFF2DD4BF)),
+              texto: 'Pagado',
+            ),
+            _Leyenda(
+              color: Cristal.legible(const Color(0xFF86EFAC)),
               texto: 'Aprobado, pendiente de pago',
             ),
           ],
@@ -320,10 +320,7 @@ class _Leyenda extends StatelessWidget {
         decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       ),
       const SizedBox(width: 6),
-      Text(
-        texto,
-        style: const TextStyle(color: Cristal.textoSuave, fontSize: 11.8),
-      ),
+      Text(texto, style: TextStyle(color: Cristal.textoSuave, fontSize: 11.8)),
     ],
   );
 }
@@ -382,7 +379,7 @@ class _TarjetaPeriodo extends StatelessWidget {
                 children: [
                   Text(
                     'N.º ${periodo.numero}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.textoSuave,
                       fontSize: 11.5,
                       fontWeight: FontWeight.w700,
@@ -390,7 +387,7 @@ class _TarjetaPeriodo extends StatelessWidget {
                   ),
                   const Spacer(),
                   if (actual)
-                    const Text(
+                    Text(
                       'EN CURSO',
                       style: TextStyle(
                         color: Cristal.texto,
@@ -411,12 +408,12 @@ class _TarjetaPeriodo extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               if (futuro && inf == null)
-                const Text(
+                Text(
                   'Próximo',
                   style: TextStyle(color: Cristal.textoTenue, fontSize: 12),
                 )
               else if (vencido)
-                const EtiquetaColor(
+                EtiquetaColor(
                   texto: 'Vencido sin enviar',
                   color: Cristal.rojo,
                   fondo: Cristal.rojoVidrio,
@@ -427,20 +424,14 @@ class _TarjetaPeriodo extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   etapa,
-                  style: const TextStyle(
-                    color: Cristal.textoMedio,
-                    fontSize: 11.8,
-                  ),
+                  style: TextStyle(color: Cristal.textoMedio, fontSize: 11.8),
                 ),
               ],
               if (inf != null && inf.valorCobradoCop > 0 && inf.existe) ...[
                 const SizedBox(height: 4),
                 Text(
                   formatoCop(inf.valorCobradoCop),
-                  style: const TextStyle(
-                    color: Cristal.textoMedio,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Cristal.textoMedio, fontSize: 12),
                 ),
               ],
             ],

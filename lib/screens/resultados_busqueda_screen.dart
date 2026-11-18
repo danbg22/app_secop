@@ -204,13 +204,13 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Resultados de búsqueda',
           style: TextStyle(color: Cristal.texto, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Cristal.texto),
+        iconTheme: IconThemeData(color: Cristal.texto),
       ),
       body: FutureBuilder<List<_ResultadoPersona>>(
         future: _resultadosFuture,
@@ -266,13 +266,13 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
                   ),
                   title: Text(
                     resultado.nombre.toUpperCase(),
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.texto,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   subtitle: Text(resultado.subtitulo),
-                  trailing: const Icon(
+                  trailing: Icon(
                     Icons.chevron_right,
                     color: Cristal.textoSuave,
                   ),

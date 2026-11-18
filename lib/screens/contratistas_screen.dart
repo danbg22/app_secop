@@ -1253,7 +1253,7 @@ class ContratistasBulkSearchBar extends StatelessWidget {
             spacing: 8,
             runSpacing: 4,
             children: [
-              const Row(
+              Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.bolt_rounded, size: 16, color: Cristal.texto),
@@ -1282,7 +1282,7 @@ class ContratistasBulkSearchBar extends StatelessWidget {
                   ),
                   child: Text(
                     '${activeBulkTerms.length}/5 combinaciones activas',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.texto,
                       fontSize: 10.5,
                       fontWeight: FontWeight.w700,
@@ -1300,7 +1300,7 @@ class ContratistasBulkSearchBar extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: Cristal.rojoBorde),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Máximo 5 combinaciones permitidas (mostrando las primeras 5)',
                     style: TextStyle(
                       color: Cristal.rojo,
@@ -1323,7 +1323,7 @@ class ContratistasBulkSearchBar extends StatelessWidget {
           ),
           child: Row(
             children: [
-              const Icon(Icons.search, color: Cristal.texto, size: 21),
+              Icon(Icons.search, color: Cristal.texto, size: 21),
               const SizedBox(width: 10),
               Expanded(
                 child: ValueListenableBuilder<TextEditingValue>(
@@ -1332,14 +1332,14 @@ class ContratistasBulkSearchBar extends StatelessWidget {
                     return TextField(
                       controller: controller,
                       onSubmitted: (_) => onSearchTriggered(),
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.texto,
                         fontSize: 13.5,
                         fontWeight: FontWeight.w500,
                       ),
                       decoration: InputDecoration(
                         hintText: 'Escribe nombre y apellido, NIT o cédula (ej: Sandra Erazo, Daniel Puentes, 1065842391, hasta 5 por coma)...',
-                        hintStyle: const TextStyle(
+                        hintStyle: TextStyle(
                           color: Cristal.textoTenue,
                           fontSize: 13,
                         ),
@@ -1350,7 +1350,7 @@ class ContratistasBulkSearchBar extends StatelessWidget {
                             ? IconButton(
                                 tooltip: 'Borrar búsqueda',
                                 onPressed: onClearSearch,
-                                icon: const Icon(
+                                icon: Icon(
                                   Icons.close_rounded,
                                   size: 18,
                                   color: Cristal.textoSuave,
@@ -1369,7 +1369,7 @@ class ContratistasBulkSearchBar extends StatelessWidget {
                   onPressed: isLoading ? null : onSearchTriggered,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Cristal.acento,
-                    foregroundColor: Cristal.texto,
+                    foregroundColor: Cristal.blanco,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     shape: RoundedRectangleBorder(
@@ -1377,12 +1377,12 @@ class ContratistasBulkSearchBar extends StatelessWidget {
                     ),
                   ),
                   child: isLoading
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Cristal.texto,
+                            color: Cristal.blanco,
                           ),
                         )
                       : const Text(
@@ -1425,14 +1425,14 @@ class ContratistasBulkSearchBar extends StatelessWidget {
                         width: 18,
                         height: 18,
                         alignment: Alignment.center,
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           color: Cristal.acento,
                           shape: BoxShape.circle,
                         ),
                         child: Text(
                           '${i + 1}',
-                          style: const TextStyle(
-                            color: Cristal.texto,
+                          style: TextStyle(
+                            color: Cristal.blanco,
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
                           ),
@@ -1441,7 +1441,7 @@ class ContratistasBulkSearchBar extends StatelessWidget {
                       const SizedBox(width: 6),
                       Text(
                         activeBulkTerms[i],
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.texto,
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -1452,7 +1452,7 @@ class ContratistasBulkSearchBar extends StatelessWidget {
                         hoverDuration: Cristal.micro,
                         onTap: () => _removeTermAtIndex(i),
                         borderRadius: BorderRadius.circular(12),
-                        child: const Padding(
+                        child: Padding(
                           padding: EdgeInsets.all(2),
                           child: Icon(
                             Icons.close_rounded,
@@ -1523,7 +1523,7 @@ class ContratistasKpiRow extends StatelessWidget {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.textoSuave,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
@@ -1535,7 +1535,7 @@ class ContratistasKpiRow extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     value,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.texto,
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
@@ -1577,7 +1577,7 @@ class ContratistasKpiRow extends StatelessWidget {
       ),
       _buildCardContent(
         icon: Icons.account_balance_rounded,
-        iconColor: const Color(0xFFA78BFA),
+        iconColor: Cristal.legible(const Color(0xFFA78BFA)),
         iconBg: const Color(0x1F8B5CF6),
         label: 'Entidades que contratan',
         value: entidadesCount,
@@ -1655,6 +1655,17 @@ class ContratistasResultsTable extends StatelessWidget {
   final VoidCallback onExportPressed;
   final String Function(double) formatCurrency;
 
+  /// Desde mil millones, en millones ("\$ 9.188.302 M"): la cifra completa
+  /// no cabía y se cortaba. El valor exacto queda en el globo de ayuda.
+  String _valorCorto(double valor) {
+    if (valor < 1e9) return formatCurrency(valor);
+    final m = (valor / 1e6).round().toString().replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (_) => '.',
+    );
+    return '\$ $m M';
+  }
+
   /// Alguna fuente no respondió: se avisa en lugar de callar.
   final String? aviso;
   final VoidCallback? onRetry;
@@ -1679,7 +1690,7 @@ class ContratistasResultsTable extends StatelessWidget {
         children: [
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 760),
-            child: const Text(
+            child: Text(
               '¿Buscas a un servidor público que no aparece? Datos Abiertos solo '
               'publica con nombre a los de alto nivel y a quienes declaran bienes '
               'y rentas. Todos los demás están en el directorio del SIGEP de '
@@ -1701,7 +1712,7 @@ class ContratistasResultsTable extends StatelessWidget {
     );
   }
 
-  static const TextStyle _headerColStyle = TextStyle(
+  static TextStyle get _headerColStyle => TextStyle(
     color: Cristal.textoCuerpo,
     fontSize: 11.5,
     fontWeight: FontWeight.w700,
@@ -1740,7 +1751,7 @@ class ContratistasResultsTable extends StatelessWidget {
                       isDefaultView
                           ? 'Contratistas representativos en SECOP II'
                           : 'Resultados de contratistas',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.texto,
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
@@ -1753,7 +1764,7 @@ class ContratistasResultsTable extends StatelessWidget {
                           : isDefaultView
                           ? 'Mostrando $totalFoundCount contratistas verificados a nivel nacional (ingresa NIT o razón social para buscar cualquier otro)'
                           : '$totalFoundCount contratistas encontrados para la consulta',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.textoSuave,
                         fontSize: 12.5,
                       ),
@@ -1765,7 +1776,7 @@ class ContratistasResultsTable extends StatelessWidget {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    const Text(
+                    Text(
                       'Ordenar por:',
                       style: TextStyle(
                         color: Cristal.textoSuave,
@@ -1785,7 +1796,7 @@ class ContratistasResultsTable extends StatelessWidget {
                         child: DropdownButton<String>(
                           value: sortBy,
                           isDense: true,
-                          icon: const Padding(
+                          icon: Padding(
                             padding: EdgeInsets.only(left: 8),
                             child: Icon(
                               Icons.keyboard_arrow_down_rounded,
@@ -1793,7 +1804,8 @@ class ContratistasResultsTable extends StatelessWidget {
                               color: Cristal.texto,
                             ),
                           ),
-                          style: const TextStyle(
+                          style: TextStyle(
+                            fontFamily: 'Inter',
                             color: Cristal.texto,
                             fontSize: 12.5,
                             fontWeight: FontWeight.w700,
@@ -1822,7 +1834,7 @@ class ContratistasResultsTable extends StatelessWidget {
                       hoverDuration: Cristal.micro,
                       onTap: onExportPressed,
                       borderRadius: BorderRadius.circular(8),
-                      child: const Padding(
+                      child: Padding(
                         padding: EdgeInsets.symmetric(
                           horizontal: 8,
                           vertical: 6,
@@ -1854,7 +1866,7 @@ class ContratistasResultsTable extends StatelessWidget {
             ),
           ),
           if (isLoading)
-            const LinearProgressIndicator(
+            LinearProgressIndicator(
               minHeight: 2.5,
               color: Cristal.acentoClaro,
               backgroundColor: Cristal.vidrioFuerte,
@@ -1870,16 +1882,12 @@ class ContratistasResultsTable extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(
-                    Icons.cloud_off_rounded,
-                    color: Cristal.ambar,
-                    size: 18,
-                  ),
+                  Icon(Icons.cloud_off_rounded, color: Cristal.ambar, size: 18),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       aviso!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.textoCuerpo,
                         fontSize: 12.8,
                         fontWeight: FontWeight.w600,
@@ -1906,14 +1914,14 @@ class ContratistasResultsTable extends StatelessWidget {
                       horizontal: 22,
                       vertical: 11,
                     ),
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: Cristal.vidrioSuave,
                       border: Border(
                         top: BorderSide(color: Cristal.borde),
                         bottom: BorderSide(color: Cristal.borde),
                       ),
                     ),
-                    child: const Row(
+                    child: Row(
                       children: [
                         SizedBox(
                           width: 34,
@@ -1940,7 +1948,7 @@ class ContratistasResultsTable extends StatelessWidget {
                         Expanded(
                           flex: 14,
                           child: Text(
-                            'Total de contratos',
+                            'Contratos',
                             textAlign: TextAlign.center,
                             style: _headerColStyle,
                           ),
@@ -1972,7 +1980,7 @@ class ContratistasResultsTable extends StatelessWidget {
                   ),
                   // Filas de resultados
                   if (rows.isEmpty)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(
                         vertical: 42,
                         horizontal: 24,
@@ -2020,10 +2028,7 @@ class ContratistasResultsTable extends StatelessWidget {
               children: [
                 Text(
                   'Mostrando $startItem-$endItem de $totalFoundCount contratistas',
-                  style: const TextStyle(
-                    color: Cristal.textoSuave,
-                    fontSize: 12.5,
-                  ),
+                  style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
                 ),
                 _buildPaginationControls(),
               ],
@@ -2045,7 +2050,7 @@ class ContratistasResultsTable extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: Cristal.borde)),
       ),
       child: Row(
@@ -2055,7 +2060,7 @@ class ContratistasResultsTable extends StatelessWidget {
             width: 34,
             child: Text(
               '$rowNumber',
-              style: const TextStyle(
+              style: TextStyle(
                 color: Cristal.textoMedio,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
@@ -2076,7 +2081,7 @@ class ContratistasResultsTable extends StatelessWidget {
                     backgroundColor: Cristal.acentoVidrio,
                     child: Text(
                       record.initials,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.texto,
                         fontSize: 11.5,
                         fontWeight: FontWeight.w800,
@@ -2087,12 +2092,13 @@ class ContratistasResultsTable extends StatelessWidget {
                   Expanded(
                     child: Text(
                       record.name,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.acentoClaro,
-                        fontSize: 13.5,
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
+                        height: 1.3,
                       ),
                     ),
                   ),
@@ -2107,7 +2113,7 @@ class ContratistasResultsTable extends StatelessWidget {
               record.nit,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Cristal.textoMedio,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
@@ -2203,7 +2209,7 @@ class ContratistasResultsTable extends StatelessWidget {
             child: Text(
               '${record.totalContracts}',
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Cristal.texto,
                 fontSize: 13.5,
                 fontWeight: FontWeight.w800,
@@ -2213,14 +2219,17 @@ class ContratistasResultsTable extends StatelessWidget {
           // 6. Valor contratado
           Expanded(
             flex: 18,
-            child: Text(
-              formatCurrency(record.totalValue),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Cristal.texto,
-                fontSize: 13.5,
-                fontWeight: FontWeight.w800,
+            child: Tooltip(
+              message: formatCurrency(record.totalValue),
+              child: Text(
+                _valorCorto(record.totalValue),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Cristal.texto,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ),
@@ -2231,7 +2240,7 @@ class ContratistasResultsTable extends StatelessWidget {
               record.lastContractDate,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Cristal.textoMedio,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
@@ -2256,7 +2265,7 @@ class ContratistasResultsTable extends StatelessWidget {
                     color: Cristal.vidrioSuave,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
@@ -2346,7 +2355,7 @@ class ContratistasResultsTable extends StatelessWidget {
 
     if (totalPages > 5) {
       buttons.add(
-        const Padding(
+        Padding(
           padding: EdgeInsets.symmetric(horizontal: 6),
           child: Text(
             '...',

@@ -143,14 +143,10 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
         backgroundColor: Cristal.flotante,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
-          side: const BorderSide(color: Cristal.bordeFuerte),
+          side: BorderSide(color: Cristal.bordeFuerte),
         ),
-        icon: const Icon(
-          Icons.delete_forever_rounded,
-          color: Cristal.rojo,
-          size: 36,
-        ),
-        title: const Text(
+        icon: Icon(Icons.delete_forever_rounded, color: Cristal.rojo, size: 36),
+        title: Text(
           '¿Seguro que quieres eliminar este expediente?',
           textAlign: TextAlign.center,
           style: TextStyle(
@@ -176,7 +172,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                 child: Text(
                   'Contrato ${exp.numeroContrato}\n$contratista\n'
                   '${exp.totalCargados} documento${exp.totalCargados == 1 ? '' : 's'} cargado${exp.totalCargados == 1 ? '' : 's'}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
@@ -185,7 +181,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                 ),
               ),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Se borrarán los documentos cargados, la verificación y la '
                 'trazabilidad, para ti y para todo tu equipo. El enlace del '
                 'contratista dejará de funcionar. Esta acción no se puede deshacer.',
@@ -344,7 +340,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
             ),
             const SizedBox(height: 10),
             if (snap.hasError)
-              const Text(
+              Text(
                 'No fue posible cargar los procesos. Revisa tu conexión o las reglas de Firestore.',
                 style: TextStyle(color: Cristal.rojo, fontSize: 13),
               )
@@ -352,7 +348,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
               Container(
                 padding: const EdgeInsets.all(22),
                 decoration: EstiloContractual.tarjeta(),
-                child: const Row(
+                child: Row(
                   children: [
                     Icon(
                       Icons.account_tree_outlined,
@@ -427,7 +423,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                 else
                   Text(
                     p.estado.etiqueta,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.acentoClaro,
                       fontSize: 11.8,
                       fontWeight: FontWeight.w800,
@@ -440,7 +436,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
               EtiquetaColor(
                 texto:
                     '${p.secopNovedades.length} novedad${p.secopNovedades.length == 1 ? '' : 'es'} en SECOP II',
-                color: const Color(0xFFFB923C),
+                color: Cristal.legible(const Color(0xFFFB923C)),
                 fondo: Cristal.ambarVidrio,
                 icono: Icons.fiber_new_rounded,
               ),
@@ -448,7 +444,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
             const SizedBox(height: 10),
             Text(
               p.numeroProceso,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Cristal.texto,
                 fontSize: 15.5,
                 fontWeight: FontWeight.w800,
@@ -459,13 +455,13 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
               p.objeto,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Cristal.textoMedio, fontSize: 12.8),
+              style: TextStyle(color: Cristal.textoMedio, fontSize: 12.8),
             ),
             const SizedBox(height: 10),
             if (etapa.isNotEmpty)
               Text(
                 etapa,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
                   fontSize: 12.3,
                   fontWeight: FontWeight.w700,
@@ -475,22 +471,22 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
             Text(
               '${_monedaFormat.format(p.presupuestoCop)} · ${m.esCompetitiva ? '${p.ofertas.length} ofertas registradas' : (p.ofertas.isEmpty ? 'sin contratista' : p.ofertas.first.proponente)}'
               '${p.idProcesoSecop.isEmpty ? ' · sin vincular a SECOP II' : ' · ${p.idProcesoSecop}'}',
-              style: const TextStyle(color: Cristal.textoSuave, fontSize: 12),
+              style: TextStyle(color: Cristal.textoSuave, fontSize: 12),
             ),
             if (alertas > 0) ...[
               const SizedBox(height: 6),
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.warning_amber_rounded,
                     size: 15,
-                    color: Color(0xFFFB923C),
+                    color: Cristal.legible(const Color(0xFFFB923C)),
                   ),
                   const SizedBox(width: 4),
                   Text(
                     '$alertas ${alertas == 1 ? 'alerta' : 'alertas'} de plazos o publicación',
-                    style: const TextStyle(
-                      color: Color(0xFFFB923C),
+                    style: TextStyle(
+                      color: Cristal.legible(const Color(0xFFFB923C)),
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
@@ -551,7 +547,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Cristal.bordeFuerte),
+          side: BorderSide(color: Cristal.bordeFuerte),
         ),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 520),
@@ -570,7 +566,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                         color: Cristal.azulVidrio,
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.link_rounded,
                         color: Cristal.acentoClaro,
                         size: 20,
@@ -581,7 +577,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Enlace personalizado del contratista',
                             style: TextStyle(
                               color: Cristal.texto,
@@ -592,7 +588,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                           const SizedBox(height: 2),
                           Text(
                             'Contrato ${expediente.numeroContrato} · ${expediente.contratistaNombreEsperado}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.textoSuave,
                               fontSize: 12.5,
                             ),
@@ -608,7 +604,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'El enlace ya fue copiado al portapapeles. Compártelo con el aspirante para que ingrese únicamente con su nombre completo y número de cédula a cargar los documentos de este contrato:',
                   style: TextStyle(
                     color: Cristal.textoCuerpo,
@@ -630,7 +626,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                   ),
                   child: SelectableText(
                     link,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.texto,
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
@@ -643,7 +639,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                   children: [
                     TextButton(
                       onPressed: () => Navigator.of(ctx).pop(),
-                      child: const Text(
+                      child: Text(
                         'Cerrar',
                         style: TextStyle(color: Cristal.textoSuave),
                       ),
@@ -713,7 +709,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Cristal.bordeFuerte),
+          side: BorderSide(color: Cristal.bordeFuerte),
         ),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 640),
@@ -733,7 +729,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                         children: [
                           Text(
                             apartado.nombre,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.texto,
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
@@ -742,7 +738,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                           const SizedBox(height: 2),
                           Text(
                             '${binario.fileName}${apartado.tamanoFormateado.isNotEmpty ? " · ${apartado.tamanoFormateado}" : ""} · Versión ${apartado.versionCarga}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.textoSuave,
                               fontSize: 12.5,
                             ),
@@ -784,7 +780,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                       children: [
                         Row(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.verified_user_outlined,
                               size: 18,
                               color: Cristal.texto,
@@ -793,7 +789,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                             Expanded(
                               child: Text(
                                 'Cargado por ${apartado.cargadoPorNombre ?? expediente.contratistaNombreEsperado}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Cristal.texto,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
@@ -806,7 +802,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                           const SizedBox(height: 6),
                           Text(
                             'Fecha de cargue: ${JuridicoContratacionService.formatearFechaHumana(apartado.fechaCargaIso)}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.textoSuave,
                               fontSize: 12.5,
                             ),
@@ -817,14 +813,14 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                           const SizedBox(height: 8),
                           Text(
                             'Nota del contratista: ${apartado.notaContratista}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.textoCuerpo,
                               fontSize: 12.5,
                             ),
                           ),
                         ],
                         const SizedBox(height: 12),
-                        const Text(
+                        Text(
                           'Puedes abrir el documento completo en una pestaña del navegador para su lectura detallada o descargarlo.',
                           style: TextStyle(
                             color: Cristal.textoSuave,
@@ -852,7 +848,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                         },
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Cristal.verde,
-                          side: const BorderSide(color: Cristal.verdeBorde),
+                          side: BorderSide(color: Cristal.verdeBorde),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 14,
                             vertical: 11,
@@ -876,7 +872,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                       },
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Cristal.texto,
-                        side: const BorderSide(color: Cristal.borde),
+                        side: BorderSide(color: Cristal.borde),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 14,
                           vertical: 11,
@@ -1076,7 +1072,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
           surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: Cristal.bordeFuerte),
+            side: BorderSide(color: Cristal.bordeFuerte),
           ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 460),
@@ -1086,7 +1082,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Agregar documento requerido',
                     style: TextStyle(
                       color: Cristal.texto,
@@ -1097,10 +1093,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                   const SizedBox(height: 6),
                   Text(
                     'Se añadirá inmediatamente al contrato ${expediente.numeroContrato}.',
-                    style: const TextStyle(
-                      color: Cristal.textoSuave,
-                      fontSize: 12.5,
-                    ),
+                    style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
                   ),
                   const SizedBox(height: 16),
                   _buildModalField(
@@ -1121,7 +1114,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                     contentPadding: EdgeInsets.zero,
                     controlAffinity: ListTileControlAffinity.leading,
                     activeColor: Cristal.acento,
-                    title: const Text(
+                    title: Text(
                       'Documento obligatorio para verificar el contrato',
                       style: TextStyle(fontSize: 13, color: Cristal.texto),
                     ),
@@ -1134,7 +1127,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                     children: [
                       TextButton(
                         onPressed: () => Navigator.of(ctx).pop(),
-                        child: const Text(
+                        child: Text(
                           'Cancelar',
                           style: TextStyle(color: Cristal.textoSuave),
                         ),
@@ -1219,7 +1212,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
-            side: const BorderSide(color: Cristal.bordeFuerte),
+            side: BorderSide(color: Cristal.bordeFuerte),
           ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 680, maxHeight: 740),
@@ -1234,7 +1227,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
+                          children: [
                             Text(
                               'Crear contrato de prestación de servicios (OPS)',
                               style: TextStyle(
@@ -1256,22 +1249,19 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                       ),
                       IconButton(
                         onPressed: () => Navigator.of(ctx).pop(),
-                        icon: const Icon(
-                          Icons.close,
-                          color: Cristal.textoSuave,
-                        ),
+                        icon: Icon(Icons.close, color: Cristal.textoSuave),
                       ),
                     ],
                   ),
                 ),
-                const Divider(height: 1, color: Cristal.borde),
+                Divider(height: 1, color: Cristal.borde),
                 Flexible(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Datos del aspirante a contratista',
                           style: TextStyle(
                             color: Cristal.texto,
@@ -1368,7 +1358,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                           },
                         ),
                         const SizedBox(height: 20),
-                        const Text(
+                        Text(
                           'Información del contrato (OPS)',
                           style: TextStyle(
                             color: Cristal.texto,
@@ -1483,7 +1473,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                           maxLines: 3,
                         ),
                         const SizedBox(height: 20),
-                        const Text(
+                        Text(
                           'Documentos requeridos al contratista',
                           style: TextStyle(
                             color: Cristal.texto,
@@ -1509,7 +1499,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                                       ListTileControlAffinity.leading,
                                   title: Text(
                                     plantillas[i].nombre,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: Cristal.texto,
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
@@ -1517,7 +1507,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                                   ),
                                   subtitle: Text(
                                     plantillas[i].descripcion,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: Cristal.textoSuave,
                                       fontSize: 11.5,
                                     ),
@@ -1529,14 +1519,14 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                               for (final extra in documentosPersonalizados)
                                 ListTile(
                                   dense: true,
-                                  leading: const Icon(
+                                  leading: Icon(
                                     Icons.check_box_rounded,
                                     color: Cristal.texto,
                                     size: 20,
                                   ),
                                   title: Text(
                                     extra,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: Cristal.texto,
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
@@ -1578,7 +1568,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                                 },
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: Cristal.texto,
-                                  side: const BorderSide(color: Cristal.borde),
+                                  side: BorderSide(color: Cristal.borde),
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 14,
                                     vertical: 14,
@@ -1596,7 +1586,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                           const SizedBox(height: 12),
                           Text(
                             errorModal!,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.rojo,
                               fontSize: 12.5,
                               fontWeight: FontWeight.w600,
@@ -1607,7 +1597,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                     ),
                   ),
                 ),
-                const Divider(height: 1, color: Cristal.borde),
+                Divider(height: 1, color: Cristal.borde),
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 24,
@@ -1618,7 +1608,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                     children: [
                       TextButton(
                         onPressed: () => Navigator.of(ctx).pop(),
-                        child: const Text(
+                        child: Text(
                           'Cancelar',
                           style: TextStyle(color: Cristal.textoSuave),
                         ),
@@ -1725,7 +1715,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             color: Cristal.textoCuerpo,
             fontSize: 12.5,
             fontWeight: FontWeight.w600,
@@ -1736,10 +1726,10 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
           controller: controller,
           maxLines: maxLines,
           keyboardType: keyboardType,
-          style: const TextStyle(fontSize: 13.5, color: Cristal.texto),
+          style: TextStyle(fontSize: 13.5, color: Cristal.texto),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: Cristal.textoTenue, fontSize: 13),
+            hintStyle: TextStyle(color: Cristal.textoTenue, fontSize: 13),
             isDense: true,
             filled: true,
             fillColor: Cristal.campo,
@@ -1749,18 +1739,15 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Cristal.borde),
+              borderSide: BorderSide(color: Cristal.borde),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Cristal.borde),
+              borderSide: BorderSide(color: Cristal.borde),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(
-                color: Cristal.acentoClaro,
-                width: 1.4,
-              ),
+              borderSide: BorderSide(color: Cristal.acentoClaro, width: 1.4),
             ),
           ),
         ),
@@ -1832,7 +1819,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
+                        Text(
                           'Tramita procesos de cualquier modalidad, pide documentos por enlace y verifícalos con trazabilidad.',
                           style: EstiloContractual.subtitulo,
                         ),
@@ -1904,7 +1891,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
               const SizedBox(height: 26),
               _buildProcesosDelEquipo(isMobile),
               const SizedBox(height: 26),
-              const Text(
+              Text(
                 'Expedientes de contratistas y oferentes',
                 style: EstiloContractual.tituloGrupo,
               ),
@@ -1928,18 +1915,15 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                       child: TextField(
                         controller: _busquedaController,
                         onChanged: (_) => setState(() {}),
-                        style: const TextStyle(
-                          fontSize: 13.5,
-                          color: Cristal.texto,
-                        ),
+                        style: TextStyle(fontSize: 13.5, color: Cristal.texto),
                         decoration: InputDecoration(
                           isDense: true,
                           hintText: 'Buscar por aspirante, cédula o número de contrato...',
-                          hintStyle: const TextStyle(
+                          hintStyle: TextStyle(
                             color: Cristal.textoTenue,
                             fontSize: 13,
                           ),
-                          prefixIcon: const Icon(
+                          prefixIcon: Icon(
                             Icons.search_rounded,
                             size: 19,
                             color: Cristal.textoSuave,
@@ -2006,13 +1990,13 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                   ),
                   child: Column(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.person_search_outlined,
                         size: 40,
                         color: Cristal.textoTenue,
                       ),
                       const SizedBox(height: 10),
-                      const Text(
+                      Text(
                         'No se encontraron aspirantes con el filtro actual.',
                         style: TextStyle(
                           color: Cristal.texto,
@@ -2021,7 +2005,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      const Text(
+                      Text(
                         'Usa "Nuevo proceso" y elige Prestación de servicios para registrar un contratista.',
                         style: TextStyle(
                           color: Cristal.textoSuave,
@@ -2114,7 +2098,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                     backgroundColor: Cristal.acentoVidrio,
                     child: Text(
                       iniciales,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.texto,
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
@@ -2186,7 +2170,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                         children: [
                           Text(
                             'CC ${exp.contratistaCedulaEsperada.isEmpty ? "Por registrar" : exp.contratistaCedulaEsperada}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.textoSuave,
                               fontSize: 12.5,
                               fontWeight: FontWeight.w500,
@@ -2194,14 +2178,14 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                           ),
                           Text(
                             exp.contratistaCorreo,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.textoSuave,
                               fontSize: 12.5,
                             ),
                           ),
                           Text(
                             'Contrato ${exp.numeroContrato}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.texto,
                               fontSize: 12.5,
                               fontWeight: FontWeight.w700,
@@ -2210,7 +2194,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                           if (exp.valorContratoCop > 0)
                             Text(
                               '${_monedaFormat.format(exp.valorContratoCop)} · ${exp.plazoEjecucion}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Cristal.textoSuave,
                                 fontSize: 12.5,
                               ),
@@ -2223,7 +2207,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                 if (!isMobile)
                   Text(
                     '${exp.totalCargados}/${exp.totalApartados} documentos',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.textoSuave,
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
@@ -2236,14 +2220,14 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
               exp.objetoContrato,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Cristal.textoCuerpo,
                 fontSize: 13,
                 height: 1.4,
               ),
             ),
             const SizedBox(height: 14),
-            const Divider(height: 1, color: Cristal.borde),
+            Divider(height: 1, color: Cristal.borde),
             const SizedBox(height: 12),
             // Pie del perfil: único botón para generar link + acción para ver el detalle
             Wrap(
@@ -2256,7 +2240,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                   onPressed: () => _generarYMostrarLinkContratista(exp),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Cristal.texto,
-                    side: const BorderSide(color: Cristal.bordeFuerte),
+                    side: BorderSide(color: Cristal.bordeFuerte),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 14,
                       vertical: 10,
@@ -2278,7 +2262,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                   IconButton(
                     tooltip: 'Eliminar expediente',
                     onPressed: () => _confirmarEliminarExpediente(exp),
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.delete_outline_rounded,
                       color: Cristal.rojo,
                       size: 20,
@@ -2295,13 +2279,13 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                   ),
                   icon: Text(
                     '${exp.totalAprobados} verificados · Ver expediente',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.acentoClaro,
                       fontSize: 12.8,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  label: const Icon(
+                  label: Icon(
                     Icons.arrow_forward_rounded,
                     size: 16,
                     color: Cristal.acentoClaro,
@@ -2400,7 +2384,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: Cristal.borde),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
@@ -2445,7 +2429,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      const Text(
+                      Text(
                         'Sincronización en tiempo real activa',
                         style: TextStyle(
                           color: Cristal.verde,
@@ -2466,7 +2450,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                     onPressed: () => _abrirModalAgregarDocumento(exp),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Cristal.texto,
-                      side: const BorderSide(color: Cristal.borde),
+                      side: BorderSide(color: Cristal.borde),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 9,
@@ -2485,7 +2469,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                     onPressed: () => _generarYMostrarLinkContratista(exp),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Cristal.texto,
-                      side: const BorderSide(color: Cristal.bordeFuerte),
+                      side: BorderSide(color: Cristal.bordeFuerte),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 13,
                         vertical: 9,
@@ -2512,7 +2496,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                     ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Cristal.texto,
-                      side: const BorderSide(color: Cristal.bordeFuerte),
+                      side: BorderSide(color: Cristal.bordeFuerte),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 13,
                         vertical: 9,
@@ -2538,7 +2522,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                       onPressed: () => _confirmarEliminarExpediente(exp),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Cristal.rojo,
-                        side: const BorderSide(color: Cristal.rojoBorde),
+                        side: BorderSide(color: Cristal.rojoBorde),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 13,
                           vertical: 9,
@@ -2569,7 +2553,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                 backgroundColor: Cristal.acentoVidrio,
                 child: Text(
                   _obtenerIniciales(exp.contratistaNombreEsperado),
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
@@ -2596,7 +2580,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                       children: [
                         Text(
                           'CC ${exp.contratistaCedulaEsperada}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.textoSuave,
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
@@ -2604,14 +2588,14 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                         ),
                         Text(
                           exp.contratistaCorreo,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.textoSuave,
                             fontSize: 13,
                           ),
                         ),
                         Text(
                           'Contrato ${exp.numeroContrato}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.texto,
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
@@ -2619,7 +2603,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                         ),
                         Text(
                           '${exp.entidadNombre} · ${exp.dependencia}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.textoSuave,
                             fontSize: 13,
                           ),
@@ -2627,7 +2611,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                         if (exp.valorContratoCop > 0)
                           Text(
                             '${_monedaFormat.format(exp.valorContratoCop)} (${exp.plazoEjecucion})',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.textoSuave,
                               fontSize: 13,
                             ),
@@ -2637,7 +2621,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                     const SizedBox(height: 8),
                     Text(
                       exp.objetoContrato,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.textoCuerpo,
                         fontSize: 13,
                         height: 1.4,
@@ -2669,7 +2653,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
             child: Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Documentos del contrato',
                     style: TextStyle(
@@ -2681,7 +2665,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                 ),
                 Text(
                   '${exp.totalCargados} de ${exp.totalApartados} cargados',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.textoSuave,
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
@@ -2690,12 +2674,12 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
               ],
             ),
           ),
-          const Divider(height: 1, color: Cristal.borde),
+          Divider(height: 1, color: Cristal.borde),
           for (var i = 0; i < exp.apartados.length; i++) ...[
-            if (i > 0) const Divider(height: 1, color: Cristal.borde),
+            if (i > 0) Divider(height: 1, color: Cristal.borde),
             _buildFilaDocumentoVerificacion(exp, exp.apartados[i]),
           ],
-          const Divider(height: 1, color: Cristal.borde),
+          Divider(height: 1, color: Cristal.borde),
           _buildPieImpresionUnificada(exp),
         ],
       ),
@@ -2730,12 +2714,12 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
               ),
             ),
             icon: _generandoPdfUnificado
-                ? const SizedBox(
+                ? SizedBox(
                     width: 16,
                     height: 16,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Cristal.texto,
+                      color: Cristal.blanco,
                     ),
                   )
                 : const Icon(Icons.print_outlined, size: 18),
@@ -2756,7 +2740,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                 ? 'Se habilita cuando haya documentos cargados y verificados.'
                 : 'Se habilita cuando todos los documentos estén revisados y verificados '
                       '(falta${faltan == 1 ? '' : 'n'} $faltan).',
-            style: const TextStyle(
+            style: TextStyle(
               color: Cristal.textoSuave,
               fontSize: 12.5,
               fontWeight: FontWeight.w500,
@@ -2786,7 +2770,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
             children: [
               Text(
                 ap.nombre,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
@@ -2820,7 +2804,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                           ap.archivoNombre ?? 'Documento cargado',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.texto,
                             fontSize: 13.5,
                             fontWeight: FontWeight.w700,
@@ -2829,7 +2813,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                         const SizedBox(height: 2),
                         Text(
                           '${ap.formatoCorto}${ap.tamanoFormateado.isNotEmpty ? " · ${ap.tamanoFormateado}" : ""}${ap.versionCarga > 1 ? " · Versión ${ap.versionCarga}" : ""}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.textoSuave,
                             fontSize: 11.8,
                           ),
@@ -2843,7 +2827,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Cristal.texto,
                       backgroundColor: Cristal.vidrio,
-                      side: const BorderSide(color: Cristal.bordeFuerte),
+                      side: BorderSide(color: Cristal.bordeFuerte),
                       minimumSize: const Size(58, 34),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 14,
@@ -2875,10 +2859,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
               ),
               child: Text(
                 'Sin archivo cargado aún · ${ap.descripcion}',
-                style: const TextStyle(
-                  color: Cristal.textoSuave,
-                  fontSize: 12.5,
-                ),
+                style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
               ),
             ),
 
@@ -2908,7 +2889,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                       child: Checkbox(
                         value: marcadoDevolver,
                         activeColor: Cristal.ambar,
-                        side: const BorderSide(color: Color(0x52FFFFFF)),
+                        side: BorderSide(color: Cristal.bordeFuerte),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(4),
                         ),
@@ -2956,7 +2937,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
               ),
               child: Text(
                 'Observación enviada al contratista: ${ap.observacionJuridica}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.ambar,
                   fontSize: 12,
                   height: 1.35,
@@ -2990,7 +2971,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
+              Text(
                 'Verificación jurídica',
                 style: TextStyle(
                   color: Cristal.texto,
@@ -2999,7 +2980,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                 ),
               ),
               const SizedBox(height: 6),
-              const Text(
+              Text(
                 'Revisa los soportes del contratista. Si hay algo por corregir, marca el documento a la izquierda y devuélvelo con observaciones.',
                 style: TextStyle(
                   color: Cristal.textoSuave,
@@ -3035,7 +3016,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                             child: Checkbox(
                               value: _checksLocales[i],
                               activeColor: Cristal.acento,
-                              side: const BorderSide(color: Color(0x52FFFFFF)),
+                              side: BorderSide(color: Cristal.bordeFuerte),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(4),
                               ),
@@ -3053,7 +3034,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                         Expanded(
                           child: Text(
                             preguntas[i],
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.textoCuerpo,
                               fontSize: 12.8,
                               height: 1.38,
@@ -3066,7 +3047,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                 ),
 
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Concepto (opcional)',
                 style: TextStyle(
                   color: Cristal.texto,
@@ -3077,13 +3058,10 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
               const SizedBox(height: 6),
               TextField(
                 controller: _conceptoController,
-                style: const TextStyle(fontSize: 13.5, color: Cristal.texto),
+                style: TextStyle(fontSize: 13.5, color: Cristal.texto),
                 decoration: InputDecoration(
                   hintText: 'Ej.: Cumple',
-                  hintStyle: const TextStyle(
-                    color: Cristal.textoTenue,
-                    fontSize: 13,
-                  ),
+                  hintStyle: TextStyle(color: Cristal.textoTenue, fontSize: 13),
                   isDense: true,
                   filled: true,
                   fillColor: Cristal.campo,
@@ -3093,11 +3071,11 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Cristal.borde),
+                    borderSide: BorderSide(color: Cristal.borde),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Cristal.borde),
+                    borderSide: BorderSide(color: Cristal.borde),
                   ),
                 ),
               ),
@@ -3123,13 +3101,13 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
               ),
 
               const SizedBox(height: 18),
-              const Divider(height: 1, color: Cristal.borde),
+              Divider(height: 1, color: Cristal.borde),
               const SizedBox(height: 16),
 
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Observaciones para el contratista',
                     style: TextStyle(
                       color: Cristal.texto,
@@ -3140,7 +3118,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                   if (_idsMarcadosParaDevolver.isNotEmpty)
                     Text(
                       '${_idsMarcadosParaDevolver.length} seleccionado(s)',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.ambar,
                         fontSize: 11.8,
                         fontWeight: FontWeight.w700,
@@ -3152,23 +3130,20 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
               TextField(
                 controller: _observacionesController,
                 maxLines: 3,
-                style: const TextStyle(fontSize: 13.5, color: Cristal.texto),
+                style: TextStyle(fontSize: 13.5, color: Cristal.texto),
                 decoration: InputDecoration(
                   hintText: 'Qué debe corregir y cómo',
-                  hintStyle: const TextStyle(
-                    color: Cristal.textoTenue,
-                    fontSize: 13,
-                  ),
+                  hintStyle: TextStyle(color: Cristal.textoTenue, fontSize: 13),
                   filled: true,
                   fillColor: Cristal.campo,
                   contentPadding: const EdgeInsets.all(12),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Cristal.borde),
+                    borderSide: BorderSide(color: Cristal.borde),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Cristal.borde),
+                    borderSide: BorderSide(color: Cristal.borde),
                   ),
                 ),
               ),
@@ -3180,7 +3155,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                     : () => _ejecutarDevolucionAlContratista(exp),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Cristal.ambar,
-                  side: const BorderSide(color: Cristal.ambar),
+                  side: BorderSide(color: Cristal.ambar),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -3211,7 +3186,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                 onPressed: () => _ejecutarCorreoRequerimiento(exp),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Cristal.rojo,
-                  side: const BorderSide(color: Cristal.rojoBorde),
+                  side: BorderSide(color: Cristal.rojoBorde),
                   padding: const EdgeInsets.symmetric(vertical: 11),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -3229,12 +3204,12 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                     exp,
                   );
                 },
-                icon: const Icon(
+                icon: Icon(
                   Icons.picture_as_pdf_outlined,
                   size: 16,
                   color: Cristal.textoSuave,
                 ),
-                label: const Text(
+                label: Text(
                   'Descargar acta de verificación en PDF',
                   style: TextStyle(
                     color: Cristal.textoSuave,
@@ -3274,7 +3249,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                       Expanded(
                         child: Text(
                           'Trazabilidad (${exp.trazabilidad.length} eventos)',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.texto,
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
@@ -3292,7 +3267,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                 ),
               ),
               if (_trazabilidadExpandida) ...[
-                const Divider(height: 1, color: Cristal.borde),
+                Divider(height: 1, color: Cristal.borde),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
                   child: Column(
@@ -3353,15 +3328,12 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                     JuridicoContratacionService.formatearFechaHumana(
                       ev.fechaIso,
                     ),
-                    style: const TextStyle(
-                      color: Cristal.textoSuave,
-                      fontSize: 11.8,
-                    ),
+                    style: TextStyle(color: Cristal.textoSuave, fontSize: 11.8),
                   ),
                   const SizedBox(height: 3),
                   Text.rich(
                     TextSpan(
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.texto,
                         fontSize: 13,
                         height: 1.38,
@@ -3380,7 +3352,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                     const SizedBox(height: 3),
                     Text(
                       ev.detalle,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.textoSuave,
                         fontSize: 12.2,
                         height: 1.38,
@@ -3404,14 +3376,14 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
         Cristal.verde,
       ),
       EstadoDocumentoJuridico.subsanadoEnRevision => (
-        const Color(0xFF38BDF8),
+        Cristal.legible(const Color(0xFF38BDF8)),
         Cristal.azulVidrio,
-        const Color(0xFF38BDF8),
+        Cristal.legible(const Color(0xFF38BDF8)),
       ),
       EstadoDocumentoJuridico.aprobado => (
-        const Color(0xFF34D399),
+        Cristal.legible(const Color(0xFF34D399)),
         const Color(0x2410B981),
-        const Color(0xFF34D399),
+        Cristal.legible(const Color(0xFF34D399)),
       ),
       EstadoDocumentoJuridico.devueltoSubsanar => (
         Cristal.ambar,
@@ -3466,7 +3438,9 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
       child: Text(
         formato,
         style: TextStyle(
-          color: esPdf ? Cristal.rojo : const Color(0xFF38BDF8),
+          color: esPdf
+              ? Cristal.rojo
+              : Cristal.legible(const Color(0xFF38BDF8)),
           fontSize: 10,
           fontWeight: FontWeight.w800,
         ),

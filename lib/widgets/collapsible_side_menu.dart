@@ -82,7 +82,7 @@ class CollapsibleSideMenu extends StatelessWidget {
           maxHeight: 52,
           alignment: const Alignment(-0.80, 0.16),
           child: Image.asset(
-            'assets/images/logo_fondo_oscuro.png',
+            Cristal.logo,
             width: 104,
             height: 52,
             fit: BoxFit.contain,
@@ -164,7 +164,7 @@ class CollapsibleSideMenu extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(10),
                                 hoverDuration: Cristal.micro,
                                 child: Image.asset(
-                                  'assets/images/logo_fondo_oscuro.png',
+                                  Cristal.logo,
                                   height: 66,
                                   fit: BoxFit.contain,
                                   alignment: Alignment.centerLeft,
@@ -173,18 +173,19 @@ class CollapsibleSideMenu extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 4),
+                            const InterruptorModo(compacto: true),
                             IconButton(
                               tooltip: 'Ocultar barra lateral',
                               onPressed: onToggleCollapse,
                               visualDensity: VisualDensity.compact,
                               style: IconButton.styleFrom(
                                 backgroundColor: Cristal.vidrio,
-                                side: const BorderSide(color: Cristal.borde),
+                                side: BorderSide(color: Cristal.borde),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.keyboard_double_arrow_left_rounded,
                                 color: Cristal.texto,
                                 size: 19,
@@ -301,6 +302,8 @@ class CollapsibleSideMenu extends StatelessWidget {
                       ),
                     ),
                     if (isCollapsed) ...[
+                      const InterruptorModo(compacto: true),
+                      const SizedBox(height: 6),
                       _SideMenuHoverBubble(
                         key: const ValueKey('help-bubble'),
                         label: '¿Necesitas ayuda?',
@@ -308,7 +311,7 @@ class CollapsibleSideMenu extends StatelessWidget {
                           onTap: () => _showHelpDialog(context),
                           borderRadius: BorderRadius.circular(12),
                           hoverDuration: Cristal.micro,
-                          child: const SizedBox(
+                          child: SizedBox(
                             width: 40,
                             height: 40,
                             child: Icon(
@@ -340,12 +343,12 @@ class CollapsibleSideMenu extends StatelessWidget {
                             radius: 17,
                             backgroundImage: avatarImage,
                             backgroundColor: Cristal.avatar,
-                            foregroundColor: Cristal.texto,
+                            foregroundColor: Cristal.blanco,
                             child: avatarImage == null
                                 ? Text(
                                     initial,
-                                    style: const TextStyle(
-                                      color: Cristal.texto,
+                                    style: TextStyle(
+                                      color: Cristal.blanco,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 14,
                                     ),
@@ -366,7 +369,7 @@ class CollapsibleSideMenu extends StatelessWidget {
                           horizontal: 12,
                           vertical: 9,
                         ),
-                        child: const Row(
+                        child: Row(
                           children: [
                             Icon(
                               Icons.add_moderator_rounded,
@@ -397,7 +400,7 @@ class CollapsibleSideMenu extends StatelessWidget {
                           horizontal: 14,
                           vertical: 12,
                         ),
-                        child: const Row(
+                        child: Row(
                           children: [
                             Icon(
                               Icons.sms_outlined,
@@ -460,7 +463,7 @@ class CollapsibleSideMenu extends StatelessWidget {
                             ),
                       ),
                       const SizedBox(height: 12),
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.only(left: 6),
                         child: Text(
                           'Contrata Legal\n© 2026. Todos los derechos\nreservados.',
@@ -562,7 +565,7 @@ class _RotuloGrupo extends StatelessWidget {
       padding: EdgeInsets.only(left: 12, bottom: inferior),
       child: Text(
         texto,
-        style: const TextStyle(
+        style: TextStyle(
           color: Cristal.textoTenue,
           fontSize: 10.5,
           fontWeight: FontWeight.w800,
@@ -748,7 +751,7 @@ class _SideMenuHoverBubbleState extends State<_SideMenuHoverBubble> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const CustomPaint(
+                  CustomPaint(
                     size: Size(6, 12),
                     painter: _BubbleArrowPainter(color: Cristal.burbuja),
                   ),
@@ -764,7 +767,7 @@ class _SideMenuHoverBubbleState extends State<_SideMenuHoverBubble> {
                     ),
                     child: Text(
                       widget.label,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.texto,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -872,7 +875,7 @@ class _TarjetaPerfil extends StatelessWidget {
     final estiloBoton = OutlinedButton.styleFrom(
       foregroundColor: Cristal.texto,
       backgroundColor: Cristal.vidrio,
-      side: const BorderSide(color: Cristal.borde),
+      side: BorderSide(color: Cristal.borde),
       padding: const EdgeInsets.symmetric(horizontal: 10),
       minimumSize: const Size.fromHeight(34),
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -896,8 +899,8 @@ class _TarjetaPerfil extends StatelessWidget {
                 child: avatar == null
                     ? Text(
                         inicial,
-                        style: const TextStyle(
-                          color: Cristal.texto,
+                        style: TextStyle(
+                          color: Cristal.blanco,
                           fontWeight: FontWeight.w800,
                           fontSize: 14,
                         ),
@@ -913,7 +916,7 @@ class _TarjetaPerfil extends StatelessWidget {
                       nombre,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.texto,
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
@@ -925,7 +928,7 @@ class _TarjetaPerfil extends StatelessWidget {
                       rol,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.textoSuave,
                         fontSize: 11.3,
                         height: 1.25,

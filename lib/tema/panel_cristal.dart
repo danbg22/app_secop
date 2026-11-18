@@ -17,10 +17,10 @@ class PanelCristal extends StatefulWidget {
     this.padding,
     this.margin,
     this.radio = Cristal.radioTarjeta,
-    this.color = Cristal.vidrio,
-    this.colorEncima = Cristal.vidrioFuerte,
-    this.colorBorde = Cristal.borde,
-    this.colorBordeEncima = Cristal.bordeFuerte,
+    this.color,
+    this.colorEncima,
+    this.colorBorde,
+    this.colorBordeEncima,
     this.desenfoque = false,
     this.interactivo = false,
     this.onTap,
@@ -34,10 +34,10 @@ class PanelCristal extends StatefulWidget {
   final EdgeInsetsGeometry? padding;
   final EdgeInsetsGeometry? margin;
   final double radio;
-  final Color color;
-  final Color colorEncima;
-  final Color colorBorde;
-  final Color colorBordeEncima;
+  final Color? color;
+  final Color? colorEncima;
+  final Color? colorBorde;
+  final Color? colorBordeEncima;
 
   /// Difumina el contenido que queda detrás del panel.
   final bool desenfoque;
@@ -70,10 +70,14 @@ class _PanelCristalState extends State<PanelCristal> {
       alignment: widget.alignment,
       padding: widget.onTap == null ? widget.padding : null,
       decoration: BoxDecoration(
-        color: _encima ? widget.colorEncima : widget.color,
+        color: _encima
+            ? (widget.colorEncima ?? Cristal.vidrioFuerte)
+            : (widget.color ?? Cristal.vidrio),
         borderRadius: radio,
         border: Border.all(
-          color: _encima ? widget.colorBordeEncima : widget.colorBorde,
+          color: _encima
+              ? (widget.colorBordeEncima ?? Cristal.bordeFuerte)
+              : (widget.colorBorde ?? Cristal.borde),
         ),
       ),
       child: widget.onTap == null

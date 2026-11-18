@@ -375,7 +375,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
                             '${pasos.length - _paso - 1 == 1 ? 'Sigue 1 paso' : 'Siguen ${pasos.length - _paso - 1} pasos'}.'
                             ' Lo que escribes se guarda automáticamente.',
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.textoSuave,
                               fontSize: 12.3,
                             ),
@@ -410,10 +410,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
                   await _guardar();
                   if (mounted) Navigator.pop(context);
                 },
-                icon: const Icon(
-                  Icons.arrow_back_rounded,
-                  color: Cristal.texto,
-                ),
+                icon: Icon(Icons.arrow_back_rounded, color: Cristal.texto),
               ),
               const SizedBox(width: 4),
               Expanded(
@@ -422,7 +419,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
                   children: [
                     Text(
                       'Informe ${_plan.periodicidad.adjetivo} N.º ${_inf.numero}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.texto,
                         fontSize: 16.5,
                         fontWeight: FontWeight.w800,
@@ -433,7 +430,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
                       '${mobile ? '' : ' · Contrato ${widget.expediente.numeroContrato}'}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.textoSuave,
                         fontSize: 12.3,
                       ),
@@ -499,7 +496,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.format_list_numbered_rounded,
                         size: 17,
                         color: Cristal.texto,
@@ -507,7 +504,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
                       const SizedBox(width: 6),
                       Text(
                         'Paso ${_paso + 1} de ${pasos.length}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.texto,
                           fontWeight: FontWeight.w700,
                           fontSize: 12.8,
@@ -542,10 +539,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
                   else if (_guardado.isNotEmpty)
                     _guardado,
                 ].join(' · '),
-                style: const TextStyle(
-                  color: Cristal.textoSuave,
-                  fontSize: 11.5,
-                ),
+                style: TextStyle(color: Cristal.textoSuave, fontSize: 11.5),
               ),
             ],
           ),
@@ -570,7 +564,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
         children: [
           Text(
             '${d.etapaNombre} devolvió tu informe',
-            style: const TextStyle(
+            style: TextStyle(
               color: Cristal.ambar,
               fontSize: 15,
               fontWeight: FontWeight.w800,
@@ -579,7 +573,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
           const SizedBox(height: 4),
           Text(
             d.observacion,
-            style: const TextStyle(
+            style: TextStyle(
               color: Cristal.ambar,
               fontSize: 13.5,
               height: 1.45,
@@ -588,7 +582,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
           const SizedBox(height: 6),
           Text(
             '${d.actor} · ${JuridicoContratacionService.formatearFechaHumana(d.fechaIso)}',
-            style: const TextStyle(color: Cristal.ambar, fontSize: 11.8),
+            style: TextStyle(color: Cristal.ambar, fontSize: 11.8),
           ),
           if (primero >= 0 && primero != _paso) ...[
             const SizedBox(height: 8),
@@ -628,7 +622,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
             const SizedBox(height: 6),
             Text(
               p.ayuda,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Cristal.textoMedio,
                 fontSize: 13.5,
                 height: 1.45,
@@ -724,7 +718,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
         const SizedBox(height: 14),
         Text(
           e.objetoContrato,
-          style: const TextStyle(
+          style: TextStyle(
             color: Cristal.textoMedio,
             fontSize: 13,
             height: 1.45,
@@ -749,7 +743,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
           ),
           child: Text(
             o.texto,
-            style: const TextStyle(
+            style: TextStyle(
               color: Cristal.texto,
               fontSize: 13.6,
               height: 1.5,
@@ -788,7 +782,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
             ),
             Text(
               '${c.text.trim().length} caracteres',
-              style: const TextStyle(color: Cristal.textoSuave, fontSize: 12),
+              style: TextStyle(color: Cristal.textoSuave, fontSize: 12),
             ),
           ],
         ),
@@ -821,7 +815,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
                   children: [
                     Text(
                       'Anexo ${i + 1}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.texto,
                         fontWeight: FontWeight.w800,
                         fontSize: 14.5,
@@ -861,7 +855,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
                   decoration: decoracionCampo('¿Qué demuestra este anexo?'),
                 ),
                 const SizedBox(height: 12),
-                const Text(
+                Text(
                   'Respalda las obligaciones',
                   style: TextStyle(
                     color: Cristal.texto,
@@ -998,8 +992,8 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
             'salud ${formatoCop(aporte.salud)}${inf.pensionado ? '' : ', pensión ${formatoCop(aporte.pension)}'}'
             '${aporte.arlLaPagaLaEntidad ? ' (la ARL la paga la entidad)' : ' y ARL ${formatoCop(aporte.arl)}'}. '
             'Total mínimo: ${formatoCop(aporte.totalContratista(pensionado: inf.pensionado))}.',
-            style: const TextStyle(
-              color: Color(0xFF38BDF8),
+            style: TextStyle(
+              color: Cristal.legible(const Color(0xFF38BDF8)),
               fontSize: 13,
               height: 1.45,
             ),
@@ -1012,7 +1006,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
               children: [
                 Text(
                   'Planilla ${i + 1}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1157,7 +1151,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
             DatoSupervision(
               'Estampilla',
               formatoCop(calculada),
-              color: const Color(0xFF38BDF8),
+              color: Cristal.legible(const Color(0xFF38BDF8)),
             ),
           ],
         ),
@@ -1194,7 +1188,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
           ),
         ]),
         const SizedBox(height: 10),
-        const Text(
+        Text(
           'El soporte de pago se adjunta en el paso de Documentos, como "Impuesto departamental".',
           style: TextStyle(color: Cristal.textoSuave, fontSize: 12.3),
         ),
@@ -1293,7 +1287,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
           ),
         ]),
         const SizedBox(height: 10),
-        const Text(
+        Text(
           'Según tu RUT',
           style: TextStyle(
             color: Cristal.texto,
@@ -1344,7 +1338,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (final (i, d) in propios.indexed) ...[
-          if (i > 0) const Divider(height: 1, color: Cristal.borde),
+          if (i > 0) Divider(height: 1, color: Cristal.borde),
           _FilaDocumento(
             documento: d,
             archivos: _inf.documentos[d.id] ?? const [],
@@ -1393,7 +1387,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
               children: [
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.auto_awesome_outlined,
                       size: 18,
                       color: Cristal.verde,
@@ -1404,7 +1398,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
                         generados.length == 1
                             ? '1 lo arma la app con tus respuestas'
                             : '${generados.length} los arma la app con tus respuestas',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.verde,
                           fontSize: 13.2,
                           fontWeight: FontWeight.w800,
@@ -1423,10 +1417,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
                           d.regla == ReglaDocumento.cadaPeriodo
                               ? d.nombre
                               : '${d.nombre} · ${d.regla.etiqueta.toLowerCase()}',
-                          style: const TextStyle(
-                            color: Cristal.texto,
-                            fontSize: 13,
-                          ),
+                          style: TextStyle(color: Cristal.texto, fontSize: 13),
                         ),
                       ),
                       TextButton(
@@ -1463,7 +1454,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
+        Text(
           'Tu firma',
           style: TextStyle(
             color: Cristal.texto,
@@ -1472,7 +1463,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
           ),
         ),
         const SizedBox(height: 4),
-        const Text(
+        Text(
           'La app la usa en el informe, la cuenta de cobro y la solicitud de estampillas. Se registra una sola vez.',
           style: TextStyle(color: Cristal.textoMedio, fontSize: 12.8),
         ),
@@ -1559,7 +1550,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
               children: [
                 Text(
                   'Antes de enviar te falta:',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontWeight: FontWeight.w800,
                     fontSize: 13,
@@ -1572,7 +1563,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Padding(
+                        Padding(
                           padding: EdgeInsets.only(top: 2),
                           child: Icon(
                             Icons.radio_button_unchecked_rounded,
@@ -1584,7 +1575,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
                         Expanded(
                           child: Text(
                             f,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.textoMedio,
                               fontSize: 12.8,
                             ),
@@ -1629,7 +1620,7 @@ class _InformeContratistaScreenState extends State<InformeContratistaScreen> {
               onPressed: faltan.isNotEmpty || _enviando ? null : _enviar,
               style: EstiloContractual.botonPrincipal(),
               icon: _enviando
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
@@ -1783,7 +1774,7 @@ class _RespuestaApilada extends StatelessWidget {
                   width: MediaQuery.sizeOf(context).width < 640 ? 108 : 150,
                   child: Text(
                     paso.etiqueta,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.texto,
                       fontWeight: FontWeight.w700,
                       fontSize: 13,
@@ -1795,10 +1786,7 @@ class _RespuestaApilada extends StatelessWidget {
                     paso.resumen,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Cristal.textoSuave,
-                      fontSize: 12.8,
-                    ),
+                    style: TextStyle(color: Cristal.textoSuave, fontSize: 12.8),
                   ),
                 ),
                 TextButton(
@@ -1947,7 +1935,7 @@ class _FilaArchivo extends StatelessWidget {
               '${archivo.nombre} · ${archivo.tamanoLegible}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Cristal.texto,
                 fontSize: 13,
                 decoration: TextDecoration.underline,
@@ -1958,11 +1946,7 @@ class _FilaArchivo extends StatelessWidget {
         IconButton(
           tooltip: 'Quitar',
           onPressed: onQuitar,
-          icon: const Icon(
-            Icons.close_rounded,
-            size: 18,
-            color: Cristal.textoSuave,
-          ),
+          icon: Icon(Icons.close_rounded, size: 18, color: Cristal.textoSuave),
         ),
       ],
     ),
@@ -2033,7 +2017,7 @@ class _FilaDocumento extends StatelessWidget {
                       children: [
                         Text(
                           d.nombre,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.texto,
                             fontSize: 13.8,
                             fontWeight: FontWeight.w800,
@@ -2046,7 +2030,7 @@ class _FilaDocumento extends StatelessWidget {
                             fondo: Cristal.azulVidrio,
                           ),
                         if (devuelto)
-                          const EtiquetaColor(
+                          EtiquetaColor(
                             texto: 'Devuelto: reemplázalo',
                             color: Cristal.ambar,
                             fondo: Cristal.ambarVidrio,
@@ -2058,7 +2042,7 @@ class _FilaDocumento extends StatelessWidget {
                         padding: const EdgeInsets.only(top: 3),
                         child: Text(
                           d.descripcion,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.textoMedio,
                             fontSize: 12.5,
                           ),
@@ -2069,7 +2053,7 @@ class _FilaDocumento extends StatelessWidget {
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
                           d.nota,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.ambar,
                             fontSize: 12.5,
                             fontWeight: FontWeight.w700,
@@ -2084,7 +2068,7 @@ class _FilaDocumento extends StatelessWidget {
                 onPressed: subiendo ? null : onAdjuntar,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Cristal.texto,
-                  side: const BorderSide(color: Cristal.borde),
+                  side: BorderSide(color: Cristal.borde),
                   shape: const StadiumBorder(),
                 ),
                 child: Text(

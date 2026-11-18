@@ -140,7 +140,7 @@ class _ConsentimientoDatosScreenState extends State<ConsentimientoDatosScreen> {
                     Text(
                       widget.mensaje,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.textoMedio,
                         fontSize: 15,
                         height: 1.45,
@@ -153,17 +153,14 @@ class _ConsentimientoDatosScreenState extends State<ConsentimientoDatosScreen> {
                       color: Cristal.vidrio,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(22),
-                        side: const BorderSide(
-                          color: Cristal.borde,
-                          width: 1.3,
-                        ),
+                        side: BorderSide(color: Cristal.borde, width: 1.3),
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(22),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            const Text(
+                            Text(
                               'Política de privacidad y tratamiento de datos personales',
                               style: TextStyle(
                                 color: Cristal.texto,
@@ -174,7 +171,7 @@ class _ConsentimientoDatosScreenState extends State<ConsentimientoDatosScreen> {
                             const SizedBox(height: 12),
                             ConstrainedBox(
                               constraints: const BoxConstraints(maxHeight: 340),
-                              child: const SingleChildScrollView(
+                              child: SingleChildScrollView(
                                 child: Text(
                                   ConsentService.textoPolitica,
                                   style: TextStyle(
@@ -194,7 +191,7 @@ class _ConsentimientoDatosScreenState extends State<ConsentimientoDatosScreen> {
                               controlAffinity: ListTileControlAffinity.leading,
                               contentPadding: EdgeInsets.zero,
                               activeColor: Cristal.acento,
-                              title: const Text(
+                              title: Text(
                                 ConsentService.textoCasilla,
                                 style: TextStyle(
                                   color: Cristal.texto,
@@ -206,7 +203,7 @@ class _ConsentimientoDatosScreenState extends State<ConsentimientoDatosScreen> {
                               const SizedBox(height: 8),
                               Text(
                                 _error!,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Cristal.rojo,
                                   fontSize: 13,
                                 ),
@@ -221,18 +218,18 @@ class _ConsentimientoDatosScreenState extends State<ConsentimientoDatosScreen> {
                                     : null,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Cristal.acento,
-                                  foregroundColor: Cristal.texto,
+                                  foregroundColor: Cristal.blanco,
                                   disabledBackgroundColor: Cristal.vidrioFuerte,
                                   elevation: 0,
                                   shape: const StadiumBorder(),
                                 ),
                                 child: _guardando
-                                    ? const SizedBox(
+                                    ? SizedBox(
                                         width: 20,
                                         height: 20,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2.2,
-                                          color: Cristal.texto,
+                                          color: Cristal.blanco,
                                         ),
                                       )
                                     : Text(
@@ -247,7 +244,7 @@ class _ConsentimientoDatosScreenState extends State<ConsentimientoDatosScreen> {
                             const SizedBox(height: 8),
                             TextButton(
                               onPressed: _guardando ? null : _salir,
-                              child: const Text(
+                              child: Text(
                                 'No acepto · cerrar sesión',
                                 style: TextStyle(
                                   color: Cristal.textoSuave,

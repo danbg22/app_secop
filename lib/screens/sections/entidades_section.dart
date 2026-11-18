@@ -30,6 +30,11 @@ enum EntityEmblemType {
   serviciosWaterDrop,
 }
 
+/// Lugar de una entidad con regionales (SENA, ICBF, INVÍAS, Ministerio del
+/// Trabajo) en los resultados: la principal reúne todas sus cuentas; cada
+/// regional, solo las de su departamento.
+enum NivelEntidad { principal, regional }
+
 class EntitySummaryRecord {
   const EntitySummaryRecord({
     required this.name,
@@ -48,6 +53,8 @@ class EntitySummaryRecord {
     required this.secopKeywords,
     this.isDependency = false,
     this.topShieldInRanking = false,
+    this.nivel,
+    this.raiz,
   });
 
   EntitySummaryRecord conContratistas(int contratistas) => EntitySummaryRecord(
@@ -67,6 +74,8 @@ class EntitySummaryRecord {
     secopKeywords: secopKeywords,
     isDependency: isDependency,
     topShieldInRanking: topShieldInRanking,
+    nivel: nivel,
+    raiz: raiz,
   );
 
   final String name;
@@ -85,6 +94,29 @@ class EntitySummaryRecord {
   final List<String> secopKeywords;
   final bool isDependency;
   final bool topShieldInRanking;
+
+  /// Principal o regional (null para las entidades sin regionales).
+  final NivelEntidad? nivel;
+
+  /// Nombre de la principal a la que pertenece una regional (y el de la
+  /// principal misma), para mostrarlas juntas.
+  final String? raiz;
+
+  bool get esRegional => nivel == NivelEntidad.regional;
+
+  /// Nombre para la lista: una regional va bajo su principal, así que basta
+  /// con la sigla y la regional ("SENA · Regional Cesar").
+  String get nombreEnLista {
+    if (!esRegional) return name;
+    final abre = name.lastIndexOf('(');
+    if (abre < 0 || !name.endsWith(')')) return name;
+    final parte = name.substring(abre + 1, name.length - 1);
+    final raizNombre = name.substring(0, abre).trim();
+    final guion = raizNombre.lastIndexOf(' - ');
+    return guion < 0
+        ? parte
+        : '${raizNombre.substring(guion + 3).trim()} · $parte';
+  }
 }
 
 class _CachedEntitiesBundle {
@@ -562,6 +594,62 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     return (porNit, total);
   }
 
+  static String _claveRegional(String nit, String departamento) =>
+      '${nit.replaceAll(RegExp(r'[^0-9]'), '')}|${_normalizar(departamento)}';
+
+  /// Contratistas distintos de cada regional (NIT + departamento).
+  static Future<Map<String, int>> _contarContratistasPorRegional(
+    List<EntitySummaryRecord> regionales, {
+    required bool soloVigencia,
+  }) async {
+    final nits = regionales
+        .map((e) => e.nit.replaceAll(RegExp(r'[^0-9]'), ''))
+        .where((n) => n.length >= 6)
+        .toSet()
+        .toList();
+    if (nits.isEmpty) return const {};
+    final filas = await _consultarSecop({
+      r'$select': 'nit_entidad,departamento,count(distinct documento_proveedor) as contratistas',
+      r'$where':
+          '$_filtroValorValido AND ${_filtroPeriodo(soloVigencia: soloVigencia)} '
+          'AND nit_entidad in (${nits.join(',')})',
+      r'$group': 'nit_entidad,departamento',
+      r'$limit': '500',
+    });
+    return {
+      for (final r in filas.whereType<Map>())
+        _claveRegional('${r['nit_entidad']}', '${r['departamento'] ?? ''}'):
+            int.tryParse('${r['contratistas']}') ?? 0,
+    };
+  }
+
+  /// De mayor a menor valor, pero cada principal va antes que el resto y
+  /// seguida de sus regionales.
+  static List<EntitySummaryRecord> _principalYRegionalesPrimero(
+    List<EntitySummaryRecord> entidades,
+  ) {
+    int porValor(EntitySummaryRecord a, EntitySummaryRecord b) =>
+        b.amountMillions.compareTo(a.amountMillions);
+    final principales =
+        entidades.where((e) => e.nivel == NivelEntidad.principal).toList()
+          ..sort(porValor);
+    final regionales = entidades.where((e) => e.esRegional).toList()
+      ..sort(porValor);
+    final resto = entidades.where((e) => e.nivel == null).toList()
+      ..sort(porValor);
+    final ubicadas = <EntitySummaryRecord>{};
+    final orden = <EntitySummaryRecord>[];
+    for (final p in principales) {
+      orden.add(p);
+      for (final r in regionales) {
+        if (r.raiz == p.raiz && ubicadas.add(r)) orden.add(r);
+      }
+    }
+    // Regionales sin su principal ("sena cesar"): también adelante.
+    orden.addAll(regionales.where((r) => !ubicadas.contains(r)));
+    return [...orden, ...resto];
+  }
+
   static List<EntitySummaryRecord> _aplicarContratistas(
     List<EntitySummaryRecord> entidades,
     Map<String, int> porNit,
@@ -766,10 +854,14 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     }
   }
 
+  /// Con [conRegionales], las entidades con regionales aparecen dos veces:
+  /// la principal (todas sus cuentas) y cada regional (las de su
+  /// departamento).
   List<EntitySummaryRecord> _parseAndConsolidateSecopEntities(
     List<dynamic> rawList,
-    String cleanQuery,
-  ) {
+    String cleanQuery, {
+    bool conRegionales = false,
+  }) {
     final Map<String, EntitySummaryRecord> consolidated = {};
 
     // Si el usuario escribe en la búsqueda una regional específica (ej. "sena atlantico", "sena cesar", "icbf guajira"),
@@ -844,91 +936,110 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
 
       final millions = rawVal / 1000000;
 
-      String prettyName = _beautifyEntityName(entityEffectiveName);
+      final prettyName = _beautifyEntityName(entityEffectiveName);
       final isMultiRegionalRoot =
           prettyName == 'Servicio Nacional de Aprendizaje - SENA' ||
           prettyName == 'Instituto Colombiano de Bienestar Familiar - ICBF' ||
           prettyName == 'Instituto Nacional de Vías - INVIAS' ||
           prettyName == 'Ministerio del Trabajo';
 
-      if (isMultiRegionalRoot &&
-          queryAsksForRegional &&
-          dept != 'Colombia' &&
-          dept.isNotEmpty) {
-        if (prettyName == 'Ministerio del Trabajo') {
-          prettyName = 'Ministerio del Trabajo (Dirección Territorial $dept)';
-        } else {
-          final shortRoot = prettyName.contains('SENA')
-              ? 'Servicio Nacional de Aprendizaje - SENA'
-              : (prettyName.contains('ICBF')
-                    ? 'Instituto Colombiano de Bienestar Familiar - ICBF'
-                    : 'Instituto Nacional de Vías - INVIAS');
-          prettyName = '$shortRoot (Regional $dept)';
+      // Nombre de la regional de esta cuenta. En Bogotá solo las cuentas que
+      // se nombran regionales lo son: las demás son la sede nacional.
+      String? regionalName;
+      if (isMultiRegionalRoot && dept != 'Colombia' && dept.isNotEmpty) {
+        final normEnt = _normalizar(entityEffectiveName);
+        final nombraRegional =
+            normEnt.contains('REGIONAL') ||
+            normEnt.contains('SECCIONAL') ||
+            normEnt.contains('TERRITORIAL');
+        if (!_normalizar(dept).contains('BOGOTA') || nombraRegional) {
+          regionalName = prettyName == 'Ministerio del Trabajo'
+              ? 'Ministerio del Trabajo (Dirección Territorial $dept)'
+              : '$prettyName (Regional $dept)';
         }
       }
 
-      final normPretty = _normalizar(prettyName);
-      final existing = consolidated[normPretty];
+      void agregar(String nombre, NivelEntidad? nivel) {
+        final normPretty = _normalizar(nombre);
+        final existing = consolidated[normPretty];
+        final esPrincipal = nivel == NivelEntidad.principal;
+        if (existing == null) {
+          final emblem = _classifyEmblem(entityEffectiveName);
+          consolidated[normPretty] = EntitySummaryRecord(
+            name: nombre,
+            nit:
+                entityEffectiveNit.isNotEmpty &&
+                    entityEffectiveNit != 'No Definido'
+                ? (entityEffectiveNit == '8999990341'
+                      ? '899999034'
+                      : entityEffectiveNit)
+                : 'Verificado SECOP II',
+            location: esPrincipal
+                ? 'Colombia · Orden Nacional (Regionales)'
+                : (city != 'Colombia' && dept != 'Colombia'
+                      ? '$city, $dept · ${ordenRaw.isNotEmpty ? ordenRaw : "Territorial"}'
+                      : '$dept · ${ordenRaw.isNotEmpty ? ordenRaw : "Nacional"}'),
+            municipio: esPrincipal ? 'Bogotá' : city,
+            departamento: esPrincipal ? 'Distrito Capital de Bogotá' : dept,
+            category: ordenRaw.isNotEmpty
+                ? 'Orden $ordenRaw'
+                : 'Entidad Pública',
+            emblemType: emblem,
+            contractsCount: contracts,
+            contractsFormatted: _formatIntWithDots(contracts),
+            amountMillions: millions,
+            amountFormatted: _formatMillions(millions),
+            // SECOP II no publica dependencias de la entidad.
+            dependenciesCount: 0,
+            uniqueContractors: contractors,
+            secopKeywords: isMultiRegionalRoot
+                ? [
+                    prettyName.contains('SENA') ? 'SENA' : 'ICBF',
+                    entityEffectiveName,
+                  ]
+                : [entityEffectiveName],
+            nivel: nivel,
+            raiz: nivel == null ? null : prettyName,
+          );
+        } else {
+          final mergedContracts = existing.contractsCount + contracts;
+          final mergedMillions = existing.amountMillions + millions;
+          final mergedContractors = existing.uniqueContractors + contractors;
+          consolidated[normPretty] = EntitySummaryRecord(
+            name: existing.name,
+            nit: existing.nit,
+            location: existing.location,
+            municipio: existing.municipio,
+            departamento: existing.departamento,
+            category: existing.category,
+            emblemType: existing.emblemType,
+            contractsCount: mergedContracts,
+            contractsFormatted: _formatIntWithDots(mergedContracts),
+            amountMillions: mergedMillions,
+            amountFormatted: _formatMillions(mergedMillions),
+            dependenciesCount: existing.dependenciesCount,
+            uniqueContractors: mergedContractors,
+            secopKeywords: existing.secopKeywords,
+            nivel: existing.nivel,
+            raiz: existing.raiz,
+          );
+        }
+      }
 
-      if (existing == null) {
-        final isConsolidationRoot =
-            isMultiRegionalRoot && !queryAsksForRegional;
-        final emblem = _classifyEmblem(entityEffectiveName);
-
-        consolidated[normPretty] = EntitySummaryRecord(
-          name: prettyName,
-          nit:
-              entityEffectiveNit.isNotEmpty &&
-                  entityEffectiveNit != 'No Definido'
-              ? (entityEffectiveNit == '8999990341'
-                    ? '899999034'
-                    : entityEffectiveNit)
-              : 'Verificado SECOP II',
-          location: isConsolidationRoot
-              ? 'Colombia · Orden Nacional (Regionales)'
-              : (city != 'Colombia' && dept != 'Colombia'
-                    ? '$city, $dept · ${ordenRaw.isNotEmpty ? ordenRaw : "Territorial"}'
-                    : '$dept · ${ordenRaw.isNotEmpty ? ordenRaw : "Nacional"}'),
-          municipio: isConsolidationRoot ? 'Bogotá' : city,
-          departamento: isConsolidationRoot
-              ? 'Distrito Capital de Bogotá'
-              : dept,
-          category: ordenRaw.isNotEmpty ? 'Orden $ordenRaw' : 'Entidad Pública',
-          emblemType: emblem,
-          contractsCount: contracts,
-          contractsFormatted: _formatIntWithDots(contracts),
-          amountMillions: millions,
-          amountFormatted: _formatMillions(millions),
-          // SECOP II no publica dependencias de la entidad.
-          dependenciesCount: 0,
-          uniqueContractors: contractors,
-          secopKeywords: isMultiRegionalRoot
-              ? [
-                  prettyName.contains('SENA') ? 'SENA' : 'ICBF',
-                  entityEffectiveName,
-                ]
-              : [entityEffectiveName],
+      if (!isMultiRegionalRoot) {
+        agregar(prettyName, null);
+      } else if (queryAsksForRegional) {
+        // "sena cesar": solo llegan las cuentas de esa regional; una
+        // principal con ellas sumaría solo una parte.
+        agregar(
+          regionalName ?? prettyName,
+          regionalName == null ? NivelEntidad.principal : NivelEntidad.regional,
         );
       } else {
-        final mergedContracts = existing.contractsCount + contracts;
-        final mergedMillions = existing.amountMillions + millions;
-        final mergedContractors = existing.uniqueContractors + contractors;
-        consolidated[normPretty] = EntitySummaryRecord(
-          name: existing.name,
-          nit: existing.nit,
-          location: existing.location,
-          municipio: existing.municipio,
-          departamento: existing.departamento,
-          category: existing.category,
-          emblemType: existing.emblemType,
-          contractsCount: mergedContracts,
-          contractsFormatted: _formatIntWithDots(mergedContracts),
-          amountMillions: mergedMillions,
-          amountFormatted: _formatMillions(mergedMillions),
-          dependenciesCount: existing.dependenciesCount,
-          uniqueContractors: mergedContractors,
-          secopKeywords: existing.secopKeywords,
-        );
+        agregar(prettyName, NivelEntidad.principal);
+        if (conRegionales && regionalName != null) {
+          agregar(regionalName, NivelEntidad.regional);
+        }
       }
     }
 
@@ -1008,29 +1119,51 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     final porPeriodo = await Future.wait([consultar(true), consultar(false)]);
     final soloVigencia = porPeriodo[0].isNotEmpty;
     final rawList = soloVigencia ? porPeriodo[0] : porPeriodo[1];
-    final consolidado = _parseAndConsolidateSecopEntities(rawList, clean);
-    if (consolidado.isEmpty) return null;
-    final (porNit, unicos) = await _contarContratistas(
-      consolidado.take(60).toList(),
-      soloVigencia: soloVigencia,
+    final consolidado = _parseAndConsolidateSecopEntities(
+      rawList,
+      clean,
+      conRegionales: true,
     );
-    final finalEntities = _aplicarContratistas(consolidado, porNit)
-      ..sort((a, b) => b.amountMillions.compareTo(a.amountMillions));
+    if (consolidado.isEmpty) return null;
+    final regionales = consolidado.where((e) => e.esRegional).toList();
+    final contados = await Future.wait([
+      _contarContratistas(
+        consolidado.where((e) => !e.esRegional).take(60).toList(),
+        soloVigencia: soloVigencia,
+      ),
+      _contarContratistasPorRegional(regionales, soloVigencia: soloVigencia),
+    ]);
+    final (porNit, unicos) = contados[0] as (Map<String, int>, int?);
+    final porRegional = contados[1] as Map<String, int>;
+    final finalEntities = _principalYRegionalesPrimero([
+      for (final e in consolidado)
+        e.esRegional
+            ? e.conContratistas(
+                porRegional[_claveRegional(e.nit, e.departamento)] ??
+                    e.uniqueContractors,
+              )
+            : e.conContratistas(
+                porNit[e.nit.replaceAll(RegExp(r'[^0-9]'), '')] ??
+                    e.uniqueContractors,
+              ),
+    ]);
+    // Las regionales ya están dentro de su principal: no se suman dos veces.
+    final sinRepetir = finalEntities.where((e) => !e.esRegional);
 
     return _CachedEntitiesBundle(
       entities: finalEntities,
-      totalEntities: finalEntities.length,
-      totalContracts: finalEntities.fold<int>(
+      totalEntities: sinRepetir.length,
+      totalContracts: sinRepetir.fold<int>(
         0,
         (acc, e) => acc + e.contractsCount,
       ),
-      totalAmountMillions: finalEntities.fold<double>(
+      totalAmountMillions: sinRepetir.fold<double>(
         0,
         (acc, e) => acc + e.amountMillions,
       ),
       totalUniqueContractors:
           unicos ??
-          finalEntities.fold<int>(0, (acc, e) => acc + e.uniqueContractors),
+          sinRepetir.fold<int>(0, (acc, e) => acc + e.uniqueContractors),
       periodo: soloVigencia
           ? 'Vigencia ${AniosSecop.actual}'
           : 'Histórico desde ${AniosSecop.primero}',
@@ -1144,7 +1277,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Entidades',
               style: TextStyle(
                 color: Cristal.texto,
@@ -1155,7 +1288,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
               ),
             ),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               'Explora las entidades que contratan con el Estado y descubre cómo se distribuyen los recursos públicos.',
               style: TextStyle(
                 color: Cristal.textoCuerpo,
@@ -1182,7 +1315,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Entidades',
                     style: TextStyle(
                       color: Cristal.texto,
@@ -1193,7 +1326,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Explora las entidades que contratan con el Estado y descubre\ncómo se distribuyen los recursos públicos.',
                     style: TextStyle(
                       color: Cristal.textoCuerpo,
@@ -1215,7 +1348,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
+                    Text(
                       'Conoce quién contrata,\nqué contrata y en qué\nse invierte',
                       textAlign: TextAlign.center,
                       style: TextStyle(
@@ -1244,7 +1377,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
   /// Barra única de consulta general de entidades verificables en SECOP II (sin filtros de ubicación ni año).
   Widget _buildSearchAndFiltersCard() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
         color: Cristal.vidrio,
         borderRadius: BorderRadius.circular(15),
@@ -1253,7 +1386,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
         children: [
           Expanded(
             child: SizedBox(
-              height: 42,
+              height: 48,
               child: TextField(
                 controller: _searchController,
                 // Se consulta al presionar Enter o "Buscar", no mientras se
@@ -1263,25 +1396,25 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                 },
                 onSubmitted: (_) => _buscarEntidades(),
                 textInputAction: TextInputAction.search,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
-                  fontSize: 13.2,
+                  fontSize: 14.5,
                   fontWeight: FontWeight.w600,
                 ),
                 decoration: InputDecoration(
                   hintText: 'Escribe la entidad y presiona Enter (ej. SENA, Alcaldía de Santa Marta, INVIAS, ICBF...)',
-                  hintStyle: const TextStyle(
+                  hintStyle: TextStyle(
                     color: Cristal.textoTenue,
-                    fontSize: 12.8,
+                    fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
-                  prefixIcon: const Icon(
+                  prefixIcon: Icon(
                     Icons.search_rounded,
                     color: Cristal.textoSuave,
                     size: 20,
                   ),
                   suffixIcon: _isLoadingLive
-                      ? const Padding(
+                      ? Padding(
                           padding: EdgeInsets.all(11),
                           child: SizedBox(
                             width: 16,
@@ -1302,7 +1435,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                                     _searchController.clear();
                                     _onSearchChanged('');
                                   },
-                                  icon: const Icon(
+                                  icon: Icon(
                                     Icons.close_rounded,
                                     size: 18,
                                     color: Cristal.textoSuave,
@@ -1325,7 +1458,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(11),
-                    borderSide: const BorderSide(
+                    borderSide: BorderSide(
                       color: Cristal.bordeFuerte,
                       width: 1,
                     ),
@@ -1336,7 +1469,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
           ),
           const SizedBox(width: 10),
           SizedBox(
-            height: 42,
+            height: 48,
             child: FilledButton.icon(
               onPressed: _isLoadingLive ? null : _buscarEntidades,
               icon: const Icon(Icons.search_rounded, size: 18),
@@ -1378,7 +1511,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.textoCuerpo,
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
@@ -1390,7 +1523,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                       subtitleUnderTitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.textoSuave,
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
@@ -1419,7 +1552,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                       children: [
                         TextSpan(
                           text: trendPercent,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.verde,
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
@@ -1427,7 +1560,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                         ),
                         TextSpan(
                           text: ' $trendComparison',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.textoSuave,
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
@@ -1468,7 +1601,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       iconCircle: doubleRingIcon(
         outerColor: Cristal.azulVidrio,
         innerColor: const Color(0x473B82F6),
-        child: const Icon(
+        child: Icon(
           Icons.account_balance_rounded,
           color: Cristal.acentoClaro,
           size: 20,
@@ -1484,7 +1617,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       iconCircle: doubleRingIcon(
         outerColor: Cristal.azulVidrio,
         innerColor: const Color(0x473B82F6),
-        child: const Icon(
+        child: Icon(
           Icons.description_outlined,
           color: Cristal.acentoClaro,
           size: 20,
@@ -1503,11 +1636,11 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
           width: 22,
           height: 22,
           alignment: Alignment.center,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: Cristal.verde,
             shape: BoxShape.circle,
           ),
-          child: const Text(
+          child: Text(
             '\$',
             style: TextStyle(
               color: Cristal.tinta,
@@ -1641,16 +1774,16 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: 15, color: Cristal.textoMedio),
+                Icon(icon, size: 16, color: Cristal.textoMedio),
                 const SizedBox(width: 6),
                 Flexible(
                   child: Text(
                     value,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.texto,
-                      fontSize: 13.8,
+                      fontSize: 15,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -1659,14 +1792,14 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
             ),
             const SizedBox(height: 3),
             Padding(
-              padding: const EdgeInsets.only(left: 21),
+              padding: const EdgeInsets.only(left: 22),
               child: Text(
                 subtitle,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.textoSuave,
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -1677,6 +1810,29 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     }
 
     final bool isMobileRow = MediaQuery.sizeOf(context).width < 700;
+    // Las regionales van un poco adentro, bajo su principal.
+    final sangria = entity.esRegional ? (isMobileRow ? 18.0 : 34.0) : 0.0;
+
+    Widget nombre({required double tamano, required int lineas}) => Row(
+      children: [
+        Flexible(
+          child: Text(
+            entity.nombreEnLista,
+            maxLines: lineas,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Cristal.texto,
+              fontSize: tamano,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        if (entity.nivel case final nivel?) ...[
+          const SizedBox(width: 8),
+          _EtiquetaNivel(nivel: nivel),
+        ],
+      ],
+    );
 
     return Material(
       color: Colors.transparent,
@@ -1684,9 +1840,11 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
         hoverDuration: Cristal.micro,
         onTap: () => _openEntityProfile(entity),
         child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: isMobileRow ? 14 : 20,
-            vertical: 14,
+          padding: EdgeInsets.fromLTRB(
+            (isMobileRow ? 14 : 22) + sangria,
+            isMobileRow ? 14 : 17,
+            isMobileRow ? 14 : 22,
+            isMobileRow ? 14 : 17,
           ),
           child: isMobileRow
               ? Row(
@@ -1705,40 +1863,31 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            entity.name,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Cristal.texto,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
+                          nombre(tamano: 14, lineas: 2),
                           const SizedBox(height: 3),
                           Text(
                             '${entity.location} · NIT ${entity.nit}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.textoSuave,
-                              fontSize: 11,
+                              fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             '${entity.contractsFormatted} cont. · ${entity.amountFormatted}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.acentoClaro,
-                              fontSize: 11.5,
+                              fontSize: 12.5,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const Icon(
+                    Icon(
                       Icons.chevron_right_rounded,
                       color: Cristal.textoMedio,
                       size: 20,
@@ -1752,7 +1901,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                       nit: entity.nit,
                       child: EntityEmblemWidget(
                         type: entity.emblemType,
-                        size: 44,
+                        size: 48,
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -1762,24 +1911,15 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            entity.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Cristal.texto,
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
+                          nombre(tamano: 15, lineas: 2),
                           const SizedBox(height: 3),
                           Text(
                             '${entity.location} · NIT ${entity.nit}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.textoSuave,
-                              fontSize: 11.5,
+                              fontSize: 12.5,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -1808,7 +1948,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                       flex: 2,
                     ),
                     const SizedBox(width: 6),
-                    const Icon(
+                    Icon(
                       Icons.chevron_right_rounded,
                       color: Cristal.textoMedio,
                       size: 20,
@@ -1816,6 +1956,44 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                   ],
                 ),
         ),
+      ),
+    );
+  }
+
+  /// Qué significan las etiquetas Principal y Regional.
+  Widget _buildLeyendaNiveles() {
+    final estilo = TextStyle(
+      color: Cristal.textoSuave,
+      fontSize: 12,
+      height: 1.4,
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+      child: Wrap(
+        spacing: 18,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _EtiquetaNivel(nivel: NivelEntidad.principal),
+              SizedBox(width: 8),
+              Text(
+                'La entidad completa: sede nacional y todas sus regionales',
+                style: estilo,
+              ),
+            ],
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _EtiquetaNivel(nivel: NivelEntidad.regional),
+              SizedBox(width: 8),
+              Text('Solo los contratos de esa regional', style: estilo),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -1855,7 +2033,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(
+                      Text(
                         'Ordenar por:',
                         style: TextStyle(
                           color: Cristal.textoSuave,
@@ -1876,7 +2054,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                           child: DropdownButton<String>(
                             value: _sortBy,
                             isDense: true,
-                            icon: const Padding(
+                            icon: Padding(
                               padding: EdgeInsets.only(left: 6),
                               child: Icon(
                                 Icons.keyboard_arrow_down_rounded,
@@ -1884,7 +2062,8 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                                 color: Cristal.textoMedio,
                               ),
                             ),
-                            style: const TextStyle(
+                            style: TextStyle(
+                              fontFamily: 'Inter',
                               color: Cristal.texto,
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -1922,13 +2101,14 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
             ),
           ),
           if (_isLoadingLive)
-            const LinearProgressIndicator(
+            LinearProgressIndicator(
               minHeight: 2,
               color: Cristal.acentoClaro,
               backgroundColor: Cristal.vidrioFuerte,
             )
           else
-            const Divider(height: 1, color: Cristal.borde),
+            Divider(height: 1, color: Cristal.borde),
+          if (entities.any((e) => e.nivel != null)) _buildLeyendaNiveles(),
           if (entities.isEmpty &&
               !_isLoadingLive &&
               _entidadesSecopI.isNotEmpty)
@@ -1938,7 +2118,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
               padding: const EdgeInsets.symmetric(vertical: 42, horizontal: 20),
               child: Column(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.account_balance_outlined,
                     size: 40,
                     color: Cristal.textoTenue,
@@ -1948,7 +2128,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                     _isLoadingLive
                         ? 'Consultando entidades verificadas en SECOP II...'
                         : 'No se encontraron entidades en SECOP II ni en SECOP I con ese criterio.',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.texto,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -1956,7 +2136,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                   ),
                   if (!_isLoadingLive && !_isEmptySearch) ...[
                     const SizedBox(height: 6),
-                    const Text(
+                    Text(
                       'Si es una entidad de régimen especial (por ejemplo, una universidad pública), puede publicar su contratación en su propio portal.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
@@ -1982,7 +2162,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
             for (var i = 0; i < entities.length; i++) ...[
               _buildEntityRowItem(entities[i]),
               if (i < entities.length - 1)
-                const Divider(
+                Divider(
                   height: 1,
                   indent: 20,
                   endIndent: 20,
@@ -2006,7 +2186,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: Cristal.ambarBorde),
           ),
-          child: const Column(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
@@ -2031,13 +2211,10 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
               horizontal: 20,
               vertical: 4,
             ),
-            leading: const Icon(
-              Icons.account_balance_outlined,
-              color: Cristal.texto,
-            ),
+            leading: Icon(Icons.account_balance_outlined, color: Cristal.texto),
             title: Text(
               e.nombre,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Cristal.texto,
                 fontWeight: FontWeight.w800,
                 fontSize: 13.5,
@@ -2063,290 +2240,294 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
   }
 
   /// Columna derecha: Entidades más contratantes (de cualquier orden en Colombia) + Comparar entidades
-  Widget _buildRightSideColumn() {
+  /// Ranking y comparador. [enFila]: uno al lado del otro, bajo la tabla,
+  /// cuando no hay espacio para una columna aparte.
+  Widget _buildRightSideColumn({bool enFila = false}) {
     final top5 = _top5Entities;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // TARJETA 1: Entidades más contratantes (Reales de SECOP II en cualquier orden)
-        Container(
-          padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
-          decoration: BoxDecoration(
-            color: Cristal.vidrio,
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: Cristal.ambarVidrio,
-                      borderRadius: BorderRadius.circular(7),
-                    ),
-                    child: const Icon(
-                      Icons.star_rounded,
-                      color: Cristal.ambar,
-                      size: 17,
-                    ),
+    final tarjetas = <Widget>[
+      // TARJETA 1: Entidades más contratantes (Reales de SECOP II en cualquier orden)
+      Container(
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+        decoration: BoxDecoration(
+          color: Cristal.vidrio,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: Cristal.ambarVidrio,
+                    borderRadius: BorderRadius.circular(7),
                   ),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'Entidades más contratantes',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Cristal.texto,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                  child: Icon(
+                    Icons.star_rounded,
+                    color: Cristal.ambar,
+                    size: 17,
                   ),
-                  InkWell(
-                    hoverDuration: Cristal.micro,
-                    onTap: () {
-                      setState(() {
-                        _sortBy = 'Mayor valor';
-                      });
-                    },
-                    borderRadius: BorderRadius.circular(6),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                      child: Text(
-                        'Ver todas →',
-                        style: TextStyle(
-                          color: Cristal.acentoClaro,
-                          fontSize: 11.8,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              if (top5.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
                   child: Text(
-                    _isLoadingLive
-                        ? 'Consultando el ranking en SECOP II...'
-                        : 'No fue posible cargar el ranking de SECOP II.',
-                    style: const TextStyle(
-                      color: Cristal.textoSuave,
-                      fontSize: 12.5,
+                    'Entidades más contratantes',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Cristal.texto,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
-              for (var index = 0; index < top5.length; index++) ...[
-                if (index > 0) const Divider(height: 14, color: Cristal.borde),
                 InkWell(
                   hoverDuration: Cristal.micro,
-                  onTap: () => _openEntityProfile(top5[index]),
-                  borderRadius: BorderRadius.circular(10),
+                  onTap: () {
+                    setState(() {
+                      _sortBy = 'Mayor valor';
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(6),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 3),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 22,
-                          height: 22,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: index == 0
-                                ? Cristal.ambarVidrio
-                                : Cristal.vidrioSuave,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(
-                            '${index + 1}',
-                            style: const TextStyle(
-                              color: Cristal.texto,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 9),
-                        EntityBrandScope(
-                          entityName: top5[index].name,
-                          nit: top5[index].nit,
-                          child: EntityEmblemWidget(
-                            type: top5[index].emblemType,
-                            size: 35,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                top5[index].name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Cristal.texto,
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              const SizedBox(height: 3),
-                              Row(
-                                children: [
-                                  Text(
-                                    '${top5[index].contractsFormatted} contratos',
-                                    style: const TextStyle(
-                                      color: Cristal.textoSuave,
-                                      fontSize: 11.2,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Flexible(
-                                    child: Text(
-                                      top5[index].amountFormatted,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: Cristal.texto,
-                                        fontSize: 12.2,
-                                        fontWeight: FontWeight.w900,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Text(
+                      'Ver todas →',
+                      style: TextStyle(
+                        color: Cristal.acentoClaro,
+                        fontSize: 11.8,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),
               ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        // TARJETA 2: Comparar entidades
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Cristal.vidrio,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Cristal.borde),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: Cristal.azulVidrio,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.compare_arrows_rounded,
-                      color: Cristal.texto,
-                      size: 18,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  const Expanded(
-                    child: Text(
-                      'Comparar entidades',
-                      style: TextStyle(
-                        color: Cristal.texto,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Cristal.ambarVidrio,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Text(
-                      'SECOP II',
-                      style: TextStyle(
-                        color: Cristal.ambar,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
+            ),
+            const SizedBox(height: 12),
+            if (top5.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  _isLoadingLive
+                      ? 'Consultando el ranking en SECOP II...'
+                      : 'No fue posible cargar el ranking de SECOP II.',
+                  style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
+                ),
               ),
-              const SizedBox(height: 10),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Busca sin filtros cualquier par de entidades verificadas de SECOP II y compara su valor contratado, contratos y contratistas.',
+            for (var index = 0; index < top5.length; index++) ...[
+              if (index > 0) Divider(height: 14, color: Cristal.borde),
+              InkWell(
+                hoverDuration: Cristal.micro,
+                onTap: () => _openEntityProfile(top5[index]),
+                borderRadius: BorderRadius.circular(10),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 22,
+                        height: 22,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: index == 0
+                              ? Cristal.ambarVidrio
+                              : Cristal.vidrioSuave,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '${index + 1}',
                           style: TextStyle(
-                            color: Cristal.textoMedio,
-                            fontSize: 11.6,
-                            height: 1.4,
+                            color: Cristal.texto,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const SizedBox(height: 14),
-                        SizedBox(
-                          height: 36,
-                          child: ElevatedButton.icon(
-                            onPressed: _showCompareEntitiesModal,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Cristal.acento,
-                              foregroundColor: Cristal.texto,
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                            ),
-                            icon: const Icon(
-                              Icons.analytics_outlined,
-                              size: 16,
-                            ),
-                            label: const Text(
-                              'Seleccionar entidades →',
+                      ),
+                      const SizedBox(width: 9),
+                      EntityBrandScope(
+                        entityName: top5[index].name,
+                        nit: top5[index].nit,
+                        child: EntityEmblemWidget(
+                          type: top5[index].emblemType,
+                          size: 35,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              top5[index].name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w700,
+                                color: Cristal.texto,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w800,
                               ),
                             ),
-                          ),
+                            const SizedBox(height: 3),
+                            Row(
+                              children: [
+                                Text(
+                                  '${top5[index].contractsFormatted} contratos',
+                                  style: TextStyle(
+                                    color: Cristal.textoSuave,
+                                    fontSize: 11.2,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Flexible(
+                                  child: Text(
+                                    top5[index].amountFormatted,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: Cristal.texto,
+                                      fontSize: 12.2,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 10),
-                  const _EntityBarIllustration(),
-                ],
+                ),
               ),
             ],
-          ),
+          ],
         ),
-      ],
+      ),
+      // TARJETA 2: Comparar entidades
+      Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Cristal.vidrio,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Cristal.borde),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: Cristal.azulVidrio,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.compare_arrows_rounded,
+                    color: Cristal.texto,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Comparar entidades',
+                    style: TextStyle(
+                      color: Cristal.texto,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Cristal.ambarVidrio,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    'SECOP II',
+                    style: TextStyle(
+                      color: Cristal.ambar,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Busca sin filtros cualquier par de entidades verificadas de SECOP II y compara su valor contratado, contratos y contratistas.',
+                        style: TextStyle(
+                          color: Cristal.textoMedio,
+                          fontSize: 11.6,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        height: 36,
+                        child: ElevatedButton.icon(
+                          onPressed: _showCompareEntitiesModal,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Cristal.acento,
+                            foregroundColor: Cristal.blanco,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                          icon: const Icon(Icons.analytics_outlined, size: 16),
+                          label: const Text(
+                            'Seleccionar entidades →',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const _EntityBarIllustration(),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ];
+    if (enFila) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: tarjetas[0]),
+          const SizedBox(width: 16),
+          Expanded(child: tarjetas[1]),
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [tarjetas[0], const SizedBox(height: 16), tarjetas[1]],
     );
   }
 
@@ -2363,70 +2544,77 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
               height: 195,
               child: FotoAmbiente.cabecera(),
             ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                MediaQuery.sizeOf(context).width < 900 ? 14 : 26,
-                16,
-                MediaQuery.sizeOf(context).width < 900 ? 14 : 26,
-                28,
-              ),
-              child: MediaQuery.sizeOf(context).width < 900
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (MediaQuery.sizeOf(context).width >= 768) ...[
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: _buildTopRightProfileBar(),
+            LayoutBuilder(
+              builder: (context, area) => Padding(
+                padding: EdgeInsets.fromLTRB(
+                  MediaQuery.sizeOf(context).width < 900 ? 14 : 26,
+                  16,
+                  MediaQuery.sizeOf(context).width < 900 ? 14 : 26,
+                  28,
+                ),
+                // La columna del ranking y el comparador solo va al lado si
+                // le deja a la tabla espacio de sobra; si no, va debajo y la
+                // tabla ocupa todo el ancho.
+                child: area.maxWidth < 1240
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (MediaQuery.sizeOf(context).width >= 768) ...[
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: _buildTopRightProfileBar(),
+                            ),
+                            const SizedBox(height: 6),
+                          ],
+                          _buildHeaderLeftWithCallout(),
+                          const SizedBox(height: 10),
+                          _buildSearchAndFiltersCard(),
+                          const SizedBox(height: 12),
+                          _buildKpiSummaryRow(),
+                          const SizedBox(height: 14),
+                          _buildEntitiesMainTableCard(),
+                          const SizedBox(height: 18),
+                          _buildRightSideColumn(
+                            enFila: MediaQuery.sizeOf(context).width >= 900,
                           ),
-                          const SizedBox(height: 6),
                         ],
-                        _buildHeaderLeftWithCallout(),
-                        const SizedBox(height: 10),
-                        _buildSearchAndFiltersCard(),
-                        const SizedBox(height: 12),
-                        _buildKpiSummaryRow(),
-                        const SizedBox(height: 14),
-                        _buildEntitiesMainTableCard(),
-                        const SizedBox(height: 18),
-                        _buildRightSideColumn(),
-                      ],
-                    )
-                  : Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          flex: 69,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              _buildHeaderLeftWithCallout(),
-                              const SizedBox(height: 10),
-                              _buildSearchAndFiltersCard(),
-                              const SizedBox(height: 14),
-                              _buildKpiSummaryRow(),
-                              const SizedBox(height: 14),
-                              _buildEntitiesMainTableCard(),
-                            ],
+                      )
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 69,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _buildHeaderLeftWithCallout(),
+                                const SizedBox(height: 10),
+                                _buildSearchAndFiltersCard(),
+                                const SizedBox(height: 14),
+                                _buildKpiSummaryRow(),
+                                const SizedBox(height: 14),
+                                _buildEntitiesMainTableCard(),
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 20),
-                        Expanded(
-                          flex: 31,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: _buildTopRightProfileBar(),
-                              ),
-                              const SizedBox(height: 36),
-                              _buildRightSideColumn(),
-                            ],
+                          const SizedBox(width: 20),
+                          Expanded(
+                            flex: 31,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: _buildTopRightProfileBar(),
+                                ),
+                                const SizedBox(height: 36),
+                                _buildRightSideColumn(),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+              ),
             ),
           ],
         ),
@@ -2641,14 +2829,14 @@ class EntityEmblemWidget extends StatelessWidget {
         return Container(
           width: size,
           height: size,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: Cristal.acento,
             shape: BoxShape.circle,
           ),
           child: Center(
             child: Icon(
               Icons.monitor_heart_rounded,
-              color: Cristal.texto,
+              color: Cristal.blanco,
               size: size * 0.56,
             ),
           ),
@@ -2675,7 +2863,7 @@ class EntityEmblemWidget extends StatelessWidget {
         return Container(
           width: size,
           height: size,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: Cristal.azulVidrio,
             shape: BoxShape.circle,
           ),
@@ -2691,7 +2879,7 @@ class EntityEmblemWidget extends StatelessWidget {
         return Container(
           width: size,
           height: size,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: Cristal.azulVidrio,
             shape: BoxShape.circle,
           ),
@@ -3382,7 +3570,7 @@ class _EntityNetworkIllustration extends StatelessWidget {
               color: Color(0xFFFACC15),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.account_balance_rounded,
               color: Cristal.tinta,
               size: 20,
@@ -3653,7 +3841,7 @@ class _CompareEntitiesUnfilteredDialogState
                         selectedEntity.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.texto,
                           fontSize: 12.8,
                           fontWeight: FontWeight.w800,
@@ -3664,7 +3852,7 @@ class _CompareEntitiesUnfilteredDialogState
                         '${selectedEntity.location} · NIT ${selectedEntity.nit}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.textoSuave,
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
@@ -3687,17 +3875,14 @@ class _CompareEntitiesUnfilteredDialogState
               },
               onSubmitted: onQueryChanged,
               textInputAction: TextInputAction.search,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Cristal.texto,
                 fontSize: 12.2,
                 fontWeight: FontWeight.w600,
               ),
               decoration: InputDecoration(
                 hintText: 'Escribe otra entidad y presiona Enter (ej. SENA, Santa Marta...)',
-                hintStyle: const TextStyle(
-                  color: Cristal.textoTenue,
-                  fontSize: 11.5,
-                ),
+                hintStyle: TextStyle(color: Cristal.textoTenue, fontSize: 11.5),
                 prefixIcon: const Icon(Icons.search_rounded, size: 17),
                 suffixIcon: isLoading
                     ? const Padding(
@@ -3726,11 +3911,11 @@ class _CompareEntitiesUnfilteredDialogState
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(9),
-                  borderSide: const BorderSide(color: Cristal.bordeFuerte),
+                  borderSide: BorderSide(color: Cristal.bordeFuerte),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(9),
-                  borderSide: const BorderSide(color: Cristal.bordeFuerte),
+                  borderSide: BorderSide(color: Cristal.bordeFuerte),
                 ),
               ),
             ),
@@ -3748,7 +3933,7 @@ class _CompareEntitiesUnfilteredDialogState
                 shrinkWrap: true,
                 itemCount: suggestions.length,
                 separatorBuilder: (_, _) =>
-                    const Divider(height: 1, color: Cristal.borde),
+                    Divider(height: 1, color: Cristal.borde),
                 itemBuilder: (context, idx) {
                   final item = suggestions[idx];
                   return InkWell(
@@ -3781,7 +3966,7 @@ class _CompareEntitiesUnfilteredDialogState
                                   item.name,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: Cristal.texto,
                                     fontSize: 11.8,
                                     fontWeight: FontWeight.w700,
@@ -3791,7 +3976,7 @@ class _CompareEntitiesUnfilteredDialogState
                                   '${item.location} · ${item.amountFormatted}',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: Cristal.textoSuave,
                                     fontSize: 10.5,
                                   ),
@@ -3837,7 +4022,7 @@ class _CompareEntitiesUnfilteredDialogState
               const SizedBox(width: 7),
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w800,
@@ -3854,7 +4039,7 @@ class _CompareEntitiesUnfilteredDialogState
                   _entityA.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.textoMedio,
                     fontSize: 11.2,
                     fontWeight: FontWeight.w600,
@@ -3879,7 +4064,7 @@ class _CompareEntitiesUnfilteredDialogState
                 child: Text(
                   valueA,
                   textAlign: TextAlign.right,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.acentoClaro,
                     fontSize: 12.2,
                     fontWeight: FontWeight.w900,
@@ -3897,7 +4082,7 @@ class _CompareEntitiesUnfilteredDialogState
                   _entityB.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.textoMedio,
                     fontSize: 11.2,
                     fontWeight: FontWeight.w600,
@@ -3922,7 +4107,7 @@ class _CompareEntitiesUnfilteredDialogState
                 child: Text(
                   valueB,
                   textAlign: TextAlign.right,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.ambar,
                     fontSize: 12.2,
                     fontWeight: FontWeight.w900,
@@ -3962,7 +4147,7 @@ class _CompareEntitiesUnfilteredDialogState
     return Dialog(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: const BorderSide(color: Cristal.bordeFuerte),
+        side: BorderSide(color: Cristal.bordeFuerte),
       ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 760, maxHeight: 680),
@@ -3981,14 +4166,14 @@ class _CompareEntitiesUnfilteredDialogState
                       color: Cristal.azulVidrio,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.compare_arrows_rounded,
                       color: Cristal.texto,
                       size: 20,
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -4124,7 +4309,7 @@ class _CompareEntitiesUnfilteredDialogState
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Cristal.acento,
-                      foregroundColor: Cristal.texto,
+                      foregroundColor: Cristal.blanco,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 22,
                         vertical: 10,
@@ -4142,6 +4327,37 @@ class _CompareEntitiesUnfilteredDialogState
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Etiqueta "Principal" o "Regional" de una entidad con regionales.
+class _EtiquetaNivel extends StatelessWidget {
+  const _EtiquetaNivel({required this.nivel});
+
+  final NivelEntidad nivel;
+
+  @override
+  Widget build(BuildContext context) {
+    final principal = nivel == NivelEntidad.principal;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: principal ? Cristal.doradoVidrio : Cristal.acentoVidrio,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: principal ? Cristal.doradoBorde : Cristal.acentoBorde,
+        ),
+      ),
+      child: Text(
+        principal ? 'Principal' : 'Regional',
+        style: TextStyle(
+          color: principal ? Cristal.dorado : Cristal.acentoClaro,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.2,
         ),
       ),
     );

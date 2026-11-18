@@ -6,8 +6,9 @@ import '../services/reporte_contratos_service.dart';
 import 'reporte_contratos_flujo.dart';
 import '../tema/cristal.dart';
 
-/// Presupuesto asignado y ejecutado por cada dependencia (unidad de
-/// contratación de SECOP II) de una entidad. Los contratos y pagos de todas
+/// Lo que cada dependencia (unidad de contratación de SECOP II) de una
+/// entidad pone en procesos, contrata y paga en la vigencia, más las
+/// órdenes de la Tienda Virtual del Estado. Los contratos y pagos de todas
 /// las dependencias se consultan de una vez al cargar (el perfil de la
 /// entidad ya los empieza a precargar al abrirse), así que al tocar una
 /// dependencia su detalle aparece enseguida.
@@ -176,6 +177,28 @@ class _PresupuestoDependenciasPanelState
     return deps.fold<double>(0, (s, d) => s + (_lista(d)?.pagadoCop ?? 0));
   }
 
+  /// Contratado de [deps] en SECOP II más las órdenes de [tienda], o null si
+  /// la ejecución aún no llega.
+  double? _contratado(
+    Iterable<DependenciaPresupuesto> deps, [
+    Iterable<OrdenesTienda> tienda = const [],
+  ]) {
+    if (_masiva == null) return null;
+    return deps.fold<double>(0, (s, d) => s + (_lista(d)?.contratadoCop ?? 0)) +
+        _valorTienda(tienda);
+  }
+
+  static double _valorTienda(Iterable<OrdenesTienda> ordenes) =>
+      ordenes.fold<double>(0, (s, o) => s + o.valorCop);
+
+  /// Lo que [d] puso en procesos: los publicados en la vigencia más los
+  /// que SECOP II publica sin fecha y se ubican en ella por sus contratos.
+  double _enProcesos(DependenciaPresupuesto d) =>
+      d.asignadoCop + (_lista(d)?.asignadoSinFechaCop ?? 0);
+
+  int _procesos(DependenciaPresupuesto d) =>
+      d.procesos + (_lista(d)?.procesosSinFecha ?? 0);
+
   static String _millones(double cop) {
     final m = (cop / 1e6).round();
     final txt = m.toString().replaceAllMapped(
@@ -268,10 +291,10 @@ class _PresupuestoDependenciasPanelState
     final maxNodo = [
       ...arbol.nacional,
       for (final m in arbol.regionales.values) ...m.values,
-    ].fold<double>(1, (m, d) => d.asignadoCop > m ? d.asignadoCop : m);
+    ].fold<double>(1, (m, d) => _enProcesos(d) > m ? _enProcesos(d) : m);
     final totalRegional = {
       for (final e in arbol.regionales.entries)
-        e.key: e.value.values.fold<double>(0, (s, d) => s + d.asignadoCop),
+        e.key: e.value.values.fold<double>(0, (s, d) => s + _enProcesos(d)),
     };
     final maxRegional = totalRegional.values.fold<double>(
       1,
@@ -279,12 +302,43 @@ class _PresupuestoDependenciasPanelState
     );
     final totalNacional = arbol.nacional.fold<double>(
       0,
-      (s, d) => s + d.asignadoCop,
+      (s, d) => s + _enProcesos(d),
     );
+
+    // Órdenes de la Tienda Virtual: a su despacho o centro si el nombre de
+    // la cuenta lo dice ("SENA - Regional Cesar" es la cuenta del
+    // despacho); si solo nombra la regional, a la regional; si no, aparte.
+    final tiendaNodo = <String, List<OrdenesTienda>>{};
+    final tiendaRegional = <RegionalSena, List<OrdenesTienda>>{};
+    final tiendaOtras = <OrdenesTienda>[];
+    for (final o in _masiva?.tienda ?? const <OrdenesTienda>[]) {
+      final u = EstructuraSena.ubicar(cuenta: o.cuenta, unidad: o.cuenta);
+      final r = u.regional;
+      if (r != null && arbol.regionales.containsKey(r)) {
+        if (u.nivel != NivelSena.regionalSinDistinguir &&
+            arbol.regionales[r]!.containsKey(u.nodo)) {
+          tiendaNodo.putIfAbsent('${r.nombre}|${u.nodo}', () => []).add(o);
+        } else {
+          tiendaRegional.putIfAbsent(r, () => []).add(o);
+        }
+      } else if (u.nivel == NivelSena.nacional &&
+          arbol.nacional.any((d) => d.nombre == u.nodo)) {
+        tiendaNodo.putIfAbsent('nac|${u.nodo}', () => []).add(o);
+      } else {
+        tiendaOtras.add(o);
+      }
+    }
+    List<OrdenesTienda> tiendaDe(Iterable<DependenciaPresupuesto> nodos) => [
+      for (final d in nodos) ...?tiendaNodo[d.clave],
+    ];
 
     Widget fila(DependenciaPresupuesto d) => _FilaDependencia(
       dependencia: d,
-      proporcion: d.asignadoCop / maxNodo,
+      asignado: _enProcesos(d),
+      procesos: _procesos(d),
+      tienda: tiendaNodo[d.clave] ?? const [],
+      anio: widget.anio,
+      proporcion: _enProcesos(d) / maxNodo,
       abierta: _abierta == d.clave,
       lista: _lista(d),
       ejecucion: _ejecuciones[d.clave],
@@ -300,7 +354,7 @@ class _PresupuestoDependenciasPanelState
       padding: const EdgeInsets.fromLTRB(4, 10, 0, 6),
       child: Text(
         t,
-        style: const TextStyle(
+        style: TextStyle(
           color: Cristal.texto,
           fontSize: 13,
           fontWeight: FontWeight.w800,
@@ -317,12 +371,12 @@ class _PresupuestoDependenciasPanelState
       ),
       child: Text(
         t,
-        style: const TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
+        style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
       ),
     );
 
     return [
-      const Text(
+      Text(
         'Organizado como el SENA: la Dirección General y las direcciones regionales, '
         'cada una con su despacho y sus centros de formación. Son quienes tienen '
         'ordenador del gasto y firman los contratos.',
@@ -339,6 +393,8 @@ class _PresupuestoDependenciasPanelState
           detalle:
               'Nivel nacional · ${arbol.nacional.length} dependencias que contratan',
           valor: _millones(totalNacional),
+          total: totalNacional,
+          contratado: _contratado(arbol.nacional, tiendaDe(arbol.nacional)),
           pagado: _pagado(arbol.nacional),
           millones: _millones,
           proporcion:
@@ -355,7 +411,7 @@ class _PresupuestoDependenciasPanelState
           padding: const EdgeInsets.only(left: 4, bottom: 8),
           child: Text(
             'Direcciones regionales (${arbol.regionales.length})',
-            style: const TextStyle(
+            style: TextStyle(
               color: Cristal.texto,
               fontSize: 15,
               fontWeight: FontWeight.w800,
@@ -385,6 +441,11 @@ class _PresupuestoDependenciasPanelState
                         '$centros de ${r.centros.length} centro${r.centros.length == 1 ? '' : 's'} con procesos',
                       ].join(' · '),
                 valor: _millones(totalRegional[r]!),
+                total: totalRegional[r]!,
+                contratado: _contratado(nodos.values, [
+                  ...tiendaDe(nodos.values),
+                  ...?tiendaRegional[r],
+                ]),
                 pagado: _pagado(nodos.values),
                 millones: _millones,
                 proporcion: totalRegional[r]! / maxRegional,
@@ -414,6 +475,13 @@ class _PresupuestoDependenciasPanelState
                     subtitulo('Sin identificar'),
                     for (final e in otros) fila(e.value),
                   ],
+                  if (tiendaRegional[r] case final ordenes?) ...[
+                    subtitulo('Tienda Virtual sin dependencia'),
+                    _TiendaSinDependencia(
+                      ordenes: ordenes,
+                      millones: _millones,
+                    ),
+                  ],
                 ],
               );
             },
@@ -423,6 +491,11 @@ class _PresupuestoDependenciasPanelState
         const SizedBox(height: 8),
         subtitulo('Otras cuentas del SENA'),
         for (final d in arbol.otras) fila(d),
+      ],
+      if (tiendaOtras.isNotEmpty && consulta.isEmpty) ...[
+        const SizedBox(height: 8),
+        subtitulo('Tienda Virtual: cuentas sin regional en su nombre'),
+        _TiendaSinDependencia(ordenes: tiendaOtras, millones: _millones),
       ],
       if (nacional.isEmpty && regionales.isEmpty)
         const _Mensaje(
@@ -479,8 +552,9 @@ class _PresupuestoDependenciasPanelState
               .toList();
     final maximo = visibles.isEmpty
         ? 1.0
-        : visibles.map((d) => d.asignadoCop).reduce((a, b) => a > b ? a : b);
-    final totalAsignado = deps?.fold<double>(0, (s, d) => s + d.asignadoCop);
+        : visibles.map(_enProcesos).reduce((a, b) => a > b ? a : b);
+    final totalAsignado = deps?.fold<double>(0, (s, d) => s + _enProcesos(d));
+    final tienda = _masiva?.tienda ?? const <OrdenesTienda>[];
     final mobile = MediaQuery.sizeOf(context).width < 700;
     final variasCuentas =
         widget.cuentaSecop == null &&
@@ -505,7 +579,7 @@ class _PresupuestoDependenciasPanelState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
+                  Text(
                     'Presupuesto por dependencia',
                     style: TextStyle(
                       color: Cristal.texto,
@@ -518,14 +592,11 @@ class _PresupuestoDependenciasPanelState
                     totalAsignado == null
                         ? widget.alcance
                         : _esSena
-                        ? 'SENA · ${widget.alcance} · ${_millones(totalAsignado)} asignados'
+                        ? 'SENA · ${widget.alcance} · ${_millones(totalAsignado)} en procesos'
                         : '${!variasCuentas && deps!.isNotEmpty && widget.cuentaSecop == null ? '${deps.first.cuentaSecop} · ' : ''}'
                               '${widget.alcance} · ${deps!.length} dependencias · '
-                              '${_millones(totalAsignado)} asignados',
-                    style: const TextStyle(
-                      color: Cristal.textoSuave,
-                      fontSize: 12.5,
-                    ),
+                              '${_millones(totalAsignado)} en procesos',
+                    style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
                   ),
                 ],
               ),
@@ -536,7 +607,7 @@ class _PresupuestoDependenciasPanelState
                   style: const TextStyle(fontSize: 13),
                   decoration: InputDecoration(
                     hintText: 'Buscar dependencia (ej. despacho, Cesar)…',
-                    hintStyle: const TextStyle(
+                    hintStyle: TextStyle(
                       fontSize: 12.5,
                       color: Cristal.textoTenue,
                     ),
@@ -546,12 +617,41 @@ class _PresupuestoDependenciasPanelState
                     fillColor: Cristal.campo,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Cristal.borde),
+                      borderSide: BorderSide(color: Cristal.borde),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Cristal.borde),
+                      borderSide: BorderSide(color: Cristal.borde),
                     ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Para que nadie lo lea como el presupuesto oficial de la entidad.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: EdgeInsets.only(top: 1),
+                child: Icon(
+                  Icons.info_outline_rounded,
+                  size: 16,
+                  color: Cristal.textoSuave,
+                ),
+              ),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Lo que cada dependencia pone en procesos, contrata y paga en SECOP II y en la '
+                  'Tienda Virtual del Estado. No es la apropiación ni los compromisos del SIIF: '
+                  'allí también están gastos sin contrato, como apoyos de sostenimiento, '
+                  'viáticos, servicios públicos y nómina.',
+                  style: TextStyle(
+                    color: Cristal.textoSuave,
+                    fontSize: 12.3,
+                    height: 1.45,
                   ),
                 ),
               ),
@@ -581,11 +681,16 @@ class _PresupuestoDependenciasPanelState
                   ? 'SECOP II no registra procesos de esta entidad en el alcance elegido.'
                   : 'Ninguna dependencia coincide con la búsqueda.',
             )
-          else
+          else ...[
+            if (tienda.isNotEmpty && consulta.isEmpty)
+              _TiendaSinDependencia(ordenes: tienda, millones: _millones),
             for (final d in visibles.take(80))
               _FilaDependencia(
                 dependencia: d,
-                proporcion: maximo <= 0 ? 0 : d.asignadoCop / maximo,
+                asignado: _enProcesos(d),
+                procesos: _procesos(d),
+                anio: widget.anio,
+                proporcion: maximo <= 0 ? 0 : _enProcesos(d) / maximo,
                 abierta: _abierta == d.clave,
                 lista: _lista(d),
                 ejecucion: _ejecuciones[d.clave],
@@ -596,20 +701,22 @@ class _PresupuestoDependenciasPanelState
                     setState(() => _ejecuciones[d.clave] = _ejecucionDe(d)),
                 millones: _millones,
               ),
+          ],
           if (visibles.length > 80)
             Padding(
               padding: const EdgeInsets.only(top: 10),
               child: Text(
                 'Se muestran 80 de ${visibles.length} dependencias. Usa el buscador para encontrar la tuya.',
-                style: const TextStyle(color: Cristal.textoSuave, fontSize: 12),
+                style: TextStyle(color: Cristal.textoSuave, fontSize: 12),
               ),
             ),
           const SizedBox(height: 14),
-          const Text(
-            'Fuente: SECOP II, Datos Abiertos. Las dependencias son las unidades de contratación que la entidad '
-            'registra en cada proceso. Asignado: presupuesto oficial de sus procesos, sin cancelados ni borradores. '
-            'Contratado y ejecutado: valor y pagos de los contratos de esos procesos, según lo que la entidad '
-            'reporta en SECOP II. Los gastos que no pasan por contratación (como la nómina) no aparecen aquí.',
+          Text(
+            'Fuente: SECOP II y Tienda Virtual del Estado Colombiano, Datos Abiertos. Las dependencias son las '
+            'unidades de contratación que la entidad registra en cada proceso. En procesos: presupuesto oficial '
+            'de los procesos de la vigencia, sin cancelados ni borradores. Contratado: contratos de esos '
+            'procesos firmados en la vigencia y órdenes de compra de la Tienda Virtual, que no dicen la '
+            'dependencia y se ubican por el nombre de la cuenta. Ejecutado: pagos reportados en SECOP II.',
             style: TextStyle(
               color: Cristal.textoSuave,
               fontSize: 11.5,
@@ -625,6 +732,8 @@ class _PresupuestoDependenciasPanelState
 class _FilaDependencia extends StatelessWidget {
   const _FilaDependencia({
     required this.dependencia,
+    required this.asignado,
+    required this.procesos,
     required this.proporcion,
     required this.abierta,
     required this.ejecucion,
@@ -634,9 +743,19 @@ class _FilaDependencia extends StatelessWidget {
     required this.millones,
     this.lista,
     this.onReporte,
+    this.tienda = const [],
+    this.anio,
   });
 
   final DependenciaPresupuesto dependencia;
+
+  /// En procesos (con los procesos sin fecha de la vigencia).
+  final double asignado;
+  final int procesos;
+
+  /// Órdenes de la Tienda Virtual de su cuenta.
+  final List<OrdenesTienda> tienda;
+  final int? anio;
   final VoidCallback? onReporte;
   final double proporcion;
   final bool abierta;
@@ -653,8 +772,11 @@ class _FilaDependencia extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       _DetalleEjecucion(
-        asignado: dependencia.asignadoCop,
+        asignado: asignado,
+        procesos: procesos,
         e: e,
+        tienda: tienda,
+        anio: anio,
         millones: millones,
       ),
       if (onReporte != null) ...[
@@ -663,7 +785,7 @@ class _FilaDependencia extends StatelessWidget {
           onPressed: onReporte,
           style: OutlinedButton.styleFrom(
             foregroundColor: Cristal.texto,
-            side: const BorderSide(color: Cristal.bordeFuerte),
+            side: BorderSide(color: Cristal.bordeFuerte),
             shape: const StadiumBorder(),
           ),
           icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
@@ -679,16 +801,17 @@ class _FilaDependencia extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final d = dependencia;
-    // Lo pagado, en cuanto llega la precarga: se ve sin abrir la fila.
+    // Contratado y pagado, en cuanto llega la precarga: se ven sin abrir
+    // la fila.
     final ejecutado = lista == null
         ? null
-        : Text(
-            '${millones(lista!.pagadoCop)} ejecutado',
-            style: const TextStyle(
-              color: Cristal.verde,
-              fontSize: 11.5,
-              fontWeight: FontWeight.w700,
-            ),
+        : _LineaEjecucion(
+            enProcesos: asignado,
+            contratado:
+                lista!.contratadoCop +
+                tienda.fold<double>(0, (s, o) => s + o.valorCop),
+            pagado: lista!.pagadoCop,
+            millones: millones,
           );
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -716,7 +839,7 @@ class _FilaDependencia extends StatelessWidget {
                   // En el celular el nombre va completo y la cifra debajo.
                   Text(
                     d.nombre,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.texto,
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
@@ -725,7 +848,7 @@ class _FilaDependencia extends StatelessWidget {
                   if (mostrarCuenta && d.cuentaSecop.isNotEmpty)
                     Text(
                       d.cuentaSecop,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.textoSuave,
                         fontSize: 11.8,
                       ),
@@ -734,8 +857,8 @@ class _FilaDependencia extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        millones(d.asignadoCop),
-                        style: const TextStyle(
+                        millones(asignado),
+                        style: TextStyle(
                           color: Cristal.texto,
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
@@ -744,8 +867,8 @@ class _FilaDependencia extends StatelessWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'asignado · ${d.procesos} procesos',
-                          style: const TextStyle(
+                          'en $procesos proceso${procesos == 1 ? '' : 's'}',
+                          style: TextStyle(
                             color: Cristal.textoSuave,
                             fontSize: 11.5,
                           ),
@@ -769,7 +892,7 @@ class _FilaDependencia extends StatelessWidget {
                           children: [
                             Text(
                               d.nombre,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Cristal.texto,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w800,
@@ -780,7 +903,7 @@ class _FilaDependencia extends StatelessWidget {
                                 d.cuentaSecop,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Cristal.textoSuave,
                                   fontSize: 11.8,
                                 ),
@@ -793,16 +916,16 @@ class _FilaDependencia extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            millones(d.asignadoCop),
-                            style: const TextStyle(
+                            millones(asignado),
+                            style: TextStyle(
                               color: Cristal.texto,
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
                           Text(
-                            'asignado · ${d.procesos} procesos',
-                            style: const TextStyle(
+                            'en $procesos proceso${procesos == 1 ? '' : 's'}',
+                            style: TextStyle(
                               color: Cristal.textoSuave,
                               fontSize: 11.5,
                             ),
@@ -824,7 +947,7 @@ class _FilaDependencia extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: proporcion.clamp(0, 1),
                     minHeight: 6,
-                    color: const Color(0xFF93C5FD),
+                    color: Cristal.legible(const Color(0xFF93C5FD)),
                     backgroundColor: Cristal.vidrioFuerte,
                   ),
                 ),
@@ -844,7 +967,7 @@ class _FilaDependencia extends StatelessWidget {
                                 snap.error is PresupuestoDependenciasException
                                     ? '${snap.error}'
                                     : 'No fue posible consultar los contratos de esta dependencia.',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Cristal.rojo,
                                   fontSize: 12.5,
                                 ),
@@ -858,7 +981,7 @@ class _FilaDependencia extends StatelessWidget {
                         );
                       }
                       if (!snap.hasData) {
-                        return const Padding(
+                        return Padding(
                           padding: EdgeInsets.symmetric(vertical: 10),
                           child: Row(
                             children: [
@@ -897,22 +1020,39 @@ class _FilaDependencia extends StatelessWidget {
 class _DetalleEjecucion extends StatelessWidget {
   const _DetalleEjecucion({
     required this.asignado,
+    required this.procesos,
     required this.e,
     required this.millones,
+    this.tienda = const [],
+    this.anio,
   });
 
   final double asignado;
+  final int procesos;
   final EjecucionDependencia e;
+  final List<OrdenesTienda> tienda;
+  final int? anio;
   final String Function(double) millones;
 
   @override
   Widget build(BuildContext context) {
+    final ordenes = tienda.fold<int>(0, (s, o) => s + o.ordenes);
+    final valorTienda = tienda.fold<double>(0, (s, o) => s + o.valorCop);
+    final contratado = e.contratadoCop + valorTienda;
     final pctContratado = asignado <= 0
         ? 0
-        : (e.contratadoCop / asignado * 100).round();
+        : (contratado / asignado * 100).round();
+    // La Tienda Virtual no publica pagos: el porcentaje es sobre SECOP II.
     final pctEjecutado = e.contratadoCop <= 0
         ? 0
         : (e.pagadoCop / e.contratadoCop * 100).round();
+    Widget nota(String t) => Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Text(
+        t,
+        style: TextStyle(color: Cristal.textoSuave, fontSize: 11.5),
+      ),
+    );
 
     Widget cifra(
       double ancho,
@@ -933,7 +1073,7 @@ class _DetalleEjecucion extends StatelessWidget {
         children: [
           Text(
             titulo.toUpperCase(),
-            style: const TextStyle(
+            style: TextStyle(
               color: Cristal.textoSuave,
               fontSize: 10.5,
               fontWeight: FontWeight.w800,
@@ -951,7 +1091,7 @@ class _DetalleEjecucion extends StatelessWidget {
           ),
           Text(
             nota,
-            style: const TextStyle(color: Cristal.textoSuave, fontSize: 11.5),
+            style: TextStyle(color: Cristal.textoSuave, fontSize: 11.5),
           ),
         ],
       ),
@@ -970,23 +1110,27 @@ class _DetalleEjecucion extends StatelessWidget {
               children: [
                 cifra(
                   ancho,
-                  'Asignado',
+                  'En procesos',
                   millones(asignado),
-                  'Presupuesto oficial de sus procesos',
+                  'Presupuesto oficial de $procesos proceso${procesos == 1 ? '' : 's'}',
                   Cristal.texto,
                 ),
                 cifra(
                   ancho,
                   'Contratado',
-                  millones(e.contratadoCop),
-                  '${e.contratos} contratos · $pctContratado % de lo asignado',
+                  millones(contratado),
+                  ordenes == 0
+                      ? '${e.contratos} contratos · $pctContratado % de sus procesos'
+                      : '${e.contratos} contratos y $ordenes órdenes · $pctContratado % de sus procesos',
                   Cristal.acentoClaro,
                 ),
                 cifra(
                   ancho,
                   'Ejecutado (pagado)',
                   millones(e.pagadoCop),
-                  '$pctEjecutado % de lo contratado',
+                  ordenes == 0
+                      ? '$pctEjecutado % de lo contratado'
+                      : '$pctEjecutado % de sus contratos de SECOP II',
                   Cristal.verde,
                 ),
                 cifra(
@@ -1009,14 +1153,14 @@ class _DetalleEjecucion extends StatelessWidget {
               builder: (context, c) {
                 final base = asignado > 0
                     ? asignado
-                    : (e.contratadoCop > 0 ? e.contratadoCop : 1);
+                    : (contratado > 0 ? contratado : 1);
                 double ancho(double v) =>
                     (v / base).clamp(0.0, 1.0) * c.maxWidth;
                 return Stack(
                   children: [
                     Container(color: Cristal.vidrioSuave),
                     Container(
-                      width: ancho(e.contratadoCop),
+                      width: ancho(contratado),
                       color: Cristal.acentoClaro.withValues(alpha: 0.45),
                     ),
                     Container(width: ancho(e.pagadoCop), color: Cristal.verde),
@@ -1027,12 +1171,20 @@ class _DetalleEjecucion extends StatelessWidget {
           ),
         ),
         if (!e.completa)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              'Incluye los ${e.procesosConsultados} procesos de mayor valor de ${e.procesosTotales}.',
-              style: const TextStyle(color: Cristal.textoSuave, fontSize: 11.5),
-            ),
+          nota(
+            'Incluye los ${e.procesosConsultados} procesos de mayor valor de ${e.procesosTotales}.',
+          ),
+        if (e.procesosSinFecha > 0)
+          nota(
+            'Incluye ${e.procesosSinFecha} proceso${e.procesosSinFecha == 1 ? '' : 's'} que SECOP II '
+            'publica sin fecha, ubicado${e.procesosSinFecha == 1 ? '' : 's'} en '
+            '${anio ?? 'la vigencia'} por la firma de sus contratos.',
+          ),
+        if (ordenes > 0)
+          nota(
+            'Contratado incluye ${millones(valorTienda)} en $ordenes órdenes de compra de la Tienda '
+            'Virtual del Estado (${tienda.map((o) => '«${o.cuenta}»').join(', ')}), '
+            'que no publica pagos.',
           ),
       ],
     );
@@ -1057,7 +1209,7 @@ class _Mensaje extends StatelessWidget {
           Text(
             texto,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Cristal.textoSuave, fontSize: 13),
+            style: TextStyle(color: Cristal.textoSuave, fontSize: 13),
           ),
           ?accion,
         ],
@@ -1091,6 +1243,8 @@ class _GrupoSena extends StatelessWidget {
     required this.onTap,
     required this.hijos,
     required this.millones,
+    required this.total,
+    this.contratado,
     this.pagado,
   });
 
@@ -1098,7 +1252,11 @@ class _GrupoSena extends StatelessWidget {
   final String detalle;
   final String valor;
 
-  /// Lo pagado del grupo, cuando ya llegó la precarga.
+  /// En procesos del grupo (el número detrás de [valor]).
+  final double total;
+
+  /// Contratado y pagado del grupo, cuando ya llegó la precarga.
+  final double? contratado;
   final double? pagado;
   final String Function(double) millones;
   final double proporcion;
@@ -1108,6 +1266,17 @@ class _GrupoSena extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // En el celular la línea de contratado y ejecutado va bajo el título,
+    // para no apretarlo.
+    final estrecho = MediaQuery.sizeOf(context).width < 560;
+    final linea = contratado != null && pagado != null
+        ? _LineaEjecucion(
+            enProcesos: total,
+            contratado: contratado!,
+            pagado: pagado!,
+            millones: millones,
+          )
+        : null;
     // La regional abierta se distingue de las demás: fondo más oscuro, borde
     // y cabecera en azul y una sombra que la separa de las de arriba y abajo.
     return AnimatedContainer(
@@ -1115,14 +1284,16 @@ class _GrupoSena extends StatelessWidget {
       curve: Curves.easeOutCubic,
       margin: EdgeInsets.only(bottom: abierto ? 14 : 10, top: abierto ? 4 : 0),
       decoration: BoxDecoration(
-        color: abierto ? Cristal.vidrioOscuro : Cristal.vidrio,
+        color: abierto
+            ? (Cristal.esClaro ? Cristal.vidrioFuerte : Cristal.vidrioOscuro)
+            : Cristal.vidrio,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: abierto ? Cristal.acentoBorde : Cristal.borde,
           width: abierto ? 1.4 : 1,
         ),
         boxShadow: abierto
-            ? const [
+            ? [
                 BoxShadow(
                   color: Cristal.sombra,
                   blurRadius: 22,
@@ -1156,7 +1327,7 @@ class _GrupoSena extends StatelessWidget {
                             children: [
                               Text(
                                 titulo,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Cristal.texto,
                                   fontSize: 15.5,
                                   fontWeight: FontWeight.w800,
@@ -1181,14 +1352,14 @@ class _GrupoSena extends StatelessWidget {
                           children: [
                             Text(
                               valor,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Cristal.texto,
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
                             Text(
-                              'asignado',
+                              'en procesos',
                               style: TextStyle(
                                 color: abierto
                                     ? Cristal.textoMedio
@@ -1196,15 +1367,7 @@ class _GrupoSena extends StatelessWidget {
                                 fontSize: 11.5,
                               ),
                             ),
-                            if (pagado != null)
-                              Text(
-                                '${millones(pagado!)} ejecutado',
-                                style: const TextStyle(
-                                  color: Cristal.verde,
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
+                            if (!estrecho) ?linea,
                           ],
                         ),
                         Icon(
@@ -1217,6 +1380,10 @@ class _GrupoSena extends StatelessWidget {
                         ),
                       ],
                     ),
+                    if (estrecho && linea != null) ...[
+                      const SizedBox(height: 4),
+                      linea,
+                    ],
                     const SizedBox(height: 8),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(4),
@@ -1245,6 +1412,103 @@ class _GrupoSena extends StatelessWidget {
                 children: hijos,
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// "contratado 75 % · $ 7.515 M ejecutado": cuánto de lo puesto en procesos
+/// se contrató y cuánto se ha pagado.
+class _LineaEjecucion extends StatelessWidget {
+  const _LineaEjecucion({
+    required this.enProcesos,
+    required this.contratado,
+    required this.pagado,
+    required this.millones,
+  });
+
+  final double enProcesos;
+  final double contratado;
+  final double pagado;
+  final String Function(double) millones;
+
+  @override
+  Widget build(BuildContext context) {
+    final pct = enProcesos <= 0
+        ? null
+        : (contratado / enProcesos * 100).round();
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: pct == null
+                ? 'contratado ${millones(contratado)} · '
+                : 'contratado $pct % · ',
+            style: TextStyle(color: Cristal.textoMedio),
+          ),
+          TextSpan(
+            text: '${millones(pagado)} ejecutado',
+            style: TextStyle(color: Cristal.verde),
+          ),
+        ],
+      ),
+      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+    );
+  }
+}
+
+/// Órdenes de la Tienda Virtual que no se pueden ubicar en una dependencia:
+/// la Tienda Virtual solo dice la cuenta que compra.
+class _TiendaSinDependencia extends StatelessWidget {
+  const _TiendaSinDependencia({required this.ordenes, required this.millones});
+
+  final List<OrdenesTienda> ordenes;
+  final String Function(double) millones;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = ordenes.fold<double>(0, (s, o) => s + o.valorCop);
+    final n = ordenes.fold<int>(0, (s, o) => s + o.ordenes);
+    final cuentas = ordenes.map((o) => '«${o.cuenta}»').toList();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: Cristal.vidrio,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Cristal.borde),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.storefront_outlined, size: 20, color: Cristal.textoMedio),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${millones(total)} en $n orden${n == 1 ? '' : 'es'} de compra',
+                  style: TextStyle(
+                    color: Cristal.texto,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${cuentas.length > 3 ? '${cuentas.take(3).join(', ')} y ${cuentas.length - 3} cuentas más' : cuentas.join(', ')} '
+                  'en la Tienda Virtual del Estado, que no dice qué dependencia compra.',
+                  style: TextStyle(
+                    color: Cristal.textoSuave,
+                    fontSize: 12,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

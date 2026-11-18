@@ -109,7 +109,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
               Expanded(
                 child: Text(
                   texto,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -178,7 +178,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(22),
-          side: const BorderSide(color: Cristal.bordeFuerte),
+          side: BorderSide(color: Cristal.bordeFuerte),
         ),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 440),
@@ -190,18 +190,18 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                 Container(
                   width: 56,
                   height: 56,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: Cristal.ambarVidrio,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.shield_outlined,
                     color: Cristal.ambar,
                     size: 30,
                   ),
                 ),
                 const SizedBox(height: 14),
-                const Text(
+                Text(
                   'Activación de pago requerida',
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -214,7 +214,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                 Text(
                   'Por seguridad, tu cuenta aún no tiene acceso habilitado a la plataforma hasta que Wompi confirme el pago del rol ${_rolConfig.nombre} (${_rolConfig.precioFormateadoCop}).',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.textoMedio,
                     fontSize: 13.5,
                     height: 1.42,
@@ -229,7 +229,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                     onPressed: () => Navigator.of(ctx).pop(),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Cristal.acento,
-                      foregroundColor: Cristal.texto,
+                      foregroundColor: Cristal.blanco,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(24),
@@ -263,7 +263,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                     ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Cristal.texto,
-                      side: const BorderSide(color: Cristal.bordeFuerte),
+                      side: BorderSide(color: Cristal.bordeFuerte),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(24),
                       ),
@@ -334,7 +334,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(22),
-          side: const BorderSide(color: Cristal.bordeFuerte),
+          side: BorderSide(color: Cristal.bordeFuerte),
         ),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 500),
@@ -362,7 +362,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                         style: TextStyle(
                           color: diag.isSandbox
                               ? Cristal.ambar
-                              : Color(0xFF2DD4BF),
+                              : Cristal.legible(const Color(0xFF2DD4BF)),
                           fontSize: 11.5,
                           fontWeight: FontWeight.w900,
                         ),
@@ -373,12 +373,14 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                       diag.allValid
                           ? Icons.verified_rounded
                           : Icons.warning_amber_rounded,
-                      color: diag.allValid ? Color(0xFF2DD4BF) : Cristal.ambar,
+                      color: diag.allValid
+                          ? Cristal.legible(const Color(0xFF2DD4BF))
+                          : Cristal.ambar,
                     ),
                   ],
                 ),
                 const SizedBox(height: 14),
-                const Text(
+                Text(
                   'Verificación de Ambiente y Llaves Wompi',
                   style: TextStyle(
                     color: Cristal.texto,
@@ -391,7 +393,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                   diag.allValid
                       ? 'Las 4 llaves configuradas (pública, privada, eventos e integridad SHA-256) coinciden estrictamente con los prefijos oficiales de ${diag.environmentLabel}.'
                       : 'Revisa los prefijos de llaves en AdminConfiguracionRolesYPagos según la documentación oficial de Wompi.',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.textoMedio,
                     fontSize: 12.8,
                     height: 1.38,
@@ -411,7 +413,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                     children: [
                       Text(
                         'Endpoint API: ${diag.apiBaseUrl}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color: Cristal.texto,
@@ -420,13 +422,13 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                       const SizedBox(height: 4),
                       Text(
                         'Llave Pública: ${diag.maskedPublicKey}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           color: Cristal.textoCuerpo,
                         ),
                       ),
                       const SizedBox(height: 4),
-                      const Text(
+                      Text(
                         'Comercio: ${AdminConfiguracionRolesYPagos.titularCuentaDestino} (${AdminConfiguracionRolesYPagos.nitComercioDestino})',
                         style: TextStyle(
                           fontSize: 12,
@@ -434,12 +436,12 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      const Text(
+                      Text(
                         'Archivo de configuración rápida: lib/services/payment_service.dart -> AdminConfiguracionRolesYPagos',
                         style: TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF2DD4BF),
+                          color: Cristal.legible(const Color(0xFF2DD4BF)),
                         ),
                       ),
                     ],
@@ -453,7 +455,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                     onPressed: () => Navigator.of(ctx).pop(),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Cristal.acento,
-                      foregroundColor: Cristal.texto,
+                      foregroundColor: Cristal.blanco,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(24),
@@ -482,7 +484,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(22),
-          side: const BorderSide(color: Cristal.bordeFuerte),
+          side: BorderSide(color: Cristal.bordeFuerte),
         ),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 460),
@@ -505,7 +507,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                       ),
                       child: Text(
                         rol.nombrePlan,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.texto,
                           fontSize: 12.5,
                           fontWeight: FontWeight.w800,
@@ -515,7 +517,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                     const Spacer(),
                     Text(
                       rol.precioFormateadoCop,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.texto,
                         fontSize: 16,
                         fontWeight: FontWeight.w900,
@@ -526,14 +528,14 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                 const SizedBox(height: 16),
                 Text(
                   'Beneficios incluidos en el rol ${rol.nombre}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Text(
+                Text(
                   'Este rol es acumulable en el futuro con cualquier otro rol de la plataforma.',
                   style: TextStyle(
                     color: Cristal.textoMedio,
@@ -548,19 +550,19 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Padding(
+                        Padding(
                           padding: EdgeInsets.only(top: 2),
                           child: Icon(
                             Icons.check_rounded,
                             size: 17,
-                            color: Color(0xFF2DD4BF),
+                            color: Cristal.legible(const Color(0xFF2DD4BF)),
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             b.trim(),
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.texto,
                               fontSize: 13.2,
                               fontWeight: FontWeight.w500,
@@ -580,7 +582,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                     onPressed: () => Navigator.of(ctx).pop(),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Cristal.acento,
-                      foregroundColor: Cristal.texto,
+                      foregroundColor: Cristal.blanco,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(24),
@@ -757,12 +759,12 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                                 onPressed: _procesandoPago
                                     ? null
                                     : _cerrarSesionPendienteYSalir,
-                                icon: const Icon(
+                                icon: Icon(
                                   Icons.logout_rounded,
                                   size: 16,
                                   color: Cristal.textoMedio,
                                 ),
-                                label: const Text(
+                                label: Text(
                                   'Cerrar sesión y volver a la portada',
                                   style: TextStyle(
                                     color: Cristal.textoMedio,
@@ -917,7 +919,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
             shape: BoxShape.circle,
             border: Border.all(
               color: isCompleted || isActive
-                  ? Color(0xFF2DD4BF)
+                  ? Cristal.legible(const Color(0xFF2DD4BF))
                   : Cristal.bordeFuerte,
               width: isActive && !isCompleted ? 2.0 : 1.4,
             ),
@@ -929,7 +931,9 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
             size: isCompleted || isActive ? 14 : 6,
             color: isCompleted
                 ? Cristal.texto
-                : (isActive ? Color(0xFF2DD4BF) : Cristal.textoApagado),
+                : (isActive
+                      ? Cristal.legible(const Color(0xFF2DD4BF))
+                      : Cristal.textoApagado),
           ),
         ),
         const SizedBox(height: 4),
@@ -991,7 +995,9 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                       ? Icons.verified_rounded
                       : Icons.info_outline_rounded,
                   size: 16,
-                  color: diag.isSandbox ? Cristal.ambar : Color(0xFF2DD4BF),
+                  color: diag.isSandbox
+                      ? Cristal.ambar
+                      : Cristal.legible(const Color(0xFF2DD4BF)),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -1000,13 +1006,15 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                         ? 'Wompi Sandbox verificado (${diag.maskedPublicKey}) · Pago integrado sin salir de tu sesión'
                         : 'Wompi Producción activo (${diag.maskedPublicKey})',
                     style: TextStyle(
-                      color: diag.isSandbox ? Cristal.ambar : Color(0xFF2DD4BF),
+                      color: diag.isSandbox
+                          ? Cristal.ambar
+                          : Cristal.legible(const Color(0xFF2DD4BF)),
                       fontSize: 11.4,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
-                const Text(
+                Text(
                   'Ver llaves ↗',
                   style: TextStyle(
                     color: Cristal.texto,
@@ -1030,7 +1038,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
             ),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.layers_rounded,
                   size: 17,
                   color: Cristal.acentoClaro,
@@ -1039,7 +1047,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                 Expanded(
                   child: Text(
                     'Acumulación de rol activa: conservarás "$rolesPrevios" y se sumará "${rol.nombre}" a tu cuenta (${AuthService.getActiveUserEmail()}).',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.acentoClaro,
                       fontSize: 11.8,
                       fontWeight: FontWeight.w700,
@@ -1076,7 +1084,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                     acumulandoEnSesion
                         ? 'Al confirmar el pago en Wompi, las nuevas herramientas se habilitarán al instante junto con las que ya tienes.'
                         : 'Para activar tu cuenta, elige un plan\ny completa el pago.',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.textoMedio,
                       fontSize: 13.8,
                       height: 1.4,
@@ -1123,7 +1131,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                     ),
                   ),
                   const SizedBox(width: 9),
-                  const Text(
+                  Text(
                     'Tu plan',
                     style: TextStyle(
                       color: Cristal.texto,
@@ -1143,8 +1151,8 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                     ),
                     child: Text(
                       'Rol: ${rol.nombre}',
-                      style: const TextStyle(
-                        color: Color(0xFF2DD4BF),
+                      style: TextStyle(
+                        color: Cristal.legible(const Color(0xFF2DD4BF)),
                         fontSize: 11.2,
                         fontWeight: FontWeight.w800,
                       ),
@@ -1177,7 +1185,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                           ),
                           child: Text(
                             rol.nombrePlan,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.texto,
                               fontSize: 12.8,
                               fontWeight: FontWeight.w800,
@@ -1186,7 +1194,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                         ),
                         Text(
                           rol.precioFormateadoCop,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.texto,
                             fontSize: 16,
                             fontWeight: FontWeight.w900,
@@ -1201,19 +1209,19 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Padding(
+                            Padding(
                               padding: EdgeInsets.only(top: 1.5),
                               child: Icon(
                                 Icons.check_rounded,
                                 size: 16,
-                                color: Color(0xFF2DD4BF),
+                                color: Cristal.legible(const Color(0xFF2DD4BF)),
                               ),
                             ),
                             const SizedBox(width: 9),
                             Expanded(
                               child: Text(
                                 beneficio,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Cristal.textoCuerpo,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
@@ -1229,7 +1237,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                       hoverDuration: Cristal.micro,
                       onTap: _mostrarModalTodosLosBeneficios,
                       borderRadius: BorderRadius.circular(6),
-                      child: const Padding(
+                      child: Padding(
                         padding: EdgeInsets.symmetric(vertical: 4),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -1274,7 +1282,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                   vertical: 10,
                 ),
               ),
-              child: const Text(
+              child: Text(
                 'Cambiar plan',
                 style: TextStyle(
                   color: Cristal.texto,
@@ -1290,7 +1298,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                 onPressed: () => setState(() => _pasoActual = 1),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Cristal.acento,
-                  foregroundColor: Cristal.texto,
+                  foregroundColor: Cristal.blanco,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(horizontal: 28),
                   shape: RoundedRectangleBorder(
@@ -1338,7 +1346,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
         ),
         const SizedBox(height: 8),
         Text.rich(
-          const TextSpan(
+          TextSpan(
             style: TextStyle(
               color: Cristal.textoMedio,
               fontSize: 13.6,
@@ -1377,9 +1385,9 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
               color: Color(0x2414B8A6),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.credit_card_rounded,
-              color: Color(0xFF2DD4BF),
+              color: Cristal.legible(const Color(0xFF2DD4BF)),
               size: 20,
             ),
           ),
@@ -1388,7 +1396,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
             padding: const EdgeInsets.only(top: 5),
             child: Row(
               children: [
-                const Text(
+                Text(
                   'VISA',
                   style: TextStyle(
                     color: Cristal.textoCuerpo,
@@ -1436,7 +1444,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                     color: const Color(0xFF2563EB),
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: const Text(
+                  child: Text(
                     'AMEX',
                     style: TextStyle(
                       color: Cristal.texto,
@@ -1457,25 +1465,25 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
           leadingIcon: Container(
             width: 38,
             height: 38,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: Cristal.vidrioSuave,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.phone_android_rounded,
-              color: Color(0xFF2DD4BF),
+              color: Cristal.legible(const Color(0xFF2DD4BF)),
               size: 20,
             ),
           ),
           title: 'Nequi / Daviplata',
-          subtitleWidget: const Padding(
+          subtitleWidget: Padding(
             padding: EdgeInsets.only(top: 4),
             child: Row(
               children: [
                 Text(
                   'Nequi',
                   style: TextStyle(
-                    color: Color(0xFFE879F9),
+                    color: Cristal.legible(const Color(0xFFE879F9)),
                     fontSize: 12.5,
                     fontWeight: FontWeight.w900,
                   ),
@@ -1502,18 +1510,18 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
           leadingIcon: Container(
             width: 38,
             height: 38,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: Cristal.vidrioSuave,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.account_balance_rounded,
               color: Cristal.texto,
               size: 20,
             ),
           ),
           title: 'Transferencia bancaria',
-          subtitleWidget: const Padding(
+          subtitleWidget: Padding(
             padding: EdgeInsets.only(top: 3),
             child: Text(
               'PSE · Bancolombia · Todos los bancos en Colombia',
@@ -1543,7 +1551,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                   vertical: 10,
                 ),
               ),
-              child: const Text(
+              child: Text(
                 'Volver',
                 style: TextStyle(
                   color: Cristal.texto,
@@ -1559,7 +1567,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                 onPressed: () => setState(() => _pasoActual = 2),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Cristal.acento,
-                  foregroundColor: Cristal.texto,
+                  foregroundColor: Cristal.blanco,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(horizontal: 30),
                   shape: RoundedRectangleBorder(
@@ -1607,7 +1615,9 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
           color: selected ? Cristal.vidrioSuave : Cristal.vidrio,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: selected ? Color(0xFF2DD4BF) : Cristal.borde,
+            color: selected
+                ? Cristal.legible(const Color(0xFF2DD4BF))
+                : Cristal.borde,
             width: selected ? 1.6 : 1.1,
           ),
         ),
@@ -1621,7 +1631,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.texto,
                       fontSize: 14.2,
                       fontWeight: FontWeight.w800,
@@ -1638,7 +1648,9 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: selected ? Color(0xFF2DD4BF) : Cristal.bordeFuerte,
+                  color: selected
+                      ? Cristal.legible(const Color(0xFF2DD4BF))
+                      : Cristal.bordeFuerte,
                   width: 1.8,
                 ),
               ),
@@ -1694,7 +1706,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
+                  Text(
                     'Tu información está protegida con estándares de seguridad internacionales.',
                     style: TextStyle(
                       color: Cristal.textoMedio,
@@ -1727,7 +1739,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                Row(
                   children: [
                     Icon(
                       Icons.science_outlined,
@@ -1757,13 +1769,13 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                           ? null
                           : () => _autocompletarSandbox(aprobado: true),
                       backgroundColor: Cristal.verdeVidrio,
-                      side: const BorderSide(color: Cristal.verdeBorde),
-                      avatar: const Icon(
+                      side: BorderSide(color: Cristal.verdeBorde),
+                      avatar: Icon(
                         Icons.check_circle_outline_rounded,
                         size: 16,
-                        color: Color(0xFF2DD4BF),
+                        color: Cristal.legible(const Color(0xFF2DD4BF)),
                       ),
-                      label: const Text(
+                      label: Text(
                         'Cargar pago APROBADO',
                         style: TextStyle(
                           color: Cristal.texto,
@@ -1777,7 +1789,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                           ? null
                           : () => _autocompletarSandbox(aprobado: false),
                       backgroundColor: Cristal.rojoVidrio,
-                      side: const BorderSide(color: Cristal.rojoBorde),
+                      side: BorderSide(color: Cristal.rojoBorde),
                       avatar: Icon(
                         Icons.cancel_outlined,
                         size: 16,
@@ -1820,22 +1832,22 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                 _buildFormularioPseBancolombia(),
 
               const SizedBox(height: 14),
-              const Divider(height: 1, color: Cristal.borde),
+              Divider(height: 1, color: Cristal.borde),
               const SizedBox(height: 12),
 
               // Sello de ciberseguridad Wompi SHA-256
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.lock_rounded,
                     size: 15,
-                    color: Color(0xFF2DD4BF),
+                    color: Cristal.legible(const Color(0xFF2DD4BF)),
                   ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       'Wompi Bancolombia · Firma SHA-256 (${_firmaSha256.substring(0, 10)}...)',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.textoMedio,
                         fontSize: 11.2,
                         fontWeight: FontWeight.w700,
@@ -1846,7 +1858,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                     hoverDuration: Cristal.micro,
                     onTap: _abrirCheckoutExternoWompi,
                     borderRadius: BorderRadius.circular(6),
-                    child: const Padding(
+                    child: Padding(
                       padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                       child: Text(
                         'Checkout web ↗',
@@ -1885,7 +1897,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                   vertical: 10,
                 ),
               ),
-              child: const Text(
+              child: Text(
                 'Volver',
                 style: TextStyle(
                   color: Cristal.texto,
@@ -1901,7 +1913,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                 onPressed: _procesandoPago ? null : _ejecutarPagoWompi,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Cristal.acento,
-                  foregroundColor: Cristal.texto,
+                  foregroundColor: Cristal.blanco,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(horizontal: 28),
                   shape: RoundedRectangleBorder(
@@ -1909,7 +1921,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                   ),
                 ),
                 child: _procesandoPago
-                    ? const Row(
+                    ? Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           SizedBox(
@@ -1917,7 +1929,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                             height: 19,
                             child: CircularProgressIndicator(
                               strokeWidth: 2.3,
-                              color: Cristal.texto,
+                              color: Cristal.blanco,
                             ),
                           ),
                           SizedBox(width: 10),
@@ -1956,7 +1968,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Icon(Icons.credit_card_rounded, color: Cristal.texto, size: 22),
+        Icon(Icons.credit_card_rounded, color: Cristal.texto, size: 22),
         const SizedBox(height: 12),
         _buildFieldLabel('Número de tarjeta'),
         TextField(
@@ -1967,7 +1979,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
             LengthLimitingTextInputFormatter(16),
             _CardNumberSpacingFormatter(),
           ],
-          style: const TextStyle(
+          style: TextStyle(
             color: Cristal.texto,
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -1990,7 +2002,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                       LengthLimitingTextInputFormatter(4),
                       _CardExpiryDateFormatter(),
                     ],
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.texto,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -2014,14 +2026,14 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                       FilteringTextInputFormatter.digitsOnly,
                       LengthLimitingTextInputFormatter(4),
                     ],
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.texto,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
                     decoration: _inputDecoration(
                       hint: '123',
-                      suffixIcon: const Icon(
+                      suffixIcon: Icon(
                         Icons.credit_score_rounded,
                         color: Cristal.texto,
                         size: 18,
@@ -2038,7 +2050,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
         TextField(
           controller: _cardHolderController,
           textCapitalization: TextCapitalization.words,
-          style: const TextStyle(
+          style: TextStyle(
             color: Cristal.texto,
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -2097,7 +2109,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
             FilteringTextInputFormatter.digitsOnly,
             LengthLimitingTextInputFormatter(10),
           ],
-          style: const TextStyle(
+          style: TextStyle(
             color: Cristal.texto,
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -2135,7 +2147,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                 value: b,
                 child: Text(
                   b,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontSize: 13.8,
                     fontWeight: FontWeight.w600,
@@ -2156,7 +2168,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
             FilteringTextInputFormatter.digitsOnly,
             LengthLimitingTextInputFormatter(15),
           ],
-          style: const TextStyle(
+          style: TextStyle(
             color: Cristal.texto,
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -2175,14 +2187,14 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Cristal.verdeBorde, width: 1.2),
       ),
-      child: const Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
             padding: EdgeInsets.only(top: 2),
             child: Icon(
               Icons.enhanced_encryption_rounded,
-              color: Color(0xFF2DD4BF),
+              color: Cristal.legible(const Color(0xFF2DD4BF)),
               size: 22,
             ),
           ),
@@ -2222,7 +2234,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
       padding: const EdgeInsets.only(bottom: 7),
       child: Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
           color: Cristal.texto,
           fontSize: 13.2,
           fontWeight: FontWeight.w800,
@@ -2234,7 +2246,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
   InputDecoration _inputDecoration({required String hint, Widget? suffixIcon}) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(
+      hintStyle: TextStyle(
         color: Cristal.textoTenue,
         fontSize: 14.5,
         fontWeight: FontWeight.w500,
@@ -2245,15 +2257,15 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Cristal.borde),
+        borderSide: BorderSide(color: Cristal.borde),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Cristal.borde),
+        borderSide: BorderSide(color: Cristal.borde),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Cristal.acentoClaro, width: 1.6),
+        borderSide: BorderSide(color: Cristal.acentoClaro, width: 1.6),
       ),
     );
   }
@@ -2287,13 +2299,14 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Color(0xFF2DD4BF).withValues(alpha: 0.25),
+                      color: Cristal.legible(const Color(0xFF2DD4BF))
+                          .withValues(alpha: 0.25),
                       blurRadius: 18,
                       offset: const Offset(0, 6),
                     ),
                   ],
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.check_rounded,
                   color: Cristal.texto,
                   size: 44,
@@ -2303,7 +2316,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
           ),
         ),
         const SizedBox(height: 10),
-        const Text(
+        Text(
           '¡Listo!',
           textAlign: TextAlign.center,
           style: TextStyle(
@@ -2314,7 +2327,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
           ),
         ),
         const SizedBox(height: 6),
-        const Text(
+        Text(
           'Tu cuenta ha sido activada correctamente.',
           textAlign: TextAlign.center,
           style: TextStyle(
@@ -2338,13 +2351,13 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
               Container(
                 width: 36,
                 height: 36,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: Cristal.vidrio,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.verified_user_rounded,
-                  color: Color(0xFF2DD4BF),
+                  color: Cristal.legible(const Color(0xFF2DD4BF)),
                   size: 20,
                 ),
               ),
@@ -2353,7 +2366,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Ya puedes explorar toda la información de contratación pública en un solo lugar.',
                       style: TextStyle(
                         color: Cristal.textoCuerpo,
@@ -2366,8 +2379,8 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                     Text(
                       'Rol habilitado: ${rol.nombre} · Pago Wompi APPROVED (${rol.precioFormateadoCop})'
                       '${receipt != null ? " · Ref: ${receipt.reference.substring(0, 15)}" : ""}',
-                      style: const TextStyle(
-                        color: Color(0xFF2DD4BF),
+                      style: TextStyle(
+                        color: Cristal.legible(const Color(0xFF2DD4BF)),
                         fontSize: 11.2,
                         fontWeight: FontWeight.w800,
                       ),
@@ -2375,7 +2388,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                     const SizedBox(height: 3),
                     Text(
                       'Roles activos acumulados en tu cuenta: ${AuthService.getActiveUserRoleDisplayLabel()}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.texto,
                         fontSize: 11.4,
                         fontWeight: FontWeight.w800,
@@ -2397,7 +2410,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
             onPressed: _irAlInicioPlataforma,
             style: ElevatedButton.styleFrom(
               backgroundColor: Cristal.acento,
-              foregroundColor: Cristal.texto,
+              foregroundColor: Cristal.blanco,
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(28),
@@ -2419,7 +2432,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
         const SizedBox(height: 10),
         TextButton(
           onPressed: _irAMiPerfil,
-          child: const Text(
+          child: Text(
             'Ver mi perfil',
             style: TextStyle(
               color: Cristal.texto,
@@ -2446,12 +2459,16 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
             alignment: const Alignment(0.35, -0.15),
             gaplessPlayback: true,
           ),
-          const DecoratedBox(
+          DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Cristal.fondo, Color(0x9907101F), Color(0x0007101F)],
+                colors: [
+                  Cristal.fondo,
+                  Cristal.fondo.withValues(alpha: 0.6),
+                  Cristal.fondo.withValues(alpha: 0),
+                ],
                 stops: [0.0, 0.25, 0.65],
               ),
             ),

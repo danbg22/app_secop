@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:app_secop/services/datos_abiertos.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   final uri = DatosAbiertos.uri('abcd-1234', {r'$limit': '1'});
@@ -217,5 +219,57 @@ void main() {
     expect(r.statusCode, 200);
     await DatosAbiertos.obtener(DatosAbiertos.uri('abcd-1234', {'otra': '1'}));
     expect(conToken, [true, false, false]);
+  });
+
+  group('caché guardada en el navegador', () {
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({});
+      await DatosAbiertos.iniciarPersistencia();
+    });
+
+    test('al recargar la página no vuelve a consultar', () async {
+      var llamadas = 0;
+      DatosAbiertos.clientePruebas = MockClient((_) async {
+        llamadas++;
+        return http.Response.bytes(
+          utf8.encode('[{"nombre":"Bogotá"}]'),
+          200,
+          headers: const {'content-type': 'application/json; charset=utf-8'},
+        );
+      });
+      await DatosAbiertos.obtener(uri, cache: DatosAbiertos.ttlPorDefecto);
+      DatosAbiertos.olvidarMemoria();
+      final r = await DatosAbiertos.obtener(
+        uri,
+        cache: DatosAbiertos.ttlPorDefecto,
+      );
+      expect(llamadas, 1);
+      expect(DatosAbiertos.decodificar(r).single['nombre'], 'Bogotá');
+    });
+
+    test('las respuestas muy grandes solo quedan en memoria', () async {
+      var llamadas = 0;
+      final grande = '[${List.filled(40000, '{"a":"1234567890"}').join(',')}]';
+      DatosAbiertos.clientePruebas = MockClient((_) async {
+        llamadas++;
+        return http.Response(grande, 200);
+      });
+      await DatosAbiertos.obtener(uri, cache: DatosAbiertos.ttlPorDefecto);
+      DatosAbiertos.olvidarMemoria();
+      await DatosAbiertos.obtener(uri, cache: DatosAbiertos.ttlPorDefecto);
+      expect(llamadas, 2);
+    });
+
+    test('"Actualizar datos" vacía también lo guardado', () async {
+      var llamadas = 0;
+      DatosAbiertos.clientePruebas = MockClient((_) async {
+        llamadas++;
+        return http.Response('[]', 200);
+      });
+      await DatosAbiertos.obtener(uri, cache: DatosAbiertos.ttlPorDefecto);
+      DatosAbiertos.limpiarCache();
+      await DatosAbiertos.obtener(uri, cache: DatosAbiertos.ttlPorDefecto);
+      expect(llamadas, 2);
+    });
   });
 }

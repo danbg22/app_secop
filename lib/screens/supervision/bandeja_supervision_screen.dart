@@ -113,7 +113,7 @@ class _BandejaSupervisionScreenState extends State<BandejaSupervisionScreen> {
               children: [
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 680),
-                  child: const Column(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
@@ -182,7 +182,7 @@ class _BandejaSupervisionScreenState extends State<BandejaSupervisionScreen> {
                     contador(
                       _Filtro.porAprobar,
                       Icons.verified_user_outlined,
-                      const Color(0xFFA78BFA),
+                      Cristal.legible(const Color(0xFFA78BFA)),
                     ),
                     contador(
                       _Filtro.devueltos,
@@ -220,7 +220,7 @@ class _BandejaSupervisionScreenState extends State<BandejaSupervisionScreen> {
                                 onSelected: (_) => setState(() => _filtro = f),
                                 selectedColor: Cristal.acento,
                                 backgroundColor: Cristal.vidrio,
-                                side: const BorderSide(color: Cristal.borde),
+                                side: BorderSide(color: Cristal.borde),
                                 labelStyle: TextStyle(
                                   color: _filtro == f
                                       ? Cristal.texto
@@ -264,7 +264,7 @@ class _BandejaSupervisionScreenState extends State<BandejaSupervisionScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 30),
                       child: Column(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.inbox_outlined,
                             size: 36,
                             color: Cristal.textoTenue,
@@ -274,7 +274,7 @@ class _BandejaSupervisionScreenState extends State<BandejaSupervisionScreen> {
                             _filtro == _Filtro.meToca
                                 ? 'No tienes informes pendientes. ¡Al día!'
                                 : 'No hay informes en "${_filtro.etiqueta}".',
-                            style: const TextStyle(color: Cristal.textoSuave),
+                            style: TextStyle(color: Cristal.textoSuave),
                           ),
                         ],
                       ),
@@ -360,7 +360,7 @@ class _Contador extends StatelessWidget {
                   children: [
                     Text(
                       '$valor',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.texto,
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
@@ -368,7 +368,7 @@ class _Contador extends StatelessWidget {
                     ),
                     Text(
                       titulo,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.textoSuave,
                         fontSize: 12.3,
                         fontWeight: FontWeight.w600,
@@ -424,7 +424,7 @@ class _FilaInforme extends StatelessWidget {
               : e.contratistaNombreEsperado,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
+          style: TextStyle(
             color: Cristal.texto,
             fontSize: 14,
             fontWeight: FontWeight.w800,
@@ -435,7 +435,7 @@ class _FilaInforme extends StatelessWidget {
           '${item.etapa == null ? '' : ' · ${item.etapa!.nombre}'}',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: Cristal.textoSuave, fontSize: 12.3),
+          style: TextStyle(color: Cristal.textoSuave, fontSize: 12.3),
         ),
       ],
     );
@@ -446,7 +446,9 @@ class _FilaInforme extends StatelessWidget {
         color: meToca ? Cristal.vidrioSuave : Cristal.vidrio,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: meToca ? const Color(0xFFF5C77E) : Cristal.borde,
+          color: meToca
+              ? Cristal.legible(const Color(0xFFF5C77E))
+              : Cristal.borde,
         ),
       ),
       child: Material(
@@ -464,7 +466,7 @@ class _FilaInforme extends StatelessWidget {
                   backgroundColor: Cristal.azulVidrio,
                   child: Text(
                     iniciales.isEmpty ? '?' : iniciales,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.texto,
                       fontWeight: FontWeight.w800,
                       fontSize: 13,
@@ -487,7 +489,7 @@ class _FilaInforme extends StatelessWidget {
                                 ChipEstadoInforme(inf.estado),
                                 Text(
                                   formatoCop(inf.valorCobradoCop),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: Cristal.textoMedio,
                                     fontSize: 12,
                                   ),
@@ -503,7 +505,7 @@ class _FilaInforme extends StatelessWidget {
                               flex: 2,
                               child: Text(
                                 formatoCop(inf.valorCobradoCop),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Cristal.texto,
                                   fontSize: 13.5,
                                   fontWeight: FontWeight.w700,
@@ -550,10 +552,7 @@ class _FilaInforme extends StatelessWidget {
                       fondo: Cristal.ambarVidrio,
                     ),
                   ),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: Cristal.textoSuave,
-                ),
+                Icon(Icons.chevron_right_rounded, color: Cristal.textoSuave),
               ],
             ),
           ),
@@ -579,7 +578,7 @@ class _ContratosState extends State<_Contratos> {
   @override
   Widget build(BuildContext context) {
     if (widget.expedientes.isEmpty) {
-      return const TarjetaSupervision(
+      return TarjetaSupervision(
         titulo: 'Contratos',
         subtitulo:
             'Aún no hay contratos de prestación de servicios en este equipo.',
@@ -612,15 +611,12 @@ class _ContratosState extends State<_Contratos> {
           for (final e in widget.expedientes)
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(
-                Icons.description_outlined,
-                color: Cristal.texto,
-              ),
+              leading: Icon(Icons.description_outlined, color: Cristal.texto),
               title: Text(
                 e.contratistaNombreEsperado.isEmpty
                     ? 'Contrato ${e.numeroContrato}'
                     : e.contratistaNombreEsperado,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
                   fontWeight: FontWeight.w700,
                   fontSize: 13.5,

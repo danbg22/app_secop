@@ -200,6 +200,14 @@ Un fondo casi negro de la familia del azul marino de la marca, vidrio blanco tra
 
 **La Regla del Ámbar.** El ámbar de advertencia (#F59E0B) y el dorado de la marca (#FFC53D) no se intercambian: el dorado nunca significa "cuidado".
 
+### Modo claro
+La app tiene modo oscuro (el original) y modo claro. Se cambia con el sol/luna del menú lateral, de la portada o del menú del usuario, y la elección se recuerda en el navegador (`Cristal.cambiarModo`).
+
+- **Mismos papeles, otra paleta** (`PaletaCristal.oscura` y `PaletaCristal.clara` en `lib/tema/cristal.dart`). En el claro, la tinta es el azul marino de la marca (#0B1426) por opacidad, no negro. El fondo es un gris azulado muy claro (#EDF1F8) y las tarjetas son blancas translúcidas. El azul, el dorado y los estados toman un tono más profundo (acento-claro #1D4ED8, dorado #B07D0A, verde #15803D, ámbar #B45309, rojo #DC2626) para leerse sobre blanco.
+- **Rellenos y texto.** El dorado de relleno (botones, insignias con tinta encima) es siempre el brillante: `Cristal.doradoRelleno`. Sobre el azul de la acción principal, texto e íconos van en `Cristal.blanco`, nunca en `Cristal.texto`.
+- **Colores escritos a mano.** Un acento propio de una modalidad, un estado o una categoría se envuelve en `Cristal.legible(...)`: queda igual en el oscuro y toma su tono profundo en el claro. Los logos, emblemas, la bandera y las ilustraciones no se envuelven.
+- **Nada de constantes de color.** Los colores de `Cristal` son getters: no van en `const`, en `static const` ni en valores por defecto de parámetros (usa un parámetro opcional y `?? Cristal.x`). `ModoCristalScope` reconstruye y repinta toda la app al cambiar de modo.
+
 ## Typography
 
 **Fuente única:** Inter (empaquetada en `assets/fonts/inter`).

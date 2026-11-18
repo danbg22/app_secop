@@ -101,7 +101,7 @@ class _InformesContratistaViewState extends State<InformesContratistaView> {
                   ] else if (abiertos.isEmpty)
                     Text(
                       'Tu primer informe se habilita el ${fechaLegible(plan.periodos.first.desde)}.',
-                      style: const TextStyle(color: Cristal.textoMedio),
+                      style: TextStyle(color: Cristal.textoMedio),
                     ),
                   for (final p in lista)
                     _FilaPeriodo(
@@ -206,10 +206,7 @@ class _Proximo extends StatelessWidget {
                     informe!.devolucion!.observacion,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Cristal.ambar,
-                      fontSize: 12.8,
-                    ),
+                    style: TextStyle(color: Cristal.ambar, fontSize: 12.8),
                   ),
                 ),
               ],
@@ -258,7 +255,7 @@ class _FilaPeriodo extends StatelessWidget {
               width: 34,
               child: Text(
                 'N.º ${periodo.numero}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.textoSuave,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -277,7 +274,7 @@ class _FilaPeriodo extends StatelessWidget {
               ),
             ),
             if (futuro)
-              const Text(
+              Text(
                 'Próximo',
                 style: TextStyle(color: Cristal.textoTenue, fontSize: 12),
               )

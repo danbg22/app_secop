@@ -199,7 +199,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           crossAxisAlignment: WrapCrossAlignment.center,
                           spacing: 6,
                           children: [
-                            const Text(
+                            Text(
                               '¿No tienes cuenta?',
                               style: TextStyle(
                                 color: Cristal.textoMedio,
@@ -221,7 +221,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   vertical: 4,
                                 ),
                               ),
-                              child: const Text(
+                              child: Text(
                                 'Regístrate aquí →',
                                 style: TextStyle(
                                   color: Cristal.texto,
@@ -271,7 +271,7 @@ class _LoginScreenState extends State<LoginScreen> {
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
               autofillHints: const [AutofillHints.email],
-              style: const TextStyle(fontSize: 14.5, color: Cristal.texto),
+              style: TextStyle(fontSize: 14.5, color: Cristal.texto),
               decoration: _inputDecoration(
                 hint: 'Correo electrónico',
                 icon: Icons.mail_outline_rounded,
@@ -293,7 +293,7 @@ class _LoginScreenState extends State<LoginScreen> {
               textInputAction: TextInputAction.done,
               autofillHints: const [AutofillHints.password],
               onFieldSubmitted: (_) => _signIn(),
-              style: const TextStyle(fontSize: 14.5, color: Cristal.texto),
+              style: TextStyle(fontSize: 14.5, color: Cristal.texto),
               decoration:
                   _inputDecoration(
                     hint: 'Contraseña',
@@ -333,7 +333,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: const Text(
+                child: Text(
                   'Olvidé mi contraseña',
                   style: TextStyle(
                     color: Cristal.acentoClaro,
@@ -352,22 +352,22 @@ class _LoginScreenState extends State<LoginScreen> {
                 onPressed: _isLoading ? null : _signIn,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Cristal.acento,
-                  foregroundColor: Cristal.texto,
+                  foregroundColor: Cristal.blanco,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(28),
                   ),
                 ),
                 child: _isLoading
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 22,
                         height: 22,
                         child: CircularProgressIndicator(
                           strokeWidth: 2.4,
-                          color: Cristal.texto,
+                          color: Cristal.blanco,
                         ),
                       )
-                    : const Row(
+                    : Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
@@ -381,7 +381,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           Icon(
                             Icons.arrow_forward_rounded,
                             size: 19,
-                            color: Cristal.texto,
+                            color: Cristal.blanco,
                           ),
                         ],
                       ),
@@ -392,10 +392,8 @@ class _LoginScreenState extends State<LoginScreen> {
             // Divider: O continuar con
             Row(
               children: [
-                const Expanded(
-                  child: Divider(color: Cristal.borde, thickness: 1),
-                ),
-                const Padding(
+                Expanded(child: Divider(color: Cristal.borde, thickness: 1)),
+                Padding(
                   padding: EdgeInsets.symmetric(horizontal: 14),
                   child: Text(
                     'O continuar con',
@@ -406,9 +404,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-                const Expanded(
-                  child: Divider(color: Cristal.borde, thickness: 1),
-                ),
+                Expanded(child: Divider(color: Cristal.borde, thickness: 1)),
               ],
             ),
             const SizedBox(height: 16),
@@ -429,7 +425,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     _buildGoogleIcon(),
                     const SizedBox(width: 12),
-                    const Text(
+                    Text(
                       'Iniciar sesión con Google',
                       style: TextStyle(
                         color: Cristal.texto,
@@ -454,7 +450,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         signIn: AuthService.signInWithApple,
                       ),
                 style: _socialButtonStyle(),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.apple, size: 22, color: Cristal.texto),
@@ -491,7 +487,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(
+      hintStyle: TextStyle(
         color: Cristal.textoSuave,
         fontSize: 14,
         fontWeight: FontWeight.w400,
@@ -502,15 +498,15 @@ class _LoginScreenState extends State<LoginScreen> {
       prefixIcon: Icon(icon, color: Cristal.texto, size: 20),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Cristal.borde),
+        borderSide: BorderSide(color: Cristal.borde),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Cristal.borde),
+        borderSide: BorderSide(color: Cristal.borde),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Cristal.acentoClaro, width: 1.5),
+        borderSide: BorderSide(color: Cristal.acentoClaro, width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -523,7 +519,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return OutlinedButton.styleFrom(
       backgroundColor: Cristal.vidrio,
       foregroundColor: Cristal.texto,
-      side: const BorderSide(color: Cristal.borde, width: 1.2),
+      side: BorderSide(color: Cristal.borde, width: 1.2),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
     );
   }

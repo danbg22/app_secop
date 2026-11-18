@@ -53,7 +53,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       decoration: BoxDecoration(
         border: transparent
             ? null
-            : const Border(bottom: BorderSide(color: Cristal.borde)),
+            : Border(bottom: BorderSide(color: Cristal.borde)),
       ),
       padding: EdgeInsets.symmetric(
         horizontal: isMobile ? 14 : 26,
@@ -77,7 +77,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     Navigator.of(context).pushReplacementNamed('/home');
                   }
                 },
-                icon: const Icon(
+                icon: Icon(
                   Icons.arrow_back_rounded,
                   color: Cristal.texto,
                   size: 21,
@@ -87,7 +87,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             ],
             if (showLogo) ...[
               Image.asset(
-                'assets/images/logo_fondo_oscuro.png',
+                Cristal.logo,
                 height: isMobile ? 34 : 40,
                 fit: BoxFit.contain,
                 alignment: Alignment.centerLeft,
@@ -123,10 +123,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                       child: TextField(
                         controller: searchController,
                         onSubmitted: onSearchSubmitted,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Cristal.texto,
-                        ),
+                        style: TextStyle(fontSize: 13, color: Cristal.texto),
                         decoration: InputDecoration(
                           hintText: 'Busca contratos, entidades...',
                           hintStyle: TextStyle(
@@ -138,7 +135,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                             padding: EdgeInsets.zero,
                             onPressed: () =>
                                 onSearchSubmitted?.call(searchController!.text),
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.search_rounded,
                               color: Cristal.texto,
                               size: 19,
@@ -156,11 +153,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(20),
-                            borderSide: const BorderSide(color: Cristal.borde),
+                            borderSide: BorderSide(color: Cristal.borde),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(20),
-                            borderSide: const BorderSide(
+                            borderSide: BorderSide(
                               color: Cristal.acentoClaro,
                               width: 1.2,
                             ),
@@ -222,7 +219,7 @@ class CustomUserHeaderActions extends StatelessWidget {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Row(
             children: [
               Icon(
@@ -249,6 +246,13 @@ class CustomUserHeaderActions extends StatelessWidget {
       if (isProfileScreen) return;
       Navigator.of(context).push(
         MaterialPageRoute<void>(builder: (_) => const PerfilUsuarioScreen()),
+      );
+      return;
+    }
+
+    if (value == 'modo') {
+      await Cristal.cambiarModo(
+        Cristal.esClaro ? ModoCristal.oscuro : ModoCristal.claro,
       );
       return;
     }
@@ -290,7 +294,7 @@ class CustomUserHeaderActions extends StatelessWidget {
                 fullName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
                   fontWeight: FontWeight.w800,
                   fontSize: 13.5,
@@ -301,7 +305,7 @@ class CustomUserHeaderActions extends StatelessWidget {
                 email.isNotEmpty ? email : 'Sin correo registrado',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.textoSuave,
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
@@ -318,7 +322,7 @@ class CustomUserHeaderActions extends StatelessWidget {
                   'Roles: ${AuthService.getActiveUserRoleDisplayLabel()}',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.verde,
                     fontSize: 10.8,
                     fontWeight: FontWeight.w800,
@@ -330,7 +334,7 @@ class CustomUserHeaderActions extends StatelessWidget {
         ),
       ),
       const PopupMenuDivider(height: 10),
-      const PopupMenuItem<String>(
+      PopupMenuItem<String>(
         value: 'accumulate_role',
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         child: Row(
@@ -352,7 +356,31 @@ class CustomUserHeaderActions extends StatelessWidget {
           ],
         ),
       ),
-      const PopupMenuItem<String>(
+      PopupMenuItem<String>(
+        value: 'modo',
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        child: Row(
+          children: [
+            Icon(
+              Cristal.esClaro
+                  ? Icons.dark_mode_outlined
+                  : Icons.light_mode_outlined,
+              size: 19,
+              color: Cristal.texto,
+            ),
+            const SizedBox(width: 10),
+            Text(
+              Cristal.esClaro ? 'Modo oscuro' : 'Modo claro',
+              style: TextStyle(
+                color: Cristal.texto,
+                fontSize: 13.3,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+      PopupMenuItem<String>(
         value: 'profile',
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         child: Row(
@@ -380,7 +408,7 @@ class CustomUserHeaderActions extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: Cristal.rojoBorde),
           ),
-          child: const Row(
+          child: Row(
             children: [
               Icon(Icons.logout_rounded, size: 18, color: Cristal.rojo),
               SizedBox(width: 10),
@@ -415,19 +443,19 @@ class CustomUserHeaderActions extends StatelessWidget {
 
         final double screenW = MediaQuery.sizeOf(context).width;
         final bool isCompact = screenW < 520;
-        const Color textColor = Cristal.texto;
-        const Color subtextColor = Cristal.textoMedio;
+        final Color textColor = Cristal.texto;
+        final Color subtextColor = Cristal.textoMedio;
 
         final Widget avatarWidget = CircleAvatar(
           radius: isCompact ? 16 : 18,
           backgroundImage: avatarImage,
           backgroundColor: Cristal.avatar,
-          foregroundColor: Cristal.texto,
+          foregroundColor: Cristal.blanco,
           child: avatarImage == null
               ? Text(
                   initial,
                   style: TextStyle(
-                    color: Cristal.texto,
+                    color: Cristal.blanco,
                     fontWeight: FontWeight.w800,
                     fontSize: isCompact ? 13 : 14,
                   ),

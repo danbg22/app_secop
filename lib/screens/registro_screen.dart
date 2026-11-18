@@ -76,7 +76,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
               Expanded(
                 child: Text(
                   message,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
@@ -122,7 +122,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(22),
-          side: const BorderSide(color: Cristal.bordeFuerte),
+          side: BorderSide(color: Cristal.bordeFuerte),
         ),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 460),
@@ -134,7 +134,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                 Container(
                   width: 60,
                   height: 60,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: Cristal.rojoVidrio,
                     shape: BoxShape.circle,
                   ),
@@ -148,7 +148,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                 Text(
                   titulo,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontSize: 19,
                     fontWeight: FontWeight.w800,
@@ -158,7 +158,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                 Text(
                   detalle,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.textoMedio,
                     fontSize: 14,
                     height: 1.45,
@@ -173,7 +173,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                     onPressed: () => Navigator.of(ctx).pop(),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Cristal.acento,
-                      foregroundColor: Cristal.texto,
+                      foregroundColor: Cristal.blanco,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(26),
@@ -431,12 +431,12 @@ class _RegistroScreenState extends State<RegistroScreen> {
 
               final fieldPais = DropdownButtonFormField<String>(
                 initialValue: _pais,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
                   fontSize: 14.8,
                   fontWeight: FontWeight.w500,
                 ),
-                icon: const Icon(
+                icon: Icon(
                   Icons.keyboard_arrow_down_rounded,
                   color: Cristal.textoMedio,
                 ),
@@ -704,7 +704,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                                               color: Cristal.acentoBorde,
                                             ),
                                           ),
-                                          child: const Row(
+                                          child: Row(
                                             children: [
                                               Icon(
                                                 Icons.verified_user_outlined,
@@ -751,7 +751,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                                               ),
                                             ),
                                             child: _isLoading
-                                                ? const SizedBox(
+                                                ? SizedBox(
                                                     width: 22,
                                                     height: 22,
                                                     child:
@@ -783,7 +783,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                                                         ),
                                                       ),
                                                       const SizedBox(width: 10),
-                                                      const Icon(
+                                                      Icon(
                                                         Icons
                                                             .arrow_forward_rounded,
                                                         size: 19,
@@ -801,7 +801,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                                           crossAxisAlignment:
                                               WrapCrossAlignment.center,
                                           children: [
-                                            const Text(
+                                            Text(
                                               '¿Ya tienes cuenta registrada? ',
                                               style: TextStyle(
                                                 color: Cristal.textoMedio,
@@ -816,7 +816,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                                                   : _navigateToLogin,
                                               borderRadius:
                                                   BorderRadius.circular(6),
-                                              child: const Padding(
+                                              child: Padding(
                                                 padding: EdgeInsets.symmetric(
                                                   horizontal: 6,
                                                   vertical: 4,
@@ -914,7 +914,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
             shape: BoxShape.circle,
             border: Border.all(
               color: completed || active
-                  ? Color(0xFF2DD4BF)
+                  ? Cristal.legible(const Color(0xFF2DD4BF))
                   : Cristal.bordeFuerte,
               width: active ? 2.0 : 1.4,
             ),
@@ -926,7 +926,9 @@ class _RegistroScreenState extends State<RegistroScreen> {
             size: completed || active ? 14 : 6,
             color: completed
                 ? Cristal.texto
-                : (active ? Color(0xFF2DD4BF) : Cristal.textoApagado),
+                : (active
+                      ? Cristal.legible(const Color(0xFF2DD4BF))
+                      : Cristal.textoApagado),
           ),
         ),
         const SizedBox(height: 4),
@@ -965,18 +967,14 @@ class _RegistroScreenState extends State<RegistroScreen> {
       style: OutlinedButton.styleFrom(
         foregroundColor: Cristal.texto,
         backgroundColor: Cristal.vidrio,
-        side: const BorderSide(color: Cristal.dorado, width: 1.3),
+        side: BorderSide(color: Cristal.dorado, width: 1.3),
         padding: EdgeInsets.symmetric(
           horizontal: isMobile ? 12 : 16,
           vertical: isMobile ? 8 : 10,
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       ),
-      icon: const Icon(
-        Icons.swap_horiz_rounded,
-        size: 18,
-        color: Cristal.texto,
-      ),
+      icon: Icon(Icons.swap_horiz_rounded, size: 18, color: Cristal.texto),
       label: Text(
         'Cambiar rol',
         style: TextStyle(
@@ -1025,12 +1023,12 @@ class _RegistroScreenState extends State<RegistroScreen> {
                             vertical: 3.5,
                           ),
                           decoration: BoxDecoration(
-                            color: Cristal.dorado,
+                            color: Cristal.doradoRelleno,
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Text(
                             rol.precioFormateadoCop,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.tinta,
                               fontSize: 12.5,
                               fontWeight: FontWeight.w900,
@@ -1079,7 +1077,9 @@ class _RegistroScreenState extends State<RegistroScreen> {
             color: hayError ? Cristal.rojoVidrio : Cristal.vidrioSuave,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: hayError ? Color(0xFFEF5350) : Cristal.borde,
+              color: hayError
+                  ? Cristal.legible(const Color(0xFFEF5350))
+                  : Cristal.borde,
               width: hayError ? 1.4 : 1,
             ),
           ),
@@ -1090,7 +1090,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                 value: _aceptaPolitica,
                 activeColor: Cristal.acento,
                 side: BorderSide(
-                  color: hayError ? Color(0xFFEF5350) : const Color(0x52FFFFFF),
+                  color: hayError ? Cristal.rojo : Cristal.bordeFuerte,
                   width: 1.6,
                 ),
                 onChanged: _isLoading
@@ -1112,7 +1112,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                           }),
                     child: Wrap(
                       children: [
-                        const Text(
+                        Text(
                           'He leído y acepto la ',
                           style: TextStyle(
                             color: Cristal.textoCuerpo,
@@ -1123,7 +1123,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                         InkWell(
                           hoverDuration: Cristal.micro,
                           onTap: _mostrarPoliticaPrivacidad,
-                          child: const Text(
+                          child: Text(
                             'Política de Privacidad y Tratamiento de Datos Personales',
                             style: TextStyle(
                               color: Cristal.acentoClaro,
@@ -1135,7 +1135,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                             ),
                           ),
                         ),
-                        const Text(
+                        Text(
                           ' y autorizo el tratamiento de mis datos conforme a la Ley 1581 de 2012. *',
                           style: TextStyle(
                             color: Cristal.textoCuerpo,
@@ -1179,7 +1179,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
     final acepta = await mostrarDialogoCristal<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text(
+        title: Text(
           'Política de Privacidad y Tratamiento de Datos Personales',
           style: TextStyle(
             color: Cristal.texto,
@@ -1189,7 +1189,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
         ),
         content: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 560, maxHeight: 420),
-          child: const SingleChildScrollView(
+          child: SingleChildScrollView(
             child: Text(
               ConsentService.textoPolitica,
               style: TextStyle(
@@ -1209,7 +1209,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
             onPressed: () => Navigator.of(ctx).pop(true),
             style: ElevatedButton.styleFrom(
               backgroundColor: Cristal.acento,
-              foregroundColor: Cristal.texto,
+              foregroundColor: Cristal.blanco,
             ),
             child: const Text('Acepto'),
           ),
@@ -1252,7 +1252,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
       textCapitalization: textCapitalization,
       obscureText: obscureText,
       enabled: !_isLoading,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 14.8,
         fontWeight: FontWeight.w500,
         color: Cristal.texto,
@@ -1272,8 +1272,8 @@ class _RegistroScreenState extends State<RegistroScreen> {
     return InputDecoration(
       hintText: hint,
       labelText: labelText,
-      labelStyle: const TextStyle(color: Cristal.textoSuave, fontSize: 13.5),
-      hintStyle: const TextStyle(
+      labelStyle: TextStyle(color: Cristal.textoSuave, fontSize: 13.5),
+      hintStyle: TextStyle(
         color: Cristal.textoSuave,
         fontSize: 14.2,
         fontWeight: FontWeight.w400,
@@ -1285,15 +1285,15 @@ class _RegistroScreenState extends State<RegistroScreen> {
       prefixIcon: Icon(icon, color: Cristal.texto, size: 20),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(13),
-        borderSide: const BorderSide(color: Cristal.borde),
+        borderSide: BorderSide(color: Cristal.borde),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(13),
-        borderSide: const BorderSide(color: Cristal.borde),
+        borderSide: BorderSide(color: Cristal.borde),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(13),
-        borderSide: const BorderSide(color: Cristal.acentoClaro, width: 1.6),
+        borderSide: BorderSide(color: Cristal.acentoClaro, width: 1.6),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(13),

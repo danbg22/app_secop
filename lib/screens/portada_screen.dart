@@ -8,7 +8,7 @@ import '../tema/cristal.dart';
 class PortadaScreen extends StatelessWidget {
   const PortadaScreen({super.key});
 
-  static const List<_PortadaFeature> _features = [
+  static List<_PortadaFeature> get _features => [
     _PortadaFeature(
       icon: Icons.manage_search_rounded,
       title: 'Consulta contratos',
@@ -29,7 +29,7 @@ class PortadaScreen extends StatelessWidget {
       icon: Icons.verified_user_rounded,
       title: 'Gestión con trazabilidad',
       description: 'Equipos jurídicos estructuran contratos en línea, invitan contratistas y validan documentos dejando registro de cada paso.',
-      color: Color(0xFF22D3EE),
+      color: Cristal.legible(const Color(0xFF22D3EE)),
       tint: Color(0x2414B8A6),
       cardBg: Cristal.vidrioSuave,
     ),
@@ -131,9 +131,12 @@ class PortadaScreen extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context, bool isMobile) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: ContrataLegalHdLogo(height: isMobile ? 46 : 64),
+    return Row(
+      children: [
+        ContrataLegalHdLogo(height: isMobile ? 46 : 64),
+        const Spacer(),
+        const InterruptorModo(compacto: true),
+      ],
     );
   }
 
@@ -152,7 +155,7 @@ class PortadaScreen extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           Text.rich(
-            const TextSpan(
+            TextSpan(
               children: [
                 TextSpan(text: 'Contratación pública\nmás clara '),
                 TextSpan(
@@ -193,14 +196,14 @@ class PortadaScreen extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: () => _irARegistro(context),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Cristal.dorado,
+                    backgroundColor: Cristal.doradoRelleno,
                     foregroundColor: Cristal.tinta,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(28),
                     ),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
@@ -232,12 +235,12 @@ class PortadaScreen extends StatelessWidget {
                     backgroundColor: Cristal.vidrioFuerte,
                     foregroundColor: Cristal.texto,
                     elevation: 0,
-                    side: const BorderSide(color: Cristal.bordeFuerte),
+                    side: BorderSide(color: Cristal.bordeFuerte),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(28),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Ya tengo cuenta',
                     style: TextStyle(
                       color: Cristal.texto,
@@ -324,7 +327,7 @@ class _PortadaFeatureCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Text(
               feature.title,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Cristal.texto,
                 fontSize: 20.5,
                 fontWeight: FontWeight.w800,
@@ -338,7 +341,7 @@ class _PortadaFeatureCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Text(
               feature.description,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Cristal.textoMedio,
                 fontSize: 13.5,
                 height: 1.42,

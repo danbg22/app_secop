@@ -2,6 +2,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import 'cristal.dart';
+
 /// La foto de Valledupar como luz de ambiente del fondo: atenuada y
 /// fundida con el fondo de la aplicación hacia la izquierda (y, si se pide,
 /// hacia arriba y hacia abajo), para que se perciba a través de los paneles
@@ -172,6 +174,9 @@ class _PintorFoto extends CustomPainter {
       alignment: alineacion,
       filterQuality: FilterQuality.medium,
     );
+    // En el modo claro la foto queda como marca de agua: el texto oscuro
+    // se lee encima.
+    final opacidad = Cristal.esClaro ? this.opacidad * 0.42 : this.opacidad;
     // Fundido horizontal: transparente a la izquierda.
     canvas.drawPaint(
       Paint()

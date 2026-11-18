@@ -68,7 +68,7 @@ String fechaVerif(String iso) {
   EstadoProceso.abierto => (Cristal.verde, Cristal.verdeVidrio),
   EstadoProceso.enCurso => (Cristal.acentoClaro, Cristal.azulVidrio),
   EstadoProceso.estudioMercado => (
-    const Color(0xFFA78BFA),
+    Cristal.legible(const Color(0xFFA78BFA)),
     const Color(0x248B5CF6),
   ),
   EstadoProceso.adjudicado => (Cristal.texto, Cristal.vidrioFuerte),
@@ -116,7 +116,7 @@ class TarjetaEjecucion extends StatelessWidget {
           final enProceso = enProcesoCop;
           Widget cuerpo;
           if (snap.hasError) {
-            cuerpo = const Text(
+            cuerpo = Text(
               'No fue posible consultar los contratos en SECOP II. Intenta más tarde.',
               style: TextStyle(color: Cristal.rojo, fontSize: 13),
             );
@@ -161,7 +161,7 @@ class TarjetaEjecucion extends StatelessWidget {
                         const SizedBox(height: 3),
                         Text(
                           v,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.texto,
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
@@ -169,7 +169,7 @@ class TarjetaEjecucion extends StatelessWidget {
                         ),
                         Text(
                           nota,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.textoSuave,
                             fontSize: 12.3,
                             height: 1.35,
@@ -198,7 +198,7 @@ class TarjetaEjecucion extends StatelessWidget {
                             ),
                             Container(
                               width: w(porPagar),
-                              color: Color(0xFF86EFAC),
+                              color: Cristal.legible(const Color(0xFF86EFAC)),
                             ),
                             Container(
                               width: w(enProceso),
@@ -206,9 +206,9 @@ class TarjetaEjecucion extends StatelessWidget {
                             ),
                             Container(
                               width: w(falta),
-                              color: Color(0xFFFBBF24),
+                              color: Cristal.legible(const Color(0xFFFBBF24)),
                             ),
-                            const Expanded(
+                            Expanded(
                               child: ColoredBox(color: Cristal.vidrioSuave),
                             ),
                           ],
@@ -234,7 +234,7 @@ class TarjetaEjecucion extends StatelessWidget {
                       'Contratado sin pagar',
                       millonesVerif(porPagar),
                       '${e.contratos} contratos firmados en $anio por ${millonesVerif(e.contratadoCop)}',
-                      Color(0xFF86EFAC),
+                      Cristal.legible(const Color(0xFF86EFAC)),
                     ),
                     cifra(
                       'En proceso de selección',
@@ -246,7 +246,7 @@ class TarjetaEjecucion extends StatelessWidget {
                       'Falta por contratar (aprox.)',
                       millonesVerif(falta),
                       'Proyectado ${millonesVerif(proyectadoCop)} menos lo contratado y lo que está en proceso',
-                      Color(0xFFFBBF24),
+                      Cristal.legible(const Color(0xFFFBBF24)),
                     ),
                   ],
                 ),
@@ -256,7 +256,7 @@ class TarjetaEjecucion extends StatelessWidget {
                     'Ojo: ${e.sinValor} de los ${e.contratos} contratos firmados en $anio figuran con valor '
                     '\$ 0 en Datos Abiertos, así que lo contratado real es mayor y lo que falta por '
                     'contratar, menor.',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.ambar,
                       fontSize: 12.3,
                       height: 1.45,
@@ -264,7 +264,7 @@ class TarjetaEjecucion extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 10),
-                const Text(
+                Text(
                   'Es un cruce aproximado de tres fuentes de SECOP II: el PAA, los procesos y los contratos '
                   'firmados en el año. Puede diferir de la ejecución presupuestal oficial: hay contratos que '
                   'no estaban en el plan (urgencias, convenios), compras del plan que se pagan en otra '
@@ -286,7 +286,7 @@ class TarjetaEjecucion extends StatelessWidget {
                 style: EstiloContractual.tituloGrupo,
               ),
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 '¿Cuánto del plan ya se contrató y pagó, y cuánto queda por contratar?',
                 style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
               ),
@@ -352,7 +352,7 @@ class PanelProcesosAbiertos extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.campaign_outlined, color: Cristal.verde),
+              Icon(Icons.campaign_outlined, color: Cristal.verde),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -363,23 +363,20 @@ class PanelProcesosAbiertos extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Recibiendo ofertas ahora mismo, estén o no en el plan. Verificado contra SECOP II '
             '(Datos Abiertos se actualiza a diario; confirma la hora de cierre en el proceso).',
             style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
           ),
           const SizedBox(height: 12),
           if (error != null)
-            Text(
-              error!,
-              style: const TextStyle(color: Cristal.rojo, fontSize: 13),
-            )
+            Text(error!, style: TextStyle(color: Cristal.rojo, fontSize: 13))
           else if (procesos == null)
             const LinearProgressIndicator(minHeight: 3)
           else if (abiertos.isEmpty)
             Text(
               vacio,
-              style: const TextStyle(color: Cristal.textoMedio, fontSize: 13.2),
+              style: TextStyle(color: Cristal.textoMedio, fontSize: 13.2),
             )
           else
             for (final p in abiertos.take(20))
@@ -484,7 +481,7 @@ class _FilaAbierto extends StatelessWidget {
             TextoProfesional.oracion(
               p.nombre.isEmpty ? p.descripcion : p.nombre,
             ),
-            style: const TextStyle(
+            style: TextStyle(
               color: Cristal.texto,
               fontSize: 14,
               fontWeight: FontWeight.w800,
@@ -495,7 +492,7 @@ class _FilaAbierto extends StatelessWidget {
               TextoProfesional.oracion(p.descripcion),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Cristal.textoMedio,
                 fontSize: 12.8,
                 height: 1.4,
@@ -511,7 +508,7 @@ class _FilaAbierto extends StatelessWidget {
                   ? 'aún sin ofertas registradas'
                   : 'competencia: ${competencia.join(', ')}',
             ].join(' · '),
-            style: const TextStyle(color: Cristal.textoSuave, fontSize: 12.3),
+            style: TextStyle(color: Cristal.textoSuave, fontSize: 12.3),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -600,7 +597,7 @@ class _DetalleVerificacionState extends State<DetalleVerificacion> {
     final i = widget.item;
     final c = widget.cruce;
     if (widget.verificando) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.symmetric(vertical: 10),
         child: Row(
           children: [
@@ -629,7 +626,7 @@ class _DetalleVerificacionState extends State<DetalleVerificacion> {
                       'procesos publicados desde enero de ${widget.anio} en Datos Abiertos.'
                 : 'No encontramos un proceso en SECOP II con este objeto desde enero de ${widget.anio}. '
                       'Si su mes ya pasó, la entidad pudo aplazarlo, contratarlo con otro nombre o quitarlo del plan.',
-            style: const TextStyle(
+            style: TextStyle(
               color: Cristal.textoMedio,
               fontSize: 13,
               height: 1.45,
@@ -676,7 +673,7 @@ class _DetalleVerificacionState extends State<DetalleVerificacion> {
         const SizedBox(height: 8),
         Text(
           '${p.referencia} · ${TextoProfesional.oracion(p.nombre.isEmpty ? p.descripcion : p.nombre)}',
-          style: const TextStyle(
+          style: TextStyle(
             color: Cristal.texto,
             fontSize: 13.5,
             fontWeight: FontWeight.w800,
@@ -685,7 +682,7 @@ class _DetalleVerificacionState extends State<DetalleVerificacion> {
         if (p.fase.isNotEmpty)
           Text(
             'Fase en SECOP II: ${p.fase}',
-            style: const TextStyle(color: Cristal.textoSuave, fontSize: 12.3),
+            style: TextStyle(color: Cristal.textoSuave, fontSize: 12.3),
           ),
         const SizedBox(height: 10),
         _clave('Planeado frente a lo real'),
@@ -723,7 +720,7 @@ class _DetalleVerificacionState extends State<DetalleVerificacion> {
           future: contratos,
           builder: (context, snap) {
             if (snap.hasError) {
-              return const Padding(
+              return Padding(
                 padding: EdgeInsets.only(top: 8),
                 child: Text(
                   'No fue posible consultar el contrato.',
@@ -745,10 +742,7 @@ class _DetalleVerificacionState extends State<DetalleVerificacion> {
                   p.estado == EstadoProceso.adjudicado
                       ? 'SECOP II aún no registra el contrato firmado de este proceso.'
                       : 'Todavía no hay contrato: el proceso no ha terminado.',
-                  style: const TextStyle(
-                    color: Cristal.textoMedio,
-                    fontSize: 12.8,
-                  ),
+                  style: TextStyle(color: Cristal.textoMedio, fontSize: 12.8),
                 ),
               );
             }
@@ -769,10 +763,7 @@ class _DetalleVerificacionState extends State<DetalleVerificacion> {
                 if (lista.length > 5)
                   Text(
                     'y ${lista.length - 5} contratos más de este proceso.',
-                    style: const TextStyle(
-                      color: Cristal.textoSuave,
-                      fontSize: 12.3,
-                    ),
+                    style: TextStyle(color: Cristal.textoSuave, fontSize: 12.3),
                   ),
               ],
             );
@@ -836,7 +827,7 @@ class _Contrato extends StatelessWidget {
             children: [
               Text(
                 'Contrato ${k.referencia.isEmpty ? k.id : k.referencia}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
                   fontSize: 13.5,
                   fontWeight: FontWeight.w800,
@@ -858,7 +849,7 @@ class _Contrato extends StatelessWidget {
                 'valor ${copVerif(k.valorCop)}${dif.isEmpty ? '' : ' ($dif)'}',
               if (k.valorCop > 0) 'pagado ${copVerif(k.pagadoCop)}',
             ].join(' · '),
-            style: const TextStyle(
+            style: TextStyle(
               color: Cristal.textoMedio,
               fontSize: 12.8,
               height: 1.4,
@@ -872,7 +863,7 @@ class _Contrato extends StatelessWidget {
                 if (k.diasAdicionados > 0)
                   'prorrogado ${k.diasAdicionados} días',
               ].join(' · '),
-              style: const TextStyle(color: Cristal.textoSuave, fontSize: 12.3),
+              style: TextStyle(color: Cristal.textoSuave, fontSize: 12.3),
             ),
           FutureBuilder<List<ModificacionContrato>>(
             future: modificaciones,
@@ -880,7 +871,7 @@ class _Contrato extends StatelessWidget {
               if (!snap.hasData) return const SizedBox.shrink();
               final mods = snap.data!;
               if (mods.isEmpty) {
-                return const Padding(
+                return Padding(
                   padding: EdgeInsets.only(top: 6),
                   child: Text(
                     'Sin modificaciones registradas.',
@@ -894,7 +885,7 @@ class _Contrato extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     '${mods.length} modificaci${mods.length == 1 ? 'ón' : 'ones'} aprobada${mods.length == 1 ? '' : 's'}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.texto,
                       fontSize: 12.8,
                       fontWeight: FontWeight.w800,
@@ -917,7 +908,7 @@ class _Contrato extends StatelessWidget {
                         ].where((t) => t.isNotEmpty).join(' · '),
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.textoMedio,
                           fontSize: 12.3,
                           height: 1.4,
@@ -953,10 +944,7 @@ class _Comparacion extends StatelessWidget {
                   width: 92,
                   child: Text(
                     k,
-                    style: const TextStyle(
-                      color: Cristal.textoSuave,
-                      fontSize: 12.5,
-                    ),
+                    style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
                   ),
                 ),
                 Expanded(
@@ -966,11 +954,11 @@ class _Comparacion extends StatelessWidget {
                         if (plan.isNotEmpty)
                           TextSpan(
                             text: 'Planeado: $plan · real: ',
-                            style: const TextStyle(color: Cristal.textoSuave),
+                            style: TextStyle(color: Cristal.textoSuave),
                           ),
                         TextSpan(
                           text: real,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.texto,
                             fontWeight: FontWeight.w700,
                           ),

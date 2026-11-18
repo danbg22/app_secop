@@ -227,40 +227,40 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
   InputDecoration _editableDecoration({
     required String hint,
     required IconData icon,
-    Color iconColor = Cristal.textoMedio,
+    Color? iconColor,
     Widget? suffixIcon,
   }) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(
+      hintStyle: TextStyle(
         color: Cristal.textoTenue,
         fontSize: 13.5,
         fontWeight: FontWeight.w400,
       ),
-      prefixIcon: Icon(icon, size: 19, color: iconColor),
+      prefixIcon: Icon(icon, size: 19, color: iconColor ?? Cristal.textoMedio),
       suffixIcon: suffixIcon,
       filled: true,
       fillColor: Cristal.campo,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Cristal.borde),
+        borderSide: BorderSide(color: Cristal.borde),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Cristal.borde),
+        borderSide: BorderSide(color: Cristal.borde),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Cristal.acentoClaro, width: 1.4),
+        borderSide: BorderSide(color: Cristal.acentoClaro, width: 1.4),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Cristal.rojo),
+        borderSide: BorderSide(color: Cristal.rojo),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Cristal.rojo, width: 1.4),
+        borderSide: BorderSide(color: Cristal.rojo, width: 1.4),
       ),
     );
   }
@@ -268,7 +268,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
   InputDecoration _lockedDecoration({required IconData icon}) {
     return InputDecoration(
       prefixIcon: Icon(icon, size: 19, color: Cristal.textoMedio),
-      suffixIcon: const Icon(
+      suffixIcon: Icon(
         Icons.lock_outline_rounded,
         size: 18,
         color: Cristal.textoSuave,
@@ -278,15 +278,15 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Cristal.borde),
+        borderSide: BorderSide(color: Cristal.borde),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Cristal.borde),
+        borderSide: BorderSide(color: Cristal.borde),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Cristal.borde),
+        borderSide: BorderSide(color: Cristal.borde),
       ),
     );
   }
@@ -296,7 +296,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           color: Cristal.texto,
           fontSize: 12.6,
           fontWeight: FontWeight.w700,
@@ -329,7 +329,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                       hoverDuration: Cristal.micro,
                       onTap: _regresar,
                       borderRadius: BorderRadius.circular(10),
-                      child: const Padding(
+                      child: Padding(
                         padding: EdgeInsets.all(6),
                         child: Icon(
                           Icons.arrow_back_rounded,
@@ -377,7 +377,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
             hoverDuration: Cristal.micro,
             onTap: _abrirDialogoEditarFoto,
             borderRadius: BorderRadius.circular(22),
-            child: const Padding(
+            child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 9.5),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -405,13 +405,13 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
             CircleAvatar(
               radius: isMobile ? 34 : 44,
               backgroundColor: Cristal.avatar,
-              foregroundColor: Cristal.texto,
+              foregroundColor: Cristal.blanco,
               backgroundImage: avatarProvider,
               child: avatarProvider == null
                   ? Text(
                       initial,
                       style: TextStyle(
-                        color: Cristal.texto,
+                        color: Cristal.blanco,
                         fontSize: isMobile ? 28 : 36,
                         fontWeight: FontWeight.w700,
                       ),
@@ -450,7 +450,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                     emailText,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.textoMedio,
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
@@ -474,7 +474,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.verified_user_outlined,
                               size: 15,
                               color: Cristal.texto,
@@ -483,7 +483,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                             Flexible(
                               child: Text(
                                 'Roles activos: ${AuthService.getActiveUserRoleDisplayLabel()}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Cristal.texto,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
@@ -507,7 +507,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(color: Cristal.acentoBorde),
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
@@ -575,7 +575,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
         TextFormField(
           controller: _nombresController,
           textCapitalization: TextCapitalization.words,
-          style: const TextStyle(
+          style: TextStyle(
             color: Cristal.texto,
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -598,7 +598,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
         TextFormField(
           controller: _apellidosController,
           textCapitalization: TextCapitalization.words,
-          style: const TextStyle(
+          style: TextStyle(
             color: Cristal.texto,
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -618,12 +618,12 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
         DropdownButtonFormField<String>(
           key: ValueKey<String>(_pais),
           initialValue: _pais,
-          icon: const Icon(
+          icon: Icon(
             Icons.keyboard_arrow_down_rounded,
             color: Cristal.texto,
             size: 20,
           ),
-          style: const TextStyle(
+          style: TextStyle(
             color: Cristal.texto,
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -651,7 +651,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
         TextFormField(
           controller: _telefonoController,
           keyboardType: TextInputType.phone,
-          style: const TextStyle(
+          style: TextStyle(
             color: Cristal.texto,
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -677,18 +677,18 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                 Container(
                   width: 44,
                   height: 44,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: Cristal.vidrioSuave,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.person_outline_rounded,
                     color: Cristal.acentoClaro,
                     size: 22,
                   ),
                 ),
                 const SizedBox(width: 14),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -737,7 +737,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
               controller: _emailController,
               readOnly: true,
               mouseCursor: SystemMouseCursors.basic,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Cristal.textoSuave,
                 fontSize: 13.8,
                 fontWeight: FontWeight.w500,
@@ -745,7 +745,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
               decoration: _lockedDecoration(icon: Icons.mail_outline_rounded),
             ),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               'El correo electrónico no se puede modificar.',
               style: TextStyle(color: Cristal.textoSuave, fontSize: 11.8),
             ),
@@ -773,7 +773,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
               controller: _documentoController,
               readOnly: true,
               mouseCursor: SystemMouseCursors.basic,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Cristal.textoSuave,
                 fontSize: 13.8,
                 fontWeight: FontWeight.w500,
@@ -781,7 +781,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
               decoration: _lockedDecoration(icon: Icons.subtitles_outlined),
             ),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               'Para actualizar este dato, contacta al soporte de la plataforma.',
               style: TextStyle(color: Cristal.textoSuave, fontSize: 11.8),
             ),
@@ -795,7 +795,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                   onPressed: _isSavingProfile ? null : _guardarDatosPerfil,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Cristal.acento,
-                    foregroundColor: Cristal.texto,
+                    foregroundColor: Cristal.blanco,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(horizontal: 22),
                     shape: RoundedRectangleBorder(
@@ -803,12 +803,12 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                     ),
                   ),
                   icon: _isSavingProfile
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Cristal.texto,
+                            color: Cristal.blanco,
                           ),
                         )
                       : const Icon(Icons.save_outlined, size: 18),
@@ -842,18 +842,18 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                 Container(
                   width: 44,
                   height: 44,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: Cristal.vidrioSuave,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.shield_outlined,
                     color: Cristal.acentoClaro,
                     size: 22,
                   ),
                 ),
                 const SizedBox(width: 14),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -884,7 +884,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
             TextFormField(
               controller: _currentPasswordController,
               obscureText: !_showCurrentPassword,
-              style: const TextStyle(color: Cristal.texto, fontSize: 14),
+              style: TextStyle(color: Cristal.texto, fontSize: 14),
               decoration: _editableDecoration(
                 hint: 'Ingresa tu contraseña actual',
                 icon: Icons.lock_outline_rounded,
@@ -912,7 +912,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
             TextFormField(
               controller: _newPasswordController,
               obscureText: !_showNewPassword,
-              style: const TextStyle(color: Cristal.texto, fontSize: 14),
+              style: TextStyle(color: Cristal.texto, fontSize: 14),
               decoration: _editableDecoration(
                 hint: 'Mín. 8 caracteres, mayúscula y número',
                 icon: Icons.lock_outline_rounded,
@@ -944,7 +944,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
             TextFormField(
               controller: _confirmPasswordController,
               obscureText: !_showConfirmPassword,
-              style: const TextStyle(color: Cristal.texto, fontSize: 14),
+              style: TextStyle(color: Cristal.texto, fontSize: 14),
               decoration: _editableDecoration(
                 hint: 'Repite la nueva contraseña',
                 icon: Icons.lock_outline_rounded,
@@ -981,19 +981,19 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                 onPressed: _isChangingPassword ? null : _cambiarContrasena,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Cristal.acento,
-                  foregroundColor: Cristal.texto,
+                  foregroundColor: Cristal.blanco,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(11),
                   ),
                 ),
                 icon: _isChangingPassword
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 16,
                         height: 16,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Cristal.texto,
+                          color: Cristal.blanco,
                         ),
                       )
                     : const Icon(Icons.vpn_key_outlined, size: 18),
@@ -1011,7 +1011,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
 
   Widget _buildMainPane({required bool isMobile}) {
     if (_isLoadingProfile) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(color: Cristal.acentoClaro),
       );
     }
@@ -1267,7 +1267,7 @@ class _EditAvatarDialogState extends State<_EditAvatarDialog> {
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: const BorderSide(color: Cristal.bordeFuerte),
+        side: BorderSide(color: Cristal.bordeFuerte),
       ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 440),
@@ -1282,18 +1282,18 @@ class _EditAvatarDialogState extends State<_EditAvatarDialog> {
                   Container(
                     width: 40,
                     height: 40,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: Cristal.vidrioSuave,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.camera_alt_outlined,
                       color: Cristal.acentoClaro,
                       size: 20,
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1321,7 +1321,7 @@ class _EditAvatarDialogState extends State<_EditAvatarDialog> {
                     onPressed: _isSaving
                         ? null
                         : () => Navigator.of(context).pop(),
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.close_rounded,
                       color: Cristal.textoSuave,
                       size: 20,
@@ -1336,7 +1336,7 @@ class _EditAvatarDialogState extends State<_EditAvatarDialog> {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Cristal.texto,
                     backgroundColor: Cristal.vidrioSuave,
-                    side: const BorderSide(color: Cristal.borde),
+                    side: BorderSide(color: Cristal.borde),
                     padding: const EdgeInsets.symmetric(vertical: 13),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -1353,7 +1353,7 @@ class _EditAvatarDialogState extends State<_EditAvatarDialog> {
                 ),
                 const SizedBox(height: 16),
               ],
-              const Text(
+              Text(
                 'O pega la URL de una imagen',
                 style: TextStyle(
                   color: Cristal.texto,
@@ -1365,15 +1365,15 @@ class _EditAvatarDialogState extends State<_EditAvatarDialog> {
               TextField(
                 controller: _urlController,
                 keyboardType: TextInputType.url,
-                style: const TextStyle(color: Cristal.texto, fontSize: 13.5),
+                style: TextStyle(color: Cristal.texto, fontSize: 13.5),
                 decoration: InputDecoration(
                   hintText: 'https://ejemplo.com/mi-foto.jpg',
-                  hintStyle: const TextStyle(
+                  hintStyle: TextStyle(
                     color: Cristal.textoTenue,
                     fontSize: 13.5,
                   ),
                   errorText: _errorText,
-                  prefixIcon: const Icon(
+                  prefixIcon: Icon(
                     Icons.link_rounded,
                     size: 19,
                     color: Cristal.textoMedio,
@@ -1386,15 +1386,15 @@ class _EditAvatarDialogState extends State<_EditAvatarDialog> {
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Cristal.borde),
+                    borderSide: BorderSide(color: Cristal.borde),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Cristal.borde),
+                    borderSide: BorderSide(color: Cristal.borde),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
+                    borderSide: BorderSide(
                       color: Cristal.acentoClaro,
                       width: 1.4,
                     ),
@@ -1433,7 +1433,7 @@ class _EditAvatarDialogState extends State<_EditAvatarDialog> {
                     onPressed: _isSaving ? null : _guardarUrl,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Cristal.acento,
-                      foregroundColor: Cristal.texto,
+                      foregroundColor: Cristal.blanco,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 18,

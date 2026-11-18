@@ -74,7 +74,7 @@ class _ProcesosSecopIScreenState extends State<ProcesosSecopIScreen> {
               children: [
                 SelectableText(
                   e.nombre,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
@@ -87,17 +87,14 @@ class _ProcesosSecopIScreenState extends State<ProcesosSecopIScreen> {
                     if (e.municipio.isNotEmpty) e.municipio,
                     if (e.departamento.isNotEmpty) e.departamento,
                   ].join(' · '),
-                  style: const TextStyle(
-                    color: Cristal.textoSuave,
-                    fontSize: 13,
-                  ),
+                  style: TextStyle(color: Cristal.textoSuave, fontSize: 13),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   '${NumberFormat.decimalPattern('es_CO').format(e.procesos)} procesos '
                   'publicados (${e.periodo}) · ${_moneda.format(e.valorEstimado)} '
                   'de cuantía estimada',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
@@ -110,7 +107,7 @@ class _ProcesosSecopIScreenState extends State<ProcesosSecopIScreen> {
                     color: Cristal.ambarVidrio,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Esta entidad no publica en SECOP II (régimen especial). En SECOP I '
                     'registró procesos convocados: muestran el objeto y la cuantía '
                     'estimada, pero no el contratista ni el valor del contrato firmado. '
@@ -157,7 +154,7 @@ class _ProcesosSecopIScreenState extends State<ProcesosSecopIScreen> {
                         title: Text(
                           (p['detalle_del_objeto_a_contratar'] ?? 'Sin objeto')
                               .toString(),
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.texto,
                             fontWeight: FontWeight.w700,
                             fontSize: 13.5,

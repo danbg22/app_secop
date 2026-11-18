@@ -154,15 +154,12 @@ class _AdminVerificationBannerState extends State<AdminVerificationBanner> {
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.admin_panel_settings_outlined,
-                color: Cristal.ambar,
-              ),
+              Icon(Icons.admin_panel_settings_outlined, color: Cristal.ambar),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   titulo,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.ambar,
                     fontWeight: FontWeight.w800,
                     fontSize: 14,
@@ -172,10 +169,7 @@ class _AdminVerificationBannerState extends State<AdminVerificationBanner> {
             ],
           ),
           const SizedBox(height: 6),
-          Text(
-            detalle,
-            style: const TextStyle(color: Cristal.ambar, fontSize: 12.5),
-          ),
+          Text(detalle, style: TextStyle(color: Cristal.ambar, fontSize: 12.5)),
           if (acciones.isNotEmpty) ...[
             const SizedBox(height: 12),
             Wrap(spacing: 10, runSpacing: 8, children: acciones),

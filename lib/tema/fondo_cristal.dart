@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 
 import 'cristal.dart';
 
-/// Fondo de toda la aplicación: oscuro mate con manchas radiales muy
-/// difuminadas en los colores de la marca, que se perciben a través de
-/// los paneles de vidrio.
+/// Fondo de toda la aplicación: mate (oscuro o claro, según el modo) con
+/// manchas radiales muy difuminadas en los colores de la marca, que se
+/// perciben a través de los paneles de vidrio.
 ///
 /// Va una sola vez, en `MaterialApp.builder`, detrás de todas las rutas;
 /// las pantallas usan `Scaffold` transparente.
@@ -45,7 +45,7 @@ class _Mancha {
 class _PintorManchas extends CustomPainter {
   const _PintorManchas();
 
-  static const _manchas = [
+  static List<_Mancha> get _manchas => [
     // Azul de la marca, arriba a la izquierda: la luz principal.
     _Mancha(0.10, 0.02, 0.62, Cristal.acento, 0.36),
     // Dorado, abajo a la derecha.
@@ -61,7 +61,10 @@ class _PintorManchas extends CustomPainter {
     final rect = Offset.zero & size;
     canvas.drawRect(rect, Paint()..color = Cristal.fondo);
     final lado = math.max(size.width, size.height);
+    // Sobre el fondo claro las mismas manchas, apenas insinuadas.
+    final intensidad = Cristal.esClaro ? 0.32 : 1.0;
     for (final m in _manchas) {
+      final alfa = m.alfa * intensidad;
       final centro = Offset(size.width * m.x, size.height * m.y);
       final radio = lado * m.radio;
       canvas.drawRect(
@@ -69,9 +72,9 @@ class _PintorManchas extends CustomPainter {
         Paint()
           ..shader = RadialGradient(
             colors: [
-              m.color.withValues(alpha: m.alfa),
-              m.color.withValues(alpha: m.alfa * 0.42),
-              m.color.withValues(alpha: m.alfa * 0.12),
+              m.color.withValues(alpha: alfa),
+              m.color.withValues(alpha: alfa * 0.42),
+              m.color.withValues(alpha: alfa * 0.12),
               m.color.withValues(alpha: 0),
             ],
             stops: const [0, 0.38, 0.7, 1],

@@ -429,7 +429,7 @@ class _EntidadPaaScreenState extends State<EntidadPaaScreen> {
           ],
         ],
         const SizedBox(height: 18),
-        const Text(
+        Text(
           'Fuente: SECOP II, Datos Abiertos (PAA encabezado y detalle; contratos). Lo proyectado suma las '
           'compras publicadas en cada plan, una vez cada una; no se usa el presupuesto que declara el '
           'encabezado porque algunas entidades lo diligencian distinto a sus compras. Lo contratado son los '
@@ -476,7 +476,7 @@ class _Resumen extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             v,
-            style: const TextStyle(
+            style: TextStyle(
               color: Cristal.texto,
               fontSize: 20,
               fontWeight: FontWeight.w800,
@@ -484,7 +484,7 @@ class _Resumen extends StatelessWidget {
           ),
           Text(
             nota,
-            style: const TextStyle(color: Cristal.textoSuave, fontSize: 12.3),
+            style: TextStyle(color: Cristal.textoSuave, fontSize: 12.3),
           ),
         ],
       ),
@@ -530,7 +530,7 @@ class _Resumen extends StatelessWidget {
                       if (total != null)
                         Text(
                           millones(total!),
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.texto,
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
@@ -539,16 +539,13 @@ class _Resumen extends StatelessWidget {
                       else if (error != null)
                         Text(
                           error!,
-                          style: const TextStyle(
-                            color: Cristal.rojo,
-                            fontSize: 13,
-                          ),
+                          style: TextStyle(color: Cristal.rojo, fontSize: 13),
                         )
                       else
                         Text(
                           'Calculando con cada compra de cada plan…'
                           '${pendientes > 0 ? ' faltan $pendientes cuenta${pendientes == 1 ? '' : 's'}.' : ''}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.textoSuave,
                             fontSize: 13,
                           ),
@@ -637,7 +634,7 @@ class _Grupo extends StatelessWidget {
                             children: [
                               Text(
                                 g.titulo,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Cristal.texto,
                                   fontSize: 15.5,
                                   fontWeight: FontWeight.w800,
@@ -646,7 +643,7 @@ class _Grupo extends StatelessWidget {
                               const SizedBox(height: 2),
                               Text(
                                 detalle,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Cristal.textoSuave,
                                   fontSize: 12.3,
                                 ),
@@ -695,7 +692,7 @@ class _Grupo extends StatelessWidget {
                             : 'Contratado en el año: ${millones(contratado!)} '
                                   '(${(contratado! / total * 100).round()} % del plan) · '
                                   'por contratar (aprox.) ${millones((total - contratado!).clamp(0, double.infinity).toDouble())}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.textoMedio,
                           fontSize: 12.3,
                         ),
@@ -778,7 +775,7 @@ class _FilaCuenta extends StatelessWidget {
                 children: [
                   Text(
                     nodo.nombre,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.texto,
                       fontSize: 13.8,
                       fontWeight: FontWeight.w800,
@@ -789,10 +786,7 @@ class _FilaCuenta extends StatelessWidget {
                       'Versión ${p.version}',
                       if (actualizado.isNotEmpty) 'actualizado $actualizado',
                     ].join(' · '),
-                    style: const TextStyle(
-                      color: Cristal.textoSuave,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: Cristal.textoSuave, fontSize: 12),
                   ),
                 ],
               ),
@@ -828,7 +822,7 @@ class _Valor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (sinCompras) {
-      return const Text(
+      return Text(
         'Sin compras publicadas',
         style: TextStyle(color: Cristal.textoSuave, fontSize: 12),
       );
@@ -845,13 +839,13 @@ class _Valor extends StatelessWidget {
       children: [
         Text(
           millones(total!),
-          style: const TextStyle(
+          style: TextStyle(
             color: Cristal.texto,
             fontSize: 14.5,
             fontWeight: FontWeight.w800,
           ),
         ),
-        const Text(
+        Text(
           'previsto',
           style: TextStyle(color: Cristal.textoSuave, fontSize: 11.5),
         ),
@@ -876,7 +870,7 @@ class _Mensaje extends StatelessWidget {
           Expanded(
             child: Text(
               texto,
-              style: const TextStyle(color: Cristal.textoMedio, fontSize: 13.5),
+              style: TextStyle(color: Cristal.textoMedio, fontSize: 13.5),
             ),
           ),
           if (onReintentar != null)

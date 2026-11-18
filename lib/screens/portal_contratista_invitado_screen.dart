@@ -261,13 +261,13 @@ class _PortalContratistaInvitadoScreenState
             mainAxisSize: MainAxisSize.min,
             children: [
               Image.asset(
-                'assets/images/logo_fondo_oscuro.png',
+                Cristal.logo,
                 height: 46,
                 fit: BoxFit.contain,
                 filterQuality: FilterQuality.high,
               ),
               const SizedBox(height: 18),
-              const Text(
+              Text(
                 'Enlace de contrato no encontrado',
                 textAlign: TextAlign.center,
                 style: TextStyle(
@@ -277,7 +277,7 @@ class _PortalContratistaInvitadoScreenState
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Verifica que hayas copiado completo el enlace enviado por el equipo jurídico de la entidad contratante.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
@@ -319,7 +319,7 @@ class _PortalContratistaInvitadoScreenState
               children: [
                 Center(
                   child: Image.asset(
-                    'assets/images/logo_fondo_oscuro.png',
+                    Cristal.logo,
                     height: 50,
                     fit: BoxFit.contain,
                     filterQuality: FilterQuality.high,
@@ -340,7 +340,7 @@ class _PortalContratistaInvitadoScreenState
                     children: [
                       Text(
                         exp.entidadNombre,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.textoSuave,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -349,7 +349,7 @@ class _PortalContratistaInvitadoScreenState
                       const SizedBox(height: 4),
                       Text(
                         'Contrato ${exp.numeroContrato}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.texto,
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
@@ -358,7 +358,7 @@ class _PortalContratistaInvitadoScreenState
                       const SizedBox(height: 6),
                       Text(
                         exp.objetoContrato,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.textoCuerpo,
                           fontSize: 13,
                           height: 1.4,
@@ -369,7 +369,7 @@ class _PortalContratistaInvitadoScreenState
                 ),
                 const SizedBox(height: 22),
 
-                const Text(
+                Text(
                   'Ingreso del contratista',
                   style: TextStyle(
                     color: Cristal.texto,
@@ -378,7 +378,7 @@ class _PortalContratistaInvitadoScreenState
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   'Ingresa tu nombre completo y número de cédula para cargar o subsanar los documentos de este contrato.',
                   style: TextStyle(
                     color: Cristal.textoSuave,
@@ -388,7 +388,7 @@ class _PortalContratistaInvitadoScreenState
                 ),
                 const SizedBox(height: 18),
 
-                const Text(
+                Text(
                   'Nombre completo',
                   style: TextStyle(
                     color: Cristal.textoCuerpo,
@@ -400,10 +400,10 @@ class _PortalContratistaInvitadoScreenState
                 TextField(
                   controller: _nombreController,
                   textInputAction: TextInputAction.next,
-                  style: const TextStyle(fontSize: 14, color: Cristal.texto),
+                  style: TextStyle(fontSize: 14, color: Cristal.texto),
                   decoration: InputDecoration(
                     hintText: 'Ej.: ${exp.contratistaNombreEsperado}',
-                    hintStyle: const TextStyle(
+                    hintStyle: TextStyle(
                       color: Cristal.textoTenue,
                       fontSize: 13.5,
                     ),
@@ -415,15 +415,15 @@ class _PortalContratistaInvitadoScreenState
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Cristal.borde),
+                      borderSide: BorderSide(color: Cristal.borde),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Cristal.borde),
+                      borderSide: BorderSide(color: Cristal.borde),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(
+                      borderSide: BorderSide(
                         color: Cristal.acentoClaro,
                         width: 1.4,
                       ),
@@ -432,7 +432,7 @@ class _PortalContratistaInvitadoScreenState
                 ),
                 const SizedBox(height: 14),
 
-                const Text(
+                Text(
                   'Número de cédula',
                   style: TextStyle(
                     color: Cristal.textoCuerpo,
@@ -445,10 +445,10 @@ class _PortalContratistaInvitadoScreenState
                   controller: _cedulaController,
                   keyboardType: TextInputType.number,
                   onSubmitted: (_) => _ingresarAlContrato(),
-                  style: const TextStyle(fontSize: 14, color: Cristal.texto),
+                  style: TextStyle(fontSize: 14, color: Cristal.texto),
                   decoration: InputDecoration(
                     hintText: 'Ingresa tu número de documento sin puntos',
-                    hintStyle: const TextStyle(
+                    hintStyle: TextStyle(
                       color: Cristal.textoTenue,
                       fontSize: 13.5,
                     ),
@@ -460,15 +460,15 @@ class _PortalContratistaInvitadoScreenState
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Cristal.borde),
+                      borderSide: BorderSide(color: Cristal.borde),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Cristal.borde),
+                      borderSide: BorderSide(color: Cristal.borde),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(
+                      borderSide: BorderSide(
                         color: Cristal.acentoClaro,
                         width: 1.4,
                       ),
@@ -493,7 +493,7 @@ class _PortalContratistaInvitadoScreenState
                     ),
                     child: Text(
                       _mensajeErrorIngreso!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.rojo,
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,
@@ -536,7 +536,7 @@ class _PortalContratistaInvitadoScreenState
       color: Cristal.campo,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
-        side: const BorderSide(color: Cristal.borde),
+        side: BorderSide(color: Cristal.borde),
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(4, 6, 12, 10),
@@ -555,7 +555,7 @@ class _PortalContratistaInvitadoScreenState
               contentPadding: EdgeInsets.zero,
               dense: true,
               activeColor: Cristal.acento,
-              title: const Text(
+              title: Text(
                 ConsentService.textoCasilla,
                 style: TextStyle(
                   color: Cristal.texto,
@@ -563,7 +563,7 @@ class _PortalContratistaInvitadoScreenState
                   height: 1.4,
                 ),
               ),
-              subtitle: const Padding(
+              subtitle: Padding(
                 padding: EdgeInsets.only(top: 4),
                 child: Text(
                   'Incluye tu cédula, dirección, celular, cuenta bancaria y los '
@@ -602,7 +602,7 @@ class _PortalContratistaInvitadoScreenState
     final acepta = await mostrarDialogoCristal<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text(
+        title: Text(
           'Política de privacidad y tratamiento de datos personales',
           style: TextStyle(
             color: Cristal.texto,
@@ -612,7 +612,7 @@ class _PortalContratistaInvitadoScreenState
         ),
         content: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 560, maxHeight: 440),
-          child: const SingleChildScrollView(
+          child: SingleChildScrollView(
             child: Text(
               ConsentService.textoPolitica,
               style: TextStyle(
@@ -676,7 +676,7 @@ class _PortalContratistaInvitadoScreenState
                     Row(
                       children: [
                         Image.asset(
-                          'assets/images/logo_fondo_oscuro.png',
+                          Cristal.logo,
                           height: 36,
                           fit: BoxFit.contain,
                           filterQuality: FilterQuality.high,
@@ -693,19 +693,23 @@ class _PortalContratistaInvitadoScreenState
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(color: Cristal.verdeBorde),
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
                                   Icons.circle,
                                   size: 7,
-                                  color: Color(0xFF34D399),
+                                  color: Cristal.legible(
+                                    const Color(0xFF34D399),
+                                  ),
                                 ),
                                 SizedBox(width: 6),
                                 Text(
                                   'Sincronización en tiempo real',
                                   style: TextStyle(
-                                    color: Color(0xFF34D399),
+                                    color: Cristal.legible(
+                                      const Color(0xFF34D399),
+                                    ),
                                     fontSize: 11.5,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -719,12 +723,12 @@ class _PortalContratistaInvitadoScreenState
                           onPressed: () {
                             setState(() => _accesoValidado = false);
                           },
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.logout_rounded,
                             size: 16,
                             color: Cristal.textoSuave,
                           ),
-                          label: const Text(
+                          label: Text(
                             'Salir',
                             style: TextStyle(
                               color: Cristal.textoSuave,
@@ -735,7 +739,7 @@ class _PortalContratistaInvitadoScreenState
                       ],
                     ),
                     const SizedBox(height: 14),
-                    const Divider(height: 1, color: Cristal.borde),
+                    Divider(height: 1, color: Cristal.borde),
                     const SizedBox(height: 14),
                     Wrap(
                       spacing: 12,
@@ -761,7 +765,7 @@ class _PortalContratistaInvitadoScreenState
                           ),
                           child: Text(
                             '${exp.totalCargados} de ${exp.totalApartados} documentos cargados',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.texto,
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -773,15 +777,12 @@ class _PortalContratistaInvitadoScreenState
                     const SizedBox(height: 6),
                     Text(
                       '${exp.entidadNombre} · ${exp.dependencia}${exp.valorContratoCop > 0 ? " · ${_monedaFormat.format(exp.valorContratoCop)} (${exp.plazoEjecucion})" : ""}',
-                      style: const TextStyle(
-                        color: Cristal.textoSuave,
-                        fontSize: 13,
-                      ),
+                      style: TextStyle(color: Cristal.textoSuave, fontSize: 13),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       exp.objetoContrato,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.textoCuerpo,
                         fontSize: 13,
                         height: 1.4,
@@ -790,7 +791,7 @@ class _PortalContratistaInvitadoScreenState
                     const SizedBox(height: 10),
                     Text(
                       'Contratista: $_contratistaNombreActivo · CC $_contratistaCedulaActiva',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.texto,
                         fontSize: 12.8,
                         fontWeight: FontWeight.w600,
@@ -819,7 +820,7 @@ class _PortalContratistaInvitadoScreenState
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.info_outline_rounded,
                         color: Cristal.ambar,
                         size: 20,
@@ -830,7 +831,7 @@ class _PortalContratistaInvitadoScreenState
                           exp.totalPorSubsanar == 1
                               ? 'Tienes 1 documento devuelto por el equipo jurídico. Revisa la observación indicada abajo y sube el archivo corregido.'
                               : 'Tienes ${exp.totalPorSubsanar} documentos devueltos por el equipo jurídico. Revisa las observaciones indicadas abajo y sube los archivos corregidos.',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.ambar,
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
@@ -855,7 +856,7 @@ class _PortalContratistaInvitadoScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.fromLTRB(20, 18, 20, 14),
                       child: Text(
                         'Documentos requeridos',
@@ -866,9 +867,9 @@ class _PortalContratistaInvitadoScreenState
                         ),
                       ),
                     ),
-                    const Divider(height: 1, color: Cristal.borde),
+                    Divider(height: 1, color: Cristal.borde),
                     for (var i = 0; i < exp.apartados.length; i++) ...[
-                      if (i > 0) const Divider(height: 1, color: Cristal.borde),
+                      if (i > 0) Divider(height: 1, color: Cristal.borde),
                       _buildFilaDocumentoContratista(
                         exp,
                         exp.apartados[i],
@@ -906,7 +907,7 @@ class _PortalContratistaInvitadoScreenState
                             Expanded(
                               child: Text(
                                 'Trazabilidad (${exp.trazabilidad.length} eventos)',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Cristal.texto,
                                   fontSize: 14.5,
                                   fontWeight: FontWeight.w700,
@@ -924,7 +925,7 @@ class _PortalContratistaInvitadoScreenState
                       ),
                     ),
                     if (_trazabilidadAbierta) ...[
-                      const Divider(height: 1, color: Cristal.borde),
+                      Divider(height: 1, color: Cristal.borde),
                       Padding(
                         padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
                         child: Column(
@@ -954,7 +955,7 @@ class _PortalContratistaInvitadoScreenState
                                             JuridicoContratacionService.formatearFechaHumana(
                                               ev.fechaIso,
                                             ),
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               color: Cristal.textoSuave,
                                               fontSize: 11.5,
                                             ),
@@ -962,7 +963,7 @@ class _PortalContratistaInvitadoScreenState
                                           const SizedBox(height: 2),
                                           Text(
                                             '${ev.actorNombre} · ${ev.titulo}',
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               color: Cristal.texto,
                                               fontSize: 12.8,
                                               fontWeight: FontWeight.w600,
@@ -971,7 +972,7 @@ class _PortalContratistaInvitadoScreenState
                                           if (ev.detalle.trim().isNotEmpty)
                                             Text(
                                               ev.detalle,
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 color: Cristal.textoSuave,
                                                 fontSize: 12,
                                               ),
@@ -1010,14 +1011,14 @@ class _PortalContratistaInvitadoScreenState
         Cristal.verde,
       ),
       EstadoDocumentoJuridico.subsanadoEnRevision => (
-        const Color(0xFF38BDF8),
+        Cristal.legible(const Color(0xFF38BDF8)),
         Cristal.azulVidrio,
-        const Color(0xFF38BDF8),
+        Cristal.legible(const Color(0xFF38BDF8)),
       ),
       EstadoDocumentoJuridico.aprobado => (
-        const Color(0xFF34D399),
+        Cristal.legible(const Color(0xFF34D399)),
         const Color(0x2410B981),
-        const Color(0xFF34D399),
+        Cristal.legible(const Color(0xFF34D399)),
       ),
       EstadoDocumentoJuridico.devueltoSubsanar => (
         Cristal.ambar,
@@ -1043,7 +1044,7 @@ class _PortalContratistaInvitadoScreenState
             children: [
               Text(
                 ap.nombre,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
@@ -1087,7 +1088,7 @@ class _PortalContratistaInvitadoScreenState
             const SizedBox(height: 4),
             Text(
               ap.descripcion,
-              style: const TextStyle(color: Cristal.textoSuave, fontSize: 12.3),
+              style: TextStyle(color: Cristal.textoSuave, fontSize: 12.3),
             ),
           ],
 
@@ -1106,7 +1107,7 @@ class _PortalContratistaInvitadoScreenState
               ),
               child: Text(
                 'Observación para corregir: ${ap.observacionJuridica}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.ambar,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
@@ -1173,7 +1174,7 @@ class _PortalContratistaInvitadoScreenState
                       if (ap.tieneArchivoCargado)
                         Text(
                           '${ap.formatoCorto}${ap.tamanoFormateado.isNotEmpty ? " · ${ap.tamanoFormateado}" : ""}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.textoSuave,
                             fontSize: 11.8,
                           ),
@@ -1188,7 +1189,7 @@ class _PortalContratistaInvitadoScreenState
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Cristal.texto,
                       backgroundColor: Cristal.vidrio,
-                      side: const BorderSide(color: Cristal.bordeFuerte),
+                      side: BorderSide(color: Cristal.bordeFuerte),
                       minimumSize: const Size(54, 34),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
@@ -1215,7 +1216,7 @@ class _PortalContratistaInvitadoScreenState
                         : () => _seleccionarYSubirArchivo(exp, ap),
                     style: FilledButton.styleFrom(
                       backgroundColor: ap.requiereSubsanacion
-                          ? const Color(0xFFD97706)
+                          ? Cristal.legible(const Color(0xFFD97706))
                           : Cristal.acento,
                       minimumSize: const Size(80, 34),
                       padding: const EdgeInsets.symmetric(

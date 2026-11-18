@@ -84,7 +84,7 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
     if (estadoLower.contains('borrador') || estadoLower.contains('cancelado')) {
       return Cristal.textoTenue;
     }
-    return Color(0xFF38BDF8);
+    return Cristal.legible(const Color(0xFF38BDF8));
   }
 
   String? _obtenerDocumento(Map<String, dynamic> perfil) {
@@ -147,7 +147,7 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
             ),
             title: Text(
               nombre,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Cristal.texto,
                 fontWeight: FontWeight.w600,
               ),
@@ -169,7 +169,10 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
             trailing: IconButton(
               tooltip: 'Eliminar de favoritos',
               onPressed: () => _eliminarContratista(id),
-              icon: Icon(Icons.delete_outline, color: Color(0xFFEF5350)),
+              icon: Icon(
+                Icons.delete_outline,
+                color: Cristal.legible(const Color(0xFFEF5350)),
+              ),
             ),
           ),
         );
@@ -247,7 +250,7 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
                       Expanded(
                         child: Text(
                           contrato['nombre_entidad']?.toString() ?? '',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
                             color: Cristal.textoSuave,
@@ -257,11 +260,7 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
                       IconButton(
                         tooltip: 'Eliminar de favoritos',
                         onPressed: () => _eliminarFavorito(idUnico),
-                        icon: const Icon(
-                          Icons.star,
-                          color: Cristal.ambar,
-                          size: 24,
-                        ),
+                        icon: Icon(Icons.star, color: Cristal.ambar, size: 24),
                       ),
                     ],
                   ),
@@ -275,7 +274,7 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.person_outline,
                         size: 16,
                         color: Cristal.textoTenue,
@@ -325,8 +324,8 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
                     children: [
                       Text(
                         formatoMoneda.format(valor),
-                        style: const TextStyle(
-                          color: Color(0xDDFFFFFF),
+                        style: TextStyle(
+                          color: Cristal.textoCuerpo,
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
                         ),
@@ -413,7 +412,7 @@ class _FavoritosScreenState extends State<FavoritosScreen> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Cristal.borde),
                 ),
-                child: const TabBar(
+                child: TabBar(
                   labelColor: Cristal.texto,
                   unselectedLabelColor: Cristal.textoTenue,
                   indicatorColor: Cristal.dorado,

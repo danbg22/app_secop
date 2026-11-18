@@ -6,48 +6,38 @@ import '../../tema/cristal.dart';
 
 /// Grupo visual del estado de un proceso en SECOP II.
 enum GrupoEstadoSecop {
-  preparacion(
-    'En preparación',
-    Icons.edit_note_rounded,
-    Cristal.textoMedio,
-    Cristal.borde,
-  ),
-  publicado(
-    'Publicado',
-    Icons.campaign_outlined,
-    Cristal.acentoClaro,
-    Cristal.azulVidrio,
-  ),
-  evaluacion(
-    'En evaluación',
-    Icons.rule_rounded,
-    Color(0xFFA78BFA),
-    Color(0x248B5CF6),
-  ),
-  adjudicado(
-    'Adjudicado',
-    Icons.verified_rounded,
-    Cristal.verde,
-    Cristal.verdeVidrio,
-  ),
-  terminado(
-    'Cancelado o desierto',
-    Icons.block_rounded,
-    Cristal.rojo,
-    Cristal.rojoVidrio,
-  ),
-  sinSincronizar(
-    'Sin sincronizar',
-    Icons.cloud_off_rounded,
-    Cristal.textoSuave,
-    Cristal.vidrioSuave,
-  );
+  preparacion('En preparación', Icons.edit_note_rounded),
+  publicado('Publicado', Icons.campaign_outlined),
+  evaluacion('En evaluación', Icons.rule_rounded),
+  adjudicado('Adjudicado', Icons.verified_rounded),
+  terminado('Cancelado o desierto', Icons.block_rounded),
+  sinSincronizar('Sin sincronizar', Icons.cloud_off_rounded);
 
-  const GrupoEstadoSecop(this.etiqueta, this.icono, this.color, this.fondo);
+  const GrupoEstadoSecop(this.etiqueta, this.icono);
   final String etiqueta;
   final IconData icono;
-  final Color color;
-  final Color fondo;
+
+  /// Colores del modo activo (claro u oscuro).
+  Color get color => switch (this) {
+    preparacion => Cristal.textoMedio,
+    publicado => Cristal.acentoClaro,
+    evaluacion =>
+      Cristal.esClaro
+          ? const Color(0xFF6D28D9)
+          : Cristal.legible(const Color(0xFFA78BFA)),
+    adjudicado => Cristal.verde,
+    terminado => Cristal.rojo,
+    sinSincronizar => Cristal.textoSuave,
+  };
+
+  Color get fondo => switch (this) {
+    preparacion => Cristal.borde,
+    publicado => Cristal.azulVidrio,
+    evaluacion => const Color(0x248B5CF6),
+    adjudicado => Cristal.verdeVidrio,
+    terminado => Cristal.rojoVidrio,
+    sinSincronizar => Cristal.vidrioSuave,
+  };
 
   static GrupoEstadoSecop de(ProcesoSecop? s) {
     if (s == null) return sinSincronizar;
@@ -148,7 +138,7 @@ class _ListaDocumentosSecopState extends State<ListaDocumentosSecop> {
   Widget build(BuildContext context) {
     final docs = widget.documentos.reversed.toList();
     if (docs.isEmpty) {
-      return const Text(
+      return Text(
         'Aún no hay documentos publicados en SECOP II (o Datos Abiertos no los ha reportado).',
         style: TextStyle(color: Cristal.textoSuave, fontSize: 12.8),
       );
@@ -178,7 +168,7 @@ class _ListaDocumentosSecopState extends State<ListaDocumentosSecop> {
                           d.nombre,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.texto,
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
@@ -190,7 +180,7 @@ class _ListaDocumentosSecopState extends State<ListaDocumentosSecop> {
                             d.descripcion,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.textoSuave,
                               fontSize: 11.8,
                             ),
@@ -201,14 +191,11 @@ class _ListaDocumentosSecopState extends State<ListaDocumentosSecop> {
                   const SizedBox(width: 8),
                   Text(
                     d.fechaIso,
-                    style: const TextStyle(
-                      color: Cristal.textoSuave,
-                      fontSize: 11.8,
-                    ),
+                    style: TextStyle(color: Cristal.textoSuave, fontSize: 11.8),
                   ),
                   if (d.url.isNotEmpty) ...[
                     const SizedBox(width: 6),
-                    const Icon(
+                    Icon(
                       Icons.open_in_new_rounded,
                       size: 16,
                       color: Cristal.textoSuave,

@@ -219,7 +219,7 @@ class _PlantillaInformeScreenState extends State<PlantillaInformeScreen> {
                   ),
                   const SizedBox(height: 14),
                   if (generable)
-                    const Text(
+                    Text(
                       'La app sabe generar este documento con los datos del informe.',
                       style: TextStyle(
                         color: Cristal.verde,
@@ -309,12 +309,12 @@ class _PlantillaInformeScreenState extends State<PlantillaInformeScreen> {
           ),
         ),
         const SizedBox(height: 20),
-        const Text(
+        Text(
           'Plantilla de informes de la entidad',
           style: EstiloContractual.titulo,
         ),
         const SizedBox(height: 6),
-        const Text(
+        Text(
           'Lo que esta entidad pide en cada informe. Se aplica a los contratos que configures desde ahora; '
           'los ya configurados conservan su copia hasta que los edites.',
           style: EstiloContractual.subtitulo,
@@ -395,10 +395,7 @@ class _PlantillaInformeScreenState extends State<PlantillaInformeScreen> {
                     backgroundColor: Cristal.acentoVidrio,
                     child: Text(
                       '${i + 1}',
-                      style: const TextStyle(
-                        color: Cristal.texto,
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: Cristal.texto, fontSize: 12),
                     ),
                   ),
                   title: Text(

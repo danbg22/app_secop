@@ -95,14 +95,14 @@ const List<String> _macroprocesos = [
   'Evaluación y control',
 ];
 
-const List<_DependenciaInterna> _dependenciasInternas = [
+List<_DependenciaInterna> get _dependenciasInternas => [
   _DependenciaInterna(
     id: 'planeacion',
     nombreNacional: 'Oficina de Planeación y Direccionamiento',
     nombreTerritorial: 'Oficina de Planeación y Direccionamiento',
     macroproceso: 'Estratégicos y de dirección',
     icon: Icons.account_tree_rounded,
-    color: Color(0xFF38BDF8),
+    color: Cristal.legible(const Color(0xFF38BDF8)),
     bg: Cristal.azulVidrio,
     palabras: [
       'PLANEAC',
@@ -161,7 +161,7 @@ const List<_DependenciaInterna> _dependenciasInternas = [
     nombreTerritorial: 'Desarrollo Social, Salud y Bienestar',
     macroproceso: 'Misionales',
     icon: Icons.health_and_safety_rounded,
-    color: Color(0xFF38BDF8),
+    color: Cristal.legible(const Color(0xFF38BDF8)),
     bg: Cristal.azulVidrio,
     palabras: [
       'SALUD',
@@ -179,7 +179,7 @@ const List<_DependenciaInterna> _dependenciasInternas = [
     nombreTerritorial: 'Secretaría de Hacienda',
     macroproceso: 'De apoyo',
     icon: Icons.receipt_long_outlined,
-    color: Color(0xFF34D399),
+    color: Cristal.legible(const Color(0xFF34D399)),
     bg: Color(0x2410B981),
     palabras: [
       'HACIENDA',
@@ -196,7 +196,7 @@ const List<_DependenciaInterna> _dependenciasInternas = [
     nombreTerritorial: 'Tecnologías de la Información (TIC)',
     macroproceso: 'De apoyo',
     icon: Icons.computer_rounded,
-    color: Color(0xFF2DD4BF),
+    color: Cristal.legible(const Color(0xFF2DD4BF)),
     bg: Color(0x2414B8A6),
     palabras: [
       'SISTEMA',
@@ -213,7 +213,7 @@ const List<_DependenciaInterna> _dependenciasInternas = [
     nombreTerritorial: 'Oficina Jurídica y Contratación',
     macroproceso: 'De apoyo',
     icon: Icons.gavel_rounded,
-    color: Color(0xFFA78BFA),
+    color: Cristal.legible(const Color(0xFFA78BFA)),
     bg: Color(0x248B5CF6),
     palabras: ['JUR_DIC', 'ABOGAD', 'JUDICIAL', 'DEFENSA'],
   ),
@@ -782,7 +782,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   }
 
   /// GET a Datos Abiertos con reintentos, petición de respaldo y caché de
-  /// 12 minutos ([DatosAbiertos]): datos.gov.co a veces corta la conexión,
+  /// una hora ([DatosAbiertos]): datos.gov.co a veces corta la conexión,
   /// deja colgada una consulta o responde 429/5xx de forma transitoria.
   static Future<http.Response> _getSecop(
     Uri uri, {
@@ -1497,7 +1497,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         return (Cristal.ambar, Cristal.ambarVidrio, Icons.handshake_outlined);
       case 'Mínima cuantía':
         return (
-          const Color(0xFFA78BFA),
+          Cristal.legible(const Color(0xFFA78BFA)),
           const Color(0x248B5CF6),
           Icons.flash_on_outlined,
         );
@@ -1505,14 +1505,14 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         return (Cristal.verde, Cristal.verdeVidrio, Icons.fact_check_outlined);
       case 'Concurso de méritos':
         return (
-          const Color(0xFF2DD4BF),
+          Cristal.legible(const Color(0xFF2DD4BF)),
           const Color(0x2414B8A6),
           Icons.workspace_premium_outlined,
         );
       case 'Régimen especial':
       default:
         return (
-          const Color(0xFF38BDF8),
+          Cristal.legible(const Color(0xFF38BDF8)),
           Cristal.azulVidrio,
           Icons.account_balance_wallet_outlined,
         );
@@ -1552,7 +1552,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         mobile ? 8 : 32,
         mobile ? 10 : 12,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Cristal.vidrio,
         border: Border(bottom: BorderSide(color: Cristal.borde)),
       ),
@@ -1561,7 +1561,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           IconButton(
             onPressed: () => Navigator.maybePop(context),
             tooltip: 'Volver a Entidades',
-            icon: const Icon(Icons.arrow_back_rounded, color: Cristal.texto),
+            icon: Icon(Icons.arrow_back_rounded, color: Cristal.texto),
           ),
           const SizedBox(width: 4),
           Container(
@@ -1606,7 +1606,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                     metadatos.map((m) => m.$2).join(' · '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.textoMedio,
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
@@ -1625,7 +1625,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                             const SizedBox(width: 4),
                             Text(
                               texto,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Cristal.textoMedio,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -1668,7 +1668,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
               ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Cristal.texto,
-                side: const BorderSide(color: Cristal.bordeFuerte),
+                side: BorderSide(color: Cristal.bordeFuerte),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
                   vertical: 12,
@@ -1699,14 +1699,14 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       controller: _busquedaController,
       onSubmitted: _aplicarBusqueda,
       textInputAction: TextInputAction.search,
-      style: const TextStyle(fontSize: 14, color: Cristal.texto),
+      style: TextStyle(fontSize: 14, color: Cristal.texto),
       decoration: InputDecoration(
         hintText: mobile
             ? 'Número, objeto o contratista'
             : 'Buscar contrato: número, palabra del objeto o contratista '
                   '(se suma a los filtros)…',
-        hintStyle: const TextStyle(fontSize: 13.5, color: Cristal.textoTenue),
-        prefixIcon: const Icon(Icons.search_rounded, color: Cristal.texto),
+        hintStyle: TextStyle(fontSize: 13.5, color: Cristal.textoTenue),
+        prefixIcon: Icon(Icons.search_rounded, color: Cristal.texto),
         suffixIcon: ValueListenableBuilder<TextEditingValue>(
           valueListenable: _busquedaController,
           builder: (context, valor, _) =>
@@ -1724,15 +1724,15 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         contentPadding: const EdgeInsets.symmetric(vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Cristal.bordeFuerte),
+          borderSide: BorderSide(color: Cristal.bordeFuerte),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Cristal.bordeFuerte),
+          borderSide: BorderSide(color: Cristal.bordeFuerte),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Cristal.acentoClaro, width: 1.6),
+          borderSide: BorderSide(color: Cristal.acentoClaro, width: 1.6),
         ),
       ),
     );
@@ -1743,7 +1743,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
 
     return Container(
       padding: EdgeInsets.fromLTRB(mobile ? 12 : 32, 12, mobile ? 12 : 32, 12),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Cristal.vidrio,
         border: Border(bottom: BorderSide(color: Cristal.borde)),
       ),
@@ -1762,10 +1762,10 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                   child: IconButton.outlined(
                     onPressed: _abrirFiltrosMovil,
                     tooltip: etiquetaFiltros,
-                    icon: const Icon(Icons.tune_rounded, color: Cristal.texto),
+                    icon: Icon(Icons.tune_rounded, color: Cristal.texto),
                     style: IconButton.styleFrom(
                       fixedSize: const Size(48, 48),
-                      side: const BorderSide(color: Cristal.bordeFuerte),
+                      side: BorderSide(color: Cristal.bordeFuerte),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -2018,7 +2018,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       padding: const EdgeInsets.only(bottom: 6),
       child: Text(
         texto.toUpperCase(),
-        style: const TextStyle(
+        style: TextStyle(
           color: Cristal.textoSuave,
           fontSize: 11,
           fontWeight: FontWeight.w800,
@@ -2111,7 +2111,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                   selectedColor: Cristal.acento,
                   backgroundColor: Cristal.vidrio,
                   checkmarkColor: Cristal.texto,
-                  side: const BorderSide(color: Cristal.bordeFuerte),
+                  side: BorderSide(color: Cristal.bordeFuerte),
                   visualDensity: VisualDensity.compact,
                 ),
             ],
@@ -2146,7 +2146,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           label: Text(texto),
           onDeleted: alQuitar,
           deleteIcon: const Icon(Icons.close_rounded, size: 15),
-          labelStyle: const TextStyle(
+          labelStyle: TextStyle(
             color: Cristal.texto,
             fontSize: 12,
             fontWeight: FontWeight.w600,
@@ -2246,7 +2246,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           ),
         if (_isMobile) const SizedBox(width: 12) else const Spacer(),
         if (_isLoadingLive)
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 10),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -2289,7 +2289,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: _isMobile ? 12 : 32),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Cristal.vidrio,
         border: Border(bottom: BorderSide(color: Cristal.borde)),
       ),
@@ -2344,7 +2344,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                             children: [
                               Text(
                                 'Ejecución contractual · Vigencia $_activeBudgetYear$scopeSuffix',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Cristal.texto,
                                   fontSize: 19,
                                   fontWeight: FontWeight.w900,
@@ -2353,7 +2353,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                               const SizedBox(height: 4),
                               Text(
                                 'Valor contratado en $_activeBudgetYear según Datos Abiertos SECOP II y su estado de ejecución.',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Cristal.textoSuave,
                                   fontSize: 12.5,
                                 ),
@@ -2365,12 +2365,12 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                           OutlinedButton.icon(
                             onPressed: () =>
                                 setState(() => _selectedTabIndex = 1),
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.bar_chart_rounded,
                               size: 16,
                               color: Cristal.texto,
                             ),
-                            label: const Text(
+                            label: Text(
                               'Ver contratos →',
                               style: TextStyle(
                                 color: Cristal.texto,
@@ -2379,7 +2379,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                               ),
                             ),
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Cristal.borde),
+                              side: BorderSide(color: Cristal.borde),
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 14,
                                 vertical: 10,
@@ -2417,13 +2417,13 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                                 children: [
                                   Text(
                                     '$pctEjecutado%',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: Cristal.texto,
                                       fontSize: 25,
                                       fontWeight: FontWeight.w900,
                                     ),
                                   ),
-                                  const Text(
+                                  Text(
                                     'en ejecución',
                                     style: TextStyle(
                                       color: Cristal.textoSuave,
@@ -2444,7 +2444,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                             children: [
                               Text(
                                 'Valor total contratado · vigencia $_activeBudgetYear$scopeSuffix',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Cristal.textoSuave,
                                   fontSize: 12.5,
                                   fontWeight: FontWeight.w600,
@@ -2456,7 +2456,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                                 alignment: Alignment.centerLeft,
                                 child: Text(
                                   _formatCopFull(_presupuestoTotalCop),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: Cristal.texto,
                                     fontSize: 26,
                                     fontWeight: FontWeight.w900,
@@ -2470,7 +2470,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                                   value: pctEjecutado / 100.0,
                                   minHeight: 13,
                                   backgroundColor: Cristal.vidrioFuerte,
-                                  color: const Color(0xFFFBBF24),
+                                  color: Cristal.legible(
+                                    Cristal.legible(const Color(0xFFFBBF24)),
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 16),
@@ -2479,8 +2481,12 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                                   Container(
                                     width: 10,
                                     height: 10,
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFFFBBF24),
+                                    decoration: BoxDecoration(
+                                      color: Cristal.legible(
+                                        Cristal.legible(
+                                          const Color(0xFFFBBF24),
+                                        ),
+                                      ),
                                       shape: BoxShape.circle,
                                     ),
                                   ),
@@ -2488,7 +2494,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                                   Expanded(
                                     child: Text(
                                       'Celebrados, en ejecución o terminados',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         color: Cristal.textoMedio,
                                         fontSize: 13,
                                         fontWeight: FontWeight.w600,
@@ -2497,7 +2503,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                                   ),
                                   Text(
                                     '${_formatCopFull(_ejecutadoCop)}  ($pctEjecutado%)',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: Cristal.texto,
                                       fontSize: 13,
                                       fontWeight: FontWeight.w800,
@@ -2511,7 +2517,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                                   Container(
                                     width: 10,
                                     height: 10,
-                                    decoration: const BoxDecoration(
+                                    decoration: BoxDecoration(
                                       color: Cristal.vidrioIntenso,
                                       shape: BoxShape.circle,
                                     ),
@@ -2520,7 +2526,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                                   Expanded(
                                     child: Text(
                                       'Otros estados (borrador, suspendido, cancelado…)',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         color: Cristal.textoMedio,
                                         fontSize: 13,
                                         fontWeight: FontWeight.w600,
@@ -2529,7 +2535,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                                   ),
                                   Text(
                                     '${_formatCopFull(_disponibleCop)}  ($pctDisponible%)',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: Cristal.texto,
                                       fontSize: 13,
                                       fontWeight: FontWeight.w800,
@@ -2558,14 +2564,14 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                   children: [
                     Text(
                       'Contratos de la entidad · Vigencia $_activeBudgetYear$scopeSuffix',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.texto,
                         fontSize: 19,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
+                    Text(
                       'Consulta y navega la totalidad de los contratos adjudicados por esta entidad en SECOP II.',
                       style: TextStyle(
                         color: Cristal.textoSuave,
@@ -2617,7 +2623,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                                 setState(() => _selectedTabIndex = 1),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Cristal.acento,
-                              foregroundColor: Cristal.texto,
+                              foregroundColor: Cristal.blanco,
                               elevation: 0,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 18,
@@ -2660,7 +2666,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Información general',
                       style: TextStyle(
                         color: Cristal.texto,
@@ -2673,20 +2679,20 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                       'Naturaleza jurídica',
                       'Entidad pública estatal',
                     ),
-                    const Divider(height: 20, color: Cristal.borde),
+                    Divider(height: 20, color: Cristal.borde),
                     _infoGeneralRow('Tipo de entidad', widget.entity.category),
-                    const Divider(height: 20, color: Cristal.borde),
+                    Divider(height: 20, color: Cristal.borde),
                     _infoGeneralRow('Nivel de gobierno', _ordenEntidad),
-                    const Divider(height: 20, color: Cristal.borde),
+                    Divider(height: 20, color: Cristal.borde),
                     _infoGeneralRow('NIT en SECOP II', _nitEntidad),
-                    const Divider(height: 20, color: Cristal.borde),
+                    Divider(height: 20, color: Cristal.borde),
                     _infoGeneralRow(
                       'Alcance / Regional',
                       _selectedRegionalDept == null
                           ? 'Consolidado Nacional'
                           : _formatRegionalDisplayName(_selectedRegionalDept!),
                     ),
-                    const Divider(height: 20, color: Cristal.borde),
+                    Divider(height: 20, color: Cristal.borde),
                     _infoGeneralRow(
                       'Vigencia presupuestal',
                       'Año $_activeBudgetYear (Anualizado)',
@@ -2705,7 +2711,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Dependencias internas',
                       style: TextStyle(
                         color: Cristal.texto,
@@ -2719,15 +2725,14 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                         _cargandoDependencias || _isLoadingLive
                             ? 'Clasificando contratos por dependencia…'
                             : 'No fue posible clasificar los contratos de este alcance.',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.textoSuave,
                           fontSize: 12.2,
                         ),
                       ),
                     for (final (i, d)
                         in _dependenciasOrdenadas().take(6).indexed) ...[
-                      if (i > 0)
-                        const Divider(height: 16, color: Cristal.borde),
+                      if (i > 0) Divider(height: 16, color: Cristal.borde),
                       InkWell(
                         hoverDuration: Cristal.micro,
                         onTap: () =>
@@ -2752,7 +2757,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                                   _nombreDependencia(d),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: Cristal.textoCuerpo,
                                     fontSize: 12.2,
                                     fontWeight: FontWeight.w600,
@@ -2764,7 +2769,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                                 _formatIntWithDots(
                                   _conteoDependencias[d.id]?.$1 ?? 0,
                                 ),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Cristal.texto,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w800,
@@ -2782,7 +2787,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                         _vistaDependencias = 1;
                         _selectedTabIndex = 2;
                       }),
-                      child: const Text(
+                      child: Text(
                         'Ver todas las dependencias →',
                         style: TextStyle(
                           color: Cristal.acentoClaro,
@@ -2835,7 +2840,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                     label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.textoSuave,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
@@ -2847,7 +2852,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       value,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.texto,
                         fontSize: 20,
                         fontWeight: FontWeight.w900,
@@ -2859,7 +2864,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                     trend,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.verde,
                       fontSize: 10.5,
                       fontWeight: FontWeight.w700,
@@ -2881,7 +2886,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           flex: 4,
           child: Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               color: Cristal.textoSuave,
               fontSize: 12.5,
               fontWeight: FontWeight.w500,
@@ -2893,7 +2898,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           child: Text(
             value,
             textAlign: TextAlign.right,
-            style: const TextStyle(
+            style: TextStyle(
               color: Cristal.texto,
               fontSize: 12.5,
               fontWeight: FontWeight.w800,
@@ -3159,7 +3164,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                         titulo,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.texto,
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
@@ -3170,7 +3175,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                         _isLoadingContractsPage && filtrado && total == 0
                             ? '$alcance · consultando…'
                             : '$alcance · ${_formatIntWithDots(total)} contrato${total == 1 ? '' : 's'} · ${_formatShortMillions(totalCop)}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.textoSuave,
                           fontSize: 12.5,
                           fontWeight: FontWeight.w500,
@@ -3180,7 +3185,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                   ),
                 ),
                 if (_isLoadingContractsPage)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(right: 14),
                     child: SizedBox(
                       width: 16,
@@ -3194,7 +3199,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                 if (!_isMobile)
                   Text(
                     'Página ${_formatIntWithDots(safePage)} de ${_formatIntWithDots(totalPages)}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.textoSuave,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
@@ -3207,7 +3212,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                         onPressed: _generandoReporte || total == 0
                             ? null
                             : _exportarReportePdf,
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.picture_as_pdf_outlined,
                           color: Cristal.texto,
                         ),
@@ -3218,7 +3223,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                             : _exportarReportePdf,
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Cristal.texto,
-                          side: const BorderSide(color: Cristal.bordeFuerte),
+                          side: BorderSide(color: Cristal.bordeFuerte),
                           shape: const StadiumBorder(),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
@@ -3250,7 +3255,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                         ? 'Ningún contrato de la entidad coincide con "$_busqueda". Prueba con el número exacto, otra palabra del objeto o el nombre del contratista.'
                         : 'No hay contratos con estos filtros.',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.textoSuave,
                       fontWeight: FontWeight.w600,
                     ),
@@ -3265,7 +3270,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                   child: _buildContractRowWidget(pageItems[i]),
                 ),
                 if (i < pageItems.length - 1)
-                  const Divider(height: 1, color: Cristal.borde),
+                  Divider(height: 1, color: Cristal.borde),
               ],
           ]),
           _buildFullHistoryPaginationFooter(
@@ -3283,7 +3288,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 11),
       color: Cristal.vidrioSuave,
-      child: const Row(
+      child: Row(
         children: [
           Expanded(
             flex: 2,
@@ -3403,7 +3408,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                   ref,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.acentoClaro,
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
@@ -3419,7 +3424,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                   objeto,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -3436,7 +3441,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                   depWithRegional,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.textoMedio,
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
@@ -3476,7 +3481,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                 _formatCopFull(val),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
@@ -3489,13 +3494,10 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                 fecha,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Cristal.textoSuave,
-                  fontSize: 11.5,
-                ),
+                style: TextStyle(color: Cristal.textoSuave, fontSize: 11.5),
               ),
             ),
-            const SizedBox(
+            SizedBox(
               width: 24,
               child: Icon(
                 Icons.chevron_right_rounded,
@@ -3548,9 +3550,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       onSelectionChanged: (v) => setState(() => _vistaDependencias = v.first),
       style: SegmentedButton.styleFrom(
         selectedBackgroundColor: Cristal.acento,
-        selectedForegroundColor: Cristal.texto,
+        selectedForegroundColor: Cristal.blanco,
         foregroundColor: Cristal.texto,
-        side: const BorderSide(color: Cristal.bordeFuerte),
+        side: BorderSide(color: Cristal.bordeFuerte),
       ),
     );
 
@@ -3667,7 +3669,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                 child: Text(
                   '${_formatIntWithDots(contratos)}\n${(participacion * 100).toStringAsFixed(participacion < 0.1 ? 1 : 0)} %',
                   textAlign: TextAlign.right,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontSize: 12.5,
                     fontWeight: FontWeight.w800,
@@ -3681,14 +3683,14 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                   child: Text(
                     _formatCompactCardMillions(valor),
                     textAlign: TextAlign.right,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.textoCuerpo,
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-              const SizedBox(
+              SizedBox(
                 width: 32,
                 child: Icon(
                   Icons.chevron_right_rounded,
@@ -3715,7 +3717,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Mapa de procesos y dependencias internas',
                   style: TextStyle(
                     color: Cristal.texto,
@@ -3727,10 +3729,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                 Text(
                   'Contratos y valor reales de SECOP II ($alcance). SECOP II no publica la dependencia que contrata: '
                   'cada contrato se asigna a una sola dependencia según las palabras de su objeto. Haz clic en una para ver sus contratos.',
-                  style: const TextStyle(
-                    color: Cristal.textoSuave,
-                    fontSize: 12.5,
-                  ),
+                  style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
                 ),
               ],
             ),
@@ -3743,7 +3742,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                   _cargandoDependencias || _isLoadingLive
                       ? 'Clasificando contratos por dependencia…'
                       : 'No fue posible clasificar los contratos de este alcance. Intenta “Actualizar datos”.',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.textoSuave,
                     fontWeight: FontWeight.w600,
                   ),
@@ -3757,7 +3756,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 9, 20, 9),
                 child: Text(
                   'PROCESOS ${macro.toUpperCase()}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.textoSuave,
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
@@ -3767,7 +3766,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
               ),
               for (final d in _dependenciasInternas.where(
                 (d) => d.macroproceso == macro,
-              )) ...[fila(d), const Divider(height: 1, color: Cristal.borde)],
+              )) ...[fila(d), Divider(height: 1, color: Cristal.borde)],
             ],
         ],
       ),
@@ -3794,7 +3793,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           : 'historial 2015–${AniosSecop.actual}',
     ].join(', ');
 
-    const estiloCabecera = TextStyle(
+    final estiloCabecera = TextStyle(
       color: Cristal.texto,
       fontSize: 11.5,
       fontWeight: FontWeight.w800,
@@ -3807,18 +3806,18 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         style: const TextStyle(fontSize: 13),
         decoration: InputDecoration(
           hintText: 'Filtrar unidades (ej. Cesar, centro, apoyo)…',
-          hintStyle: const TextStyle(fontSize: 12.5, color: Cristal.textoTenue),
+          hintStyle: TextStyle(fontSize: 12.5, color: Cristal.textoTenue),
           prefixIcon: const Icon(Icons.filter_list_rounded, size: 18),
           isDense: true,
           filled: true,
           fillColor: Cristal.campo,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: Cristal.borde),
+            borderSide: BorderSide(color: Cristal.borde),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: Cristal.borde),
+            borderSide: BorderSide(color: Cristal.borde),
           ),
         ),
       ),
@@ -3848,7 +3847,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                     children: [
                       Text(
                         'Unidades de contratación (${_unidades.length})',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.texto,
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
@@ -3858,7 +3857,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                       Text(
                         'Cuentas que contratan en SECOP II con el NIT de la entidad ($alcance). '
                         'Haz clic en una para ver sus contratos.',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.textoSuave,
                           fontSize: 12.5,
                         ),
@@ -3878,7 +3877,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                   _isLoadingLive
                       ? 'Consultando unidades en SECOP II…'
                       : 'SECOP II no reporta unidades para este alcance.',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.textoSuave,
                     fontWeight: FontWeight.w600,
                   ),
@@ -3893,7 +3892,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                   horizontal: 20,
                   vertical: 11,
                 ),
-                child: const Row(
+                child: Row(
                   children: [
                     Expanded(
                       flex: 6,
@@ -3924,7 +3923,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                 ),
               ),
               if (visibles.isEmpty)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.all(28),
                   child: Center(
                     child: Text(
@@ -3934,12 +3933,12 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                   ),
                 ),
               for (var i = 0; i < visibles.length; i++) ...[
-                if (i > 0) const Divider(height: 1, color: Cristal.borde),
+                if (i > 0) Divider(height: 1, color: Cristal.borde),
                 _buildFilaUnidad(visibles[i]),
               ],
             ]),
           if (_unidades.length == 1)
-            const Padding(
+            Padding(
               padding: EdgeInsets.fromLTRB(20, 4, 20, 16),
               child: Text(
                 'Esta entidad contrata desde una sola cuenta en SECOP II, así que no tiene unidades separadas.',
@@ -3967,7 +3966,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                 u.nombre,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
@@ -3980,7 +3979,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                 u.departamento.isEmpty ? '—' : u.departamento,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Cristal.textoMedio, fontSize: 12),
+                style: TextStyle(color: Cristal.textoMedio, fontSize: 12),
               ),
             ),
             Expanded(
@@ -3988,7 +3987,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
               child: Text(
                 _formatIntWithDots(u.contractsCount),
                 textAlign: TextAlign.right,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w800,
@@ -4000,14 +3999,14 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
               child: Text(
                 _formatCompactCardMillions(u.totalCop),
                 textAlign: TextAlign.right,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.textoCuerpo,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
-            const SizedBox(
+            SizedBox(
               width: 36,
               child: Icon(
                 Icons.chevron_right_rounded,
@@ -4055,7 +4054,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
             padding: const EdgeInsets.fromLTRB(22, 18, 22, 14),
             child: Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -4081,7 +4080,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                 if (!_isMobile)
                   Text(
                     '${_contractorsList.length} contratistas en muestra activa',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.acentoClaro,
                       fontSize: 12.5,
                       fontWeight: FontWeight.w800,
@@ -4094,7 +4093,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 11),
               color: Cristal.vidrioSuave,
-              child: const Row(
+              child: Row(
                 children: [
                   SizedBox(
                     width: 44,
@@ -4203,13 +4202,13 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                             width: 26,
                             height: 26,
                             alignment: Alignment.center,
-                            decoration: const BoxDecoration(
+                            decoration: BoxDecoration(
                               color: Cristal.vidrioSuave,
                               shape: BoxShape.circle,
                             ),
                             child: Text(
                               '${startIdx + i + 1}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Cristal.texto,
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w800,
@@ -4223,7 +4222,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                             pageItems[i].name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.texto,
                               fontSize: 13,
                               fontWeight: FontWeight.w800,
@@ -4234,7 +4233,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                           flex: 2,
                           child: Text(
                             pageItems[i].document,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.textoMedio,
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -4245,7 +4244,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                           flex: 2,
                           child: Text(
                             '${pageItems[i].contractsCount} contratos',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.acentoClaro,
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
@@ -4258,7 +4257,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                             pageItems[i].mainModality,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.textoSuave,
                               fontSize: 11.5,
                             ),
@@ -4268,14 +4267,14 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                           flex: 2,
                           child: Text(
                             _formatCopFull(pageItems[i].totalCop),
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.texto,
                               fontSize: 12.5,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
                         ),
-                        const SizedBox(
+                        SizedBox(
                           width: 28,
                           child: Icon(
                             Icons.chevron_right_rounded,
@@ -4288,7 +4287,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                   ),
                 ),
                 if (i < pageItems.length - 1)
-                  const Divider(height: 1, color: Cristal.borde),
+                  Divider(height: 1, color: Cristal.borde),
               ],
           ]),
           _buildFullHistoryPaginationFooter(
@@ -4311,7 +4310,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   }) {
     final summary = Text(
       'Total en SECOP II: ${_formatIntWithDots(totalRecords)} registros (${_formatIntWithDots(totalPages)} páginas)',
-      style: const TextStyle(
+      style: TextStyle(
         color: Cristal.textoSuave,
         fontSize: 12,
         fontWeight: FontWeight.w600,
@@ -4359,14 +4358,14 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
               children: [
                 Text(
                   'Pág. ${_formatIntWithDots(currentPage)} de ${_formatIntWithDots(totalPages)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(width: 6),
-                const Icon(
+                Icon(
                   Icons.edit_location_alt_outlined,
                   size: 13,
                   color: Cristal.acentoClaro,
@@ -4402,7 +4401,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         horizontal: _isMobile ? 12 : 22,
         vertical: 12,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Cristal.vidrioSuave,
         border: Border(top: BorderSide(color: Cristal.borde)),
       ),
@@ -4431,7 +4430,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     mostrarDialogoCristal<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text(
+        title: Text(
           'Ir a una página de contratos',
           style: TextStyle(
             color: Cristal.texto,
@@ -4445,7 +4444,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           children: [
             Text(
               'Ingresa un número de página entre 1 y ${_formatIntWithDots(totalPages)}:',
-              style: const TextStyle(fontSize: 13, color: Cristal.textoMedio),
+              style: TextStyle(fontSize: 13, color: Cristal.textoMedio),
             ),
             const SizedBox(height: 10),
             TextField(
@@ -4472,7 +4471,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Cristal.acento,
-              foregroundColor: Cristal.texto,
+              foregroundColor: Cristal.blanco,
             ),
             child: const Text('Ir a página'),
           ),

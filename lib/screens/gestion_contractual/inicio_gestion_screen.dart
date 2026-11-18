@@ -19,7 +19,7 @@ class InicioGestionScreen extends StatelessWidget {
     final opciones = [
       _OpcionCamino(
         icono: Icons.edit_document,
-        color: const Color(0xFF2DD4BF),
+        color: Cristal.legible(const Color(0xFF2DD4BF)),
         fondo: const Color(0x2414B8A6),
         etiqueta: 'Antes de SECOP II',
         titulo: 'Estructurar nuevo proceso',
@@ -63,13 +63,13 @@ class InicioGestionScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 24),
-        const Text(
+        Text(
           '¿Qué vas a gestionar?',
           textAlign: TextAlign.center,
           style: EstiloContractual.titulo,
         ),
         const SizedBox(height: 10),
-        const Text(
+        Text(
           'El camino depende de la modalidad: la prestación de servicios se prepara aquí antes de publicarla; '
           'las demás modalidades se crean en SECOP II y aquí se les hace seguimiento.',
           textAlign: TextAlign.center,
@@ -175,7 +175,7 @@ class _OpcionCaminoState extends State<_OpcionCamino> {
                   const SizedBox(height: 18),
                   Text(
                     widget.titulo,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.texto,
                       fontSize: 21,
                       fontWeight: FontWeight.w800,
@@ -207,7 +207,7 @@ class _OpcionCaminoState extends State<_OpcionCamino> {
                           Expanded(
                             child: Text(
                               p,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Cristal.textoMedio,
                                 fontSize: 13.3,
                                 height: 1.4,

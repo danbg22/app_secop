@@ -59,13 +59,13 @@ class SelectorModalidadScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 24),
-        const Text(
+        Text(
           '¿Qué modalidad vas a tramitar?',
           textAlign: TextAlign.center,
           style: EstiloContractual.titulo,
         ),
         const SizedBox(height: 10),
-        const Text(
+        Text(
           'Cada modalidad trae sus etapas, plazos y requisitos según la Ley 80 de 1993, '
           'la Ley 1150 de 2007 y el Decreto 1082 de 2015. El proceso oficial se adelanta en '
           'SECOP II; aquí el equipo jurídico lo prepara, controla plazos y verifica.',
@@ -73,14 +73,11 @@ class SelectorModalidadScreen extends StatelessWidget {
           style: EstiloContractual.subtitulo,
         ),
         const SizedBox(height: 28),
-        const Text(
-          'Contratación directa',
-          style: EstiloContractual.tituloGrupo,
-        ),
+        Text('Contratación directa', style: EstiloContractual.tituloGrupo),
         const SizedBox(height: 10),
         grilla(directas),
         const SizedBox(height: 28),
-        const Text(
+        Text(
           'Acompañamiento de procesos competitivos en SECOP II',
           style: EstiloContractual.tituloGrupo,
         ),
@@ -151,7 +148,7 @@ class _TarjetaModalidadState extends State<_TarjetaModalidad> {
                   children: [
                     Text(
                       m.nombre,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.texto,
                         fontSize: 16.5,
                         fontWeight: FontWeight.w800,
@@ -161,7 +158,7 @@ class _TarjetaModalidadState extends State<_TarjetaModalidad> {
                     const SizedBox(height: 6),
                     Text(
                       m.resumen,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.textoMedio,
                         fontSize: 12.8,
                         height: 1.4,

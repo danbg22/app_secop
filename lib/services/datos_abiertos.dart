@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// La consulta a Datos Abiertos no se pudo completar (después de los
 /// reintentos). Distinto de "no hay resultados": quien llama decide si
@@ -30,7 +31,10 @@ class DatosAbiertosException implements Exception {
 ///   1 s). Un tiempo agotado no se reintenta: la petición de respaldo ya
 ///   cubrió el caso de la conexión colgada, y si la consulta es pesada,
 ///   repetirla solo duplica la espera.
-/// - **Caché en memoria** opcional con vencimiento (solo respuestas 200).
+/// - **Caché** opcional con vencimiento (solo respuestas 200), de una hora
+///   por defecto: en memoria y, para las respuestas medianas, también en el
+///   navegador ([iniciarPersistencia]), así que volver a una sección o
+///   recargar la página no vuelve a consultar lo que se consultó hace poco.
 /// - **Una sola petición por URL en vuelo**: si dos pantallas piden lo mismo
 ///   a la vez, comparten la respuesta.
 /// - **Token de aplicación** de Contrata Legal en datos.gov.co: sin él, la
@@ -67,8 +71,120 @@ class DatosAbiertos {
   static int _activas = 0;
   static final List<Completer<void>> _turnos = [];
 
-  /// Vencimiento por defecto de la caché de consultas.
-  static const Duration ttlPorDefecto = Duration(minutes: 12);
+  /// Vencimiento por defecto de la caché de consultas. SECOP se actualiza
+  /// una vez al día: una hora no deja ver datos viejos y evita volver a
+  /// consultar cada vez que se entra a una sección.
+  static const Duration ttlPorDefecto = Duration(hours: 1);
+
+  // -------------------------------------------------------------------------
+  // Caché guardada en el navegador
+  // -------------------------------------------------------------------------
+
+  static SharedPreferences? _prefs;
+  static const String _prefijoGuardado = 'datos_abiertos_v1:';
+
+  /// Respuestas más grandes no se guardan (el navegador da unos 5 MB).
+  static const int _maxGuardadoPorRespuesta = 300 * 1024;
+  static const int _maxGuardadoTotal = 3 * 1024 * 1024;
+
+  /// Activa la caché en el navegador (al abrir la app) y descarta lo
+  /// vencido.
+  static Future<void> iniciarPersistencia() async {
+    try {
+      _prefs = await SharedPreferences.getInstance();
+      _podarGuardadas();
+    } catch (_) {
+      _prefs = null;
+    }
+  }
+
+  /// Clave corta de una URL: dos hashes polinómicos de 30 bits (exactos
+  /// también en la web, donde los enteros son de 53 bits). Al leer se
+  /// confirma además con la URL guardada.
+  static String _claveGuardada(String url) {
+    var a = 7, b = 11;
+    for (final c in utf8.encode(url)) {
+      a = (a * 31 + c) & 0x3FFFFFFF;
+      b = (b * 131 + c) & 0x3FFFFFFF;
+    }
+    return '$_prefijoGuardado${a.toRadixString(36)}${b.toRadixString(36)}';
+  }
+
+  /// Olvida solo la caché en memoria (como al recargar la página).
+  @visibleForTesting
+  static void olvidarMemoria() => _cache.clear();
+
+  static http.Response? _leerGuardada(String url) {
+    final prefs = _prefs;
+    if (prefs == null) return null;
+    try {
+      final crudo = prefs.getString(_claveGuardada(url));
+      if (crudo == null) return null;
+      final m = json.decode(crudo) as Map<String, dynamic>;
+      final vence = DateTime.fromMillisecondsSinceEpoch(m['v'] as int);
+      if (m['u'] != url || DateTime.now().isAfter(vence)) return null;
+      final respuesta = http.Response.bytes(
+        utf8.encode(m['b'] as String),
+        200,
+        headers: const {'content-type': 'application/json; charset=utf-8'},
+      );
+      _cache[url] = _Entrada(respuesta, vence);
+      return respuesta;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static void _guardar(String url, http.Response respuesta, DateTime vence) {
+    final prefs = _prefs;
+    if (prefs == null ||
+        respuesta.bodyBytes.length > _maxGuardadoPorRespuesta) {
+      return;
+    }
+    try {
+      prefs
+          .setString(
+            _claveGuardada(url),
+            json.encode({
+              'u': url,
+              'v': vence.millisecondsSinceEpoch,
+              'b': utf8.decode(respuesta.bodyBytes),
+            }),
+          )
+          .then((_) => _podarGuardadas())
+          .catchError((Object _) {})
+          .ignore();
+    } catch (_) {}
+  }
+
+  /// Quita lo vencido y, si se pasa del tope, lo que vence primero.
+  static void _podarGuardadas() {
+    final prefs = _prefs;
+    if (prefs == null) return;
+    final ahora = DateTime.now().millisecondsSinceEpoch;
+    final vivas = <(String, int, int)>[];
+    for (final clave in prefs.getKeys().toList()) {
+      if (!clave.startsWith(_prefijoGuardado)) continue;
+      final crudo = prefs.getString(clave);
+      var vence = 0;
+      try {
+        vence =
+            (json.decode(crudo ?? '{}') as Map<String, dynamic>)['v'] as int;
+      } catch (_) {}
+      if (crudo == null || vence <= ahora) {
+        prefs.remove(clave).ignore();
+      } else {
+        vivas.add((clave, vence, crudo.length));
+      }
+    }
+    var total = vivas.fold<int>(0, (s, e) => s + e.$3);
+    vivas.sort((a, b) => a.$2.compareTo(b.$2));
+    for (final (clave, _, tamano) in vivas) {
+      if (total <= _maxGuardadoTotal) break;
+      prefs.remove(clave).ignore();
+      total -= tamano;
+    }
+  }
 
   /// Cliente HTTP para pruebas; en la app se usa el de `package:http`.
   @visibleForTesting
@@ -92,7 +208,14 @@ class DatosAbiertos {
       Uri.https(host, '/resource/$dataset.json', parametros);
 
   /// Vacía la caché (por ejemplo, al pulsar "Actualizar datos").
-  static void limpiarCache() => _cache.clear();
+  static void limpiarCache() {
+    _cache.clear();
+    final prefs = _prefs;
+    if (prefs == null) return;
+    for (final clave in prefs.getKeys().toList()) {
+      if (clave.startsWith(_prefijoGuardado)) prefs.remove(clave).ignore();
+    }
+  }
 
   /// GET con reintentos. Con [cache] guarda la respuesta 200 ese tiempo;
   /// con [fresco] ignora lo guardado y vuelve a consultar. [respaldoTras]
@@ -116,6 +239,8 @@ class DatosAbiertos {
       if (guardada != null && guardada.vigente) {
         return Future.value(guardada.respuesta);
       }
+      final enNavegador = _leerGuardada(clave);
+      if (enNavegador != null) return Future.value(enNavegador);
     }
     final pendiente = _enVuelo[clave];
     if (pendiente != null) return pendiente;
@@ -123,8 +248,10 @@ class DatosAbiertos {
     final futuro = _conReintentos(uri, timeout, respaldoTras ?? cobertura).then(
       (respuesta) {
         if (cache != null && respuesta.statusCode == 200) {
-          _cache[clave] = _Entrada(respuesta, DateTime.now().add(cache));
+          final vence = DateTime.now().add(cache);
+          _cache[clave] = _Entrada(respuesta, vence);
           _podarCache();
+          _guardar(clave, respuesta, vence);
         }
         return respuesta;
       },

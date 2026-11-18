@@ -554,9 +554,9 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
           backgroundColor: Cristal.flotante,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
-            side: const BorderSide(color: Cristal.bordeFuerte),
+            side: BorderSide(color: Cristal.bordeFuerte),
           ),
-          title: const Row(
+          title: Row(
             children: [
               Icon(
                 Icons.auto_awesome_rounded,
@@ -582,7 +582,7 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'En la ventana abierta del SECOP presiona Ctrl+A y luego Ctrl+C, y pega el contenido aquí abajo (Ctrl+V). Nuestra inteligencia filtrará únicamente los nombres reales de la sección Documentación:',
                   style: TextStyle(
                     color: Cristal.textoMedio,
@@ -595,10 +595,10 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
                   controller: pasteController,
                   maxLines: 6,
                   autofocus: true,
-                  style: const TextStyle(fontSize: 12.5, color: Cristal.texto),
+                  style: TextStyle(fontSize: 12.5, color: Cristal.texto),
                   decoration: InputDecoration(
                     hintText: 'Pega aquí (Ctrl+V) el texto copiado de la página del proceso en SECOP...',
-                    hintStyle: const TextStyle(
+                    hintStyle: TextStyle(
                       color: Cristal.textoTenue,
                       fontSize: 12.5,
                     ),
@@ -606,15 +606,15 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
                     fillColor: Cristal.campo,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Cristal.bordeFuerte),
+                      borderSide: BorderSide(color: Cristal.bordeFuerte),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Cristal.bordeFuerte),
+                      borderSide: BorderSide(color: Cristal.bordeFuerte),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
+                      borderSide: BorderSide(
                         color: Cristal.acentoClaro,
                         width: 1.5,
                       ),
@@ -627,7 +627,7 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text(
+              child: Text(
                 'Cancelar',
                 style: TextStyle(color: Cristal.textoSuave),
               ),
@@ -635,7 +635,7 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
             ElevatedButton.icon(
               onPressed: () =>
                   Navigator.of(dialogContext).pop(pasteController.text),
-              icon: const Icon(
+              icon: Icon(
                 Icons.auto_awesome_rounded,
                 size: 16,
                 color: Cristal.dorado,
@@ -646,7 +646,7 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Cristal.acento,
-                foregroundColor: Cristal.texto,
+                foregroundColor: Cristal.blanco,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -744,7 +744,7 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
-            content: const Row(
+            content: Row(
               children: [
                 Icon(
                   Icons.verified_user_outlined,
@@ -1305,7 +1305,7 @@ FORMATO (Markdown)
     }
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: Cristal.borde, width: 1)),
       ),
       child: Row(
@@ -1352,7 +1352,7 @@ FORMATO (Markdown)
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.check_circle_outline,
                       size: 16,
                       color: Cristal.acentoClaro,
@@ -1360,7 +1360,7 @@ FORMATO (Markdown)
                     const SizedBox(width: 7),
                     Text(
                       _estadoContrato,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.acentoClaro,
                         fontSize: 12.5,
                         fontWeight: FontWeight.w700,
@@ -1441,7 +1441,7 @@ FORMATO (Markdown)
             const SizedBox(height: 10),
             _buildResumenInfoBox(
               icon: Icons.calendar_today_outlined,
-              iconColor: const Color(0xFF818CF8),
+              iconColor: Cristal.legible(const Color(0xFF818CF8)),
               iconBg: const Color(0x248B5CF6),
               label: 'Fecha de firma',
               value: _fechaFirmaIso,
@@ -1488,7 +1488,7 @@ FORMATO (Markdown)
                 Expanded(
                   child: _buildResumenInfoBox(
                     icon: Icons.calendar_today_outlined,
-                    iconColor: const Color(0xFF818CF8),
+                    iconColor: Cristal.legible(const Color(0xFF818CF8)),
                     iconBg: const Color(0x248B5CF6),
                     label: 'Fecha de firma',
                     value: _fechaFirmaIso,
@@ -1507,12 +1507,8 @@ FORMATO (Markdown)
             height: 44,
             child: OutlinedButton.icon(
               onPressed: _abrirEnlaceSecop,
-              icon: const Icon(
-                Icons.open_in_new,
-                size: 17,
-                color: Cristal.texto,
-              ),
-              label: const Text(
+              icon: Icon(Icons.open_in_new, size: 17, color: Cristal.texto),
+              label: Text(
                 'Ver expediente original en SECOP',
                 style: TextStyle(
                   color: Cristal.texto,
@@ -1522,7 +1518,7 @@ FORMATO (Markdown)
               ),
               style: OutlinedButton.styleFrom(
                 backgroundColor: Cristal.vidrioSuave,
-                side: const BorderSide(color: Cristal.bordeFuerte),
+                side: BorderSide(color: Cristal.bordeFuerte),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -1642,7 +1638,7 @@ FORMATO (Markdown)
             children: [
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
                   fontSize: 15.5,
                   fontWeight: FontWeight.w800,
@@ -1653,7 +1649,7 @@ FORMATO (Markdown)
                 const SizedBox(height: 3),
                 Text(
                   subtitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.textoSuave,
                     fontSize: 12,
                     height: 1.35,
@@ -1846,7 +1842,7 @@ FORMATO (Markdown)
                 '${a.fuentePlazo}. Es una estimación referencial: la forma de '
                 'pago real (mensualidades, anticipo o pago único) se define en '
                 'la minuta y los estudios previos del contrato.',
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.textoMedio,
                   fontSize: 12,
                   height: 1.45,
@@ -1891,7 +1887,7 @@ FORMATO (Markdown)
             Expanded(
               child: Text(
                 'Inicio: ${ContractFinancialAnalysis.formatFecha(a.fechaInicio)}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
@@ -1900,7 +1896,7 @@ FORMATO (Markdown)
             ),
             Text(
               'Fin: ${ContractFinancialAnalysis.formatFecha(a.fechaFin)}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: Cristal.texto,
                 fontSize: 12.5,
                 fontWeight: FontWeight.w700,
@@ -1916,7 +1912,7 @@ FORMATO (Markdown)
               value: avance,
               minHeight: 9,
               backgroundColor: Cristal.vidrioFuerte,
-              valueColor: const AlwaysStoppedAnimation<Color>(Cristal.dorado),
+              valueColor: AlwaysStoppedAnimation<Color>(Cristal.dorado),
             ),
           ),
         ],
@@ -1925,7 +1921,7 @@ FORMATO (Markdown)
           avance != null
               ? '${a.estadoTemporal} · ${(avance * 100).toStringAsFixed(0)}% del plazo transcurrido'
               : a.estadoTemporal,
-          style: const TextStyle(color: Cristal.textoSuave, fontSize: 11.5),
+          style: TextStyle(color: Cristal.textoSuave, fontSize: 11.5),
         ),
       ],
     );
@@ -1946,7 +1942,7 @@ FORMATO (Markdown)
             const SizedBox(width: 6),
             Text(
               titulo,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Cristal.texto,
                 fontSize: 13.5,
                 fontWeight: FontWeight.w800,
@@ -1967,7 +1963,7 @@ FORMATO (Markdown)
                     Expanded(
                       child: Text(
                         e.key,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.textoMedio,
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
@@ -1976,7 +1972,7 @@ FORMATO (Markdown)
                     ),
                     Text(
                       ContractFinancialAnalysis.formatCop(e.value),
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.verde,
                         fontSize: 12.5,
                         fontWeight: FontWeight.w800,
@@ -1989,7 +1985,7 @@ FORMATO (Markdown)
                         child: Text(
                           '${(pct * 100).toStringAsFixed(0)}%',
                           textAlign: TextAlign.right,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.textoSuave,
                             fontSize: 11.5,
                           ),
@@ -2006,7 +2002,7 @@ FORMATO (Markdown)
                       value: pct,
                       minHeight: 6,
                       backgroundColor: Cristal.vidrioFuerte,
-                      valueColor: const AlwaysStoppedAnimation<Color>(
+                      valueColor: AlwaysStoppedAnimation<Color>(
                         Cristal.acentoClaro,
                       ),
                     ),
@@ -2057,7 +2053,7 @@ FORMATO (Markdown)
               : '$totalCampos campos disponibles'
                     '${_cargandoExpedienteCompleto ? ' · consultando expediente completo…' : ''}',
           trailing: _cargandoExpedienteCompleto
-              ? const SizedBox(
+              ? SizedBox(
                   width: 18,
                   height: 18,
                   child: CircularProgressIndicator(
@@ -2069,7 +2065,7 @@ FORMATO (Markdown)
         ),
         const SizedBox(height: 14),
         if (secciones.isEmpty)
-          const Text(
+          Text(
             'SECOP no reporta información adicional para este contrato.',
             style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
           ),
@@ -2106,7 +2102,7 @@ FORMATO (Markdown)
           ),
           title: Text(
             seccion.title,
-            style: const TextStyle(
+            style: TextStyle(
               color: Cristal.texto,
               fontSize: 13.5,
               fontWeight: FontWeight.w800,
@@ -2114,7 +2110,7 @@ FORMATO (Markdown)
           ),
           subtitle: Text(
             '${seccion.entries.length} campos',
-            style: const TextStyle(color: Cristal.textoTenue, fontSize: 11.5),
+            style: TextStyle(color: Cristal.textoTenue, fontSize: 11.5),
           ),
           children: [
             LayoutBuilder(
@@ -2153,7 +2149,7 @@ FORMATO (Markdown)
         children: [
           Text(
             e.label,
-            style: const TextStyle(
+            style: TextStyle(
               color: Cristal.textoSuave,
               fontSize: 11,
               fontWeight: FontWeight.w600,
@@ -2166,7 +2162,7 @@ FORMATO (Markdown)
               onTap: _abrirPerfilContratista,
               child: Text(
                 e.value,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.acentoClaro,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
@@ -2177,7 +2173,7 @@ FORMATO (Markdown)
           else
             SelectableText(
               e.value,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Cristal.texto,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -2223,7 +2219,7 @@ FORMATO (Markdown)
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.textoSuave,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
@@ -2247,7 +2243,7 @@ FORMATO (Markdown)
           ),
           if (isLink) ...[
             const SizedBox(width: 8),
-            const Icon(Icons.open_in_new, size: 17, color: Cristal.acentoClaro),
+            Icon(Icons.open_in_new, size: 17, color: Cristal.acentoClaro),
           ],
         ],
       ),
@@ -2356,7 +2352,7 @@ FORMATO (Markdown)
                         color: Cristal.acentoVidrio,
                         borderRadius: BorderRadius.circular(18),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.find_in_page_rounded,
                         color: Cristal.texto,
                         size: 32,
@@ -2369,11 +2365,11 @@ FORMATO (Markdown)
                         width: 30,
                         height: 30,
                         decoration: BoxDecoration(
-                          color: Cristal.dorado,
+                          color: Cristal.doradoRelleno,
                           shape: BoxShape.circle,
                           border: Border.all(color: Cristal.borde, width: 2.5),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.auto_awesome_rounded,
                           color: Cristal.tinta,
                           size: 15,
@@ -2394,7 +2390,7 @@ FORMATO (Markdown)
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: Cristal.acentoBorde),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
@@ -2451,7 +2447,7 @@ FORMATO (Markdown)
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.link_rounded,
                       size: 16,
                       color: Cristal.acentoClaro,
@@ -2462,7 +2458,7 @@ FORMATO (Markdown)
                         'Proceso vinculado: $referenciaDetalle',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.textoCuerpo,
                           fontSize: 12.5,
                           fontWeight: FontWeight.w700,
@@ -2479,7 +2475,7 @@ FORMATO (Markdown)
                 child: ElevatedButton.icon(
                   onPressed: () =>
                       _ejecutarExtraccionDocumentos(forceRefresh: false),
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.auto_awesome_rounded,
                     color: Cristal.dorado,
                     size: 20,
@@ -2494,7 +2490,7 @@ FORMATO (Markdown)
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Cristal.acento,
-                    foregroundColor: Cristal.texto,
+                    foregroundColor: Cristal.blanco,
                     elevation: 2,
                     shadowColor: Cristal.sombra,
                     shape: RoundedRectangleBorder(
@@ -2537,7 +2533,7 @@ FORMATO (Markdown)
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    const SizedBox(
+                    SizedBox(
                       width: 64,
                       height: 64,
                       child: CircularProgressIndicator(
@@ -2550,11 +2546,11 @@ FORMATO (Markdown)
                     Container(
                       width: 44,
                       height: 44,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: Cristal.azulVidrio,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.auto_awesome_rounded,
                         color: Cristal.texto,
                         size: 22,
@@ -2577,7 +2573,7 @@ FORMATO (Markdown)
               Text(
                 _extractingStepText,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.textoMedio,
                   fontSize: 13.5,
                   fontWeight: FontWeight.w600,
@@ -2585,7 +2581,7 @@ FORMATO (Markdown)
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Extrayendo únicamente los nombres reales de los anexos cargados por la entidad...',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Cristal.textoTenue, fontSize: 12),
@@ -2636,7 +2632,7 @@ FORMATO (Markdown)
                 color: Cristal.azulVidrio,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.fact_check_outlined,
                 color: Cristal.acentoClaro,
                 size: 24,
@@ -2673,16 +2669,16 @@ FORMATO (Markdown)
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.check_circle_rounded,
                               size: 13,
-                              color: Color(0xFF34D399),
+                              color: Cristal.legible(const Color(0xFF34D399)),
                             ),
                             const SizedBox(width: 5),
                             Text(
                               countBadgeText,
-                              style: const TextStyle(
-                                color: Color(0xFF34D399),
+                              style: TextStyle(
+                                color: Cristal.legible(const Color(0xFF34D399)),
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -2695,7 +2691,7 @@ FORMATO (Markdown)
                   const SizedBox(height: 4),
                   Text(
                     'Sección "Documentación" · Proceso: $referenciaDetalle',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.textoSuave,
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
@@ -2714,7 +2710,7 @@ FORMATO (Markdown)
                         foregroundColor: Cristal.texto,
                         minimumSize: const Size(40, 40),
                         padding: EdgeInsets.zero,
-                        side: const BorderSide(color: Cristal.bordeFuerte),
+                        side: BorderSide(color: Cristal.bordeFuerte),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
@@ -2732,7 +2728,7 @@ FORMATO (Markdown)
                           horizontal: 14,
                           vertical: 10,
                         ),
-                        side: const BorderSide(color: Cristal.bordeFuerte),
+                        side: BorderSide(color: Cristal.bordeFuerte),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
@@ -2755,7 +2751,7 @@ FORMATO (Markdown)
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(
+                Icon(
                   Icons.auto_awesome_rounded,
                   color: Cristal.acentoClaro,
                   size: 19,
@@ -2764,7 +2760,7 @@ FORMATO (Markdown)
                 Expanded(
                   child: Text(
                     result.summaryText,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.textoCuerpo,
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
@@ -2783,14 +2779,11 @@ FORMATO (Markdown)
           TextField(
             controller: _docFilterController,
             onChanged: (v) => setState(() => _docSearchQuery = v),
-            style: const TextStyle(fontSize: 13, color: Cristal.texto),
+            style: TextStyle(fontSize: 13, color: Cristal.texto),
             decoration: InputDecoration(
               hintText: 'Filtrar documentos por nombre o categoría (ej. Estudios previos, CDP, Adenda)...',
-              hintStyle: const TextStyle(
-                color: Cristal.textoTenue,
-                fontSize: 13,
-              ),
-              prefixIcon: const Icon(
+              hintStyle: TextStyle(color: Cristal.textoTenue, fontSize: 13),
+              prefixIcon: Icon(
                 Icons.search_rounded,
                 size: 19,
                 color: Cristal.textoSuave,
@@ -2813,18 +2806,15 @@ FORMATO (Markdown)
               fillColor: Cristal.campo,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(11),
-                borderSide: const BorderSide(color: Cristal.borde),
+                borderSide: BorderSide(color: Cristal.borde),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(11),
-                borderSide: const BorderSide(color: Cristal.borde),
+                borderSide: BorderSide(color: Cristal.borde),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(11),
-                borderSide: const BorderSide(
-                  color: Cristal.acentoClaro,
-                  width: 1.4,
-                ),
+                borderSide: BorderSide(color: Cristal.acentoClaro, width: 1.4),
               ),
             ),
           ),
@@ -2838,10 +2828,7 @@ FORMATO (Markdown)
             child: Center(
               child: Text(
                 'Ningún documento coincide con "$_docSearchQuery".',
-                style: const TextStyle(
-                  color: Cristal.textoSuave,
-                  fontSize: 13.5,
-                ),
+                style: TextStyle(color: Cristal.textoSuave, fontSize: 13.5),
               ),
             ),
           )
@@ -2886,7 +2873,7 @@ FORMATO (Markdown)
                 esProceso
                     ? 'Documentos del proceso'
                     : 'Documentos del contrato',
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
@@ -2896,7 +2883,7 @@ FORMATO (Markdown)
             const SizedBox(width: 8),
             Text(
               '(${docs.length})',
-              style: const TextStyle(
+              style: TextStyle(
                 color: Cristal.textoSuave,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
@@ -2959,7 +2946,7 @@ FORMATO (Markdown)
       fileIcon = Icons.picture_as_pdf_rounded;
     } else if (ext == 'XLSX' || ext == 'XLS' || ext == 'CSV') {
       badgeBg = const Color(0x1F10B981);
-      badgeText = const Color(0xFF34D399);
+      badgeText = Cristal.legible(const Color(0xFF34D399));
       fileIcon = Icons.table_chart_rounded;
     } else if (ext == 'ZIP' || ext == 'RAR' || ext == '7Z') {
       badgeBg = Cristal.ambarVidrio;
@@ -2990,7 +2977,7 @@ FORMATO (Markdown)
             alignment: Alignment.centerLeft,
             child: Text(
               '${index.toString().padLeft(2, '0')}.',
-              style: const TextStyle(
+              style: TextStyle(
                 color: Cristal.textoTenue,
                 fontSize: 12.5,
                 fontWeight: FontWeight.w800,
@@ -3013,7 +3000,7 @@ FORMATO (Markdown)
               children: [
                 SelectableText(
                   doc.name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontSize: 13.8,
                     fontWeight: FontWeight.w700,
@@ -3055,7 +3042,7 @@ FORMATO (Markdown)
                       ),
                       child: Text(
                         doc.category,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.textoMedio,
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -3073,7 +3060,7 @@ FORMATO (Markdown)
                 ? IconButton(
                     onPressed: () => _descargarDocumento(doc),
                     tooltip: 'Descargar',
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.download_rounded,
                       color: Cristal.acentoClaro,
                     ),
@@ -3087,7 +3074,7 @@ FORMATO (Markdown)
                     ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Cristal.acentoClaro,
-                      side: const BorderSide(color: Cristal.acentoBorde),
+                      side: BorderSide(color: Cristal.acentoBorde),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -3095,19 +3082,19 @@ FORMATO (Markdown)
                   ),
           ] else if (!isMobile) ...[
             const SizedBox(width: 12),
-            const Row(
+            Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   Icons.verified_outlined,
                   size: 14,
-                  color: Color(0xFF34D399),
+                  color: Cristal.legible(const Color(0xFF34D399)),
                 ),
                 SizedBox(width: 5),
                 Text(
                   'En SECOP II',
                   style: TextStyle(
-                    color: Color(0xFF34D399),
+                    color: Cristal.legible(const Color(0xFF34D399)),
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -3135,11 +3122,11 @@ FORMATO (Markdown)
               Container(
                 width: 68,
                 height: 68,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: Cristal.vidrioSuave,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.inbox_outlined,
                   color: Cristal.textoSuave,
                   size: 32,
@@ -3159,7 +3146,7 @@ FORMATO (Markdown)
               Text(
                 message ?? 'Se consultó la sección Documentación de este expediente en SECOP II y no se encontraron anexos publicados.',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.textoSuave,
                   fontSize: 13.5,
                   height: 1.5,
@@ -3178,7 +3165,7 @@ FORMATO (Markdown)
                     label: const Text('Volver a consultar'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Cristal.texto,
-                      side: const BorderSide(color: Cristal.bordeFuerte),
+                      side: BorderSide(color: Cristal.bordeFuerte),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 18,
                         vertical: 12,
@@ -3190,7 +3177,7 @@ FORMATO (Markdown)
                   ),
                   ElevatedButton.icon(
                     onPressed: _abrirEnlaceSecop,
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.open_in_browser_rounded,
                       size: 17,
                       color: Cristal.dorado,
@@ -3198,7 +3185,7 @@ FORMATO (Markdown)
                     label: const Text('Verificar en SECOP II'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Cristal.acento,
-                      foregroundColor: Cristal.texto,
+                      foregroundColor: Cristal.blanco,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 18,
                         vertical: 12,
@@ -3237,7 +3224,7 @@ FORMATO (Markdown)
                   shape: BoxShape.circle,
                   border: Border.all(color: Cristal.ambarBorde),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.security_rounded,
                   color: Cristal.ambar,
                   size: 32,
@@ -3257,7 +3244,7 @@ FORMATO (Markdown)
               Text(
                 message ?? 'El firewall de Colombia Compra Eficiente bloqueó temporalmente la lectura automática de este contrato.',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.textoMedio,
                   fontSize: 13.5,
                   height: 1.5,
@@ -3271,7 +3258,7 @@ FORMATO (Markdown)
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Cristal.borde),
                 ),
-                child: const Column(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
@@ -3310,7 +3297,7 @@ FORMATO (Markdown)
                     ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Cristal.texto,
-                      side: const BorderSide(color: Cristal.bordeFuerte),
+                      side: BorderSide(color: Cristal.bordeFuerte),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 18,
                         vertical: 14,
@@ -3322,7 +3309,7 @@ FORMATO (Markdown)
                   ),
                   ElevatedButton.icon(
                     onPressed: _extraerDesdePortapapeles,
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.auto_awesome_rounded,
                       size: 18,
                       color: Cristal.dorado,
@@ -3333,7 +3320,7 @@ FORMATO (Markdown)
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Cristal.acento,
-                      foregroundColor: Cristal.texto,
+                      foregroundColor: Cristal.blanco,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 20,
                         vertical: 14,
@@ -3429,7 +3416,7 @@ FORMATO (Markdown)
                   const SizedBox(height: 12),
                   _buildCampoPreguntaCopiloto(isMobile: isMobile),
                   const SizedBox(height: 10),
-                  const Text(
+                  Text(
                     'La información generada por la IA puede contener imprecisiones. Verifica siempre en el SECOP.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Cristal.textoTenue, fontSize: 11),
@@ -3481,15 +3468,11 @@ FORMATO (Markdown)
         Container(
           width: 42,
           height: 42,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: Cristal.azulVidrio,
             shape: BoxShape.circle,
           ),
-          child: const Icon(
-            Icons.auto_awesome,
-            color: Cristal.acentoClaro,
-            size: 20,
-          ),
+          child: Icon(Icons.auto_awesome, color: Cristal.acentoClaro, size: 20),
         ),
         const SizedBox(width: 12),
         Flexible(
@@ -3502,7 +3485,7 @@ FORMATO (Markdown)
             ),
             child: CopilotoMarkdown(
               text,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Cristal.texto,
                 fontSize: 13,
                 height: 1.45,
@@ -3530,11 +3513,7 @@ FORMATO (Markdown)
             ),
             child: Text(
               text,
-              style: const TextStyle(
-                color: Cristal.texto,
-                fontSize: 13,
-                height: 1.4,
-              ),
+              style: TextStyle(color: Cristal.texto, fontSize: 13, height: 1.4),
             ),
           ),
         ),
@@ -3580,14 +3559,14 @@ FORMATO (Markdown)
             label: Text(pregunta.label),
             tooltip: pregunta.prompt,
             onPressed: _isTyping ? null : () => _enviarMensaje(pregunta.prompt),
-            labelStyle: const TextStyle(
+            labelStyle: TextStyle(
               color: Cristal.texto,
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
             backgroundColor: Cristal.vidrioSuave,
             disabledColor: Cristal.vidrioFuerte,
-            side: const BorderSide(color: Cristal.borde),
+            side: BorderSide(color: Cristal.borde),
             shape: const StadiumBorder(),
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             visualDensity: VisualDensity.compact,
@@ -3615,7 +3594,7 @@ FORMATO (Markdown)
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Row(
+          Row(
             children: [
               Icon(Icons.auto_awesome, color: Cristal.acentoClaro, size: 15),
               SizedBox(width: 6),
@@ -3640,7 +3619,7 @@ FORMATO (Markdown)
                   minLines: 1,
                   maxLines: 4,
                   maxLength: 600,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontSize: 14,
                     height: 1.4,
@@ -3649,7 +3628,7 @@ FORMATO (Markdown)
                     hintText: isMobile
                         ? 'Ej.: ¿Cuáles son las obligaciones del contratista?'
                         : 'Ej.: ¿Cuáles son las obligaciones del contratista? ¿Hubo adiciones? ¿Quién supervisa?',
-                    hintStyle: const TextStyle(
+                    hintStyle: TextStyle(
                       color: Cristal.textoTenue,
                       fontSize: 13.5,
                     ),
@@ -3675,17 +3654,17 @@ FORMATO (Markdown)
                     fixedSize: const Size(44, 44),
                   ),
                   icon: _isTyping
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Cristal.texto,
+                            color: Cristal.blanco,
                           ),
                         )
-                      : const Icon(
+                      : Icon(
                           Icons.send_rounded,
-                          color: Cristal.texto,
+                          color: Cristal.blanco,
                           size: 19,
                         ),
                 ),
@@ -3719,14 +3698,14 @@ FORMATO (Markdown)
                     color: Cristal.azulVidrio,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.description_outlined,
                     size: 16,
                     color: Cristal.acentoClaro,
                   ),
                 ),
                 const SizedBox(width: 10),
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Contexto del contrato',
                     style: TextStyle(
@@ -3757,7 +3736,7 @@ FORMATO (Markdown)
                 _descripcionContrato.toUpperCase(),
                 maxLines: 4,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
                   fontSize: 10.5,
                   fontWeight: FontWeight.w700,
@@ -3772,7 +3751,7 @@ FORMATO (Markdown)
               label: 'Valor',
               valueWidget: Text(
                 _valorFormateado,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w800,
@@ -3793,7 +3772,7 @@ FORMATO (Markdown)
                           _analisis.valorTotal,
                         )
                       : '${ContractFinancialAnalysis.formatCop(_analisis.valorMensualEstimado)} / mes',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.acentoClaro,
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
@@ -3808,7 +3787,7 @@ FORMATO (Markdown)
                 label: 'Plazo (base 30 días/mes)',
                 valueWidget: Text(
                   '${_analisis.plazoDias} días · ${_analisis.mesesDecimalTexto}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
@@ -3822,7 +3801,7 @@ FORMATO (Markdown)
               label: 'Entidad contratante',
               valueWidget: Text(
                 _toTitleCase(_entidadContrato),
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
@@ -3839,7 +3818,7 @@ FORMATO (Markdown)
                 onTap: _abrirPerfilContratista,
                 child: Text(
                   _toTitleCase(_contratistaContrato),
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
@@ -3854,7 +3833,7 @@ FORMATO (Markdown)
               label: 'Modalidad',
               valueWidget: Text(
                 _modalidadContrato,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
@@ -3868,7 +3847,7 @@ FORMATO (Markdown)
               label: 'Fecha de firma',
               valueWidget: Text(
                 _fechaFirmaCorta,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
@@ -3893,7 +3872,7 @@ FORMATO (Markdown)
                 ),
                 child: Text(
                   _estadoContrato,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.verde,
                     fontSize: 10.5,
                     fontWeight: FontWeight.w700,
@@ -3954,10 +3933,7 @@ FORMATO (Markdown)
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
-                    color: Cristal.textoSuave,
-                    fontSize: 10.5,
-                  ),
+                  style: TextStyle(color: Cristal.textoSuave, fontSize: 10.5),
                 ),
                 const SizedBox(height: 1),
                 valueWidget,
@@ -3995,14 +3971,14 @@ FORMATO (Markdown)
                   color: Cristal.doradoVidrio,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.lightbulb_outline,
                   size: 16,
                   color: Cristal.ambar,
                 ),
               ),
               const SizedBox(width: 10),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Sugerencias de preguntas',
                   style: TextStyle(
@@ -4027,14 +4003,14 @@ FORMATO (Markdown)
                     Expanded(
                       child: Text(
                         sugerencias[i],
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.texto,
                           fontSize: 11.5,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
-                    const Icon(
+                    Icon(
                       Icons.chevron_right,
                       size: 16,
                       color: Cristal.textoSuave,
@@ -4044,7 +4020,7 @@ FORMATO (Markdown)
               ),
             ),
             if (i < sugerencias.length - 1)
-              const Divider(height: 1, color: Cristal.borde),
+              Divider(height: 1, color: Cristal.borde),
           ],
         ],
       ),
@@ -4135,7 +4111,7 @@ FORMATO (Markdown)
             fontSize: 11,
             fontWeight: FontWeight.w500,
           ),
-          items: const [
+          items: [
             BottomNavigationBarItem(
               icon: Icon(Icons.home_outlined),
               activeIcon: Icon(Icons.home_rounded, color: Cristal.dorado),

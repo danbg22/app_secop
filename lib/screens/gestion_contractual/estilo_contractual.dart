@@ -16,7 +16,7 @@ class EstiloContractual {
 
   static ButtonStyle botonPrincipal() => FilledButton.styleFrom(
     backgroundColor: Cristal.acento,
-    foregroundColor: Cristal.texto,
+    foregroundColor: Cristal.blanco,
     disabledBackgroundColor: Cristal.vidrioFuerte,
     padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
     shape: const StadiumBorder(),
@@ -25,7 +25,7 @@ class EstiloContractual {
   static ButtonStyle botonSecundario() => OutlinedButton.styleFrom(
     foregroundColor: Cristal.texto,
     backgroundColor: Cristal.vidrio,
-    side: const BorderSide(color: Cristal.borde, width: 1.2),
+    side: BorderSide(color: Cristal.borde, width: 1.2),
     padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
     shape: const StadiumBorder(),
   );
@@ -35,7 +35,7 @@ class EstiloContractual {
     fontWeight: FontWeight.w800,
   );
 
-  static const TextStyle titulo = TextStyle(
+  static TextStyle get titulo => TextStyle(
     color: Cristal.texto,
     fontSize: 30,
     fontWeight: FontWeight.w800,
@@ -43,14 +43,11 @@ class EstiloContractual {
     height: 1.12,
   );
 
-  static const TextStyle subtitulo = TextStyle(
-    color: Cristal.textoMedio,
-    fontSize: 14.5,
-    height: 1.45,
-  );
+  static TextStyle get subtitulo =>
+      TextStyle(color: Cristal.textoMedio, fontSize: 14.5, height: 1.45);
 
   /// Clave de un dato ("CONTRATO", "VALOR"): la única mayúscula sostenida.
-  static const TextStyle seccion = TextStyle(
+  static TextStyle get seccion => TextStyle(
     color: Cristal.textoSuave,
     fontSize: 11.5,
     fontWeight: FontWeight.w800,
@@ -58,7 +55,7 @@ class EstiloContractual {
   );
 
   /// Título de un grupo dentro de una pantalla, en tipo oración.
-  static const TextStyle tituloGrupo = TextStyle(
+  static TextStyle get tituloGrupo => TextStyle(
     color: Cristal.texto,
     fontSize: 15,
     fontWeight: FontWeight.w800,
@@ -81,7 +78,7 @@ class PildoraVolver extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         foregroundColor: Cristal.texto,
         backgroundColor: Cristal.vidrio,
-        side: const BorderSide(color: Cristal.borde, width: 1.2),
+        side: BorderSide(color: Cristal.borde, width: 1.2),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),

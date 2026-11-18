@@ -5,8 +5,16 @@ import 'cristal.dart';
 /// Superficie opaca equivalente al vidrio flotante, para los componentes
 /// de Material que no admiten transparencia (menús desplegables,
 /// selector de fecha).
-const Color _superficie = Color(0xFF0E1A2E);
-const Color _superficieAlta = Color(0xFF14233B);
+Color get _superficie =>
+    Cristal.esClaro ? const Color(0xFFFFFFFF) : const Color(0xFF0E1A2E);
+Color get _superficieAlta =>
+    Cristal.esClaro ? const Color(0xFFF3F6FB) : const Color(0xFF14233B);
+
+/// Blanco sobre el oscuro, azul marino sobre el claro, con [alfa] (0-255):
+/// los velos de botones y la barra de desplazamiento.
+Color _tinte(int alfa) => Cristal.esClaro
+    ? Color.fromARGB(alfa, 0x0B, 0x14, 0x26)
+    : Color.fromARGB(alfa, 0xFF, 0xFF, 0xFF);
 
 /// Velo que sube de opacidad bajo el cursor, en 0,3 s: la microinteracción
 /// común de todos los botones.
@@ -18,11 +26,11 @@ Widget _veloBoton(
   final activo = !estados.contains(WidgetState.disabled);
   final Color velo;
   if (activo && estados.contains(WidgetState.pressed)) {
-    velo = const Color(0x29FFFFFF);
+    velo = _tinte(0x29);
   } else if (activo && estados.contains(WidgetState.hovered)) {
-    velo = const Color(0x17FFFFFF);
+    velo = _tinte(0x17);
   } else {
-    velo = const Color(0x00FFFFFF);
+    velo = _tinte(0x00);
   }
   return AnimatedContainer(
     duration: Cristal.micro,
@@ -34,9 +42,8 @@ Widget _veloBoton(
 
 /// Bajo el cursor ya responde el velo; aquí solo el foco del teclado.
 final WidgetStateProperty<Color?> _capaBoton = WidgetStateProperty.resolveWith(
-  (estados) => estados.contains(WidgetState.focused)
-      ? const Color(0x24FFFFFF)
-      : Colors.transparent,
+  (estados) =>
+      estados.contains(WidgetState.focused) ? _tinte(0x24) : Colors.transparent,
 );
 
 OutlineInputBorder _bordeCampo(Color color) => OutlineInputBorder(
@@ -44,9 +51,10 @@ OutlineInputBorder _bordeCampo(Color color) => OutlineInputBorder(
   borderSide: BorderSide(color: color),
 );
 
-/// Tema de la aplicación: oscuro, de vidrio, con Inter.
+/// Tema de la aplicación en el modo activo (oscuro o claro), de vidrio,
+/// con Inter.
 ThemeData temaCristal() {
-  const esquema = ColorScheme.dark(
+  final esquema = (Cristal.esClaro ? ColorScheme.light : ColorScheme.dark)(
     primary: Cristal.acento,
     onPrimary: Colors.white,
     primaryContainer: Cristal.acentoVidrio,
@@ -74,17 +82,20 @@ ThemeData temaCristal() {
     outlineVariant: Cristal.borde,
     shadow: Colors.black,
     scrim: Cristal.velo,
-    inverseSurface: Color(0xFFF1F5F9),
-    onInverseSurface: Cristal.tinta,
+    inverseSurface: Cristal.esClaro
+        ? const Color(0xFF0E1A2E)
+        : const Color(0xFFF1F5F9),
+    onInverseSurface: Cristal.esClaro ? Cristal.blanco : Cristal.tinta,
     inversePrimary: Color(0xFF1D4ED8),
   );
 
-  const titulo = TextStyle(
+  final titulo = TextStyle(
     color: Cristal.texto,
     fontWeight: FontWeight.w800,
     letterSpacing: -0.5,
   );
-  final textos = Typography.material2021(platform: TargetPlatform.android).white
+  final tipografia = Typography.material2021(platform: TargetPlatform.android);
+  final textos = (Cristal.esClaro ? tipografia.black : tipografia.white)
       .apply(
         fontFamily: 'Inter',
         bodyColor: Cristal.textoCuerpo,
@@ -97,29 +108,29 @@ ThemeData temaCristal() {
         headlineLarge: titulo,
         headlineMedium: titulo,
         headlineSmall: titulo,
-        titleLarge: const TextStyle(
+        titleLarge: TextStyle(
           color: Cristal.texto,
           fontWeight: FontWeight.w700,
           letterSpacing: -0.2,
         ),
-        titleMedium: const TextStyle(color: Cristal.texto),
-        titleSmall: const TextStyle(color: Cristal.texto),
-        bodySmall: const TextStyle(color: Cristal.textoSuave),
-        labelSmall: const TextStyle(color: Cristal.textoSuave),
+        titleMedium: TextStyle(color: Cristal.texto),
+        titleSmall: TextStyle(color: Cristal.texto),
+        bodySmall: TextStyle(color: Cristal.textoSuave),
+        labelSmall: TextStyle(color: Cristal.textoSuave),
       );
 
   final formaVidrio = RoundedRectangleBorder(
     borderRadius: BorderRadius.circular(Cristal.radioTarjeta),
-    side: const BorderSide(color: Cristal.borde),
+    side: BorderSide(color: Cristal.borde),
   );
   final formaFlotante = RoundedRectangleBorder(
     borderRadius: BorderRadius.circular(Cristal.radioCampo),
-    side: const BorderSide(color: Cristal.borde),
+    side: BorderSide(color: Cristal.borde),
   );
 
   return ThemeData(
     useMaterial3: true,
-    brightness: Brightness.dark,
+    brightness: Cristal.esClaro ? Brightness.light : Brightness.dark,
     fontFamily: 'Inter',
     colorScheme: esquema,
     textTheme: textos,
@@ -145,9 +156,9 @@ ThemeData temaCristal() {
         TargetPlatform.fuchsia: TransicionLiquida(),
       },
     ),
-    iconTheme: const IconThemeData(color: Cristal.textoCuerpo),
-    primaryIconTheme: const IconThemeData(color: Cristal.texto),
-    appBarTheme: const AppBarTheme(
+    iconTheme: IconThemeData(color: Cristal.textoCuerpo),
+    primaryIconTheme: IconThemeData(color: Cristal.texto),
+    appBarTheme: AppBarTheme(
       backgroundColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
       foregroundColor: Cristal.texto,
@@ -169,10 +180,10 @@ ThemeData temaCristal() {
       barrierColor: Cristal.velo,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Cristal.radioPanel),
-        side: const BorderSide(color: Cristal.bordeFuerte),
+        side: BorderSide(color: Cristal.bordeFuerte),
       ),
       // La métrica de bodyMedium, con el texto a plena lectura.
-      contentTextStyle: const TextStyle(
+      contentTextStyle: TextStyle(
         fontFamily: 'Inter',
         color: Cristal.textoCuerpo,
         fontSize: 14,
@@ -180,7 +191,7 @@ ThemeData temaCristal() {
         letterSpacing: 0.25,
       ),
     ),
-    bottomSheetTheme: const BottomSheetThemeData(
+    bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: Cristal.flotante,
       modalBackgroundColor: Cristal.flotante,
       surfaceTintColor: Colors.transparent,
@@ -203,7 +214,7 @@ ThemeData temaCristal() {
     ),
     menuTheme: MenuThemeData(
       style: MenuStyle(
-        backgroundColor: const WidgetStatePropertyAll(_superficieAlta),
+        backgroundColor: WidgetStatePropertyAll(_superficieAlta),
         surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
         shadowColor: const WidgetStatePropertyAll(Colors.black),
         elevation: const WidgetStatePropertyAll(12),
@@ -214,7 +225,7 @@ ThemeData temaCristal() {
       behavior: SnackBarBehavior.floating,
       backgroundColor: _superficieAlta,
       elevation: 0,
-      contentTextStyle: const TextStyle(
+      contentTextStyle: TextStyle(
         fontFamily: 'Inter',
         color: Cristal.texto,
         fontSize: 13.5,
@@ -223,7 +234,7 @@ ThemeData temaCristal() {
       actionTextColor: Cristal.dorado,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Cristal.radioCampo),
-        side: const BorderSide(color: Cristal.bordeFuerte),
+        side: BorderSide(color: Cristal.bordeFuerte),
       ),
     ),
     tooltipTheme: TooltipThemeData(
@@ -233,7 +244,7 @@ ThemeData temaCristal() {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Cristal.bordeFuerte),
       ),
-      textStyle: const TextStyle(
+      textStyle: TextStyle(
         fontFamily: 'Inter',
         color: Cristal.texto,
         fontSize: 12.5,
@@ -241,7 +252,7 @@ ThemeData temaCristal() {
       ),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
     ),
-    dividerTheme: const DividerThemeData(color: Cristal.borde, thickness: 1),
+    dividerTheme: DividerThemeData(color: Cristal.borde, thickness: 1),
     inputDecorationTheme: InputDecorationThemeData(
       filled: true,
       fillColor: Cristal.campo,
@@ -250,17 +261,17 @@ ThemeData temaCristal() {
       // esquema (outline, primary, error), también en los campos que
       // traen su propio `border`.
       border: _bordeCampo(Cristal.bordeFuerte),
-      labelStyle: const TextStyle(color: Cristal.textoSuave),
-      floatingLabelStyle: const TextStyle(color: Cristal.acentoClaro),
-      hintStyle: const TextStyle(color: Cristal.textoTenue),
-      helperStyle: const TextStyle(color: Cristal.textoTenue),
-      errorStyle: const TextStyle(color: Cristal.rojo),
+      labelStyle: TextStyle(color: Cristal.textoSuave),
+      floatingLabelStyle: TextStyle(color: Cristal.acentoClaro),
+      hintStyle: TextStyle(color: Cristal.textoTenue),
+      helperStyle: TextStyle(color: Cristal.textoTenue),
+      errorStyle: TextStyle(color: Cristal.rojo),
       prefixIconColor: Cristal.textoSuave,
       suffixIconColor: Cristal.textoSuave,
       helperMaxLines: 3,
       errorMaxLines: 3,
     ),
-    textSelectionTheme: const TextSelectionThemeData(
+    textSelectionTheme: TextSelectionThemeData(
       cursorColor: Cristal.acentoClaro,
       selectionColor: Color(0x662F6BFF),
       selectionHandleColor: Cristal.acentoClaro,
@@ -305,7 +316,7 @@ ThemeData temaCristal() {
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: ButtonStyle(
-        backgroundColor: const WidgetStatePropertyAll(Cristal.vidrioSuave),
+        backgroundColor: WidgetStatePropertyAll(Cristal.vidrioSuave),
         foregroundColor: WidgetStateProperty.resolveWith(
           (e) => e.contains(WidgetState.disabled)
               ? Cristal.textoApagado
@@ -359,9 +370,7 @@ ThemeData temaCristal() {
               ? Cristal.texto
               : Cristal.textoSuave,
         ),
-        side: const WidgetStatePropertyAll(
-          BorderSide(color: Cristal.bordeFuerte),
-        ),
+        side: WidgetStatePropertyAll(BorderSide(color: Cristal.bordeFuerte)),
         animationDuration: Cristal.micro,
       ),
     ),
@@ -372,7 +381,7 @@ ThemeData temaCristal() {
       surfaceTintColor: Colors.transparent,
       checkmarkColor: Cristal.acentoClaro,
       deleteIconColor: Cristal.textoSuave,
-      side: const BorderSide(color: Cristal.borde),
+      side: BorderSide(color: Cristal.borde),
       // La métrica de labelLarge; solo cambia el color según el estado.
       labelStyle: TextStyle(
         fontFamily: 'Inter',
@@ -399,7 +408,7 @@ ThemeData temaCristal() {
             : Colors.transparent,
       ),
       checkColor: const WidgetStatePropertyAll(Colors.white),
-      side: const BorderSide(color: Cristal.textoTenue, width: 1.6),
+      side: BorderSide(color: Cristal.textoTenue, width: 1.6),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
     ),
     switchTheme: SwitchThemeData(
@@ -426,24 +435,24 @@ ThemeData temaCristal() {
             : Cristal.textoTenue,
       ),
     ),
-    progressIndicatorTheme: const ProgressIndicatorThemeData(
+    progressIndicatorTheme: ProgressIndicatorThemeData(
       color: Cristal.acentoClaro,
       linearTrackColor: Cristal.vidrioFuerte,
       circularTrackColor: Colors.transparent,
     ),
-    tabBarTheme: const TabBarThemeData(
+    tabBarTheme: TabBarThemeData(
       labelColor: Cristal.texto,
       unselectedLabelColor: Cristal.textoTenue,
       indicatorColor: Cristal.dorado,
       dividerColor: Cristal.borde,
     ),
-    listTileTheme: const ListTileThemeData(
+    listTileTheme: ListTileThemeData(
       textColor: Cristal.textoCuerpo,
       iconColor: Cristal.textoSuave,
       selectedColor: Cristal.texto,
       selectedTileColor: Cristal.vidrioFuerte,
     ),
-    expansionTileTheme: const ExpansionTileThemeData(
+    expansionTileTheme: ExpansionTileThemeData(
       iconColor: Cristal.textoCuerpo,
       collapsedIconColor: Cristal.textoSuave,
       textColor: Cristal.texto,
@@ -453,7 +462,7 @@ ThemeData temaCristal() {
       shape: Border(),
       collapsedShape: Border(),
     ),
-    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+    bottomNavigationBarTheme: BottomNavigationBarThemeData(
       type: BottomNavigationBarType.fixed,
       backgroundColor: Colors.transparent,
       elevation: 0,
@@ -466,8 +475,8 @@ ThemeData temaCristal() {
       thumbColor: WidgetStateProperty.resolveWith(
         (e) =>
             e.contains(WidgetState.hovered) || e.contains(WidgetState.dragged)
-            ? const Color(0x66FFFFFF)
-            : const Color(0x33FFFFFF),
+            ? _tinte(0x66)
+            : _tinte(0x33),
       ),
       trackColor: const WidgetStatePropertyAll(Colors.transparent),
       trackBorderColor: const WidgetStatePropertyAll(Colors.transparent),
@@ -480,7 +489,7 @@ ThemeData temaCristal() {
       dividerColor: Cristal.borde,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Cristal.radioPanel),
-        side: const BorderSide(color: Cristal.bordeFuerte),
+        side: BorderSide(color: Cristal.bordeFuerte),
       ),
     ),
     badgeTheme: const BadgeThemeData(

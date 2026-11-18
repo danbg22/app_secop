@@ -212,7 +212,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
             )
           : const SizedBox.shrink();
     }
-    const etiqueta = TextStyle(
+    final etiqueta = TextStyle(
       color: Cristal.textoSuave,
       fontSize: 11.5,
       fontWeight: FontWeight.w800,
@@ -227,9 +227,9 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
           children: [
             Row(
               children: [
-                const Icon(Icons.badge_outlined, color: Cristal.dorado),
+                Icon(Icons.badge_outlined, color: Cristal.dorado),
                 const SizedBox(width: 10),
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Hoja de vida en el SIGEP',
                     style: TextStyle(
@@ -247,13 +247,13 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
               ],
             ),
             const SizedBox(height: 2),
-            const Text(
+            Text(
               'Información pública del directorio de Función Pública.',
               style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
             ),
             const SizedBox(height: 14),
             if (hoja.cargo.isNotEmpty) ...[
-              const Text('CARGO ACTUAL', style: etiqueta),
+              Text('CARGO ACTUAL', style: etiqueta),
               const SizedBox(height: 4),
               Text(
                 [
@@ -261,7 +261,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                   if (hoja.entidad.isNotEmpty) hoja.entidad,
                   if (hoja.dependencia.isNotEmpty) hoja.dependencia,
                 ].join(' · '),
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
@@ -271,14 +271,14 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
               const SizedBox(height: 14),
             ],
             if (hoja.formacion.isNotEmpty) ...[
-              const Text('FORMACIÓN ACADÉMICA', style: etiqueta),
+              Text('FORMACIÓN ACADÉMICA', style: etiqueta),
               const SizedBox(height: 6),
               for (final f in hoja.formacion)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Text(
                     '•  $f',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.textoCuerpo,
                       fontSize: 13,
                       height: 1.35,
@@ -288,7 +288,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
               const SizedBox(height: 10),
             ],
             if (hoja.experiencia.isNotEmpty) ...[
-              const Text('EXPERIENCIA LABORAL', style: etiqueta),
+              Text('EXPERIENCIA LABORAL', style: etiqueta),
               const SizedBox(height: 6),
               for (final c in hoja.experiencia)
                 Padding(
@@ -302,7 +302,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                           children: [
                             Text(
                               c.cargo,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Cristal.texto,
                                 fontSize: 13.5,
                                 fontWeight: FontWeight.w700,
@@ -310,7 +310,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                             ),
                             Text(
                               c.entidad,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Cristal.textoMedio,
                                 fontSize: 12.5,
                               ),
@@ -791,11 +791,11 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                     Container(
                       width: 52,
                       height: 52,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: Cristal.azulVidrio,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.person,
                         size: 30,
                         color: Cristal.acentoClaro,
@@ -808,7 +808,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                         children: [
                           Text(
                             _nombreMostrar,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 18.5,
                               fontWeight: FontWeight.w800,
                               color: Cristal.texto,
@@ -819,7 +819,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                             const SizedBox(height: 3),
                             Text(
                               'NIT / C.C.: $_nitDetectado',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
                                 color: Cristal.textoSuave,
@@ -848,7 +848,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                           color: Cristal.verdeVidrio,
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
@@ -924,11 +924,11 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                 Container(
                   width: 78,
                   height: 78,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: Cristal.azulVidrio,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.person,
                     size: 44,
                     color: Cristal.acentoClaro,
@@ -941,7 +941,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                     children: [
                       Text(
                         _nombreMostrar,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.w800,
                           color: Cristal.texto,
@@ -952,7 +952,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                         const SizedBox(height: 4),
                         Text(
                           'NIT / C.C.: $_nitDetectado',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14.5,
                             fontWeight: FontWeight.w600,
                             color: Cristal.textoSuave,
@@ -976,7 +976,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                                 color: Cristal.verdeVidrio,
                                 borderRadius: BorderRadius.circular(20),
                               ),
-                              child: const Row(
+                              child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
@@ -1218,7 +1218,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                             color: Cristal.doradoVidrio,
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.request_quote_outlined,
                             color: Cristal.dorado,
                             size: 20,
@@ -1230,7 +1230,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                             descripcion,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.texto,
                               fontSize: 13,
                               fontWeight: FontWeight.w800,
@@ -1261,7 +1261,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.account_balance_outlined,
                           size: 14,
                           color: Cristal.textoSuave,
@@ -1272,7 +1272,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                             entidad,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.textoSuave,
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
@@ -1281,7 +1281,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                         ),
                       ],
                     ),
-                    const Divider(height: 16, color: Cristal.borde),
+                    Divider(height: 16, color: Cristal.borde),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.end,
@@ -1291,7 +1291,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                           children: [
                             Text(
                               '\$ ${formatoMoneda.format(valor.round())}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Cristal.verde,
                                 fontSize: 15.5,
                                 fontWeight: FontWeight.w800,
@@ -1304,7 +1304,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                                 analisis.esMenorAUnMes
                                     ? '${analisis.plazoDias} días total'
                                     : '≈ ${ContractFinancialAnalysis.formatCop(analisis.valorMensualEstimado)} / mes',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Cristal.acentoClaro,
                                   fontSize: 11.5,
                                   fontWeight: FontWeight.w700,
@@ -1319,7 +1319,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.calendar_today_outlined,
                                   size: 13,
                                   color: Cristal.textoSuave,
@@ -1327,7 +1327,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                                 const SizedBox(width: 5),
                                 Text(
                                   fecha,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: Cristal.textoMedio,
                                     fontSize: 11.5,
                                     fontWeight: FontWeight.w500,
@@ -1339,7 +1339,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                               const SizedBox(height: 2),
                               Text(
                                 '${analisis.plazoDias}d · ${analisis.mesesDecimalTexto}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Cristal.ambar,
                                   fontSize: 10.5,
                                   fontWeight: FontWeight.w600,
@@ -1362,7 +1362,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                         color: Cristal.doradoVidrio,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.request_quote_outlined,
                         color: Cristal.dorado,
                         size: 25,
@@ -1377,7 +1377,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                             descripcion,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.texto,
                               fontSize: 13.5,
                               fontWeight: FontWeight.w800,
@@ -1387,7 +1387,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                           const SizedBox(height: 6),
                           Row(
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.account_balance_outlined,
                                 size: 15,
                                 color: Cristal.textoSuave,
@@ -1398,7 +1398,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                                   entidad,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: Cristal.textoSuave,
                                     fontSize: 12.5,
                                     fontWeight: FontWeight.w500,
@@ -1414,7 +1414,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                             children: [
                               Text(
                                 '\$ ${formatoMoneda.format(valor.round())}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Cristal.verde,
                                   fontSize: 17,
                                   fontWeight: FontWeight.w800,
@@ -1436,7 +1436,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                                     analisis.esMenorAUnMes
                                         ? '${analisis.plazoDias} días'
                                         : '≈ ${ContractFinancialAnalysis.formatCop(analisis.valorMensualEstimado)} / mes (${analisis.mesesDecimalTexto})',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: Cristal.acentoClaro,
                                       fontSize: 11.5,
                                       fontWeight: FontWeight.w700,
@@ -1460,7 +1460,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.calendar_today_outlined,
                             size: 15,
                             color: Cristal.textoSuave,
@@ -1468,7 +1468,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                           const SizedBox(width: 7),
                           Text(
                             fecha,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.textoMedio,
                               fontSize: 12.5,
                               fontWeight: FontWeight.w500,
@@ -1543,7 +1543,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Historial en SECOP',
                           style: TextStyle(
                             color: Cristal.texto,
@@ -1688,7 +1688,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                           color: Cristal.vidrio,
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: const Text(
+                        child: Text(
                           'No se encontraron contratos registrados en SECOP para este contratista desde 2015.',
                           style: TextStyle(
                             color: Cristal.textoSuave,
@@ -1706,7 +1706,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                         child: Center(
                           child: Text(
                             'No se registran contratos en el año $_filtroAnio para este contratista.',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.textoSuave,
                               fontSize: 13.5,
                             ),
@@ -1776,7 +1776,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
             fontSize: 11,
             fontWeight: FontWeight.w500,
           ),
-          items: const [
+          items: [
             BottomNavigationBarItem(
               icon: Icon(Icons.home_outlined),
               activeIcon: Icon(Icons.home_rounded, color: Cristal.dorado),
@@ -1912,7 +1912,7 @@ class _ContratosPorEntidadScreenState extends State<ContratosPorEntidadScreen> {
     if (estadoLower.contains('borrador') || estadoLower.contains('cancelado')) {
       return Cristal.textoTenue;
     }
-    return Color(0xFF38BDF8);
+    return Cristal.legible(const Color(0xFF38BDF8));
   }
 
   @override
@@ -1923,7 +1923,7 @@ class _ContratosPorEntidadScreenState extends State<ContratosPorEntidadScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Contratos con Entidad',
               style: TextStyle(
                 color: Cristal.texto,
@@ -1933,14 +1933,14 @@ class _ContratosPorEntidadScreenState extends State<ContratosPorEntidadScreen> {
             ),
             Text(
               widget.entidad,
-              style: const TextStyle(color: Cristal.textoSuave, fontSize: 12),
+              style: TextStyle(color: Cristal.textoSuave, fontSize: 12),
               overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Cristal.texto),
+        iconTheme: IconThemeData(color: Cristal.texto),
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2006,7 +2006,7 @@ class _ContratosPorEntidadScreenState extends State<ContratosPorEntidadScreen> {
                                 child: Text(
                                   contrato['descripcion_del_proceso'] ??
                                       'Sin descripción',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w700,
                                     color: Cristal.texto,
@@ -2039,7 +2039,7 @@ class _ContratosPorEntidadScreenState extends State<ContratosPorEntidadScreen> {
                           const SizedBox(height: 12),
                           Row(
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.gavel,
                                 size: 16,
                                 color: Cristal.textoTenue,
@@ -2049,7 +2049,7 @@ class _ContratosPorEntidadScreenState extends State<ContratosPorEntidadScreen> {
                                 child: Text(
                                   contrato['modalidad_de_contratacion'] ??
                                       'Modalidad no definida',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 13,
                                     color: Cristal.textoTenue,
                                   ),
@@ -2064,7 +2064,7 @@ class _ContratosPorEntidadScreenState extends State<ContratosPorEntidadScreen> {
                             children: [
                               Text(
                                 valorFormateado,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Cristal.verde,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 18,

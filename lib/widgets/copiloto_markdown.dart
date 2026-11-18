@@ -38,7 +38,7 @@ class CopilotoMarkdown extends StatelessWidget {
       }
       if (RegExp(r'^\s*([-*_])\s*\1\s*\1[\s\-*_]*$').hasMatch(line)) {
         flushParagraph();
-        blocks.add(const Divider(height: 12, color: Cristal.borde));
+        blocks.add(Divider(height: 12, color: Cristal.borde));
         continue;
       }
 
@@ -124,9 +124,9 @@ class CopilotoMarkdown extends StatelessWidget {
         spans.add(
           TextSpan(
             text: m.group(3),
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w600,
-              backgroundColor: Color(0x18FFFFFF),
+              backgroundColor: Cristal.vidrioFuerte,
             ),
           ),
         );

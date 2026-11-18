@@ -14,3 +14,6 @@ flutter test tool/vista/catalogo_test.dart --update-goldens    # catálogo de co
 
 No usan Firebase real: `firebase_falso.dart` simula la sesión. Las que
 consultan SECOP II necesitan internet.
+
+Modo claro: agrega `--dart-define=MODO_CLARO=true` a cualquiera de las
+órdenes de arriba; las capturas se guardan con el sufijo `_claro`.

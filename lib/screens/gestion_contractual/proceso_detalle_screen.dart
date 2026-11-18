@@ -118,14 +118,10 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
         backgroundColor: Cristal.flotante,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
-          side: const BorderSide(color: Cristal.bordeFuerte),
+          side: BorderSide(color: Cristal.bordeFuerte),
         ),
-        icon: const Icon(
-          Icons.delete_forever_rounded,
-          color: Cristal.rojo,
-          size: 36,
-        ),
-        title: const Text(
+        icon: Icon(Icons.delete_forever_rounded, color: Cristal.rojo, size: 36),
+        title: Text(
           '¿Seguro que quieres eliminar este proceso?',
           textAlign: TextAlign.center,
           style: TextStyle(
@@ -151,7 +147,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                 child: Text(
                   '${p.numeroProceso} · ${p.modalidad.nombre}\n'
                   '$docs documento${docs == 1 ? '' : 's'} interno${docs == 1 ? '' : 's'} cargado${docs == 1 ? '' : 's'}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
@@ -160,7 +156,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Se borrarán el cronograma, los documentos internos, las ofertas, '
                 'las observaciones y la trazabilidad, para ti y para todo tu equipo. '
                 'Lo publicado en SECOP II no cambia. Esta acción no se puede deshacer.',
@@ -411,7 +407,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                     ),
                   ),
           ),
-          const Divider(height: 1, color: Cristal.borde),
+          Divider(height: 1, color: Cristal.borde),
         ],
       ],
     );
@@ -460,7 +456,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                     ? null
                     : Text(
                         'Responsable: $responsable',
-                        style: const TextStyle(color: Cristal.textoSuave),
+                        style: TextStyle(color: Cristal.textoSuave),
                       )),
           children: [
             if (etapa.plazo != null)
@@ -468,7 +464,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.schedule_rounded,
                       size: 15,
                       color: Cristal.ambar,
@@ -477,7 +473,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                     Expanded(
                       child: Text(
                         etapa.plazo!,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.ambar,
                           fontSize: 12.5,
                           fontWeight: FontWeight.w700,
@@ -522,7 +518,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                   );
                 },
               ),
-              const Divider(height: 1, color: Cristal.borde),
+              Divider(height: 1, color: Cristal.borde),
             ],
             if (indice == p.etapaActual && enCurso && _puedeGestionar) ...[
               const SizedBox(height: 14),
@@ -625,17 +621,14 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                   children: [
                     Text(
                       o.interesado.isEmpty ? 'Interesado' : o.interesado,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.texto,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                     Text(
                       '${o.fechaIso} · ${etapas[o.etapaId] ?? ''}',
-                      style: const TextStyle(
-                        color: Cristal.textoSuave,
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: Cristal.textoSuave, fontSize: 12),
                     ),
                     EtiquetaColor(
                       texto: o.respondida ? 'Respondida' : 'Pendiente',
@@ -649,10 +642,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                 const SizedBox(height: 6),
                 Text(
                   o.texto,
-                  style: const TextStyle(
-                    color: Cristal.textoMedio,
-                    fontSize: 13.2,
-                  ),
+                  style: TextStyle(color: Cristal.textoMedio, fontSize: 13.2),
                 ),
                 if (o.respondida) ...[
                   const SizedBox(height: 8),
@@ -666,10 +656,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                     ),
                     child: Text(
                       'Respuesta${o.responsable.isEmpty ? '' : ' (${o.responsable})'}: ${o.respuesta}',
-                      style: const TextStyle(
-                        color: Cristal.texto,
-                        fontSize: 13,
-                      ),
+                      style: TextStyle(color: Cristal.texto, fontSize: 13),
                     ),
                   ),
                 ],
@@ -694,7 +681,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
               ],
             ),
           ),
-          const Divider(height: 1, color: Cristal.borde),
+          Divider(height: 1, color: Cristal.borde),
         ],
       ],
     );
@@ -798,7 +785,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                 padding: const EdgeInsets.only(bottom: 10),
                 child: Text(
                   'SECOP II reporta adjudicación a ${p.secop!.proveedor} por ${_cop.format(p.secop!.valorAdjudicado)}.',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.acentoClaro,
                     fontWeight: FontWeight.w700,
                   ),
@@ -814,7 +801,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                           '${r.actoNumero.isEmpty ? '' : 'Acto ${r.actoNumero} · '}${r.fechaIso}'
                     : 'Declarado desierto · ${r.actoNumero.isEmpty ? '' : 'Acto ${r.actoNumero} · '}${r.fechaIso}'
                           '${r.motivo.isEmpty ? '' : '\nMotivo: ${r.motivo}'}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
@@ -849,7 +836,7 @@ class _ProcesoDetalleScreenState extends State<ProcesoDetalleScreen> {
                     }
                   },
                 ),
-                const Divider(height: 1, color: Cristal.borde),
+                Divider(height: 1, color: Cristal.borde),
               ],
             ],
           ),
@@ -1237,7 +1224,7 @@ class _AvisoApoyo extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Cristal.acentoBorde),
       ),
-      child: const Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
@@ -1334,7 +1321,7 @@ class _Encabezado extends StatelessWidget {
                       constraints: const BoxConstraints(maxWidth: 320),
                       child: Text(
                         valor,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Cristal.texto,
                           fontSize: 13.5,
                           fontWeight: FontWeight.w700,
@@ -1388,10 +1375,10 @@ class _VinculoSecop extends StatelessWidget {
             runSpacing: 10,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              const Icon(Icons.link_rounded, color: Cristal.texto),
+              Icon(Icons.link_rounded, color: Cristal.texto),
               Text(
                 id.isEmpty ? 'Sin vincular a SECOP II' : 'SECOP II · $id',
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
                   fontSize: 14.5,
                   fontWeight: FontWeight.w800,
@@ -1432,7 +1419,7 @@ class _VinculoSecop extends StatelessWidget {
                   onPressed: consultando ? null : onConsultar,
                   style: EstiloContractual.botonPrincipal(),
                   icon: consultando
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(
@@ -1463,17 +1450,17 @@ class _VinculoSecop extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.fiber_new_rounded,
-                        color: Color(0xFFFB923C),
+                        color: Cristal.legible(const Color(0xFFFB923C)),
                         size: 20,
                       ),
                       const SizedBox(width: 6),
-                      const Expanded(
+                      Expanded(
                         child: Text(
                           'Novedades en SECOP II',
                           style: TextStyle(
-                            color: Color(0xFFFB923C),
+                            color: Cristal.legible(const Color(0xFFFB923C)),
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -1481,7 +1468,9 @@ class _VinculoSecop extends StatelessWidget {
                       TextButton(
                         onPressed: onNovedadesRevisadas,
                         style: TextButton.styleFrom(
-                          foregroundColor: const Color(0xFFFB923C),
+                          foregroundColor: Cristal.legible(
+                            Cristal.legible(const Color(0xFFFB923C)),
+                          ),
                         ),
                         child: const Text('Marcar como revisadas'),
                       ),
@@ -1492,8 +1481,8 @@ class _VinculoSecop extends StatelessWidget {
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
                         '• $n',
-                        style: const TextStyle(
-                          color: Color(0xFFFB923C),
+                        style: TextStyle(
+                          color: Cristal.legible(const Color(0xFFFB923C)),
                           fontSize: 13,
                         ),
                       ),
@@ -1533,7 +1522,7 @@ class _VinculoSecop extends StatelessWidget {
                 childrenPadding: EdgeInsets.zero,
                 title: Text(
                   'Documentos publicados en SECOP II (${s.documentos.length})',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w800,
@@ -1553,11 +1542,11 @@ class _VinculoSecop extends StatelessWidget {
             Text(
               'Sincronizado ${haceCuanto(proceso.secopSincronizadoEnIso)}. Fuente: Datos Abiertos SECOP II '
               '(se actualiza a diario; puede tener un día de rezago).',
-              style: const TextStyle(color: Cristal.textoSuave, fontSize: 11.5),
+              style: TextStyle(color: Cristal.textoSuave, fontSize: 11.5),
             ),
           ] else if (id.isNotEmpty) ...[
             const SizedBox(height: 10),
-            const Text(
+            Text(
               'Aún no se ha sincronizado. Toca "Actualizar estado desde SECOP" para traer su estado y documentos.',
               style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
             ),
@@ -1575,7 +1564,7 @@ class _VinculoSecop extends StatelessWidget {
       const SizedBox(height: 2),
       Text(
         valor.isEmpty ? '—' : valor,
-        style: const TextStyle(
+        style: TextStyle(
           color: Cristal.texto,
           fontSize: 13,
           fontWeight: FontWeight.w700,
@@ -1633,26 +1622,26 @@ class _Alertas extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.warning_amber_rounded,
                         size: 18,
-                        color: Color(0xFFFB923C),
+                        color: Cristal.legible(const Color(0xFFFB923C)),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           texto,
-                          style: const TextStyle(
-                            color: Color(0xFFFB923C),
+                          style: TextStyle(
+                            color: Cristal.legible(const Color(0xFFFB923C)),
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
-                      const Icon(
+                      Icon(
                         Icons.chevron_right_rounded,
                         size: 18,
-                        color: Color(0xFFFB923C),
+                        color: Cristal.legible(const Color(0xFFFB923C)),
                       ),
                     ],
                   ),
@@ -1713,7 +1702,7 @@ class _Pestanas extends StatelessWidget {
               onSelected: (_) => onCambiar(t),
               selectedColor: Cristal.acento,
               backgroundColor: Cristal.vidrio,
-              side: const BorderSide(color: Cristal.borde),
+              side: BorderSide(color: Cristal.borde),
               labelStyle: TextStyle(
                 color: t == actual ? Cristal.texto : Cristal.texto,
                 fontWeight: FontWeight.w700,
@@ -1758,7 +1747,7 @@ class _Tarjeta extends StatelessWidget {
             children: [
               Text(
                 titulo,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
@@ -1771,7 +1760,7 @@ class _Tarjeta extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               subtitulo!,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Cristal.textoMedio,
                 fontSize: 12.8,
                 height: 1.4,
@@ -1810,7 +1799,7 @@ class _TextoVacio extends StatelessWidget {
     child: Text(
       texto,
       textAlign: TextAlign.center,
-      style: const TextStyle(color: Cristal.textoSuave, fontSize: 13),
+      style: TextStyle(color: Cristal.textoSuave, fontSize: 13),
     ),
   );
 }
@@ -1859,7 +1848,7 @@ class _FilaHito extends StatelessWidget {
           ),
           style: OutlinedButton.styleFrom(
             foregroundColor: Cristal.texto,
-            side: const BorderSide(color: Cristal.borde),
+            side: BorderSide(color: Cristal.borde),
             shape: const StadiumBorder(),
             visualDensity: VisualDensity.compact,
           ),
@@ -1868,7 +1857,7 @@ class _FilaHito extends StatelessWidget {
           IconButton(
             tooltip: 'Quitar fecha',
             onPressed: onQuitar,
-            icon: const Icon(
+            icon: Icon(
               Icons.close_rounded,
               size: 18,
               color: Cristal.textoSuave,
@@ -1892,7 +1881,7 @@ class _FilaHito extends StatelessWidget {
                   e.hito.obligatorio
                       ? e.hito.nombre
                       : '${e.hito.nombre} · si aplica',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontSize: 13.8,
                     fontWeight: FontWeight.w700,
@@ -1902,10 +1891,7 @@ class _FilaHito extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     '${regla.descripcion}${regla.fundamento == null ? '' : ' (${regla.fundamento})'}',
-                    style: const TextStyle(
-                      color: Cristal.textoSuave,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: Cristal.textoSuave, fontSize: 12),
                   ),
                 ],
                 if (limite != null) ...[
@@ -1984,7 +1970,7 @@ class _LineaEtapas extends StatelessWidget {
                                   ? Cristal.acentoVidrio
                                   : Cristal.vidrioFuerte),
                         child: i < proceso.etapaActual
-                            ? const Icon(
+                            ? Icon(
                                 Icons.check_rounded,
                                 size: 15,
                                 color: Cristal.texto,
@@ -2072,7 +2058,7 @@ class _FilaDocumento extends StatelessWidget {
               children: [
                 Text(
                   d.obligatorio ? d.nombre : '${d.nombre} · si aplica',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontSize: 13.8,
                     fontWeight: FontWeight.w700,
@@ -2083,15 +2069,12 @@ class _FilaDocumento extends StatelessWidget {
                   c != null
                       ? '${c.archivoNombre} · ${c.cargadoPor} · ${JuridicoContratacionService.formatearFechaHumana(c.fechaIso)}'
                       : d.descripcion,
-                  style: const TextStyle(
-                    color: Cristal.textoSuave,
-                    fontSize: 12.3,
-                  ),
+                  style: TextStyle(color: Cristal.textoSuave, fontSize: 12.3),
                 ),
                 if (c == null && d.fundamento != null)
                   Text(
                     d.fundamento!,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.textoTenue,
                       fontSize: 11.5,
                       fontStyle: FontStyle.italic,
@@ -2140,7 +2123,7 @@ class _FilaDocumento extends StatelessWidget {
             IconButton(
               tooltip: 'Descargar',
               onPressed: onDescargar,
-              icon: const Icon(Icons.download_rounded, color: Cristal.texto),
+              icon: Icon(Icons.download_rounded, color: Cristal.texto),
             ),
           if (puedeEditar)
             TextButton(
@@ -2196,7 +2179,7 @@ class _Matriz extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
             color: fondo,
-            border: const Border(bottom: BorderSide(color: Cristal.borde)),
+            border: Border(bottom: BorderSide(color: Cristal.borde)),
           ),
           alignment: Alignment.centerLeft,
           child: hijo,
@@ -2207,7 +2190,7 @@ class _Matriz extends StatelessWidget {
       children: [
         fila([
           celda(
-            const Text(
+            Text(
               'Requisito',
               style: TextStyle(
                 fontWeight: FontWeight.w800,
@@ -2226,7 +2209,7 @@ class _Matriz extends StatelessWidget {
                     '${mostrarCalificacion ? '${i + 1}. ' : ''}${o.proponente}',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w800,
                       color: Cristal.texto,
                       fontSize: 12.5,
@@ -2234,10 +2217,7 @@ class _Matriz extends StatelessWidget {
                   ),
                   Text(
                     o.nit,
-                    style: const TextStyle(
-                      color: Cristal.textoSuave,
-                      fontSize: 11.5,
-                    ),
+                    style: TextStyle(color: Cristal.textoSuave, fontSize: 11.5),
                   ),
                 ],
               ),
@@ -2249,7 +2229,7 @@ class _Matriz extends StatelessWidget {
             celda(
               Text(
                 r.obligatorio ? r.nombre : '${r.nombre} (si aplica)',
-                style: const TextStyle(color: Cristal.texto, fontSize: 12.3),
+                style: TextStyle(color: Cristal.texto, fontSize: 12.3),
               ),
               ancho: _anchoRequisito,
             ),
@@ -2263,7 +2243,7 @@ class _Matriz extends StatelessWidget {
           ]),
         fila([
           celda(
-            const Text(
+            Text(
               'Resultado',
               style: TextStyle(
                 fontWeight: FontWeight.w800,
@@ -2280,7 +2260,7 @@ class _Matriz extends StatelessWidget {
                   requisitos,
                   o.verificaciones,
                 ).etiqueta,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w800,
                   color: Cristal.texto,
                   fontSize: 12.5,
@@ -2292,7 +2272,7 @@ class _Matriz extends StatelessWidget {
         if (mostrarCalificacion)
           fila([
             celda(
-              const Text(
+              Text(
                 'Valor y puntaje',
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
@@ -2306,10 +2286,7 @@ class _Matriz extends StatelessWidget {
                 Text(
                   '${o.valorCop > 0 ? _cop.format(o.valorCop) : 'Sin valor'}\n'
                   '${o.puntaje == null ? 'Sin puntaje' : 'Puntaje ${o.puntaje! == o.puntaje!.roundToDouble() ? o.puntaje!.toInt() : o.puntaje}'}',
-                  style: const TextStyle(
-                    color: Cristal.textoMedio,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Cristal.textoMedio, fontSize: 12),
                 ),
               ),
           ]),
@@ -2336,7 +2313,7 @@ class _Matriz extends StatelessWidget {
                     IconButton(
                       tooltip: 'Quitar del registro',
                       onPressed: () => onQuitar(o),
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.delete_outline_rounded,
                         size: 18,
                         color: Cristal.textoSuave,
@@ -2424,7 +2401,7 @@ class _FilaLegalizacion extends StatelessWidget {
                   requisito.obligatorio
                       ? requisito.nombre
                       : '${requisito.nombre} · si aplica',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Cristal.texto,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w700,
@@ -2434,10 +2411,7 @@ class _FilaLegalizacion extends StatelessWidget {
                   (verificacion?.observacion ?? '').isEmpty
                       ? requisito.descripcion
                       : verificacion!.observacion,
-                  style: const TextStyle(
-                    color: Cristal.textoSuave,
-                    fontSize: 12.2,
-                  ),
+                  style: TextStyle(color: Cristal.textoSuave, fontSize: 12.2),
                 ),
               ],
             ),
@@ -2466,7 +2440,7 @@ class _Trazabilidad extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Trazabilidad',
             style: TextStyle(
               color: Cristal.texto,
@@ -2485,7 +2459,7 @@ class _Trazabilidad extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             '${(proceso.avanceDocumentosEntidad * 100).round()} % de los documentos internos obligatorios',
-            style: const TextStyle(color: Cristal.textoSuave, fontSize: 11.8),
+            style: TextStyle(color: Cristal.textoSuave, fontSize: 11.8),
           ),
           const SizedBox(height: 14),
           for (final e in proceso.trazabilidad.take(25))
@@ -2510,7 +2484,7 @@ class _Trazabilidad extends StatelessWidget {
                       children: [
                         Text(
                           e.titulo,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.texto,
                             fontSize: 12.8,
                             fontWeight: FontWeight.w700,
@@ -2518,7 +2492,7 @@ class _Trazabilidad extends StatelessWidget {
                         ),
                         Text(
                           '${e.actorNombre} · ${JuridicoContratacionService.formatearFechaHumana(e.fechaIso)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.textoSuave,
                             fontSize: 11.5,
                           ),
@@ -2526,7 +2500,7 @@ class _Trazabilidad extends StatelessWidget {
                         if (e.detalle.isNotEmpty)
                           Text(
                             e.detalle,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Cristal.textoMedio,
                               fontSize: 11.8,
                             ),
@@ -2562,7 +2536,7 @@ class _Dialogo extends StatelessWidget {
       backgroundColor: Cristal.flotante,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(22),
-        side: const BorderSide(color: Cristal.bordeFuerte),
+        side: BorderSide(color: Cristal.bordeFuerte),
       ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 540),
@@ -2574,7 +2548,7 @@ class _Dialogo extends StatelessWidget {
             children: [
               Text(
                 titulo,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
                   fontSize: 19,
                   fontWeight: FontWeight.w800,
@@ -2584,10 +2558,7 @@ class _Dialogo extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   detalle,
-                  style: const TextStyle(
-                    color: Cristal.textoMedio,
-                    fontSize: 13.2,
-                  ),
+                  style: TextStyle(color: Cristal.textoMedio, fontSize: 13.2),
                 ),
               ],
               for (final c in campos) ...[const SizedBox(height: 12), c],

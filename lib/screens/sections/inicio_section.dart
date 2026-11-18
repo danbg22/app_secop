@@ -36,7 +36,7 @@ class InicioSection extends StatelessWidget {
       color: Cristal.vidrioOscuro,
       colorEncima: Cristal.vidrioOscuroEncima,
       colorBorde: Cristal.bordeFuerte,
-      colorBordeEncima: const Color(0x52FFFFFF),
+      colorBordeEncima: Cristal.bordeFuerte,
       onTap: onTap,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(Cristal.radioPanel - 1),
@@ -97,14 +97,14 @@ class InicioSection extends StatelessWidget {
                     description,
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.textoCuerpo,
                       fontSize: 13,
                       height: 1.35,
                     ),
                   ),
                   const Spacer(),
-                  const Align(
+                  Align(
                     alignment: Alignment.bottomRight,
                     child: DecoratedBox(
                       decoration: BoxDecoration(

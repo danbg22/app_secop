@@ -164,7 +164,7 @@ class _GestionEquipoScreenState extends State<GestionEquipoScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Agrega a los abogados de tu equipo como usuarios temporales. '
                     'Cada uno define su propia contraseña desde el correo que le '
                     'enviamos, trabaja sobre los expedientes del equipo con los '
@@ -283,7 +283,7 @@ class _PildoraVolver extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         foregroundColor: Cristal.texto,
         backgroundColor: Cristal.vidrio,
-        side: const BorderSide(color: Cristal.borde, width: 1.2),
+        side: BorderSide(color: Cristal.borde, width: 1.2),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
@@ -324,7 +324,7 @@ class _CupoIndicador extends StatelessWidget {
           const SizedBox(width: 12),
           Text(
             '$usados de $maximo cupos usados',
-            style: const TextStyle(
+            style: TextStyle(
               color: Cristal.texto,
               fontSize: 13.5,
               fontWeight: FontWeight.w800,
@@ -365,7 +365,7 @@ class _TarjetaVacia extends StatelessWidget {
           Text(
             titulo,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               color: Cristal.texto,
               fontSize: 17,
               fontWeight: FontWeight.w800,
@@ -375,7 +375,7 @@ class _TarjetaVacia extends StatelessWidget {
           Text(
             detalle,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Cristal.textoMedio, fontSize: 13.5),
+            style: TextStyle(color: Cristal.textoMedio, fontSize: 13.5),
           ),
           ?accion,
         ],
@@ -430,7 +430,7 @@ class _TarjetaMiembro extends StatelessWidget {
             backgroundColor: Cristal.vidrioSuave,
             child: Text(
               iniciales,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Cristal.acentoClaro,
                 fontWeight: FontWeight.w800,
               ),
@@ -448,7 +448,7 @@ class _TarjetaMiembro extends StatelessWidget {
                   children: [
                     Text(
                       m.nombre,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.texto,
                         fontSize: 15.5,
                         fontWeight: FontWeight.w800,
@@ -477,10 +477,7 @@ class _TarjetaMiembro extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   '${m.email} · vence el $vence',
-                  style: const TextStyle(
-                    color: Cristal.textoSuave,
-                    fontSize: 12.5,
-                  ),
+                  style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
                 ),
                 const SizedBox(height: 10),
                 Wrap(
@@ -500,7 +497,7 @@ class _TarjetaMiembro extends StatelessWidget {
           ),
           PopupMenuButton<String>(
             tooltip: 'Opciones',
-            icon: const Icon(Icons.more_vert_rounded, color: Cristal.texto),
+            icon: Icon(Icons.more_vert_rounded, color: Cristal.texto),
             onSelected: (v) => switch (v) {
               'editar' => onEditar(),
               'suspender' => onSuspender(),
@@ -522,7 +519,7 @@ class _TarjetaMiembro extends StatelessWidget {
                 value: 'reenviar',
                 child: Text('Reenviar enlace de contraseña'),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'quitar',
                 child: Text(
                   'Quitar del equipo',
@@ -701,7 +698,7 @@ class _FormularioMiembroState extends State<_FormularioMiembro> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Cristal.borde),
+          borderSide: BorderSide(color: Cristal.borde),
         ),
       );
 
@@ -711,7 +708,7 @@ class _FormularioMiembroState extends State<_FormularioMiembro> {
       backgroundColor: Cristal.flotante,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(22),
-        side: const BorderSide(color: Cristal.bordeFuerte),
+        side: BorderSide(color: Cristal.bordeFuerte),
       ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 520),
@@ -723,7 +720,7 @@ class _FormularioMiembroState extends State<_FormularioMiembro> {
             children: [
               Text(
                 _editando ? 'Editar abogado' : 'Agregar abogado al equipo',
-                style: const TextStyle(
+                style: TextStyle(
                   color: Cristal.texto,
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
@@ -749,7 +746,7 @@ class _FormularioMiembroState extends State<_FormularioMiembro> {
                 ),
               ),
               const SizedBox(height: 18),
-              const Text(
+              Text(
                 'PERMISOS',
                 style: TextStyle(
                   color: Cristal.textoSuave,
@@ -759,7 +756,7 @@ class _FormularioMiembroState extends State<_FormularioMiembro> {
                 ),
               ),
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 'Todos los abogados pueden ver los expedientes del equipo.',
                 style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
               ),
@@ -771,7 +768,7 @@ class _FormularioMiembroState extends State<_FormularioMiembro> {
                   ),
                   title: Text(
                     p.etiqueta,
-                    style: const TextStyle(fontSize: 14, color: Cristal.texto),
+                    style: TextStyle(fontSize: 14, color: Cristal.texto),
                   ),
                   controlAffinity: ListTileControlAffinity.leading,
                   contentPadding: EdgeInsets.zero,
@@ -779,7 +776,7 @@ class _FormularioMiembroState extends State<_FormularioMiembro> {
                   activeColor: Cristal.acento,
                 ),
               const SizedBox(height: 10),
-              const Text(
+              Text(
                 'VIGENCIA DEL ACCESO',
                 style: TextStyle(
                   color: Cristal.textoSuave,
@@ -800,7 +797,7 @@ class _FormularioMiembroState extends State<_FormularioMiembro> {
                     horizontal: 14,
                     vertical: 14,
                   ),
-                  side: const BorderSide(color: Cristal.borde),
+                  side: BorderSide(color: Cristal.borde),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -810,7 +807,7 @@ class _FormularioMiembroState extends State<_FormularioMiembro> {
                 const SizedBox(height: 12),
                 Text(
                   _error!,
-                  style: const TextStyle(color: Cristal.rojo, fontSize: 13),
+                  style: TextStyle(color: Cristal.rojo, fontSize: 13),
                 ),
               ],
               const SizedBox(height: 20),
@@ -835,12 +832,12 @@ class _FormularioMiembroState extends State<_FormularioMiembro> {
                       shape: const StadiumBorder(),
                     ),
                     child: _guardando
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 18,
                             height: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Cristal.texto,
+                              color: Cristal.blanco,
                             ),
                           )
                         : Text(

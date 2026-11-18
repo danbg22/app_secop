@@ -126,12 +126,9 @@ class _ImportarProcesoScreenState extends State<ImportarProcesoScreen> {
           ),
         ),
         const SizedBox(height: 22),
-        const Text(
-          'Importar proceso de SECOP II',
-          style: EstiloContractual.titulo,
-        ),
+        Text('Importar proceso de SECOP II', style: EstiloContractual.titulo),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'Pega el ID o el enlace público del proceso. La app consulta Datos Abiertos de SECOP II y trae '
           'su estado, fechas, valor y documentos publicados.',
           style: EstiloContractual.subtitulo,
@@ -171,7 +168,7 @@ class _ImportarProcesoScreenState extends State<ImportarProcesoScreen> {
                     onPressed: _buscando ? null : _buscar,
                     style: EstiloContractual.botonPrincipal(),
                     icon: _buscando
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(
@@ -188,7 +185,7 @@ class _ImportarProcesoScreenState extends State<ImportarProcesoScreen> {
                 ],
               ),
               const SizedBox(height: 10),
-              const Text(
+              Text(
                 'Datos Abiertos se actualiza una vez al día: un proceso publicado hoy puede aparecer mañana.',
                 style: TextStyle(color: Cristal.textoSuave, fontSize: 12),
               ),
@@ -262,7 +259,7 @@ class _ImportarProcesoScreenState extends State<ImportarProcesoScreen> {
           const SizedBox(height: 12),
           Text(
             r.nombre.isEmpty ? r.referencia : r.nombre,
-            style: const TextStyle(
+            style: TextStyle(
               color: Cristal.texto,
               fontSize: 20,
               fontWeight: FontWeight.w800,
@@ -310,7 +307,7 @@ class _ImportarProcesoScreenState extends State<ImportarProcesoScreen> {
           ),
           const SizedBox(height: 18),
           if (esPrestacion)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(bottom: 12),
               child: _Aviso(
                 icono: Icons.info_outline_rounded,
@@ -360,7 +357,7 @@ class _ImportarProcesoScreenState extends State<ImportarProcesoScreen> {
                     : _importar,
                 style: EstiloContractual.botonPrincipal(),
                 icon: _importando
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 16,
                         height: 16,
                         child: CircularProgressIndicator(
@@ -391,7 +388,7 @@ class _ImportarProcesoScreenState extends State<ImportarProcesoScreen> {
         const SizedBox(height: 3),
         Text(
           valor.isEmpty ? '—' : valor,
-          style: const TextStyle(
+          style: TextStyle(
             color: Cristal.texto,
             fontSize: 13.5,
             fontWeight: FontWeight.w700,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../tema/cristal.dart';
 
 /// Configuración declarativa de las modalidades de selección de la
@@ -423,7 +424,7 @@ const _etapaContrato = EtapaProceso(
 // Catálogo de modalidades
 // =============================================================================
 
-const List<ModalidadContratacion> modalidadesContratacion = [
+List<ModalidadContratacion> get modalidadesContratacion => [
   ModalidadContratacion(
     id: 'prestacion_servicios',
     nombre: 'Prestación de servicios',
@@ -512,7 +513,7 @@ const List<ModalidadContratacion> modalidadesContratacion = [
     resumen: 'Contratos hasta el 10 % de la menor cuantía de la entidad. Invitación pública y se adjudica a la oferta de menor precio que cumpla.',
     fundamento: 'Ley 1474 de 2011, art. 94 · Decreto 1082 de 2015, arts. 2.2.1.2.1.5.1 a 2.2.1.2.1.5.4',
     icono: Icons.shopping_bag_outlined,
-    color: Color(0xFF22D3EE),
+    color: Cristal.legible(const Color(0xFF22D3EE)),
     fondo: Color(0x2414B8A6),
     flujo: FlujoModalidad.procesoCompetitivo,
     hitos: [
@@ -572,8 +573,7 @@ const List<ModalidadContratacion> modalidadesContratacion = [
       EtapaProceso(
         id: 'ofertas',
         nombre: 'Recepción de ofertas',
-        descripcion:
-            'Las ofertas se reciben en SECOP II; regístralas aquí para verificarlas.',
+        descripcion: 'Las ofertas se reciben en SECOP II; regístralas aquí para verificarlas.',
         documentosEntidad: [_actaCierre],
       ),
       EtapaProceso(
@@ -623,7 +623,7 @@ const List<ModalidadContratacion> modalidadesContratacion = [
     resumen: 'Contratos hasta la menor cuantía de la entidad. Manifestación de interés; con más de diez interesados la entidad puede sortear.',
     fundamento: 'Ley 1150 de 2007, art. 2 num. 2 lit. b · Decreto 1082 de 2015, art. 2.2.1.2.1.2.20',
     icono: Icons.filter_alt_outlined,
-    color: Color(0xFFA78BFA),
+    color: Cristal.legible(const Color(0xFFA78BFA)),
     fondo: Color(0x248B5CF6),
     flujo: FlujoModalidad.procesoCompetitivo,
     hitos: [
@@ -712,8 +712,7 @@ const List<ModalidadContratacion> modalidadesContratacion = [
       EtapaProceso(
         id: 'ofertas',
         nombre: 'Cierre y ofertas',
-        descripcion:
-            'Las ofertas se reciben en SECOP II; regístralas aquí para verificarlas.',
+        descripcion: 'Las ofertas se reciben en SECOP II; regístralas aquí para verificarlas.',
         documentosEntidad: [_actaCierre],
       ),
       EtapaProceso(
@@ -747,7 +746,7 @@ const List<ModalidadContratacion> modalidadesContratacion = [
     resumen: 'Bienes y servicios de características técnicas uniformes. Gana el menor precio ofrecido en la subasta.',
     fundamento: 'Ley 1150 de 2007, art. 2 num. 2 lit. a · Decreto 1082 de 2015, arts. 2.2.1.2.1.2.2 a 2.2.1.2.1.2.6',
     icono: Icons.trending_down_rounded,
-    color: Color(0xFFFB923C),
+    color: Cristal.legible(const Color(0xFFFB923C)),
     fondo: Cristal.ambarVidrio,
     flujo: FlujoModalidad.procesoCompetitivo,
     hitos: [
@@ -970,8 +969,7 @@ const List<ModalidadContratacion> modalidadesContratacion = [
       EtapaProceso(
         id: 'ofertas',
         nombre: 'Cierre y ofertas',
-        descripcion:
-            'Las ofertas se reciben en SECOP II; regístralas aquí para verificarlas.',
+        descripcion: 'Las ofertas se reciben en SECOP II; regístralas aquí para verificarlas.',
         documentosEntidad: [_actaCierre],
       ),
       EtapaProceso(
@@ -1101,8 +1099,7 @@ const List<ModalidadContratacion> modalidadesContratacion = [
       EtapaProceso(
         id: 'ofertas',
         nombre: 'Cierre y ofertas técnicas',
-        descripcion:
-            'Las ofertas técnicas se reciben en SECOP II; regístralas aquí para verificarlas.',
+        descripcion: 'Las ofertas técnicas se reciben en SECOP II; regístralas aquí para verificarlas.',
         documentosEntidad: [_actaCierre],
       ),
       EtapaProceso(

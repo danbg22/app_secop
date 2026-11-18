@@ -88,7 +88,7 @@ class ContrataLegalHdLogo extends StatelessWidget {
         widthFactor: _anchoVisible,
         heightFactor: _altoVisible,
         child: Image.asset(
-          'assets/images/logo_fondo_oscuro.png',
+          Cristal.logo,
           height: height / _altoVisible,
           fit: BoxFit.contain,
           filterQuality: FilterQuality.high,
@@ -147,7 +147,7 @@ class OnboardingUnifiedTopBar extends StatelessWidget {
               Container(
                 width: 11,
                 height: 11,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: Cristal.dorado,
                   shape: BoxShape.circle,
                 ),
@@ -165,7 +165,7 @@ class OnboardingUnifiedTopBar extends StatelessWidget {
               Container(
                 width: 10,
                 height: 10,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: Cristal.dorado,
                   shape: BoxShape.circle,
                 ),
@@ -174,7 +174,7 @@ class OnboardingUnifiedTopBar extends StatelessWidget {
               Container(
                 width: 9,
                 height: 9,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: Cristal.vidrioIntenso,
                   shape: BoxShape.circle,
                 ),
@@ -322,7 +322,7 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
             ),
             content: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.info_outline_rounded,
                   color: Cristal.dorado,
                   size: 20,
@@ -331,7 +331,7 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                 Expanded(
                   child: Text(
                     'Actualmente están habilitados "Persona" y "Equipo jurídico entidad" (\$100 COP). El paquete "${rol.nombre}" (${rol.precioFormateadoCop}) estará disponible próximamente.',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Cristal.texto,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -372,16 +372,12 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
               ),
               content: Row(
                 children: [
-                  const Icon(
-                    Icons.verified_rounded,
-                    color: Cristal.texto,
-                    size: 20,
-                  ),
+                  Icon(Icons.verified_rounded, color: Cristal.texto, size: 20),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'Ya tienes activo el rol "${rol.nombre}". Selecciona otro rol habilitado para acumular sus permisos y herramientas.',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Cristal.texto,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -590,7 +586,7 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                               crossAxisAlignment: WrapCrossAlignment.center,
                               spacing: 6,
                               children: [
-                                const Text(
+                                Text(
                                   '¿Ya tienes una cuenta registrada?',
                                   style: TextStyle(
                                     color: Cristal.textoMedio,
@@ -607,7 +603,7 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                                       vertical: 4,
                                     ),
                                   ),
-                                  child: const Text(
+                                  child: Text(
                                     'Inicia sesión aquí →',
                                     style: TextStyle(
                                       color: Cristal.texto,
@@ -713,7 +709,7 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                           rol.id == 'equipo_juridico'
                               ? 'Equipo jurídico\nentidad'
                               : rol.nombre,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.texto,
                             fontSize: 20.5,
                             fontWeight: FontWeight.w800,
@@ -752,7 +748,7 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: isPersona
                       ? Text.rich(
-                          const TextSpan(
+                          TextSpan(
                             style: TextStyle(
                               color: Cristal.textoMedio,
                               fontSize: 13.5,
@@ -775,7 +771,7 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                         )
                       : Text(
                           rol.descripcionCorta,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Cristal.textoMedio,
                             fontSize: 13.4,
                             height: 1.42,
@@ -796,12 +792,12 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                     child: isAlreadyOwned
                         ? OutlinedButton.icon(
                             onPressed: () => _seleccionarRol(rol),
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.verified_rounded,
                               size: 18,
                               color: Cristal.verde,
                             ),
-                            label: const Text(
+                            label: Text(
                               'Rol activo en tu cuenta',
                               style: TextStyle(
                                 color: Cristal.verde,
@@ -811,7 +807,7 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                             ),
                             style: OutlinedButton.styleFrom(
                               backgroundColor: Cristal.verdeVidrio,
-                              side: const BorderSide(
+                              side: BorderSide(
                                 color: Cristal.verdeBorde,
                                 width: 1.4,
                               ),
@@ -824,7 +820,7 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                               ? ElevatedButton(
                                   onPressed: () => _seleccionarRol(rol),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Cristal.dorado,
+                                    backgroundColor: Cristal.doradoRelleno,
                                     foregroundColor: Cristal.tinta,
                                     elevation: 0,
                                     shape: RoundedRectangleBorder(
@@ -838,14 +834,14 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                                         widget.modoAcumularRol
                                             ? 'Acumular rol'
                                             : 'Seleccionar',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           color: Cristal.tinta,
                                           fontSize: 15.2,
                                           fontWeight: FontWeight.w800,
                                         ),
                                       ),
                                       const SizedBox(width: 8),
-                                      const Icon(
+                                      Icon(
                                         Icons.arrow_forward_rounded,
                                         size: 19,
                                         color: Cristal.tinta,
@@ -874,14 +870,14 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                                               widget.modoAcumularRol
                                                   ? 'Acumular rol'
                                                   : 'Seleccionar',
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 color: Cristal.tinta,
                                                 fontSize: 15,
                                                 fontWeight: FontWeight.w800,
                                               ),
                                             ),
                                             const SizedBox(width: 8),
-                                            const Icon(
+                                            Icon(
                                               Icons.arrow_forward_rounded,
                                               size: 19,
                                               color: Cristal.tinta,
@@ -904,7 +900,7 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                                             ),
                                           ),
                                         ),
-                                        child: const Row(
+                                        child: Row(
                                           mainAxisAlignment:
                                               MainAxisAlignment.center,
                                           children: [
@@ -949,7 +945,10 @@ class _ColombiaFlagCornerPainter extends CustomPainter {
       ..quadraticBezierTo(w * 0.52, h * 0.58, w, h * 0.34)
       ..lineTo(w, h)
       ..close();
-    canvas.drawPath(yellowPath, Paint()..color = const Color(0xFFF6C624));
+    canvas.drawPath(
+      yellowPath,
+      Paint()..color = const Color(0xFFF6C624),
+    );
 
     final bluePath = Path()
       ..moveTo(w * 0.28, h)
