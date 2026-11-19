@@ -19,11 +19,11 @@ samples, guidance on mobile development, and a full API reference.
 ## Lanzamiento a producción
 
 Compilar con las claves de producción (ninguna es secreta: van en el
-navegador):
+navegador). La clave de sitio de App Check (Fraud Defense) ya viene por
+defecto en `lib/main.dart`:
 
 ```
 flutter build web --release \
-  --dart-define=RECAPTCHA_SITE_KEY=<clave de sitio reCAPTCHA v3> \
   --dart-define=WOMPI_PUBLIC_KEY=<pub_prod_...>
 ```
 
@@ -32,7 +32,7 @@ compilan en la app: van en el servidor que confirma los pagos.
 
 En la consola de Firebase / Google Cloud:
 
-1. **App Check**: registrar la app web con reCAPTCHA v3 y, cuando las
+1. **App Check**: registrar la app web (SecopApp) con Fraud Defense (reCAPTCHA Enterprise) y, cuando las
    métricas muestren solicitudes verificadas, exigirlo (Enforce) en
    Firestore y en Firebase AI Logic.
 2. **Llave de API**: en Google Cloud > Credenciales, restringir la llave web

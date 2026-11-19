@@ -35,16 +35,23 @@ Future<void> main() async {
 
 /// App Check certifica que las solicitudes a Firebase (incluido Gemini vía
 /// Firebase AI Logic) provienen de esta app. En web requiere la clave de
-/// sitio reCAPTCHA v3: `--dart-define=RECAPTCHA_SITE_KEY=...`.
+/// sitio de Fraud Defense (reCAPTCHA Enterprise) del proyecto secop-ia, que
+/// es pública (va en el navegador) y solo funciona en los dominios
+/// registrados; se puede cambiar con `--dart-define=RECAPTCHA_SITE_KEY=...`.
 Future<void> _activarAppCheck() async {
-  const recaptchaSiteKey = String.fromEnvironment('RECAPTCHA_SITE_KEY');
+  const recaptchaSiteKey = String.fromEnvironment(
+    'RECAPTCHA_SITE_KEY',
+    defaultValue: '6LcJpCcuAAAAALpmdncwH8xkiLBC9NavbJ3KluvK',
+  );
   if (kIsWeb && recaptchaSiteKey.isEmpty) {
     debugPrint('App Check desactivado: falta RECAPTCHA_SITE_KEY.');
     return;
   }
   try {
     await FirebaseAppCheck.instance.activate(
-      providerWeb: kIsWeb ? ReCaptchaV3Provider(recaptchaSiteKey) : null,
+      providerWeb: kIsWeb
+          ? ReCaptchaEnterpriseProvider(recaptchaSiteKey)
+          : null,
     );
   } catch (e) {
     debugPrint('No fue posible activar App Check: $e');
