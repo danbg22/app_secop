@@ -4,7 +4,6 @@ import '../services/auth_service.dart';
 import '../widgets/collapsible_side_menu.dart';
 import '../widgets/user_profile_header_action.dart';
 import 'favoritos_screen.dart';
-import 'resultados_busqueda_screen.dart';
 import 'sections/contratistas_section.dart';
 import 'sections/contratos_section.dart';
 import 'sections/entidades_section.dart';
@@ -75,22 +74,9 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _isSidebarCollapsed = !_isSidebarCollapsed);
   }
 
-  void _handleUniversalSearch(String query) {
-    final searchQuery = query.trim();
-    if (searchQuery.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Escribe algo para buscar.')),
-      );
-      return;
-    }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ResultadosBusquedaScreen(query: searchQuery),
-      ),
-    );
-  }
+  /// Las búsquedas viven en sus secciones (Contratos, Entidades y
+  /// Contratistas): una búsqueda general lleva a Contratistas.
+  void _handleUniversalSearch(String query) => _onItemTapped(4);
 
   Future<void> _cerrarSesion() async {
     await AuthService.signOut();

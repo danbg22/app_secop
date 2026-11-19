@@ -8,6 +8,7 @@ import '../utils/dias_habiles_colombia.dart';
 import '../utils/texto_profesional.dart';
 import 'presupuesto_dependencias_service.dart';
 import 'reporte_contratos_modelo.dart';
+import 'datos_abiertos.dart';
 
 /// Una unidad de contratación tal como la registra la entidad en SECOP II
 /// (p. ej. el Despacho de la Dirección Regional Cesar del SENA). Puede
@@ -113,25 +114,25 @@ class ReporteContratosService {
     return d.length > 9 ? d.substring(0, 9) : d;
   }
 
+  /// Consulta con el cliente común de Datos Abiertos (token, caché,
+  /// reintentos y turno). Consultas pesadas: respaldo más tardío.
   static Future<List<dynamic>> _get(String base, String query) async {
     final uri = Uri.parse(base).replace(queryParameters: {r'$query': query});
-    for (var intento = 1; ; intento++) {
-      try {
-        final r = await http.get(uri).timeout(const Duration(seconds: 60));
-        if (r.statusCode == 200) {
-          return jsonDecode(utf8.decode(r.bodyBytes)) as List<dynamic>;
-        }
-        if (r.statusCode < 500 && r.statusCode != 429) {
-          throw StateError('SECOP II respondió ${r.statusCode}');
-        }
-      } on StateError {
-        rethrow;
-      } catch (_) {
-        if (intento >= 3) rethrow;
-      }
-      if (intento >= 3) throw StateError('SECOP II no respondió');
-      await Future<void>.delayed(Duration(milliseconds: 700 * intento));
+    final http.Response r;
+    try {
+      r = await DatosAbiertos.obtener(
+        uri,
+        timeout: const Duration(seconds: 60),
+        cache: DatosAbiertos.ttlPorDefecto,
+        respaldoTras: const Duration(seconds: 15),
+      );
+    } on DatosAbiertosException {
+      throw StateError('SECOP II no respondió');
     }
+    if (r.statusCode == 200) {
+      return jsonDecode(utf8.decode(r.bodyBytes)) as List<dynamic>;
+    }
+    throw StateError('SECOP II respondió ${r.statusCode}');
   }
 
   /// Unidades de contratación de la entidad (o de una regional), con su

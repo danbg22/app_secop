@@ -524,6 +524,9 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
         DatosAbiertos.uri('jbjy-vk9h', params),
         timeout: const Duration(seconds: 12),
         cache: DatosAbiertos.ttlPorDefecto,
+        // Agregados ($group) que tardan unos segundos de por sí: el
+        // respaldo solo si la consulta se quedó colgada.
+        respaldoTras: const Duration(seconds: 7),
       );
       if (resp.statusCode != 200) return const [];
       final decoded = jsonDecode(utf8.decode(resp.bodyBytes));
@@ -889,6 +892,9 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
         cleanQuery.contains('QUINDIO') ||
         cleanQuery.contains('CALDAS');
 
+    final buscaSecretarias =
+        cleanQuery.contains('SECRETAR') ||
+        cleanQuery.contains('GRUPO DE APOYO');
     for (final item in rawList) {
       if (item is! Map) continue;
       final rawName = (item['nombre_entidad'] ?? '').toString().trim();
@@ -899,7 +905,9 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
 
       if (entityEffectiveName.isEmpty) continue;
 
-      if (_isSecretariaOrDependency(entityEffectiveName)) {
+      // Las secretarías se agrupan en su entidad, salvo que se busquen por
+      // su nombre ("secretaría de educación").
+      if (!buscaSecretarias && _isSecretariaOrDependency(entityEffectiveName)) {
         continue;
       }
 
@@ -960,7 +968,12 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       }
 
       void agregar(String nombre, NivelEntidad? nivel) {
-        final normPretty = _normalizar(nombre);
+        // Dos entidades con el mismo nombre (alcaldías de municipios
+        // homónimos) no se funden: la llave incluye el NIT.
+        final nit9 = entityEffectiveNit.replaceAll(RegExp(r'[^0-9]'), '');
+        final normPretty = nivel == null
+            ? '${_normalizar(nombre)}|${nit9.length > 9 ? nit9.substring(0, 9) : nit9}'
+            : _normalizar(nombre);
         final existing = consolidated[normPretty];
         final esPrincipal = nivel == NivelEntidad.principal;
         if (existing == null) {
@@ -1078,12 +1091,19 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     // Siglas y nombres conocidos ("SENA", "UIS", "UPC") se traducen al NIT
     // con el catálogo, en las formas en que SECOP lo guarda (con y sin
     // dígito de verificación: la UPC es 8923002856 en SECOP II).
-    final nitsCatalogo = _buscarEnCatalogo(queryText)
-        .expand((e) => Nit.formas(e.nit))
-        .where((n) => RegExp(r'^\d{8,10}$').hasMatch(n))
-        .toSet()
-        .take(10)
-        .toList();
+    // Un NIT escrito directamente también se busca por NIT, aunque la
+    // entidad no esté en el catálogo.
+    final digitosEscritos = queryText.replaceAll(RegExp(r'[^0-9]'), '');
+    final nitEscrito =
+        digitosEscritos.length >= 8 &&
+            digitosEscritos.length <= 10 &&
+            RegExp(r'^[0-9.\-\s]+$').hasMatch(queryText.trim())
+        ? Nit.formas(digitosEscritos)
+        : const <String>[];
+    final nitsCatalogo = [
+      ...nitEscrito,
+      ..._buscarEnCatalogo(queryText).expand((e) => Nit.formas(e.nit)),
+    ].where((n) => RegExp(r'^\d{8,10}$').hasMatch(n)).toSet().take(10).toList();
     // El nombre se busca con el índice de texto completo ($q) más un filtro
     // por la columna del nombre que tolera tildes. Un LIKE solo, sin
     // índice, recorría todo SECOP II y podía pasar de un minuto.

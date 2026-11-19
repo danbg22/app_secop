@@ -142,8 +142,11 @@ class DirectorioSigepService {
       _pausarSiEsLocal();
       rethrow;
     }
-    if (respuesta.statusCode == 404 && !_desarrolloLocal) {
-      // Este alojamiento no tiene el intermediario: sin aviso de error.
+    if ((respuesta.statusCode == 404 || _esLaPropiaApp(respuesta.body)) &&
+        !_desarrolloLocal) {
+      // Este alojamiento no tiene el intermediario (Firebase Hosting, por
+      // ejemplo, responde cualquier ruta con la app misma y estado 200): la
+      // app enlaza la búsqueda en el sitio oficial.
       _ausenteHasta = DateTime(9999);
       return const [];
     }
@@ -169,6 +172,11 @@ class DirectorioSigepService {
     _ausenteHasta = DateTime.now().add(const Duration(seconds: 20));
   }
 
+  /// La respuesta es el `index.html` de la app, no el directorio.
+  static bool _esLaPropiaApp(String cuerpo) =>
+      cuerpo.contains('flutter_bootstrap.js') ||
+      cuerpo.contains('main.dart.js');
+
   /// Hoja de vida de [id], o null si no existe.
   static Future<HojaDeVidaSigep?> hojaDeVida(String id) async {
     if (!disponible || !_idValido.hasMatch(id)) return null;
@@ -177,7 +185,9 @@ class DirectorioSigepService {
       timeout: const Duration(seconds: 12),
       cache: const Duration(hours: 6),
     );
-    if (respuesta.statusCode == 404) return null;
+    if (respuesta.statusCode == 404 || _esLaPropiaApp(respuesta.body)) {
+      return null;
+    }
     if (respuesta.statusCode != 200) {
       throw DatosAbiertosException(
         'El directorio del SIGEP respondió ${respuesta.statusCode}.',

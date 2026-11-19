@@ -27,4 +27,19 @@ class Nit {
     final dv = digitoVerificacion(digitos);
     return [digitos, '$digitos$dv', '$digitos-$dv'];
   }
+
+  /// Formas solo con dígitos de un NIT, para columnas numéricas o para
+  /// comparar exacto (`nit_entidad` de SECOP II es un número): sin y con
+  /// dígito de verificación. Acepta el NIT con o sin DV; otros documentos
+  /// (cédulas) van tal cual.
+  static List<String> formasNumericas(String nit) {
+    final digitos = nit.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digitos.length == 10) {
+      final base = digitos.substring(0, 9);
+      if ('${digitoVerificacion(base)}' == digitos.substring(9)) {
+        return [base, digitos];
+      }
+    }
+    return formas(digitos).where((f) => !f.contains('-')).toList();
+  }
 }

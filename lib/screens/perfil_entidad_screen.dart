@@ -8,6 +8,7 @@ import '../services/presupuesto_dependencias_service.dart';
 import '../services/reporte_contratos_modelo.dart';
 import '../services/reporte_contratos_service.dart';
 import '../utils/anios_secop.dart';
+import '../utils/nit.dart';
 import '../widgets/presupuesto_dependencias_panel.dart';
 import '../widgets/reporte_contratos_flujo.dart';
 import 'detalle_screen.dart';
@@ -581,7 +582,11 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         : _nitEntidad.replaceAll(RegExp(r'[^0-9]'), '');
 
     if (nitClean.length >= 8) {
-      clauses.add("nit_entidad = '$nitClean'");
+      // SECOP II guarda el NIT con o sin dígito de verificación según la
+      // cuenta: con igualdad exacta se perdían contratos.
+      clauses.add(
+        'nit_entidad in (${Nit.formasNumericas(nitClean).join(',')})',
+      );
     } else {
       final rawTarget = widget.entity.secopKeywords.isNotEmpty
           ? widget.entity.secopKeywords.first
@@ -791,6 +796,8 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     uri,
     timeout: timeout,
     cache: DatosAbiertos.ttlPorDefecto,
+    // Agregados pesados: el respaldo solo si la consulta se quedó colgada.
+    respaldoTras: const Duration(seconds: 7),
   );
 
   Future<void> _fetchLiveEntityProfileData() async {

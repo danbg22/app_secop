@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../utils/texto_profesional.dart';
+import 'datos_abiertos.dart';
+import 'busqueda_personas.dart';
 
 /// Plan Anual de Adquisiciones (PAA) publicado en SECOP II, para que una
 /// empresa vea qué piensa contratar cada entidad durante el año.
@@ -219,39 +221,45 @@ class PaaService {
   static double _num(dynamic v) => double.tryParse('${v ?? ''}') ?? 0;
   static String _sql(String v) => v.replaceAll("'", "''");
 
+  static const Set<String> _conectores = {
+    'DE',
+    'DEL',
+    'LA',
+    'LAS',
+    'EL',
+    'LOS',
+    'EN',
+    'Y',
+    'PARA',
+    'POR',
+  };
+
+  /// Consulta con el cliente común de Datos Abiertos (token de la app,
+  /// caché, reintentos y máximo de consultas simultáneas). Son consultas
+  /// pesadas: la petición de respaldo espera más que en las livianas.
   static Future<List<dynamic>> _get(
     String base,
     String query, {
     Duration espera = const Duration(seconds: 45),
   }) async {
     final uri = Uri.parse(base).replace(queryParameters: {r'$query': query});
-    for (var intento = 1; ; intento++) {
-      try {
-        final r = await http.get(uri).timeout(espera);
-        if (r.statusCode == 200) {
-          return jsonDecode(utf8.decode(r.bodyBytes)) as List<dynamic>;
-        }
-        if (r.statusCode < 500 && r.statusCode != 429) {
-          throw PaaException(
-            'Datos Abiertos respondió con error ${r.statusCode}.',
-          );
-        }
-      } on PaaException {
-        rethrow;
-      } catch (_) {
-        if (intento >= 3) {
-          throw const PaaException(
-            'No fue posible consultar Datos Abiertos. Revisa tu conexión.',
-          );
-        }
-      }
-      if (intento >= 3) {
-        throw const PaaException(
-          'Datos Abiertos no respondió. Intenta de nuevo en un momento.',
-        );
-      }
-      await Future<void>.delayed(Duration(milliseconds: 700 * intento));
+    final http.Response r;
+    try {
+      r = await DatosAbiertos.obtener(
+        uri,
+        timeout: espera,
+        cache: DatosAbiertos.ttlPorDefecto,
+        respaldoTras: const Duration(seconds: 15),
+      );
+    } on DatosAbiertosException {
+      throw const PaaException(
+        'No fue posible consultar Datos Abiertos. Revisa tu conexión.',
+      );
     }
+    if (r.statusCode == 200) {
+      return jsonDecode(utf8.decode(r.bodyBytes)) as List<dynamic>;
+    }
+    throw PaaException('Datos Abiertos respondió con error ${r.statusCode}.');
   }
 
   /// Ejecuta [tareas] de a [n] a la vez. En Datos Abiertos, muchas consultas
@@ -438,14 +446,22 @@ class PaaService {
 
   /// Planes publicados del año cuyo nombre de entidad contiene [texto].
   static Future<List<PlanPaa>> buscarPlanes(String texto, int anio) async {
-    final t = _sql(texto.trim().toUpperCase());
-    if (t.length < 3) return const [];
+    // Cada palabra por separado y sin importar tildes ni eñes ("Alcaldia de
+    // Valledupar" encuentra "ALCALDÍA MUNICIPAL DE VALLEDUPAR").
+    final palabras = BusquedaPersonas.normalizar(texto)
+        .split(RegExp(r'\s+'))
+        .map((p) => p.replaceAll(RegExp(r'[^A-Z0-9]'), ''))
+        .where((p) => p.length >= 2 && !_conectores.contains(p))
+        .take(6)
+        .toList();
+    if (palabras.join().length < 3) return const [];
     final filas = await _get(
       _encabezados,
       'SELECT identificador_unico, codigo_entidad, nombre_entidad, anno, '
       'version, valor_presupuesto_general, presupuesto_menor_cuantia, '
       'presupuesto_minima_cuantia, fecha_de_ultima_modificacion, municipio_paa '
-      "WHERE anno=$anio AND upper(nombre_entidad) like '%$t%' "
+      'WHERE anno=$anio AND '
+      '${BusquedaPersonas.whereTodasLasPalabras('nombre_entidad', palabras)} '
       'ORDER BY valor_presupuesto_general DESC LIMIT 200',
     );
     // Una entidad, un plan: el de versión más alta.

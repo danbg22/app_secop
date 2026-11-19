@@ -1,6 +1,4 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-
+import '../services/datos_abiertos.dart';
 import '../services/security_service.dart';
 
 /// Base de datos estructurada de Colombia y conector dinámico de entidades SECOP II
@@ -430,12 +428,7 @@ class ColombiaSecopCatalog {
       'Caicedonia',
     ],
     'Vaupés': ['Mitú', 'Carurú', 'Taraira'],
-    'Vichada': [
-      'Puerto Carreño',
-      'La Primavera',
-      'Santa Rosalía',
-      'Cumaribo',
-    ],
+    'Vichada': ['Puerto Carreño', 'La Primavera', 'Santa Rosalía', 'Cumaribo'],
   };
 
   /// Catálogo de entidades de Orden Nacional
@@ -814,15 +807,13 @@ class ColombiaSecopCatalog {
       }
 
       if (textoBusqueda != null && textoBusqueda.trim().isNotEmpty) {
-        final tokens = SecurityService.sanitizeSoqlToken(
-              textoBusqueda,
-              maxLength: 100,
-            )
-            .split(RegExp(r'\s+'))
-            .map((w) => SecurityService.sanitizeSoqlToken(w, maxLength: 40))
-            .where((w) => w.length >= 2)
-            .take(8)
-            .toList();
+        final tokens =
+            SecurityService.sanitizeSoqlToken(textoBusqueda, maxLength: 100)
+                .split(RegExp(r'\s+'))
+                .map((w) => SecurityService.sanitizeSoqlToken(w, maxLength: 40))
+                .where((w) => w.length >= 2)
+                .take(8)
+                .toList();
         for (final t in tokens) {
           final tNorm = _normalizar(t);
           final tOrig = t.toUpperCase();
@@ -836,22 +827,40 @@ class ColombiaSecopCatalog {
         }
       }
 
-      final whereParam = Uri.encodeComponent(whereClauses.join(' AND '));
-      final url = Uri.parse(
-        'https://www.datos.gov.co/resource/jbjy-vk9h.json?\$select=nombre_entidad,count(*)%20as%20total&\$group=nombre_entidad&\$order=total%20DESC&\$limit=80&\$where=$whereParam',
+      // Con el cliente común (token, caché y turno) y, si hay texto, con el
+      // índice de texto completo ($q): el LIKE solo, sin índice, recorría
+      // todo SECOP II y vencía el tiempo. Con $q no se ordena en el
+      // servidor: se ordena aquí.
+      final texto = (textoBusqueda ?? '')
+          .split(RegExp(r'\s+'))
+          .map((w) => SecurityService.sanitizeSoqlToken(w, maxLength: 40))
+          .where((w) => w.length >= 3)
+          .take(6)
+          .join(' ');
+      final response = await DatosAbiertos.obtener(
+        DatosAbiertos.uri('jbjy-vk9h', {
+          r'$select': 'nombre_entidad,count(*) as total',
+          r'$group': 'nombre_entidad',
+          r'$limit': '80',
+          r'$where': whereClauses.join(' AND '),
+          if (texto.isNotEmpty) r'$q': texto else r'$order': 'total DESC',
+        }),
+        timeout: const Duration(seconds: 12),
+        cache: DatosAbiertos.ttlPorDefecto,
+        respaldoTras: const Duration(seconds: 7),
       );
-
-      final response =
-          await http.get(url).timeout(const Duration(seconds: 8));
       if (response.statusCode != 200) return [];
 
-      final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
+      final data = DatosAbiertos.decodificar(response)
+        ..sort(
+          (a, b) => (int.tryParse('${b['total']}') ?? 0).compareTo(
+            int.tryParse('${a['total']}') ?? 0,
+          ),
+        );
       final names = <String>[];
       for (final item in data) {
-        if (item is Map && item['nombre_entidad'] != null) {
-          final name = item['nombre_entidad'].toString().trim();
-          if (name.isNotEmpty) names.add(name);
-        }
+        final name = '${item['nombre_entidad'] ?? ''}'.trim();
+        if (name.isNotEmpty) names.add(name);
       }
       return names;
     } catch (_) {
@@ -870,4 +879,3 @@ class ColombiaSecopCatalog {
         .replaceAll('Ü', 'U');
   }
 }
-

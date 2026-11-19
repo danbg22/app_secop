@@ -19,6 +19,7 @@ import '../tema/cristal.dart';
 import '../services/datos_abiertos.dart';
 import '../services/directorio_sigep_service.dart';
 import '../services/busqueda_personas.dart';
+import '../utils/nit.dart';
 
 class PerfilContratistaScreen extends StatefulWidget {
   final String? nombreContratista;
@@ -538,11 +539,19 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
       // las columnas que usa la vista (todas pesaban ~3 veces más: 16,7 MB
       // para un contratista con 4.000 contratos) y la consulta por nombre
       // excluye lo que ya trae la del documento.
+      // Un NIT de empresa (9 o 10 dígitos que empiezan por 8 o 9) puede
+      // estar guardado con o sin dígito de verificación; una cédula se busca
+      // tal cual (ampliarla confundiría personas).
+      final esNitEmpresa = RegExp(r'^[89]\d{8,9}$').hasMatch(cleanDoc);
+      final formasDoc = esNitEmpresa
+          ? Nit.formasNumericas(cleanDoc)
+          : <String>[cleanDoc];
+      final listaDoc = formasDoc.map((f) => "'$f'").join(',');
       final consultasSecopII = <Future<List<dynamic>>>[
         if (cleanDoc.length >= 5)
           consultar('jbjy-vk9h', {
             r'$select': _camposHistorial,
-            'documento_proveedor': cleanDoc,
+            r'$where': 'documento_proveedor in ($listaDoc)',
             r'$order': 'fecha_de_firma DESC',
             r'$limit': '50000',
           }),
@@ -551,7 +560,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
             r'$select': _camposHistorial,
             'proveedor_adjudicado': _nombreAuditar,
             if (cleanDoc.length >= 5)
-              r'$where': "documento_proveedor != '$cleanDoc'",
+              r'$where': 'documento_proveedor not in ($listaDoc)',
             r'$order': 'fecha_de_firma DESC',
             r'$limit': '50000',
           }),

@@ -1,10 +1,10 @@
 import 'dart:convert';
 
-import 'package:http/http.dart' as http;
 
 import '../utils/secop_i.dart';
 import 'security_service.dart';
 import '../utils/nit.dart';
+import 'datos_abiertos.dart';
 
 /// Entidad con procesos publicados en SECOP I. Las entidades de régimen
 /// especial (p. ej. universidades públicas, Ley 30 de 1992) no publican en
@@ -62,9 +62,12 @@ class SecopIProcesosService {
 
   static Future<List<dynamic>> _consultar(Map<String, String> params) async {
     try {
-      final res = await http
-          .get(Uri.https('www.datos.gov.co', '/resource/${SecopI.dataset}.json', params))
-          .timeout(const Duration(seconds: 15));
+      // Con el cliente común: token, caché, reintentos y turno.
+      final res = await DatosAbiertos.obtener(
+        DatosAbiertos.uri(SecopI.dataset, params),
+        timeout: const Duration(seconds: 15),
+        cache: DatosAbiertos.ttlPorDefecto,
+      );
       if (res.statusCode != 200) return const [];
       final decoded = json.decode(utf8.decode(res.bodyBytes));
       return decoded is List ? decoded : const [];
@@ -98,11 +101,7 @@ class SecopIProcesosService {
 
     final tokens = _normalizar(
       SecurityService.sanitizeSoqlToken(consulta, maxLength: 100),
-    )
-        .split(RegExp(r'\s+'))
-        .where((t) => t.length >= 3)
-        .take(5)
-        .toList();
+    ).split(RegExp(r'\s+')).where((t) => t.length >= 3).take(5).toList();
 
     final nombres = <String>{};
     if (tokens.isNotEmpty) {

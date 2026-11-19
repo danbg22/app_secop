@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'paa_service.dart';
+import 'datos_abiertos.dart';
 
 /// Verifica contra SECOP II lo que una entidad proyectó en su PAA: el
 /// proceso real de cada compra, su contrato y sus modificaciones, y cuánto
@@ -240,31 +241,28 @@ class VerificacionPaaService {
   static String _sql(String v) => v.replaceAll("'", "''");
   static double _num(dynamic v) => double.tryParse('${v ?? ''}') ?? 0;
 
+  /// Consulta con el cliente común de Datos Abiertos: con token y con un
+  /// máximo de consultas simultáneas para toda la app (los trabajadores de
+  /// [abiertosDe] y [ejecucionDe] esperan su turno en vez de saturar la API).
   static Future<List<dynamic>> _get(String base, String query) async {
     final uri = Uri.parse(base).replace(queryParameters: {r'$query': query});
-    for (var intento = 1; ; intento++) {
-      try {
-        final r = await http.get(uri).timeout(const Duration(seconds: 60));
-        if (r.statusCode == 200) {
-          return jsonDecode(utf8.decode(r.bodyBytes)) as List<dynamic>;
-        }
-        if (r.statusCode < 500 && r.statusCode != 429) {
-          throw PaaException('SECOP II respondió con error ${r.statusCode}.');
-        }
-      } on PaaException {
-        rethrow;
-      } catch (_) {
-        if (intento >= 3) {
-          throw const PaaException(
-            'No fue posible consultar SECOP II. Revisa tu conexión.',
-          );
-        }
-      }
-      if (intento >= 3) {
-        throw const PaaException('SECOP II no respondió. Intenta de nuevo.');
-      }
-      await Future<void>.delayed(Duration(milliseconds: 700 * intento));
+    final http.Response r;
+    try {
+      r = await DatosAbiertos.obtener(
+        uri,
+        timeout: const Duration(seconds: 60),
+        cache: DatosAbiertos.ttlPorDefecto,
+        respaldoTras: const Duration(seconds: 15),
+      );
+    } on DatosAbiertosException {
+      throw const PaaException(
+        'No fue posible consultar SECOP II. Revisa tu conexión.',
+      );
     }
+    if (r.statusCode == 200) {
+      return jsonDecode(utf8.decode(r.bodyBytes)) as List<dynamic>;
+    }
+    throw PaaException('SECOP II respondió con error ${r.statusCode}.');
   }
 
   /// Procesos que la cuenta publicó en SECOP II desde el 1 de enero del año

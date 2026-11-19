@@ -32,12 +32,12 @@ class SecopExtractedDocument {
   final SecopDocumentGroup? group;
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'extension': extension,
-        'category': category,
-        if (downloadUrl != null) 'downloadUrl': downloadUrl,
-        if (group != null) 'group': group!.name,
-      };
+    'name': name,
+    'extension': extension,
+    'category': category,
+    if (downloadUrl != null) 'downloadUrl': downloadUrl,
+    if (group != null) 'group': group!.name,
+  };
 
   factory SecopExtractedDocument.fromName(
     String rawName, {
@@ -232,12 +232,13 @@ class SecopDocumentIntelligenceService {
       return '$_cachePrefix$noticeUid';
     }
     if (contrato is Map) {
-      final id = (contrato['proceso_de_compra'] ??
-              contrato['id_contrato'] ??
-              contrato['referencia_del_contrato'] ??
-              '')
-          .toString()
-          .trim();
+      final id =
+          (contrato['proceso_de_compra'] ??
+                  contrato['id_contrato'] ??
+                  contrato['referencia_del_contrato'] ??
+                  '')
+              .toString()
+              .trim();
       if (id.isNotEmpty) {
         return '$_cachePrefix$id';
       }
@@ -323,7 +324,8 @@ class SecopDocumentIntelligenceService {
   static Future<String> _resolverUrlProcesoOficial(dynamic contrato) async {
     String candidate = '';
     if (contrato is Map) {
-      final rawUrl = contrato['urlproceso'] ?? contrato['ruta_proceso_en_secop_i'];
+      final rawUrl =
+          contrato['urlproceso'] ?? contrato['ruta_proceso_en_secop_i'];
       if (rawUrl is Map && rawUrl['url'] != null) {
         candidate = rawUrl['url'].toString().trim();
       } else if (rawUrl is String) {
@@ -373,7 +375,8 @@ class SecopDocumentIntelligenceService {
           } catch (_) {}
 
           // `noticeUID` solo acepta avisos (CO1.NTC.*), no procesos CO1.BDOS.*
-          if (candidate.isEmpty && proceso.toUpperCase().startsWith('CO1.NTC.')) {
+          if (candidate.isEmpty &&
+              proceso.toUpperCase().startsWith('CO1.NTC.')) {
             candidate =
                 'https://community.secop.gov.co/Public/Tendering/OpportunityDetail/Index?noticeUID=${Uri.encodeComponent(proceso)}';
           }
@@ -402,7 +405,8 @@ class SecopDocumentIntelligenceService {
   /// parámetros de vista modal pública en español donde se renderiza
   /// directamente la tabla `Documentación` (`Nombre del documento`).
   static String construirUrlVistaDocumental(String rawUrl) {
-    final uri = SecurityService.validateOfficialGovUrl(rawUrl) ??
+    final uri =
+        SecurityService.validateOfficialGovUrl(rawUrl) ??
         Uri.parse('https://www.colombiacompra.gov.co/secop-ii');
 
     if (uri.path.toLowerCase().contains('opportunitydetail/index')) {
@@ -439,10 +443,14 @@ class SecopDocumentIntelligenceService {
   static List<String> _datasetsParaContrato(Map contrato) {
     int? anio(String campo) =>
         int.tryParse((contrato[campo] ?? '').toString().split('-').first);
-    final firma = anio('fecha_de_firma') ?? anio('fecha_de_inicio_del_contrato');
+    final firma =
+        anio('fecha_de_firma') ?? anio('fecha_de_inicio_del_contrato');
     if (firma == null) return _datasetsArchivosSecopII;
     final actual = DateTime.now().year;
-    final fin = (anio('fecha_de_fin_del_contrato') ?? actual).clamp(firma, actual);
+    final fin = (anio('fecha_de_fin_del_contrato') ?? actual).clamp(
+      firma,
+      actual,
+    );
     final elegidos = <String>{};
     for (var a = firma - 1; a <= fin; a++) {
       final i = (a - 2021).clamp(0, _datasetsArchivosSecopII.length - 1);
@@ -484,18 +492,18 @@ class SecopDocumentIntelligenceService {
     // La dirección del proceso se resuelve mientras llegan los archivos.
     final urlProceso = resolverUrlProcesoOficial(contrato);
 
-    Future<List<Map>?> consultar(String dataset, String where) => DatosAbiertos
-        .filas(
+    Future<List<Map>?> consultar(String dataset, String where) =>
+        DatosAbiertos.filas(
           dataset,
           {
-            r'$select': 'id_documento,nombre_archivo,fecha_carga,'
+            r'$select':
+                'id_documento,nombre_archivo,fecha_carga,'
                 'n_mero_de_contrato,url_descarga_documento',
             r'$where': where,
             r'$limit': '2000',
           },
           timeout: const Duration(seconds: 10),
-        )
-        .then<List<Map>?>((filas) => filas, onError: (Object _) => null);
+        ).then<List<Map>?>((filas) => filas, onError: (Object _) => null);
 
     final respuestas = await Future.wait([
       for (final dataset in _datasetsParaContrato(contrato))
@@ -505,12 +513,13 @@ class SecopDocumentIntelligenceService {
 
     final filas = respuestas.whereType<List<Map>>().expand((r) => r).toList()
       ..sort((a, b) {
-        final porFecha = (a['fecha_carga'] ?? '')
-            .toString()
-            .compareTo((b['fecha_carga'] ?? '').toString());
+        final porFecha = (a['fecha_carga'] ?? '').toString().compareTo(
+          (b['fecha_carga'] ?? '').toString(),
+        );
         if (porFecha != 0) return porFecha;
-        return (int.tryParse('${a['id_documento']}') ?? 0)
-            .compareTo(int.tryParse('${b['id_documento']}') ?? 0);
+        return (int.tryParse('${a['id_documento']}') ?? 0).compareTo(
+          int.tryParse('${b['id_documento']}') ?? 0,
+        );
       });
 
     // SECOP copia los anexos del proceso al contrato y los vuelve a guardar en
@@ -553,8 +562,7 @@ class SecopDocumentIntelligenceService {
         status: SecopExtractionStatus.emptyOfficialList,
         documents: const [],
         resolvedSecopUrl: secopUrl,
-        errorMessage:
-            'Datos Abiertos no registra archivos publicados en SECOP II para este contrato.',
+        errorMessage: 'Datos Abiertos no registra archivos publicados en SECOP II para este contrato.',
       );
     }
     await _guardarEnCache(_cacheKeyForContract(contrato, secopUrl), docs);
@@ -573,7 +581,9 @@ class SecopDocumentIntelligenceService {
     bool forceRefresh = false,
     void Function(String stepMessage)? onProgress,
   }) async {
-    onProgress?.call('Resolviendo enlace oficial del expediente en SECOP II...');
+    onProgress?.call(
+      'Resolviendo enlace oficial del expediente en SECOP II...',
+    );
     final baseSecopUrl = await resolverUrlProcesoOficial(contrato);
     final targetUrl = construirUrlVistaDocumental(baseSecopUrl);
     final cacheKey = _cacheKeyForContract(contrato, targetUrl);
@@ -630,52 +640,11 @@ class SecopDocumentIntelligenceService {
       }
     }
 
-    // 2. Consulta concurrente mediante canales de lectura compatibles con Web (CORS Simple GET)
-    onProgress?.call(
-      'Escaneando tabla oficial "Nombre del documento" en el expediente...',
-    );
-
-    final relayFutures = <Future<String?>>[
-      _fetchViaAllOriginsGet(targetUrl),
-      _fetchViaCodeTabs(targetUrl),
-      _fetchViaCorsProxyIo(targetUrl),
-      _fetchViaJinaReader(targetUrl),
-    ];
-
-    final completer = Completer<List<SecopExtractedDocument>?>();
-    var remaining = relayFutures.length;
-
-    for (final future in relayFutures) {
-      future.then((body) async {
-        if (!completer.isCompleted && body != null && body.isNotEmpty) {
-          final docs = await inspectPayload(body);
-          if (docs != null && docs.isNotEmpty && !completer.isCompleted) {
-            completer.complete(docs);
-            return;
-          }
-        }
-        remaining--;
-        if (remaining == 0 && !completer.isCompleted) {
-          completer.complete(null);
-        }
-      }).catchError((_) {
-        remaining--;
-        if (remaining == 0 && !completer.isCompleted) {
-          completer.complete(null);
-        }
-      });
-    }
-
-    final winningDocs = await completer.future;
-    if (winningDocs != null && winningDocs.isNotEmpty) {
-      await _guardarEnCache(cacheKey, winningDocs);
-      return SecopExtractionResult(
-        status: SecopExtractionStatus.success,
-        documents: winningDocs,
-        resolvedSecopUrl: targetUrl,
-        summaryText: generarResumenEjecutivo(winningDocs),
-      );
-    }
+    // 2. En la web no se lee la página de SECOP II por intermediarios
+    //    públicos: enviaban los enlaces a terceros desconocidos e intentaban
+    //    pasar por encima de la verificación anti-bots de SECOP. La persona
+    //    abre el expediente y pega la sección Documentación
+    //    ([procesarTextoCopiadoDeSecop]).
 
     // 3. Respaldo con Gemini IA si se obtuvo contenido válido de SECOP con estructura atípica
     if (payloads.isNotEmpty) {
@@ -699,8 +668,7 @@ class SecopDocumentIntelligenceService {
         status: SecopExtractionStatus.emptyOfficialList,
         documents: const [],
         resolvedSecopUrl: targetUrl,
-        errorMessage:
-            'Se accedió al expediente oficial en SECOP II, pero la sección Documentación no registra archivos cargados actualmente.',
+        errorMessage: 'Se accedió al expediente oficial en SECOP II, pero la sección Documentación no registra archivos cargados actualmente.',
       );
     }
 
@@ -709,8 +677,7 @@ class SecopDocumentIntelligenceService {
         status: SecopExtractionStatus.blockedByCaptcha,
         documents: const [],
         resolvedSecopUrl: targetUrl,
-        errorMessage:
-            'Los servidores de SECOP II solicitaron verificación humana (reCAPTCHA) para leer este expediente.',
+        errorMessage: 'Los servidores de SECOP II solicitaron verificación humana (reCAPTCHA) para leer este expediente.',
       );
     }
 
@@ -718,8 +685,9 @@ class SecopDocumentIntelligenceService {
       status: SecopExtractionStatus.blockedByCaptcha,
       documents: const [],
       resolvedSecopUrl: targetUrl,
-      errorMessage:
-          'SECOP II restringió la lectura automática directa de este proceso por control de seguridad (WAF / reCAPTCHA).',
+      errorMessage: kIsWeb
+          ? 'Abre el expediente en SECOP II, copia la sección Documentación y pégala aquí para ver la lista de documentos.'
+          : 'SECOP II restringió la lectura automática directa de este proceso por control de seguridad (WAF / reCAPTCHA).',
     );
   }
 
@@ -752,8 +720,7 @@ class SecopDocumentIntelligenceService {
       status: SecopExtractionStatus.emptyOfficialList,
       documents: const [],
       resolvedSecopUrl: targetUrl,
-      errorMessage:
-          'No se detectaron filas de la sección "Documentación" en el texto copiado. Asegúrate de copiar la página del proceso en SECOP (Ctrl+A y Ctrl+C).',
+      errorMessage: 'No se detectaron filas de la sección "Documentación" en el texto copiado. Asegúrate de copiar la página del proceso en SECOP (Ctrl+A y Ctrl+C).',
     );
   }
 
@@ -768,8 +735,17 @@ class SecopDocumentIntelligenceService {
 
     void addCandidate(String raw) {
       var clean = _decodificarEntidadesHtml(raw)
-          .replaceAll(RegExp(r'\[(?:Descargar|Download)\]\([^)]*\)', caseSensitive: false), '')
-          .replaceAll(RegExp(r'\s+(?:Descargar|Download)\s*$', caseSensitive: false), '')
+          .replaceAll(
+            RegExp(
+              r'\[(?:Descargar|Download)\]\([^)]*\)',
+              caseSensitive: false,
+            ),
+            '',
+          )
+          .replaceAll(
+            RegExp(r'\s+(?:Descargar|Download)\s*$', caseSensitive: false),
+            '',
+          )
           .replaceAll(RegExp(r'\s+'), ' ')
           .trim();
 
@@ -805,22 +781,26 @@ class SecopDocumentIntelligenceService {
       for (final tableMatch in leafTableRegex.allMatches(strippedHtml)) {
         final tableHtml = tableMatch.group(0) ?? '';
         final tableOpenTag =
-            RegExp(r'^<table\b[^>]*>', caseSensitive: false)
-                    .firstMatch(tableHtml)
-                    ?.group(0) ??
-                '';
+            RegExp(
+              r'^<table\b[^>]*>',
+              caseSensitive: false,
+            ).firstMatch(tableHtml)?.group(0) ??
+            '';
         final tableNorm = normalizarTexto(tableHtml);
         final openNorm = normalizarTexto(tableOpenTag);
 
-        final hasDocTitle = openNorm.contains('title="documentacion"') ||
+        final hasDocTitle =
+            openNorm.contains('title="documentacion"') ||
             openNorm.contains("title='documentacion'") ||
             openNorm.contains('title="documentation"');
-        final hasDocHeader = tableNorm.contains('nombre del documento') ||
+        final hasDocHeader =
+            tableNorm.contains('nombre del documento') ||
             tableNorm.contains('nombre de documento') ||
             tableNorm.contains('document name') ||
             tableNorm.contains('file name');
 
-        final isSelectionTable = tableNorm.contains('entidad adjudicataria') ||
+        final isSelectionTable =
+            tableNorm.contains('entidad adjudicataria') ||
             tableNorm.contains('informes proceso de seleccion') ||
             tableNorm.contains('estado de la seleccion') ||
             tableNorm.contains('awarded supplier');
@@ -849,7 +829,8 @@ class SecopDocumentIntelligenceService {
             if (_esEncabezadoORuido(firstNorm)) continue;
 
             final rowNorm = normalizarTexto(rowHtml);
-            final hasDownloadSignal = rowNorm.contains('descargar') ||
+            final hasDownloadSignal =
+                rowNorm.contains('descargar') ||
                 rowNorm.contains('download') ||
                 rowNorm.contains('filedownload') ||
                 rowNorm.contains('attachment');
@@ -868,7 +849,12 @@ class SecopDocumentIntelligenceService {
 
     // 2. Extracción sobre Markdown (r.jina.ai) o texto plano copiado de SECOP II
     final textSource = rawContent.contains('<')
-        ? _limpiarCeldaHtml(rawContent.replaceAll(RegExp(r'</tr\s*>', caseSensitive: false), '\n'))
+        ? _limpiarCeldaHtml(
+            rawContent.replaceAll(
+              RegExp(r'</tr\s*>', caseSensitive: false),
+              '\n',
+            ),
+          )
         : rawContent;
 
     final slices = _recortarSeccionesDocumentacion(textSource);
@@ -901,7 +887,8 @@ class SecopDocumentIntelligenceService {
           if (parts.isNotEmpty) {
             final col0 = parts.first;
             if (!_esEncabezadoORuido(normalizarTexto(col0))) {
-              final hasDownloadCol = parts.length > 1 &&
+              final hasDownloadCol =
+                  parts.length > 1 &&
                   parts.skip(1).any((p) {
                     final pn = normalizarTexto(p);
                     return pn.contains('descargar') || pn.contains('download');
@@ -1159,85 +1146,19 @@ class SecopDocumentIntelligenceService {
     final safeUri = SecurityService.validateOfficialGovUrl(url);
     if (safeUri == null) return null;
     try {
-      final res = await http.get(
-        safeUri,
-        headers: const {
-          'Accept':
-              'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'es-CO,es;q=0.9',
-          'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-              '(KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
-        },
-      ).timeout(const Duration(seconds: 12));
+      final res = await http
+          .get(
+            safeUri,
+            headers: const {
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              'Accept-Language': 'es-CO,es;q=0.9',
+              'User-Agent':
+                  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+                  '(KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+            },
+          )
+          .timeout(const Duration(seconds: 12));
       if (res.statusCode >= 200 && res.statusCode < 300) {
-        return _decodeBodyBytes(res);
-      }
-    } catch (_) {}
-    return null;
-  }
-
-  /// Petición CORS Simple GET (sin cabeceras personalizadas para evitar preflight OPTIONS).
-  static Future<String?> _fetchViaAllOriginsGet(String targetUrl) async {
-    final safeUri = SecurityService.validateOfficialGovUrl(targetUrl);
-    if (safeUri == null) return null;
-    try {
-      final uri = Uri.parse(
-        'https://api.allorigins.win/get?url=${Uri.encodeComponent(safeUri.toString())}',
-      );
-      final res = await http.get(uri).timeout(const Duration(seconds: 12));
-      if (res.statusCode == 200) {
-        final decoded = json.decode(_decodeBodyBytes(res));
-        if (decoded is Map && decoded['contents'] is String) {
-          final contents = decoded['contents'] as String;
-          if (contents.startsWith('data:') && contents.contains(';base64,')) {
-            final b64 = contents.split(';base64,').last;
-            return utf8.decode(base64.decode(b64), allowMalformed: true);
-          }
-          return contents;
-        }
-      }
-    } catch (_) {}
-    return null;
-  }
-
-  static Future<String?> _fetchViaCodeTabs(String targetUrl) async {
-    final safeUri = SecurityService.validateOfficialGovUrl(targetUrl);
-    if (safeUri == null) return null;
-    try {
-      final uri = Uri.parse(
-        'https://api.codetabs.com/v1/proxy?quest=${Uri.encodeComponent(safeUri.toString())}',
-      );
-      final res = await http.get(uri).timeout(const Duration(seconds: 12));
-      if (res.statusCode == 200) {
-        return _decodeBodyBytes(res);
-      }
-    } catch (_) {}
-    return null;
-  }
-
-  static Future<String?> _fetchViaCorsProxyIo(String targetUrl) async {
-    final safeUri = SecurityService.validateOfficialGovUrl(targetUrl);
-    if (safeUri == null) return null;
-    try {
-      final uri = Uri.parse(
-        'https://corsproxy.io/?url=${Uri.encodeComponent(safeUri.toString())}',
-      );
-      final res = await http.get(uri).timeout(const Duration(seconds: 12));
-      if (res.statusCode == 200) {
-        return _decodeBodyBytes(res);
-      }
-    } catch (_) {}
-    return null;
-  }
-
-  static Future<String?> _fetchViaJinaReader(String targetUrl) async {
-    final safeUri = SecurityService.validateOfficialGovUrl(targetUrl);
-    if (safeUri == null) return null;
-    try {
-      final uri = Uri.parse('https://r.jina.ai/${safeUri.toString()}');
-      final res = await http.get(uri).timeout(const Duration(seconds: 16));
-      if (res.statusCode == 200) {
         return _decodeBodyBytes(res);
       }
     } catch (_) {}
@@ -1276,7 +1197,8 @@ class SecopDocumentIntelligenceService {
         maxLength: 15000,
       );
 
-      final prompt = '''
+      final prompt =
+          '''
 Extrae ÚNICAMENTE los nombres exactos de los archivos publicados en la sección "Documentación" ("Nombre del documento") del siguiente contenido oficial de SECOP II.
 REGLAS ESTRICTAS:
 1. NO inventes ningún documento.

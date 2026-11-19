@@ -3,6 +3,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'datos_abiertos.dart';
+
 /// Importación y sincronización de procesos que ya existen en SECOP II, con
 /// datos de Datos Abiertos:
 /// - Procesos: `p6dx-8zbt` (fase, estado, fechas, adjudicación).
@@ -234,33 +236,30 @@ class SecopImportacionService {
 
   static String _l(String v) => v.replaceAll("'", "''");
 
+  /// Consulta con el cliente común de Datos Abiertos (token, reintentos y
+  /// turno), sin caché: al actualizar un proceso se quiere su estado real.
   static Future<List<dynamic>> _get(
     String base,
     Map<String, String> params,
   ) async {
     final uri = Uri.parse(base).replace(queryParameters: params);
-    for (var intento = 1; ; intento++) {
-      try {
-        final r = await http.get(uri).timeout(const Duration(seconds: 25));
-        if (r.statusCode == 200) {
-          return jsonDecode(utf8.decode(r.bodyBytes)) as List<dynamic>;
-        }
-        if (intento >= 2 || (r.statusCode < 500 && r.statusCode != 429)) {
-          throw SecopImportacionException(
-            'Datos Abiertos respondió con error ${r.statusCode}. Intenta de nuevo en unos minutos.',
-          );
-        }
-      } on SecopImportacionException {
-        rethrow;
-      } catch (_) {
-        if (intento >= 2) {
-          throw const SecopImportacionException(
-            'No fue posible conectar con Datos Abiertos. Revisa tu conexión.',
-          );
-        }
-      }
-      await Future<void>.delayed(const Duration(milliseconds: 800));
+    final http.Response r;
+    try {
+      r = await DatosAbiertos.obtener(
+        uri,
+        timeout: const Duration(seconds: 25),
+      );
+    } on DatosAbiertosException {
+      throw const SecopImportacionException(
+        'No fue posible conectar con Datos Abiertos. Revisa tu conexión.',
+      );
     }
+    if (r.statusCode == 200) {
+      return jsonDecode(utf8.decode(r.bodyBytes)) as List<dynamic>;
+    }
+    throw SecopImportacionException(
+      'Datos Abiertos respondió con error ${r.statusCode}. Intenta de nuevo en unos minutos.',
+    );
   }
 
   static String _fecha(dynamic v) {
