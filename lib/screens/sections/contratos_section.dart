@@ -12,6 +12,7 @@ import '../../utils/anios_secop.dart';
 import '../../utils/app_scroll_behavior.dart';
 import '../../utils/contract_financial_calculator.dart';
 import '../../utils/csv_exporter.dart';
+import '../../utils/dependencia_contrato.dart';
 import '../../utils/secop_i.dart';
 import '../../widgets/user_profile_header_action.dart';
 import '../detalle_screen.dart';
@@ -40,6 +41,7 @@ class ContractRecord {
     required this.iconBg,
     required this.icon,
     required this.rawSecopJson,
+    this.dependencia,
   });
 
   final String title;
@@ -61,6 +63,14 @@ class ContractRecord {
   final Color iconBg;
   final IconData icon;
   final Map<String, dynamic> rawSecopJson;
+
+  /// Dependencia escrita en el objeto del contrato ("Secretaría de Hacienda
+  /// Municipal"); null si el objeto no la nombra. [department] es la
+  /// categoría estimada que usa el filtro.
+  final String? dependencia;
+
+  /// La dependencia real si el objeto la nombra; si no, la categoría.
+  String get dependenciaVisible => dependencia ?? department;
 
   Map<String, dynamic> toSecopMap() => rawSecopJson;
 }
@@ -730,6 +740,7 @@ class _ContratosSectionState extends State<ContratosSection> {
       numericValue: val,
       entity: displayEntity,
       department: inferredDepartment,
+      dependencia: DependenciaContrato.desde(raw),
       contractor: _beautifyPersonOrCompanyName(rawContractor),
       contractorId: formattedDoc,
       startDate: _shortDate(rawStartDate),
@@ -2064,6 +2075,8 @@ class _ContratosSectionState extends State<ContratosSection> {
       }
       if (_selectedDependencia.isNotEmpty &&
           !_normalizar(c.department)
+              .contains(_normalizar(_selectedDependencia)) &&
+          !_normalizar(c.dependencia ?? '')
               .contains(_normalizar(_selectedDependencia))) {
         return false;
       }
@@ -2172,7 +2185,7 @@ class _ContratosSectionState extends State<ContratosSection> {
             contract.orden,
             contract.location,
             contract.entity,
-            contract.department,
+            contract.dependenciaVisible,
             contract.title.replaceAll('\n', ' ').replaceAll(';', ','),
             contract.contractor.replaceAll(';', ','),
             contract.contractorId,
@@ -2350,7 +2363,12 @@ class _ContratosSectionState extends State<ContratosSection> {
                         caption: analisis.mesesDesglosadosTexto,
                       ),
                     _quickInfoTile('Estado', contract.status),
-                    _quickInfoTile('Dependencia / Sector', contract.department),
+                    _quickInfoTile(
+                      contract.dependencia != null
+                          ? 'Dependencia'
+                          : 'Sector (estimado)',
+                      contract.dependenciaVisible,
+                    ),
                     _quickInfoTile('Modalidad', contract.modality),
                     _quickInfoTile(
                       'Vigencia de ejecución',
@@ -4664,7 +4682,7 @@ class _ContratosSectionState extends State<ContratosSection> {
               ),
               const SizedBox(height: 2),
               Text(
-                '${contract.location} · ${contract.department}',
+                '${contract.location} · ${contract.dependenciaVisible}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(color: Cristal.textoSuave, fontSize: 10.5),

@@ -15,6 +15,7 @@ import '../services/favorites_service.dart';
 import '../services/ia_config.dart';
 import '../services/secop_document_intelligence_service.dart';
 import '../services/security_service.dart';
+import '../utils/dependencia_contrato.dart';
 import '../utils/contract_financial_calculator.dart';
 import '../utils/secop_i.dart';
 import '../utils/secop_launcher.dart';
@@ -219,6 +220,13 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
             .replaceAll(RegExp(r'\s+'), ' ')
             .trim();
     return raw.isEmpty ? 'Contrato estatal SECOP II' : raw;
+  }
+
+  /// Dependencia escrita en el objeto del contrato (SECOP no la publica
+  /// aparte); null si el objeto no la nombra.
+  String? get _dependenciaTexto {
+    final d = DependenciaContrato.desde(_contratoData);
+    return d == null ? null : 'Dependencia: $d';
   }
 
   String get _entidadContrato {
@@ -893,7 +901,7 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
 Responde la consulta aplicando estrictamente las reglas de tono, extensión y formato del sistema. Usa solo los datos del contrato; si un dato no figura, indícalo como "No reportado en SECOP".
 
 <datos_contrato_no_confiables>
-- Entidad: ${SecurityService.sanitizePromptInput(_entidadContrato, maxLength: 200)}
+- Entidad: ${SecurityService.sanitizePromptInput(_entidadContrato, maxLength: 200)}${_dependenciaTexto == null ? '' : ' (${_dependenciaTexto!})'}
 - Objeto: ${SecurityService.sanitizePromptInput(_descripcionContrato, maxLength: 900)}
 - Valor: ${SecurityService.sanitizePromptInput(_valorFormateado, maxLength: 80)} COP
 - Adjudicatario: ${SecurityService.sanitizePromptInput(_contratistaContrato, maxLength: 200)}
@@ -1419,6 +1427,7 @@ FORMATO (Markdown)
               iconBg: Cristal.azulVidrio,
               label: 'Entidad contratante',
               value: _entidadContrato.toUpperCase(),
+              detalle: _dependenciaTexto,
             ),
             const SizedBox(height: 10),
             _buildResumenInfoBox(
@@ -1456,6 +1465,7 @@ FORMATO (Markdown)
                     iconBg: Cristal.azulVidrio,
                     label: 'Entidad contratante',
                     value: _entidadContrato.toUpperCase(),
+                    detalle: _dependenciaTexto,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -2193,6 +2203,7 @@ FORMATO (Markdown)
     required String value,
     bool isLink = false,
     VoidCallback? onTap,
+    String? detalle,
   }) {
     final content = Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
@@ -2238,6 +2249,19 @@ FORMATO (Markdown)
                     decorationColor: Cristal.acentoClaro,
                   ),
                 ),
+                if (detalle != null) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    detalle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Cristal.textoMedio,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

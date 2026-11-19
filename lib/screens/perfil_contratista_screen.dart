@@ -16,6 +16,7 @@ import '../widgets/user_profile_header_action.dart';
 import 'detalle_screen.dart';
 import 'home_screen.dart';
 import '../tema/cristal.dart';
+import '../utils/dependencia_contrato.dart';
 import '../services/datos_abiertos.dart';
 import '../services/directorio_sigep_service.dart';
 import '../services/busqueda_personas.dart';
@@ -1170,10 +1171,39 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
     );
   }
 
+  /// Entidad y, si el objeto la nombra, la dependencia ("ALCALDIA MUNICIPAL
+  /// DE VALLEDUPAR · Secretaría de Hacienda Municipal").
+  Widget _lineaEntidad(String entidad, String? dependencia, double tamano) {
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: entidad),
+          if (dependencia != null)
+            TextSpan(
+              text: '  ·  $dependencia',
+              style: TextStyle(
+                color: Cristal.texto,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+        ],
+      ),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        color: Cristal.textoSuave,
+        fontSize: tamano,
+        fontWeight: FontWeight.w500,
+      ),
+    );
+  }
+
   Widget _buildHistorialContractCard(dynamic contrato, bool isMobile) {
     final entidad =
         (contrato['nombre_entidad']?.toString() ?? 'Entidad no especificada')
             .toUpperCase();
+    // SECOP no publica la dependencia: se toma del objeto del contrato.
+    final dependencia = DependenciaContrato.desde(contrato);
     final descripcion =
         (contrato['descripcion_del_proceso'] ??
                 contrato['objeto_del_contrato'] ??
@@ -1277,16 +1307,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                         ),
                         const SizedBox(width: 6),
                         Expanded(
-                          child: Text(
-                            entidad,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Cristal.textoSuave,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
+                          child: _lineaEntidad(entidad, dependencia, 12),
                         ),
                       ],
                     ),
@@ -1403,15 +1424,10 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                               ),
                               const SizedBox(width: 6),
                               Expanded(
-                                child: Text(
+                                child: _lineaEntidad(
                                   entidad,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: Cristal.textoSuave,
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                                  dependencia,
+                                  12.5,
                                 ),
                               ),
                             ],

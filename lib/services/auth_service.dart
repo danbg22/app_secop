@@ -2114,8 +2114,18 @@ class AuthService {
         return 'No se pudo establecer conexión segura. Revisa tu conexión a internet.';
       case 'operation-not-allowed':
         return 'Este método de acceso no está habilitado actualmente.';
+      case 'popup-blocked':
+        return 'El navegador bloqueó la ventana de Google. Permite ventanas emergentes (iPhone: Ajustes > Safari > Bloquear ventanas) y reintenta.';
+      case 'popup-closed-by-user':
+      case 'cancelled-popup-request':
+        return 'Se cerró la ventana de Google antes de terminar. Inténtalo de nuevo.';
+      case 'unauthorized-domain':
+        return 'El enlace ${Uri.base.host} no está autorizado para Google. Agrégalo en Firebase > Authentication > Dominios autorizados.';
+      case 'web-storage-unsupported':
+      case 'operation-not-supported-in-this-environment':
+        return 'Este navegador no permite entrar con Google. Abre el enlace en Safari o Chrome, fuera de WhatsApp, o entra con correo.';
       default:
-        return 'No fue posible completar la autenticación de forma segura. Intenta nuevamente.';
+        return 'No fue posible completar la autenticación de forma segura (código ${error.code}). Intenta nuevamente.';
     }
   }
 

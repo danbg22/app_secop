@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../services/busqueda_personas.dart';
+import '../services/entidades_publicas.dart';
 import '../widgets/directorio_sigep.dart';
 import '../utils/app_scroll_behavior.dart';
 import '../utils/csv_exporter.dart';
@@ -130,6 +131,10 @@ class _ContratistasScreenState extends State<ContratistasScreen>
 
   late final TextEditingController _searchController;
   List<ContractorSummaryRecord> _contractors = [];
+
+  /// NIT base de los resultados que son entidades públicas (aparecen como
+  /// contratistas en contratos o convenios interadministrativos).
+  Set<String> _entidadesPublicas = {};
   List<String> _activeBulkTerms = const [];
   bool _isLoading = false;
   int _latestRequestId = 0;
@@ -392,6 +397,11 @@ class _ContratistasScreenState extends State<ContratistasScreen>
       );
       _ContratistasPersistenceStore.cachedContractors = _contractors;
     }
+    // Al volver a la sección con una búsqueda hecha, se marcan de nuevo
+    // las entidades públicas (ya verificadas, no repite la consulta).
+    if (_ContratistasPersistenceStore.hasExecutedCustomSearch) {
+      unawaited(_marcarEntidadesPublicas());
+    }
   }
 
   @override
@@ -531,6 +541,7 @@ class _ContratistasScreenState extends State<ContratistasScreen>
       if (missingTerms.isEmpty) _avisoBusqueda = null;
     });
     _syncStateToPersistenceStore();
+    if (missingTerms.isEmpty) unawaited(_marcarEntidadesPublicas());
 
     if (missingTerms.isEmpty) {
       return;
@@ -629,6 +640,27 @@ class _ContratistasScreenState extends State<ContratistasScreen>
                 'resultados pueden estar incompletos.';
     });
     _syncStateToPersistenceStore();
+    unawaited(_marcarEntidadesPublicas());
+  }
+
+  /// Confirma en SECOP II cuáles personas jurídicas de los resultados son
+  /// entidades contratantes, para marcarlas como entidad pública.
+  Future<void> _marcarEntidadesPublicas() async {
+    final docs = [
+      for (final c in _contractors)
+        if (c.personType == 'Persona jurídica') c.rawDocumentDigits,
+    ];
+    if (docs.isEmpty) return;
+    final encontradas = await EntidadesPublicas.verificar(docs);
+    if (!mounted || encontradas.difference(_entidadesPublicas).isEmpty) return;
+    setState(
+      () => _entidadesPublicas = {..._entidadesPublicas, ...encontradas},
+    );
+  }
+
+  bool _esEntidadPublica(ContractorSummaryRecord c) {
+    final base = EntidadesPublicas.base(c.rawDocumentDigits);
+    return base != null && _entidadesPublicas.contains(base);
   }
 
   static String _nombresFuentes(Set<FuentePersona> fuentes) => fuentes
@@ -850,7 +882,9 @@ class _ContratistasScreenState extends State<ContratistasScreen>
           i + 1,
           _filteredAndSortedContractors[i].name,
           _filteredAndSortedContractors[i].nit,
-          _filteredAndSortedContractors[i].personType,
+          _esEntidadPublica(_filteredAndSortedContractors[i])
+              ? 'Entidad pública'
+              : _filteredAndSortedContractors[i].personType,
           _filteredAndSortedContractors[i].sigepStatus ==
                   SigepRoleStatus.servidorPublico
               ? 'Servidor Público'
@@ -1096,6 +1130,7 @@ class _ContratistasScreenState extends State<ContratistasScreen>
                       formatCurrency: _formatCopCurrency,
                       aviso: _avisoBusqueda,
                       onRetry: _reintentarBusqueda,
+                      esEntidadPublica: _esEntidadPublica,
                       terminoSigep: isDefaultView
                           ? null
                           : _activeBulkTerms
@@ -1639,7 +1674,53 @@ class ContratistasResultsTable extends StatelessWidget {
     this.aviso,
     this.onRetry,
     this.terminoSigep,
+    this.esEntidadPublica,
   });
+
+  /// Marca a las entidades públicas que salen como contratistas.
+  final bool Function(ContractorSummaryRecord)? esEntidadPublica;
+
+  bool _publica(ContractorSummaryRecord r) =>
+      esEntidadPublica?.call(r) ?? false;
+
+  /// Por qué una entidad pública aparece como contratista y dónde ver lo
+  /// que ella contrata.
+  Widget _notaEntidadesPublicas(List<ContractorSummaryRecord> publicas) {
+    final nombre = publicas.length == 1 ? publicas.first.name : null;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+      decoration: BoxDecoration(
+        color: Cristal.acentoVidrio,
+        borderRadius: BorderRadius.circular(Cristal.radioCampo),
+        border: Border.all(color: Cristal.acentoBorde),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.domain_rounded, color: Cristal.acentoClaro, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              nombre != null
+                  ? '$nombre es una entidad pública: aparece como contratista porque otras entidades le '
+                        'contratan servicios (contratos o convenios interadministrativos). Lo que ella '
+                        'contrata se consulta en Entidades.'
+                  : 'Las filas marcadas "Entidad pública" son entidades: aparecen como contratistas porque '
+                        'otras entidades les contratan servicios (contratos o convenios interadministrativos). '
+                        'Lo que ellas contratan se consulta en Entidades.',
+              style: TextStyle(
+                color: Cristal.textoCuerpo,
+                fontSize: 12.8,
+                height: 1.4,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   final List<ContractorSummaryRecord> rows;
   final int totalFoundCount;
@@ -1871,6 +1952,8 @@ class ContratistasResultsTable extends StatelessWidget {
               color: Cristal.acentoClaro,
               backgroundColor: Cristal.vidrioFuerte,
             ),
+          if (rows.any(_publica))
+            _notaEntidadesPublicas(rows.where(_publica).toList()),
           if (aviso != null && !isLoading)
             Container(
               margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -2045,6 +2128,7 @@ class ContratistasResultsTable extends StatelessWidget {
     required ContractorSummaryRecord record,
   }) {
     final bool isJuridica = record.personType == 'Persona jurídica';
+    final bool esPublica = _publica(record);
     final bool isServidorPublico =
         record.sigepStatus == SigepRoleStatus.servidorPublico;
 
@@ -2136,18 +2220,38 @@ class ContratistasResultsTable extends StatelessWidget {
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: isJuridica
+                      color: esPublica
+                          ? Cristal.acentoVidrio
+                          : isJuridica
                           ? Cristal.azulVidrio
                           : Cristal.doradoVidrio,
                       borderRadius: BorderRadius.circular(20),
+                      border: esPublica
+                          ? Border.all(color: Cristal.acentoBorde)
+                          : null,
                     ),
-                    child: Text(
-                      record.personType,
-                      style: TextStyle(
-                        color: isJuridica ? Cristal.acentoClaro : Cristal.ambar,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (esPublica) ...[
+                          Icon(
+                            Icons.domain_rounded,
+                            size: 13,
+                            color: Cristal.acentoClaro,
+                          ),
+                          const SizedBox(width: 5),
+                        ],
+                        Text(
+                          esPublica ? 'Entidad pública' : record.personType,
+                          style: TextStyle(
+                            color: isJuridica
+                                ? Cristal.acentoClaro
+                                : Cristal.ambar,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   Tooltip(
