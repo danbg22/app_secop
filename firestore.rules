@@ -27,6 +27,15 @@ service cloud.firestore {
              (!('pagoWompiPendiente' in data) || data.pagoWompiPendiente == false))));
     }
 
+    // El Contratista de Supervisión de contratos es gratuito: se puede sumar
+    // sin pago (lib/services/auth_service.dart, activarRolGratuito).
+    function soloSumaRolGratuito(antes, despues) {
+      return despues.rolesActivos is list &&
+          despues.rolesActivos.toSet()
+              .difference(antes.get('rolesActivos', []).toSet())
+              .hasOnly(['contratista']);
+    }
+
     // Correos administradores (misma lista que lib/services/admin_access.dart).
     function isAdmin() {
       return isSignedIn() &&
@@ -107,17 +116,39 @@ service cloud.firestore {
            miembroVigente(equipo));
     }
 
-    function esTitularDeExpediente(token) {
+    // Sesión con correo verificado: la supervisión se asigna por correo, y
+    // sin verificarlo cualquiera podría registrarse con el correo de otro.
+    function correoVerificado() {
       return isSignedIn() &&
-          (equipoDeExpediente(token) == request.auth.uid ||
-           expedienteDe(token).get('creadoPorUid', '') == request.auth.uid);
+          request.auth.token.get('email', '') != '' &&
+          request.auth.token.get('email_verified', false) == true;
+    }
+
+    // Designación de la supervisión del contrato (la hace el equipo jurídico
+    // que lo creó; ver lib/services/supervision_service.dart).
+    function rutaAsignacion(token) {
+      return /databases/$(database)/documents/asignaciones_supervision/$(token);
+    }
+
+    // Supervisor designado del contrato: configura los informes, decide
+    // cualquier etapa y registra el pago. El equipo jurídico ya no supervisa.
+    function esSupervisorDeExpediente(token) {
+      return correoVerificado() &&
+          exists(rutaAsignacion(token)) &&
+          get(rutaAsignacion(token)).data.get('supervisorEmail', '') == request.auth.token.email.lower();
+    }
+
+    // Supervisor o responsable de alguna etapa de la cadena de aprobación.
+    function esRevisorDeExpediente(token) {
+      return correoVerificado() &&
+          exists(rutaAsignacion(token)) &&
+          get(rutaAsignacion(token)).data.get('revisoresEmails', []).hasAny([request.auth.token.email.lower()]);
     }
 
     // Responsable de la etapa `i` de la cadena de aprobación del contrato.
     function esResponsableEtapa(token, i) {
       let ruta = /databases/$(database)/documents/expedientes_juridicos/$(token)/supervision/plan;
-      return isSignedIn() &&
-          request.auth.token.get('email', '') != '' &&
+      return correoVerificado() &&
           exists(ruta) &&
           get(ruta).data.get('etapas', []).size() > i &&
           get(ruta).data.etapas[i].get('responsableEmail', '') == request.auth.token.email.lower();
@@ -219,6 +250,7 @@ service cloud.firestore {
            ('rolesActivos' in resource.data &&
             request.resource.data.rolesActivos == resource.data.rolesActivos) ||
            isUnpaidOrBaseRoleOnly(request.resource.data) ||
+           soloSumaRolGratuito(resource.data, request.resource.data) ||
            hasVerifiedWompiLedger(request.resource.data));
 
       allow delete: if false;
@@ -328,8 +360,9 @@ service cloud.firestore {
            cambioDelContratista(resource.data, request.resource.data));
       allow delete: if isSignedIn() && resource.data.creadoPorUid == request.auth.uid;
 
-      // Supervisión mensual: plan del contrato (lo configura el equipo) e
-      // informes del contratista, que revisa el equipo y aprueba el supervisor.
+      // Supervisión mensual: plan del contrato (lo configura el supervisor
+      // designado) e informes del contratista, que aprueba la cadena de
+      // revisores del supervisor.
       match /supervision/{doc} {
         allow get: if token.matches('^[a-f0-9]{32,64}$');
         // Firma registrada del contratista (la escribe desde su enlace).
@@ -338,11 +371,11 @@ service cloud.firestore {
             expedienteActivo(token) &&
             request.resource.data.keys().hasOnly(['archivoBase64', 'partes', 'mime', 'actualizadoEnIso']) &&
             isNonEmptyString(request.resource.data.archivoBase64, 900000);
+        // El plan lo configura el supervisor designado (no el equipo jurídico).
         allow create, update: if token.matches('^[a-f0-9]{32,64}$') &&
             doc == 'plan' &&
             expedienteActivo(token) &&
-            (esTitularDeExpediente(token) ||
-             permisoEquipo(equipoDeExpediente(token), 'crear_contratos')) &&
+            esSupervisorDeExpediente(token) &&
             request.resource.data.etapas is list &&
             request.resource.data.etapas.size() > 0 &&
             request.resource.data.etapas.size() <= 5 &&
@@ -373,19 +406,17 @@ service cloud.firestore {
                    .hasOnly(camposContratistaInforme()) &&
                // La trazabilidad solo crece.
                request.resource.data.get('historial', []).hasAll(resource.data.get('historial', []))) ||
-              // Etapa en curso: la decide su responsable o el titular del equipo.
+              // Etapa en curso: la decide su responsable o el supervisor designado.
               (resource.data.estado == 'enRevision' &&
                request.resource.data.estado in ['enRevision', 'devuelto', 'aprobado'] &&
-               esEquipoDeExpediente(token) &&
                request.resource.data.diff(resource.data).affectedKeys()
                    .hasOnly(camposEquipoInforme()) &&
-               (esTitularDeExpediente(token) ||
+               (esSupervisorDeExpediente(token) ||
                 esResponsableEtapa(token, resource.data.get('etapaActual', 0)))) ||
               // Registro del pago de un informe aprobado.
               (resource.data.estado == 'aprobado' &&
                request.resource.data.estado == 'pagado' &&
-               (esTitularDeExpediente(token) ||
-                permisoEquipo(equipoDeExpediente(token), 'verificar_documentos')) &&
+               esRevisorDeExpediente(token) &&
                request.resource.data.diff(resource.data).affectedKeys()
                    .hasOnly(camposEquipoInforme()))
             );
@@ -394,11 +425,11 @@ service cloud.firestore {
         match /archivos/{tipo} {
           allow get, list: if token.matches('^[a-f0-9]{32,64}$');
           // Los soportes de un informe se cambian mientras el contratista lo
-          // edita; enviado, aprobado o pagado, solo el equipo.
+          // edita; enviado, aprobado o pagado, solo sus revisores.
           allow create, update: if token.matches('^[a-f0-9]{32,64}$') &&
               expedienteActivo(token) &&
               archivoValido(request.resource.data) &&
-              (informeEditable(token, periodo) || esEquipoDeExpediente(token));
+              (informeEditable(token, periodo) || esRevisorDeExpediente(token));
           allow delete: if puedeEliminarExpediente(expedienteDe(token));
 
           match /partes/{parte} {
@@ -406,7 +437,7 @@ service cloud.firestore {
             allow create, update: if token.matches('^[a-f0-9]{32,64}$') &&
                 expedienteActivo(token) &&
                 isNonEmptyString(request.resource.data.datos, 950000) &&
-                (informeEditable(token, periodo) || esEquipoDeExpediente(token));
+                (informeEditable(token, periodo) || esRevisorDeExpediente(token));
             allow delete: if puedeEliminarExpediente(expedienteDe(token));
           }
         }
@@ -429,6 +460,48 @@ service cloud.firestore {
           allow delete: if puedeEliminarExpediente(expedienteDe(token));
         }
       }
+    }
+
+    // =========================================================================
+    // 4a. DESIGNACIÓN DE LA SUPERVISIÓN (`asignaciones_supervision/{token}`)
+    // =========================================================================
+    // El equipo jurídico que creó el contrato designa al supervisor (lo
+    // organiza, no lo supervisa). El supervisor ve aquí sus contratos y solo
+    // puede cambiar quiénes revisan los informes (`revisoresEmails`).
+    match /asignaciones_supervision/{token} {
+      function asignacionValida(d) {
+        return d.token == token &&
+            isNonEmptyString(d.supervisorEmail, 160) &&
+            d.supervisorEmail == d.supervisorEmail.lower() &&
+            isNonEmptyString(d.supervisorNombre, 160) &&
+            d.revisoresEmails is list &&
+            d.revisoresEmails.size() <= 8 &&
+            d.revisoresEmails.hasAny([d.supervisorEmail]);
+      }
+
+      allow get: if token.matches('^[a-f0-9]{32,64}$') &&
+          (esEquipoDeExpediente(token) ||
+           (correoVerificado() &&
+            resource.data.revisoresEmails.hasAny([request.auth.token.email.lower()])));
+      // Contratos del supervisor y de los responsables de etapa: la consulta
+      // debe filtrar `revisoresEmails array-contains <su correo>`.
+      allow list: if correoVerificado() &&
+          request.auth.token.email in resource.data.revisoresEmails;
+      allow create: if token.matches('^[a-f0-9]{32,64}$') &&
+          expedienteActivo(token) &&
+          esEquipoDeExpediente(token) &&
+          asignacionValida(request.resource.data);
+      allow update: if token.matches('^[a-f0-9]{32,64}$') &&
+          expedienteActivo(token) &&
+          asignacionValida(request.resource.data) &&
+          (esEquipoDeExpediente(token) ||
+           (correoVerificado() &&
+            resource.data.supervisorEmail == request.auth.token.email.lower() &&
+            request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['revisoresEmails', 'actualizadoEnMs'])));
+      allow delete: if token.matches('^[a-f0-9]{32,64}$') &&
+          (esEquipoDeExpediente(token) ||
+           puedeEliminarExpediente(expedienteDe(token)));
     }
 
     // =========================================================================

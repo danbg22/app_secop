@@ -121,6 +121,11 @@ class AdminConfiguracionRolesYPagos {
   /// Rol base por defecto de referencia en catálogo.
   static const String rolPorDefectoId = 'persona';
 
+  /// Grupo "Supervisión de contratos": al escoger rol se muestra como una
+  /// sola tarjeta que se despliega en sus dos subroles (Supervisor y
+  /// Contratista).
+  static const String grupoSupervision = 'supervision_contratos';
+
   // ---------------------------------------------------------------------------
   // B. CATÁLOGO ORGANIZADO DE PAQUETES / ROLES Y SUS PRECIOS
   // ---------------------------------------------------------------------------
@@ -133,8 +138,7 @@ class AdminConfiguracionRolesYPagos {
       nombre: 'Persona',
       nombrePlan: 'Plan Persona',
       etiquetaDestacada: 'Más común',
-      descripcionCorta:
-          'Consulta información de contratos, entidades, contratistas y más. Ideal para usuarios individuales.',
+      descripcionCorta: 'Consulta información de contratos, entidades, contratistas y más. Ideal para usuarios individuales.',
       precioCop: 100, // <-- PRECIO TEMPORAL DE PRUEBA ($100 COP)
       habilitadoParaRegistro: true,
       colorPrimarioHex: 0xFFF5B82E,
@@ -176,8 +180,7 @@ class AdminConfiguracionRolesYPagos {
       nombre: 'Equipo jurídico entidad',
       nombrePlan: 'Plan Equipo Jurídico Entidad',
       etiquetaDestacada: 'Activo',
-      descripcionCorta:
-          'Estructura contratos de prestación de servicios en línea, genera links de invitado para contratistas y valida documentos con trazabilidad.',
+      descripcionCorta: 'Estructura contratos de prestación de servicios en línea, genera links de invitado para contratistas y valida documentos con trazabilidad.',
       precioCop: 100, // <-- PRECIO TEMPORAL DE PRUEBA ($100 COP)
       habilitadoParaRegistro: true, // <-- HABILITADO Y 100% FUNCIONAL
       colorPrimarioHex: 0xFF28559A,
@@ -208,15 +211,76 @@ class AdminConfiguracionRolesYPagos {
     ),
 
     // -------------------------------------------------------------------------
-    // ROL 3: EMPRESA LICITANTE - VISIBLE PERO DESHABILITADO TEMPORALMENTE
+    // ROL 3: SUPERVISIÓN DE CONTRATOS — SUBROL SUPERVISOR ($100 COP TEMPORAL)
+    // -------------------------------------------------------------------------
+    // La supervisión de los contratos de prestación de servicios no es del
+    // equipo jurídico (que crea y organiza los contratos): la hace el
+    // supervisor que la entidad designa en cada contrato.
+    RolPaqueteConfig(
+      id: 'supervisor_contratos',
+      nombre: 'Supervisor de contratos',
+      nombrePlan: 'Plan Supervisor de Contratos',
+      etiquetaDestacada: null,
+      descripcionCorta: 'Revisa, aprueba o devuelve los informes mensuales de los contratos de prestación de servicios que te designaron.',
+      precioCop: 100, // <-- PRECIO TEMPORAL DE PRUEBA ($100 COP); el real es una cuota módica
+      habilitadoParaRegistro: true,
+      colorPrimarioHex: 0xFF0F766E,
+      colorFondoIlustracionHex: 0xFFE0F2EF,
+      colorBordeTarjetaHex: 0xFF0F766E,
+      grupo: grupoSupervision,
+      beneficiosPrincipales: <String>[
+        'Bandeja con los informes de los contratos que supervisas',
+        'Aprobación o devolución con observaciones y cadena de aprobación',
+        'Informe de supervisión, cuenta de cobro y registro del pago',
+      ],
+      todosLosBeneficios: <String>[
+        'Ves solo los contratos en los que la entidad te designó como supervisor',
+        'Configuras periodos, valor, obligaciones y quién aprueba cada etapa',
+        'Revisas cada informe con sus soportes y lo apruebas o lo devuelves',
+        'La app arma el informe de supervisión y la cuenta de cobro en PDF',
+        'Plantilla propia del informe (encabezado, documentos y etapas)',
+      ],
+      permisosPlataforma: <String>['supervision_contratos', 'pqrs'],
+    ),
+
+    // -------------------------------------------------------------------------
+    // ROL 4: SUPERVISIÓN DE CONTRATOS — SUBROL CONTRATISTA (GRATIS)
+    // -------------------------------------------------------------------------
+    RolPaqueteConfig(
+      id: 'contratista',
+      nombre: 'Contratista',
+      nombrePlan: 'Plan Contratista',
+      etiquetaDestacada: 'Gratis',
+      descripcionCorta: 'Vincula tu contrato de prestación de servicios, sube sus documentos y presenta tus informes mensuales.',
+      precioCop: 0, // <-- GRATIS: no pasa por Wompi
+      habilitadoParaRegistro: true,
+      colorPrimarioHex: 0xFF0F766E,
+      colorFondoIlustracionHex: 0xFFE0F2EF,
+      colorBordeTarjetaHex: 0xFF0F766E,
+      grupo: grupoSupervision,
+      beneficiosPrincipales: <String>[
+        'Tus contratos en un solo lugar, sin volver a buscar el enlace',
+        'Carga de documentos e informes mensuales de ejecución',
+        'Estado de cada informe: en revisión, devuelto, aprobado o pagado',
+      ],
+      todosLosBeneficios: <String>[
+        'Vinculas el contrato con el enlace que te envió la entidad',
+        'Subes cada documento del contrato y ves sus observaciones',
+        'Diligencias y firmas tus informes de actividades en la app',
+        'Sin costo para el contratista',
+      ],
+      permisosPlataforma: <String>['supervision_contratista', 'pqrs'],
+    ),
+
+    // -------------------------------------------------------------------------
+    // ROL 5: EMPRESA LICITANTE - VISIBLE PERO DESHABILITADO TEMPORALMENTE
     // -------------------------------------------------------------------------
     RolPaqueteConfig(
       id: 'empresa_licitante',
       nombre: 'Empresa licitante',
       nombrePlan: 'Plan Empresa Licitante',
       etiquetaDestacada: null,
-      descripcionCorta:
-          'Encuentra oportunidades, conoce el mercado público y prepárate para participar en procesos de contratación.',
+      descripcionCorta: 'Encuentra oportunidades, conoce el mercado público y prepárate para participar en procesos de contratación.',
       precioCop: 89900, // <-- CAMBIA AQUÍ EL PRECIO CUANDO LO HABILITES
       habilitadoParaRegistro: false, // <-- CAMBIA A `true` PARA HABILITARLO
       colorPrimarioHex: 0xFF1F6E7A,
@@ -241,15 +305,14 @@ class AdminConfiguracionRolesYPagos {
     ),
 
     // -------------------------------------------------------------------------
-    // ROL 4: VEEDURÍA CIUDADANA - VISIBLE PERO DESHABILITADO TEMPORALMENTE
+    // ROL 6: VEEDURÍA CIUDADANA - VISIBLE PERO DESHABILITADO TEMPORALMENTE
     // -------------------------------------------------------------------------
     RolPaqueteConfig(
       id: 'veeduria_ciudadana',
       nombre: 'Veeduría ciudadana',
       nombrePlan: 'Plan Veeduría Ciudadana',
       etiquetaDestacada: null,
-      descripcionCorta:
-          'Haz seguimiento, ejerce control social y contribuye a una contratación más transparente.',
+      descripcionCorta: 'Haz seguimiento, ejerce control social y contribuye a una contratación más transparente.',
       precioCop: 29900, // <-- CAMBIA AQUÍ EL PRECIO CUANDO LO HABILITES
       habilitadoParaRegistro: false, // <-- CAMBIA A `true` PARA HABILITARLO
       colorPrimarioHex: 0xFF5D469C,
@@ -294,6 +357,7 @@ class RolPaqueteConfig {
     required this.beneficiosPrincipales,
     required this.todosLosBeneficios,
     required this.permisosPlataforma,
+    this.grupo,
   });
 
   final String id;
@@ -310,6 +374,13 @@ class RolPaqueteConfig {
   final List<String> todosLosBeneficios;
   final List<String> permisosPlataforma;
 
+  /// Grupo al que pertenece el rol como subrol (por ejemplo
+  /// [AdminConfiguracionRolesYPagos.grupoSupervision]); null si va solo.
+  final String? grupo;
+
+  /// Se activa sin pasar por Wompi.
+  bool get esGratuito => precioCop <= 0;
+
   Color get colorPrimario => Color(colorPrimarioHex);
   Color get colorFondoIlustracion => Color(colorFondoIlustracionHex);
   Color get colorBordeTarjeta => Color(colorBordeTarjetaHex);
@@ -319,6 +390,7 @@ class RolPaqueteConfig {
 
   /// Formato legible en pesos colombianos (ej: "$100 COP" o "$49.900 COP").
   String get precioFormateadoCop {
+    if (esGratuito) return 'Gratis';
     final formatted = precioCop.toString().replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
       (Match m) => '${m[1]}.',
@@ -454,7 +526,8 @@ class PaymentService {
     final pub = AdminConfiguracionRolesYPagos.wompiMerchantPublicKey.trim();
     final prv = AdminConfiguracionRolesYPagos.wompiMerchantPrivateKey.trim();
     final evt = AdminConfiguracionRolesYPagos.wompiEventsSecret.trim();
-    final integ = AdminConfiguracionRolesYPagos._effectiveIntegritySecret.trim();
+    final integ = AdminConfiguracionRolesYPagos._effectiveIntegritySecret
+        .trim();
 
     final expectedPubPrefix = isSandbox ? 'pub_test_' : 'pub_prod_';
     final expectedPrvPrefix = isSandbox ? 'prv_test_' : 'prv_prod_';
@@ -471,9 +544,11 @@ class PaymentService {
       publicKeyPrefixValid:
           pub.startsWith(expectedPubPrefix) && pub.length >= 16,
       privateKeyPrefixValid:
-          prv.isEmpty || (prv.startsWith(expectedPrvPrefix) && prv.length >= 16),
+          prv.isEmpty ||
+          (prv.startsWith(expectedPrvPrefix) && prv.length >= 16),
       eventsSecretPrefixValid:
-          evt.isEmpty || (evt.startsWith(expectedEvtPrefix) && evt.length >= 16),
+          evt.isEmpty ||
+          (evt.startsWith(expectedEvtPrefix) && evt.length >= 16),
       integritySecretPrefixValid:
           integ.startsWith(expectedIntPrefix) && integ.length >= 18,
       maskedPublicKey: maskedPub,
@@ -505,7 +580,13 @@ class PaymentService {
     }
   }
 
-  /// Retorna la lista completa de los 4 roles configurados.
+  /// Subroles de un grupo (por ejemplo Supervisor y Contratista).
+  static List<RolPaqueteConfig> subrolesDe(String grupo) =>
+      AdminConfiguracionRolesYPagos.catalogoRoles
+          .where((r) => r.grupo == grupo)
+          .toList();
+
+  /// Retorna la lista completa de los roles configurados.
   static List<RolPaqueteConfig> obtenerCatalogoRoles() {
     return AdminConfiguracionRolesYPagos.catalogoRoles;
   }
@@ -537,6 +618,14 @@ class PaymentService {
         trimmed == 'basico' ||
         trimmed == 'básico') {
       return 'persona';
+    }
+    if (trimmed == 'supervisor_contratos' ||
+        trimmed == 'supervisor' ||
+        trimmed == 'supervisor de contratos') {
+      return 'supervisor_contratos';
+    }
+    if (trimmed == 'contratista' || trimmed == 'contratista_supervision') {
+      return 'contratista';
     }
     if (trimmed.contains('juridico') || trimmed.contains('jurídico')) {
       return 'equipo_juridico';
@@ -722,10 +811,9 @@ class PaymentService {
           );
         }
         final tokenBody = jsonDecode(tokenRes.body);
-        final cardToken =
-            (tokenBody is Map && tokenBody['data'] is Map)
-                ? (tokenBody['data']['id'] ?? '').toString()
-                : '';
+        final cardToken = (tokenBody is Map && tokenBody['data'] is Map)
+            ? (tokenBody['data']['id'] ?? '').toString()
+            : '';
         if (cardToken.isEmpty) {
           throw const PaymentSecurityException(
             'No se recibió token seguro de tarjeta desde Wompi.',
@@ -798,12 +886,16 @@ class PaymentService {
         ? Map<String, dynamic>.from(txJson['data'] as Map)
         : <String, dynamic>{};
     final txId = (txData['id'] ?? '').toString();
-    var currentStatus = (txData['status'] ?? 'PENDING').toString().toUpperCase();
+    var currentStatus = (txData['status'] ?? 'PENDING')
+        .toString()
+        .toUpperCase();
 
     // Polling corto de confirmación automática en Wompi (`PENDING` -> `APPROVED` / `DECLINED`)
-    for (var attempt = 0;
-        attempt < 6 && currentStatus == 'PENDING' && txId.isNotEmpty;
-        attempt++) {
+    for (
+      var attempt = 0;
+      attempt < 6 && currentStatus == 'PENDING' && txId.isNotEmpty;
+      attempt++
+    ) {
       await Future<void>.delayed(const Duration(milliseconds: 1100));
       final pollRes = await http
           .get(
@@ -816,10 +908,9 @@ class PaymentService {
       if (pollRes.statusCode >= 200 && pollRes.statusCode < 300) {
         final pollBody = jsonDecode(pollRes.body);
         if (pollBody is Map && pollBody['data'] is Map) {
-          currentStatus =
-              (pollBody['data']['status'] ?? currentStatus)
-                  .toString()
-                  .toUpperCase();
+          currentStatus = (pollBody['data']['status'] ?? currentStatus)
+              .toString()
+              .toUpperCase();
         }
       }
     }
@@ -850,8 +941,7 @@ class PaymentService {
       actionKey: 'wompi_payment_attempt',
       maxAttempts: 6,
       window: const Duration(minutes: 5),
-      customErrorMessage:
-          'Demasiados intentos de pago consecutivos. Por seguridad financiera, espera antes de reintentar.',
+      customErrorMessage: 'Demasiados intentos de pago consecutivos. Por seguridad financiera, espera antes de reintentar.',
     );
     if (!rate.allowed) {
       throw PaymentSecurityException(rate.message);
@@ -932,8 +1022,7 @@ class PaymentService {
         }
         // Soporte de escenario DECLINED de pruebas Wompi Sandbox (tarjetas terminadas en 0002 o titular RECHAZADO)
         if (AdminConfiguracionRolesYPagos.modoSandbox &&
-            (rawCard.endsWith('0002') ||
-                titular.toUpperCase() == 'DECLINED')) {
+            (rawCard.endsWith('0002') || titular.toUpperCase() == 'DECLINED')) {
           throw const PaymentSecurityException(
             'Transacción RECHAZADA en Wompi Sandbox (DECLINED): fondos insuficientes simulados.',
           );

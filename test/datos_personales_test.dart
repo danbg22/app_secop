@@ -43,6 +43,8 @@ void main() {
         'SECOP',
         'SIGEP',
         'Superintendencia de Industria y Comercio',
+        'supervisor que designe',
+        'cuenta de Contratista',
       ]) {
         expect(ConsentService.textoPolitica, contains(dato));
       }

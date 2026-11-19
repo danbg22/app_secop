@@ -40,3 +40,20 @@ En la consola de Firebase / Google Cloud:
 3. **Reglas**: probar `firestore.rules` en el simulador de reglas de la
    consola (ingreso y subida desde el enlace del contratista sin sesión,
    aprobación del equipo) y luego `firebase deploy --only firestore:rules`.
+
+## Roles y supervisión de contratos
+
+| Rol | Precio | Sección |
+|---|---|---|
+| Persona | plan pago | Consulta (Inicio, Contratos, Entidades, Contratistas, Favoritos) |
+| Equipo jurídico entidad | plan pago | Gestión contractual: crea y organiza contratos, pide y verifica documentos, **designa al supervisor** |
+| Supervisión de contratos → Supervisor | plan pago (módico) | Supervisión de contratos: configura los informes, los aprueba o devuelve y registra el pago |
+| Supervisión de contratos → Contratista | gratis | Supervisión de contratos: vincula su contrato con el enlace, sube documentos e informes |
+
+El equipo jurídico ya no supervisa: designa al supervisor de cada contrato
+(nombre y correo) en `asignaciones_supervision/{token}`. El supervisor
+entra con ese correo **verificado** y ve el contrato en su sección; los
+responsables de las demás etapas de aprobación también deben tener el rol
+Supervisor y el correo verificado. El Contratista se activa sin Wompi.
+
+Después de actualizar la app hay que publicar de nuevo `firestore.rules`.

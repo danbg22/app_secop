@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../data/roles_visual_assets_data.dart';
 import '../services/auth_service.dart';
 import '../services/consent_service.dart';
 import '../services/payment_service.dart';
 import '../services/security_service.dart';
+import 'activacion_gratuita_screen.dart';
 import 'escoger_rol_screen.dart';
 import 'pasarela_pago_wompi_screen.dart';
 import '../tema/cristal.dart';
+import '../widgets/ilustracion_rol.dart';
 
 class RegistroScreen extends StatefulWidget {
   const RegistroScreen({super.key, this.rolSeleccionadoId = 'persona'});
@@ -293,6 +294,14 @@ class _RegistroScreenState extends State<RegistroScreen> {
       _confirmPasswordController.clear();
 
       if (!mounted) return;
+      if (rolConfig.esGratuito) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(
+            builder: (_) => ActivacionGratuitaScreen(rolId: rolConfig.id),
+          ),
+        );
+        return;
+      }
       _showMessage(
         'Datos validados correctamente. Continúa con la activación de tu rol ${rolConfig.nombre}.',
       );
@@ -768,7 +777,9 @@ class _RegistroScreenState extends State<RegistroScreen> {
                                                     children: [
                                                       Flexible(
                                                         child: Text(
-                                                          'Continuar al pago (${rol.precioFormateadoCop})',
+                                                          rol.esGratuito
+                                                              ? 'Crear cuenta gratis'
+                                                              : 'Continuar al pago (${rol.precioFormateadoCop})',
                                                           overflow: TextOverflow
                                                               .ellipsis,
                                                           style: TextStyle(
@@ -953,12 +964,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
       child: SizedBox(
         width: isMobile ? 68 : 88,
         height: isMobile ? 56 : 70,
-        child: Image.memory(
-          RolesVisualAssetsData.bytesForRole(rol.id),
-          fit: BoxFit.cover,
-          alignment: Alignment.topCenter,
-          gaplessPlayback: true,
-        ),
+        child: IlustracionRol(rolId: rol.id),
       ),
     );
 

@@ -93,7 +93,8 @@ class AuthService {
                 paymentPending: true,
                 pendingRoleId: remoteReqRole,
               );
-            } else if (remote['pagoWompiActivo'] == true &&
+            } else if ((remote['pagoWompiActivo'] == true ||
+                    _soloRolesGratuitos(remote['rolesActivos'])) &&
                 remote['rolesActivos'] is List) {
               final remoteRoles = _extractNormalizedRolesFromMap(
                 remote,
@@ -1742,6 +1743,125 @@ class AuthService {
         );
       }
     }
+  }
+
+  /// La cuenta solo tiene roles que no se pagan (el Contratista): sus roles
+  /// valen aunque nunca haya pasado por Wompi.
+  static bool _soloRolesGratuitos(Object? roles) =>
+      roles is List &&
+      roles.isNotEmpty &&
+      roles.every(
+        (r) =>
+            PaymentService.obtenerConfiguracionRol(r?.toString()).esGratuito &&
+            PaymentService.normalizarRolId(r?.toString()) == r,
+      );
+
+  /// Activa un rol gratuito (el Contratista de Supervisión de contratos) sin
+  /// pasar por Wompi. En una cuenta recién creada es su primer rol; en una
+  /// cuenta activa se suma a los que ya tiene.
+  static Future<void> activarRolGratuito(String rolId) async {
+    final rol = PaymentService.obtenerConfiguracionRol(rolId);
+    final cleanRol = PaymentService.normalizarRolId(rolId);
+    if (rol.id != cleanRol || !rol.esGratuito) {
+      throw const AuthServiceException('Ese rol requiere el pago de su plan.');
+    }
+    final activeEmail = getActiveUserEmail().trim().toLowerCase();
+    if (activeEmail.isEmpty) {
+      throw const AuthServiceException(
+        'Inicia sesión nuevamente para activar el rol.',
+      );
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final registry = await _loadRegistry(prefs);
+    final existing = registry[activeEmail] is Map
+        ? Map<String, dynamic>.from(registry[activeEmail] as Map)
+        : <String, dynamic>{};
+    final verifiedState = await _lookupVerifiedAccountStateForEmail(
+      prefs,
+      activeEmail,
+    );
+    // Con el pago inicial pendiente la cuenta no tiene roles: el gratuito es
+    // el primero. Si ya tenía roles, se acumula.
+    final baseRoles = verifiedState.paymentPending
+        ? <String>[]
+        : verifiedState.roles;
+    final updatedRoles = <String>[
+      ...baseRoles,
+      if (!baseRoles.contains(cleanRol)) cleanRol,
+    ];
+    final pagoActivo = existing['pagoWompiActivo'] == true;
+    final rolEtiqueta = PaymentService.formatearEtiquetaRolesAcumulados(
+      updatedRoles,
+    );
+    final rolesSeal = await SecurityService.computeUserRolesSeal(
+      prefs: prefs,
+      email: activeEmail,
+      roles: updatedRoles,
+    );
+    final paymentStateSeal = await SecurityService.computePaymentStateSeal(
+      prefs: prefs,
+      email: activeEmail,
+      paymentPending: false,
+      paymentActive: pagoActivo,
+      requestedRoleId: cleanRol,
+      roles: updatedRoles,
+    );
+
+    // Primero Firestore: si las reglas no lo permiten, no se activa nada.
+    final fbUser = _auth.currentUser;
+    if (fbUser != null) {
+      try {
+        await FirebaseFirestore.instance
+            .collection(ConsentService.coleccionUsuarios)
+            .doc(fbUser.uid)
+            .set({
+              'rolesActivos': updatedRoles,
+              'rolPrincipal': updatedRoles.first,
+              'rolSolicitadoRegistro': cleanRol,
+              'rolEtiqueta': rolEtiqueta,
+              'pagoWompiPendiente': false,
+              'actualizado_en': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true))
+            .timeout(const Duration(seconds: 8));
+      } on FirebaseException catch (e) {
+        debugPrint('activarRolGratuito: ${e.code} ${e.message}');
+        throw AuthServiceException(
+          e.code == 'permission-denied'
+              ? 'No fue posible activar el rol: publica de nuevo las reglas de Firestore.'
+              : 'No fue posible activar el rol. Revisa tu conexión e intenta de nuevo.',
+        );
+      } on TimeoutException {
+        throw const AuthServiceException(
+          'El servidor no respondió. Revisa tu conexión e intenta de nuevo.',
+        );
+      }
+    }
+
+    existing.remove('password');
+    existing['rolesActivos'] = updatedRoles;
+    existing['rolPrincipal'] = updatedRoles.first;
+    existing['rolSolicitadoRegistro'] = cleanRol;
+    existing['rolEtiqueta'] = rolEtiqueta;
+    existing['rolesSeal'] = rolesSeal;
+    existing['paymentStateSeal'] = paymentStateSeal;
+    existing['pagoWompiActivo'] = pagoActivo;
+    existing['pagoWompiPendiente'] = false;
+    existing['updatedAt'] = DateTime.now().toIso8601String();
+    registry[activeEmail] = existing;
+    await prefs.setString(_kUsersRegistryKey, jsonEncode(registry));
+    await SecurityService.sealActiveSession(
+      prefs: prefs,
+      email: activeEmail,
+      roles: updatedRoles,
+      paymentPending: false,
+      pendingRoleId: cleanRol,
+    );
+
+    _cachedRoles = updatedRoles;
+    _cachedPaymentPending = false;
+    _cachedPendingRoleId = cleanRol;
+    authStateVersion.value++;
   }
 
   /// Actualiza o restaura la foto de perfil validando formato raster (Magic Bytes),

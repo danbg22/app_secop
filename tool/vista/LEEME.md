@@ -10,6 +10,7 @@ flutter test tool/vista/secciones_test.dart --update-goldens   # secciones del p
 flutter test tool/vista/detalle_test.dart --update-goldens     # entidad, contrato, contratista, perfil, pago
 flutter test tool/vista/gestion_test.dart --update-goldens     # gestión contractual, supervisión, diálogos
 flutter test tool/vista/catalogo_test.dart --update-goldens    # catálogo de componentes
+flutter test tool/vista/supervision_rol_test.dart --update-goldens  # rol Supervisión de contratos al escoger rol
 ```
 
 No usan Firebase real: `firebase_falso.dart` simula la sesión. Las que

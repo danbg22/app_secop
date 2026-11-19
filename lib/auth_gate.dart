@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'screens/activacion_gratuita_screen.dart';
 import 'screens/consentimiento_equipo_screen.dart';
 import 'screens/main_dashboard.dart';
 import 'screens/pasarela_pago_wompi_screen.dart';
@@ -11,6 +12,7 @@ import 'services/auth_service.dart';
 import 'services/consent_service.dart';
 import 'services/equipo_juridico_service.dart';
 import 'services/juridico_contratacion_service.dart';
+import 'services/payment_service.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -62,6 +64,13 @@ class AuthGate extends StatelessWidget {
               // sin pago aprobado en Wompi puede entrar al panel principal,
               // ni devolviéndose con el botón Atrás ni recargando la URL.
               if (AuthService.requiresMandatoryWompiPayment) {
+                // El Contratista (Supervisión de contratos) es gratuito: se
+                // activa sin pasar por Wompi.
+                final pendiente = AuthService.getPendingRegistrationRoleId();
+                if (PaymentService.obtenerConfiguracionRol(pendiente)
+                    .esGratuito) {
+                  return ActivacionGratuitaScreen(rolId: pendiente);
+                }
                 return PasarelaPagoWompiScreen(
                   rolId: AuthService.getPendingRegistrationRoleId(),
                   esFlujoRegistro: true,

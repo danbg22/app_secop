@@ -9,12 +9,21 @@ import 'revision_supervisor_screen.dart';
 import 'supervision_contrato_screen.dart';
 import '../../tema/cristal.dart';
 
-/// Bandeja de supervisión del equipo: informes de todos los contratos
-/// agrupados por paso, con lo que le toca al usuario primero.
+/// Bandeja del supervisor: informes de los contratos que supervisa (o en
+/// los que aprueba una etapa), agrupados por paso, con lo que le toca
+/// primero.
 class BandejaSupervisionScreen extends StatefulWidget {
-  const BandejaSupervisionScreen({super.key, required this.expedientes});
+  const BandejaSupervisionScreen({
+    super.key,
+    required this.expedientes,
+    this.incrustada = false,
+  });
 
   final List<ExpedienteContratoPs> expedientes;
+
+  /// Va dentro de la sección Supervisión de contratos, que ya muestra el
+  /// título y la plantilla: sin botón de volver ni encabezado propio.
+  final bool incrustada;
 
   @override
   State<BandejaSupervisionScreen> createState() =>
@@ -97,58 +106,60 @@ class _BandejaSupervisionScreenState extends State<BandejaSupervisionScreen> {
         return PantallaContractual(
           anchoMaximo: 1120,
           children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: PildoraVolver(
-                etiqueta: 'Equipo jurídico',
-                onTap: () => Navigator.pop(context),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Wrap(
-              spacing: 16,
-              runSpacing: 12,
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.end,
-              children: [
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 680),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Supervisión mensual',
-                        style: EstiloContractual.titulo,
-                      ),
-                      SizedBox(height: 6),
-                      Text(
-                        'El contratista llena su informe en la app; cada etapa de la entidad lo aprueba o lo devuelve, y al final se registra el pago.',
-                        style: EstiloContractual.subtitulo,
-                      ),
-                    ],
-                  ),
+            if (!widget.incrustada) ...[
+              Align(
+                alignment: Alignment.centerLeft,
+                child: PildoraVolver(
+                  etiqueta: 'Volver',
+                  onTap: () => Navigator.pop(context),
                 ),
-                OutlinedButton.icon(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (_) => PlantillaInformeScreen(
-                        entidad: widget.expedientes.isEmpty
-                            ? ''
-                            : widget.expedientes.first.entidadNombre,
-                      ),
+              ),
+              const SizedBox(height: 20),
+              Wrap(
+                spacing: 16,
+                runSpacing: 12,
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.end,
+                children: [
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 680),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Supervisión mensual',
+                          style: EstiloContractual.titulo,
+                        ),
+                        SizedBox(height: 6),
+                        Text(
+                          'El contratista llena su informe en la app; cada etapa de la entidad lo aprueba o lo devuelve, y al final se registra el pago.',
+                          style: EstiloContractual.subtitulo,
+                        ),
+                      ],
                     ),
                   ),
-                  style: EstiloContractual.botonSecundario(),
-                  icon: const Icon(Icons.tune_rounded, size: 18),
-                  label: const Text(
-                    'Plantilla de la entidad',
-                    style: EstiloContractual.etiquetaBoton,
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => PlantillaInformeScreen(
+                          entidad: widget.expedientes.isEmpty
+                              ? ''
+                              : widget.expedientes.first.entidadNombre,
+                        ),
+                      ),
+                    ),
+                    style: EstiloContractual.botonSecundario(),
+                    icon: const Icon(Icons.tune_rounded, size: 18),
+                    label: const Text(
+                      'Mi plantilla',
+                      style: EstiloContractual.etiquetaBoton,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
+                ],
+              ),
+              const SizedBox(height: 20),
+            ],
             LayoutBuilder(
               builder: (context, c) {
                 final columnas = c.maxWidth >= 860 ? 4 : 2;
@@ -562,7 +573,7 @@ class _FilaInforme extends StatelessWidget {
   }
 }
 
-/// Contratos del equipo para abrir o configurar su supervisión.
+/// Contratos del supervisor para abrir o configurar sus informes.
 class _Contratos extends StatefulWidget {
   const _Contratos({required this.expedientes});
   final List<ExpedienteContratoPs> expedientes;
@@ -580,14 +591,14 @@ class _ContratosState extends State<_Contratos> {
     if (widget.expedientes.isEmpty) {
       return TarjetaSupervision(
         titulo: 'Contratos',
-        subtitulo:
-            'Aún no hay contratos de prestación de servicios en este equipo.',
+        subtitulo: 'Aún no te han designado como supervisor de un contrato.',
         icono: Icons.folder_shared_outlined,
         children: [
           Text(
-            'Para empezar: vuelve a Equipo jurídico, toca "Nuevo proceso" y elige Prestación de servicios. '
-            'Cuando el expediente exista, ábrelo aquí para configurar su supervisión: periodos, obligaciones y quién aprueba. '
-            'Después invita al contratista, que llena cada informe desde su portal.',
+            'El equipo jurídico de la entidad te designa como supervisor en cada contrato de prestación de '
+            'servicios, con el correo de esta cuenta (${SupervisionService.emailActual}). Cuando lo haga, el '
+            'contrato aparece aquí para que configures sus informes: periodos, obligaciones y quién aprueba. '
+            'El contratista llena cada informe desde su cuenta gratuita de Contratista o el enlace del contrato.',
             style: TextStyle(
               color: Cristal.textoMedio,
               fontSize: 13.5,
@@ -599,7 +610,7 @@ class _ContratosState extends State<_Contratos> {
     }
     return TarjetaSupervision(
       titulo: 'Contratos',
-      subtitulo: 'Abre un contrato para configurar su supervisión o ver todos sus meses.',
+      subtitulo: 'Abre un contrato para configurar sus informes o ver todos sus meses.',
       icono: Icons.folder_shared_outlined,
       accion: TextButton(
         onPressed: () => setState(() => _abierto = !_abierto),

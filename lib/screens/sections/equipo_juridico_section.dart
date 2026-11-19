@@ -8,6 +8,7 @@ import '../../services/equipo_juridico_service.dart';
 import '../../services/juridico_contratacion_service.dart';
 import '../../widgets/user_profile_header_action.dart';
 import '../../services/procesos_contratacion_service.dart';
+import '../../services/supervision_service.dart';
 import '../gestion_contractual/estado_secop.dart';
 import '../gestion_contractual/importar_proceso_screen.dart';
 import '../gestion_contractual/inicio_gestion_screen.dart';
@@ -15,8 +16,6 @@ import '../gestion_contractual/seguimiento_secop_screen.dart';
 import '../gestion_contractual/estilo_contractual.dart';
 import '../gestion_contractual/proceso_detalle_screen.dart';
 import '../gestion_equipo_screen.dart';
-import '../supervision/bandeja_supervision_screen.dart';
-import '../supervision/supervision_contrato_screen.dart';
 import '../../tema/cristal.dart';
 
 class EquipoJuridicoSection extends StatefulWidget {
@@ -1166,6 +1165,141 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
     );
   }
 
+  /// El equipo jurídico organiza el contrato: designa a su supervisor, que
+  /// hace la supervisión desde su rol Supervisor de contratos. El equipo no
+  /// configura ni aprueba los informes.
+  Future<void> _designarSupervisor(ExpedienteContratoPs exp) async {
+    if (!_puede(PermisoEquipo.crearContratos)) return;
+    AsignacionSupervision? actual;
+    try {
+      actual = await SupervisionService.leerAsignacion(exp.tokenInvitado);
+    } catch (_) {}
+    if (!mounted) return;
+    final nombreCtrl = TextEditingController(
+      text: actual?.supervisorNombre ?? '',
+    );
+    final correoCtrl = TextEditingController(
+      text: actual?.supervisorEmail ?? '',
+    );
+    String? error;
+    bool guardando = false;
+
+    await mostrarDialogoCristal<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Dialog(
+          backgroundColor: Cristal.flotante,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: Cristal.bordeFuerte),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    actual == null
+                        ? 'Designar supervisor'
+                        : 'Supervisor del contrato',
+                    style: TextStyle(
+                      color: Cristal.texto,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Contrato ${exp.numeroContrato}. El supervisor entra con este correo y el rol Supervisor de '
+                    'contratos: configura los informes del contratista y los aprueba o devuelve. El equipo jurídico '
+                    'no supervisa.',
+                    style: TextStyle(
+                      color: Cristal.textoSuave,
+                      fontSize: 12.5,
+                      height: 1.45,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildModalField(
+                    controller: nombreCtrl,
+                    label: 'Nombre del supervisor',
+                    hint: 'Como figura en el acto de designación',
+                  ),
+                  const SizedBox(height: 12),
+                  _buildModalField(
+                    controller: correoCtrl,
+                    label: 'Correo del supervisor',
+                    hint: 'nombre@entidad.gov.co',
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+                  if (error != null) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      error!,
+                      style: TextStyle(color: Cristal.rojo, fontSize: 12.5),
+                    ),
+                  ],
+                  const SizedBox(height: 18),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: Text(
+                          'Cancelar',
+                          style: TextStyle(color: Cristal.textoSuave),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        onPressed: guardando
+                            ? null
+                            : () async {
+                                setModalState(() {
+                                  guardando = true;
+                                  error = null;
+                                });
+                                try {
+                                  final a =
+                                      await SupervisionService.designarSupervisor(
+                                        exp,
+                                        nombre: nombreCtrl.text,
+                                        email: correoCtrl.text,
+                                      );
+                                  if (ctx.mounted) Navigator.of(ctx).pop();
+                                  _mostrarMensaje(
+                                    '${a.supervisorNombre} quedó como supervisor del contrato ${exp.numeroContrato}.',
+                                  );
+                                } catch (e) {
+                                  setModalState(() {
+                                    guardando = false;
+                                    error = '$e';
+                                  });
+                                }
+                              },
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Cristal.acento,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: Text(guardando ? 'Guardando…' : 'Guardar'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _abrirModalCrearContrato() async {
     if (!_puede(PermisoEquipo.crearContratos)) return;
     final nombreCtrl = TextEditingController();
@@ -1855,24 +1989,6 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                             style: EstiloContractual.etiquetaBoton,
                           ),
                         ),
-                      OutlinedButton.icon(
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => BandejaSupervisionScreen(
-                              expedientes: _expedientes,
-                            ),
-                          ),
-                        ),
-                        style: EstiloContractual.botonSecundario(),
-                        icon: const Icon(
-                          Icons.assignment_turned_in_outlined,
-                          size: 19,
-                        ),
-                        label: const Text(
-                          'Supervisión',
-                          style: EstiloContractual.etiquetaBoton,
-                        ),
-                      ),
                       FilledButton.icon(
                         onPressed: _nuevoProceso,
                         style: EstiloContractual.botonPrincipal(),
@@ -2488,12 +2604,7 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                     ),
                   ),
                   OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) =>
-                            SupervisionContratoScreen(expediente: exp),
-                      ),
-                    ),
+                    onPressed: () => _designarSupervisor(exp),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Cristal.texto,
                       side: BorderSide(color: Cristal.bordeFuerte),
@@ -2505,12 +2616,9 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    icon: const Icon(
-                      Icons.assignment_turned_in_outlined,
-                      size: 17,
-                    ),
+                    icon: const Icon(Icons.assignment_ind_outlined, size: 17),
                     label: Text(
-                      isMobile ? 'Supervisión' : 'Supervisión mensual',
+                      isMobile ? 'Supervisor' : 'Designar supervisor',
                       style: const TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,

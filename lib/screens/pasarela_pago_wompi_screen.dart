@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/auth_bg_asset_data.dart';
-import '../data/roles_visual_assets_data.dart';
+import '../widgets/ilustracion_rol.dart';
 import '../widgets/admin_verification_banner.dart';
 import '../services/auth_service.dart';
 import '../services/payment_service.dart';
@@ -1122,12 +1122,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                     child: SizedBox(
                       width: 34,
                       height: 28,
-                      child: Image.memory(
-                        RolesVisualAssetsData.bytesForRole(rol.id),
-                        fit: BoxFit.cover,
-                        alignment: Alignment.topCenter,
-                        filterQuality: FilterQuality.high,
-                      ),
+                      child: IlustracionRol(rolId: rol.id),
                     ),
                   ),
                   const SizedBox(width: 9),

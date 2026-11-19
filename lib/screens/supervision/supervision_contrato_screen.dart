@@ -57,7 +57,7 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: PildoraVolver(
-                  etiqueta: 'Equipo jurídico',
+                  etiqueta: 'Supervisión',
                   onTap: () => Navigator.pop(context),
                 ),
               ),
@@ -120,8 +120,8 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
         const SizedBox(height: 8),
         Text(
           'Define los periodos, el valor, las obligaciones y quién aprueba cada etapa. El contratista diligencia '
-          'cada informe desde el mismo enlace del expediente, sin Word ni Excel, y la app arma el informe, la cuenta '
-          'de cobro y el informe de supervisión.',
+          'cada informe desde su cuenta de Contratista o el enlace del contrato, sin Word ni Excel, y la app arma '
+          'el informe, la cuenta de cobro y el informe de supervisión.',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: Cristal.textoMedio,
@@ -142,7 +142,7 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
                   ),
                 )
               : Text(
-                  'Pídele al titular del equipo que la configure.',
+                  'Los informes los configura el supervisor designado del contrato.',
                   style: TextStyle(color: Cristal.textoSuave),
                 ),
         ),

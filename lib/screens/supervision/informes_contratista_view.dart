@@ -8,7 +8,7 @@ import 'informe_contratista_screen.dart';
 import '../../tema/cristal.dart';
 
 /// Informes de ejecución en el portal del contratista. Solo aparece cuando el
-/// equipo configuró la supervisión del contrato.
+/// supervisor designado configuró los informes del contrato.
 class InformesContratistaView extends StatefulWidget {
   const InformesContratistaView({
     super.key,

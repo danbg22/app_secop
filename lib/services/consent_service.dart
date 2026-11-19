@@ -18,7 +18,7 @@ class ConsentService {
   /// Versión del texto de la política aceptada. Cámbiala cada vez que el área
   /// legal modifique la política, para saber qué versión aceptó cada usuario:
   /// con una versión nueva, la app vuelve a pedir la autorización.
-  static const String versionPolitica = '1.1-2026-11';
+  static const String versionPolitica = '1.2-2026-11';
 
   /// Texto de la política que acepta el titular. Lo usan el registro, la
   /// aceptación al iniciar sesión, la de los abogados de equipo y el ingreso
@@ -31,7 +31,7 @@ class ConsentService {
       '2. Datos que tratamos.\n'
       'a) De quien crea una cuenta o inicia sesión (correo, Google o Apple): nombres, apellidos, correo electrónico, '
       'número de documento, país, teléfono y foto de perfil.\n'
-      'b) Del contratista que ingresa por el enlace de su contrato: nombre, número de cédula, dirección, ciudad, celular, '
+      'b) Del contratista que ingresa por el enlace de su contrato o con su cuenta de Contratista: nombre, número de cédula, dirección, ciudad, celular, '
       'datos bancarios para el pago (banco, tipo y número de cuenta), información tributaria, los documentos que el '
       'contrato pide (cédula, RUT, certificación bancaria, planillas de seguridad social, ARL, antecedentes, soportes de '
       'estudios y experiencia), su firma y sus informes de actividades.\n'
@@ -49,8 +49,9 @@ class ConsentService {
       'contacto que muestra son los institucionales que las entidades publican en sus planes de adquisiciones.\n\n'
       '4. Datos de los contratos. El equipo jurídico o la entidad que crea un contrato en Contrata Legal responde por '
       'los datos del contratista que registra y por los documentos que le pide; Contrata Legal los trata por cuenta de '
-      'ese equipo. Solo acceden el equipo, los responsables de aprobación que designe y el contratista con su enlace '
-      'personal, que no debe compartirse.\n\n'
+      'ese equipo. Solo acceden el equipo, el supervisor que designe para el contrato, los responsables de aprobación '
+      'de los informes que indique el supervisor y el contratista con su enlace personal (que no debe compartirse) o '
+      'con su cuenta de Contratista.\n\n'
       '5. Datos sensibles. Contrata Legal no pide datos sensibles (origen racial o étnico, orientación política, '
       'convicciones religiosas, pertenencia a sindicatos u organizaciones, salud, vida sexual ni datos biométricos) ni '
       'datos de niñas, niños o adolescentes. Si un documento los contiene, no estás obligado(a) a suministrarlos y '

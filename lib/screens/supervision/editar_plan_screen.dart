@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../services/equipo_juridico_service.dart';
 import '../../services/juridico_contratacion_service.dart';
 import '../../services/supervision_service.dart';
 import '../gestion_contractual/estilo_contractual.dart';
@@ -31,7 +30,6 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
   final Map<String, TextEditingController> _c = {};
   late List<TextEditingController> _obligaciones;
   late List<String> _ids;
-  List<MiembroEquipo> _equipo = const [];
   bool _guardando = false;
   String? _fechaCdp;
   String? _fechaRp;
@@ -50,8 +48,15 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
     _fin = p?.fechaFin ?? DateTime(hoy.year, 12, 31);
     _periodicidad = p?.periodicidad ?? Periodicidad.mensual;
     _riesgo = p?.claseRiesgo ?? 1;
-    _t('supNombre', p?.supervisorNombre ?? '');
-    _t('supEmail', p?.supervisorEmail ?? '');
+    // El supervisor es el que designó el equipo jurídico en el contrato.
+    final asignacion = SupervisionService.asignacionDe(_exp);
+    _t(
+      'supNombre',
+      (p?.supervisorNombre ?? '').isNotEmpty
+          ? p!.supervisorNombre
+          : asignacion?.supervisorNombre ?? '',
+    );
+    _t('supEmail', asignacion?.supervisorEmail ?? p?.supervisorEmail ?? '');
     final meses =
         (_fin.year - _inicio.year) * 12 + _fin.month - _inicio.month + 1;
     final sugerido = _exp.valorContratoCop > 0 && meses > 0
@@ -85,7 +90,6 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
     } else {
       _cargarPlantilla();
     }
-    _cargarEquipo();
   }
 
   void _aplicarPlantilla(PlantillaInforme p) {
@@ -98,7 +102,7 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
   }
 
   Future<void> _cargarPlantilla() async {
-    final p = await SupervisionService.plantillaDelEquipo(
+    final p = await SupervisionService.plantillaDelSupervisor(
       entidad: _exp.entidadNombre,
     );
     if (!mounted) return;
@@ -122,18 +126,6 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
         ),
       );
     });
-  }
-
-  Future<void> _cargarEquipo() async {
-    if (!EquipoJuridicoService.esMaster) return;
-    try {
-      final lista = await EquipoJuridicoService.listarMiembros();
-      if (mounted) {
-        setState(
-          () => _equipo = lista.where((m) => m.estado == 'activo').toList(),
-        );
-      }
-    } catch (_) {}
   }
 
   @override
@@ -499,8 +491,8 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
           TarjetaSupervision(
             titulo: 'Quién aprueba el informe',
             subtitulo:
-                'La cadena de la entidad: cada etapa aprueba o devuelve en este orden. Los responsables deben ser '
-                'del equipo y entrar con este correo.',
+                'Cada etapa aprueba o devuelve en este orden. Cada responsable entra con este correo, verificado y '
+                'con el rol Supervisor de contratos, y ve el contrato en su sección de Supervisión.',
             icono: Icons.alt_route_rounded,
             accion: TextButton.icon(
               onPressed: () async {
@@ -514,7 +506,7 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
                 if (cambio == true) await _cargarPlantilla();
               },
               icon: const Icon(Icons.tune_rounded, size: 17),
-              label: const Text('Plantilla de la entidad'),
+              label: const Text('Mi plantilla'),
               style: TextButton.styleFrom(foregroundColor: Cristal.texto),
             ),
             children: [
@@ -528,23 +520,22 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                if (_equipo.isNotEmpty) ...[
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      for (final m in _equipo)
-                        ActionChip(
-                          label: Text(
-                            m.nombre,
-                            style: const TextStyle(fontSize: 12.3),
-                          ),
-                          onPressed: () => setState(() {
-                            _t('etNombre:${e.id}').text = m.nombre;
-                            _t('etEmail:${e.id}').text = m.email;
-                          }),
-                        ),
-                    ],
+                if (_t('supEmail').text.isNotEmpty &&
+                    _t('etEmail:${e.id}').text.trim().toLowerCase() !=
+                        _t('supEmail').text) ...[
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: ActionChip(
+                      avatar: const Icon(Icons.person_outline, size: 16),
+                      label: const Text(
+                        'Yo, como supervisor',
+                        style: TextStyle(fontSize: 12.3),
+                      ),
+                      onPressed: () => setState(() {
+                        _t('etNombre:${e.id}').text = _t('supNombre').text;
+                        _t('etEmail:${e.id}').text = _t('supEmail').text;
+                      }),
+                    ),
                   ),
                   const SizedBox(height: 8),
                 ],
@@ -579,7 +570,11 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
                 ),
                 TextField(
                   controller: _t('supEmail'),
-                  decoration: decoracionCampo('Correo (opcional)'),
+                  enabled: false,
+                  decoration: decoracionCampo(
+                    'Correo',
+                    ayuda: 'Lo designó el equipo jurídico del contrato.',
+                  ),
                 ),
               ),
             ],

@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../data/roles_visual_assets_data.dart';
 import '../services/auth_service.dart';
 import '../services/payment_service.dart';
 import 'login_screen.dart';
 import 'pasarela_pago_wompi_screen.dart';
 import 'registro_screen.dart';
 import '../tema/cristal.dart';
+import '../widgets/ilustracion_rol.dart';
+import 'activacion_gratuita_screen.dart';
 
 /// Fondo escénico unificado (Catedral colonial, montañas andinas, bandera de
 /// Colombia y hojas botánicas) compartido por los 3 pasos del flujo:
@@ -308,7 +309,124 @@ class EscogerRolScreen extends StatefulWidget {
 class _EscogerRolScreenState extends State<EscogerRolScreen> {
   String? _hoveredRoleId;
 
+  /// Tarjeta que agrupa los subroles de Supervisión de contratos (Supervisor
+  /// y Contratista): al tocarla se despliegan para escoger uno.
+  static const RolPaqueteConfig _tarjetaSupervision = RolPaqueteConfig(
+    id: AdminConfiguracionRolesYPagos.grupoSupervision,
+    nombre: 'Supervisión de contratos',
+    nombrePlan: 'Supervisión de contratos',
+    etiquetaDestacada: 'Nuevo',
+    descripcionCorta: 'Ejecución de contratos de prestación de servicios: el supervisor revisa y aprueba los informes y el contratista los presenta.',
+    precioCop: 0,
+    habilitadoParaRegistro: true,
+    colorPrimarioHex: 0xFF0F766E,
+    colorFondoIlustracionHex: 0xFFE0F2EF,
+    colorBordeTarjetaHex: 0xFF0F766E,
+    beneficiosPrincipales: <String>[],
+    todosLosBeneficios: <String>[],
+    permisosPlataforma: <String>[],
+  );
+
+  /// Roles en el orden del catálogo, con los subroles de un grupo reunidos
+  /// en una sola tarjeta.
+  List<RolPaqueteConfig> get _tarjetas {
+    final lista = <RolPaqueteConfig>[];
+    for (final rol in PaymentService.obtenerCatalogoRoles()) {
+      if (rol.grupo == AdminConfiguracionRolesYPagos.grupoSupervision) {
+        if (!lista.contains(_tarjetaSupervision)) {
+          lista.add(_tarjetaSupervision);
+        }
+      } else {
+        lista.add(rol);
+      }
+    }
+    return lista;
+  }
+
+  static bool _esGrupo(RolPaqueteConfig rol) =>
+      rol.id == AdminConfiguracionRolesYPagos.grupoSupervision;
+
+  bool _yaTiene(RolPaqueteConfig rol) =>
+      widget.modoAcumularRol &&
+      AuthService.hasAuthorizedPlatformAccess &&
+      AuthService.hasActiveRole(rol.id);
+
+  String _precioTarjeta(RolPaqueteConfig rol) {
+    if (!_esGrupo(rol)) return rol.precioFormateadoCop;
+    final precios = PaymentService.subrolesDe(rol.id)
+        .map((r) => r.precioFormateadoCop.replaceAll(' COP', ''))
+        .toList();
+    return precios.reversed.join(' o ');
+  }
+
+  /// Despliega los subroles de Supervisión de contratos.
+  Future<void> _escogerSubrol() async {
+    final subroles = PaymentService.subrolesDe(
+      AdminConfiguracionRolesYPagos.grupoSupervision,
+    );
+    final elegido = await mostrarDialogoCristal<RolPaqueteConfig>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Cristal.flotante,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: Cristal.bordeFuerte),
+        ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Supervisión de contratos',
+                  style: TextStyle(
+                    color: Cristal.texto,
+                    fontSize: 21,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '¿Cómo vas a participar en la ejecución del contrato?',
+                  style: TextStyle(color: Cristal.textoMedio, fontSize: 14),
+                ),
+                const SizedBox(height: 18),
+                for (final rol in subroles) ...[
+                  _OpcionSubrol(
+                    rol: rol,
+                    activo: _yaTiene(rol),
+                    onTap: () => Navigator.of(ctx).pop(rol),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: Text(
+                      'Cancelar',
+                      style: TextStyle(color: Cristal.textoSuave),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (elegido != null && mounted) await _seleccionarRol(elegido);
+  }
+
   Future<void> _seleccionarRol(RolPaqueteConfig rol) async {
+    if (_esGrupo(rol)) {
+      await _escogerSubrol();
+      return;
+    }
     if (!rol.habilitadoParaRegistro) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
@@ -330,7 +448,7 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Actualmente están habilitados "Persona" y "Equipo jurídico entidad" (\$100 COP). El paquete "${rol.nombre}" (${rol.precioFormateadoCop}) estará disponible próximamente.',
+                    'Actualmente están habilitados Persona, Equipo jurídico entidad y Supervisión de contratos. El paquete "${rol.nombre}" (${rol.precioFormateadoCop}) estará disponible próximamente.',
                     style: TextStyle(
                       color: Cristal.texto,
                       fontSize: 13,
@@ -349,6 +467,14 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
     if (AuthService.requiresMandatoryWompiPayment) {
       await AuthService.updatePendingRegistrationRole(rol.id);
       if (!mounted) return;
+      if (rol.esGratuito) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(
+            builder: (_) => ActivacionGratuitaScreen(rolId: rol.id),
+          ),
+        );
+        return;
+      }
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
           builder: (_) =>
@@ -391,6 +517,14 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
         return;
       }
 
+      if (rol.esGratuito) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(
+            builder: (_) => ActivacionGratuitaScreen(rolId: rol.id),
+          ),
+        );
+        return;
+      }
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
           builder: (_) =>
@@ -440,7 +574,7 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final roles = PaymentService.obtenerCatalogoRoles();
+    final roles = _tarjetas;
 
     return SelectionArea(
       child: Scaffold(
@@ -461,7 +595,9 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                   ),
                   child: Center(
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 1180),
+                      constraints: BoxConstraints(
+                        maxWidth: roles.length > 4 ? 1340 : 1180,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
@@ -515,6 +651,7 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                                       child: _buildRoleCard(
                                         rol: roles[i],
                                         isMobile: false,
+                                        precioDebajo: roles.length > 4,
                                       ),
                                     ),
                                   ],
@@ -524,49 +661,32 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                           else if (isTablet)
                             Column(
                               children: [
-                                IntrinsicHeight(
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      Expanded(
-                                        child: _buildRoleCard(
-                                          rol: roles[0],
-                                          isMobile: false,
+                                for (int i = 0; i < roles.length; i += 2) ...[
+                                  if (i > 0) const SizedBox(height: 16),
+                                  IntrinsicHeight(
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        Expanded(
+                                          child: _buildRoleCard(
+                                            rol: roles[i],
+                                            isMobile: false,
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: _buildRoleCard(
-                                          rol: roles[1],
-                                          isMobile: false,
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: i + 1 < roles.length
+                                              ? _buildRoleCard(
+                                                  rol: roles[i + 1],
+                                                  isMobile: false,
+                                                )
+                                              : const SizedBox.shrink(),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 16),
-                                IntrinsicHeight(
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      Expanded(
-                                        child: _buildRoleCard(
-                                          rol: roles[2],
-                                          isMobile: false,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: _buildRoleCard(
-                                          rol: roles[3],
-                                          isMobile: false,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                                ],
                               ],
                             )
                           else
@@ -632,12 +752,14 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
   Widget _buildRoleCard({
     required RolPaqueteConfig rol,
     required bool isMobile,
+    bool precioDebajo = false,
   }) {
     final bool isPersona = rol.id == 'persona';
-    final bool isAlreadyOwned =
-        widget.modoAcumularRol &&
-        AuthService.hasAuthorizedPlatformAccess &&
-        AuthService.hasActiveRole(rol.id);
+    // La tarjeta de Supervisión queda "activa" cuando la cuenta tiene sus dos
+    // subroles; con uno solo todavía puede sumar el otro.
+    final bool isAlreadyOwned = _esGrupo(rol)
+        ? PaymentService.subrolesDe(rol.id).every(_yaTiene)
+        : _yaTiene(rol);
     final bool isHovered = _hoveredRoleId == rol.id;
 
     // El color del rol en su variante brillante, para el fondo oscuro.
@@ -687,39 +809,32 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                   borderRadius: BorderRadius.circular(15),
                   child: AspectRatio(
                     aspectRatio: 184 / 150,
-                    child: Image.memory(
-                      RolesVisualAssetsData.bytesForRole(rol.id),
-                      fit: BoxFit.cover,
-                      alignment: Alignment.topCenter,
-                      gaplessPlayback: true,
-                      filterQuality: FilterQuality.high,
-                    ),
+                    child: IlustracionRol(rolId: rol.id),
                   ),
                 ),
                 const SizedBox(height: 8),
 
-                // Fila de Título + Etiqueta de Precio en COP
+                // Título y precio: lado a lado si caben; en tarjetas angostas
+                // (cinco por fila) el precio va debajo para no partir palabras.
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          rol.id == 'equipo_juridico'
-                              ? 'Equipo jurídico\nentidad'
-                              : rol.nombre,
-                          style: TextStyle(
-                            color: Cristal.texto,
-                            fontSize: 20.5,
-                            fontWeight: FontWeight.w800,
-                            height: 1.15,
-                            letterSpacing: -0.4,
-                          ),
+                  child: Builder(
+                    builder: (context) {
+                      final titulo = Text(
+                        rol.id == 'equipo_juridico'
+                            ? 'Equipo jurídico\nentidad'
+                            : _esGrupo(rol)
+                            ? 'Supervisión de\ncontratos'
+                            : rol.nombre,
+                        style: TextStyle(
+                          color: Cristal.texto,
+                          fontSize: 20.5,
+                          fontWeight: FontWeight.w800,
+                          height: 1.15,
+                          letterSpacing: -0.4,
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      Container(
+                      );
+                      final precio = Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 9,
                           vertical: 4,
@@ -730,15 +845,29 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                           border: Border.all(color: luz.withValues(alpha: 0.5)),
                         ),
                         child: Text(
-                          rol.precioFormateadoCop,
+                          _precioTarjeta(rol),
                           style: TextStyle(
                             color: luz,
                             fontSize: 11.5,
                             fontWeight: FontWeight.w900,
                           ),
                         ),
-                      ),
-                    ],
+                      );
+                      if (precioDebajo) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [titulo, const SizedBox(height: 8), precio],
+                        );
+                      }
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: titulo),
+                          const SizedBox(width: 6),
+                          precio,
+                        ],
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -932,6 +1061,153 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
   }
 }
 
+/// Opción de subrol dentro de Supervisión de contratos.
+class _OpcionSubrol extends StatelessWidget {
+  const _OpcionSubrol({
+    required this.rol,
+    required this.activo,
+    required this.onTap,
+  });
+
+  final RolPaqueteConfig rol;
+  final bool activo;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final luz = Cristal.brillante(rol.colorPrimario);
+    final angosto = MediaQuery.sizeOf(context).width < 480;
+    return Material(
+      color: Cristal.vidrio,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: activo ? Cristal.verdeBorde : luz.withValues(alpha: 0.45),
+          width: 1.3,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        hoverDuration: Cristal.micro,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (!angosto) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: SizedBox(
+                    width: 64,
+                    height: 64,
+                    child: IlustracionRol(rolId: rol.id),
+                  ),
+                ),
+                const SizedBox(width: 14),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          rol.id == 'contratista'
+                              ? 'Contratista'
+                              : 'Supervisor',
+                          style: TextStyle(
+                            color: Cristal.texto,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: luz.withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: luz.withValues(alpha: 0.5),
+                            ),
+                          ),
+                          child: Text(
+                            rol.precioFormateadoCop,
+                            style: TextStyle(
+                              color: luz,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        if (activo)
+                          Text(
+                            'Activo en tu cuenta',
+                            style: TextStyle(
+                              color: Cristal.verde,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      rol.descripcionCorta,
+                      style: TextStyle(
+                        color: Cristal.textoMedio,
+                        fontSize: 13.2,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    for (final b in rol.beneficiosPrincipales)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 3),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Icon(
+                                Icons.check_rounded,
+                                size: 15,
+                                color: luz,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                b,
+                                style: TextStyle(
+                                  color: Cristal.texto,
+                                  fontSize: 12.6,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(Icons.arrow_forward_rounded, color: Cristal.textoMedio),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ColombiaFlagCornerPainter extends CustomPainter {
   const _ColombiaFlagCornerPainter();
 
@@ -945,10 +1221,7 @@ class _ColombiaFlagCornerPainter extends CustomPainter {
       ..quadraticBezierTo(w * 0.52, h * 0.58, w, h * 0.34)
       ..lineTo(w, h)
       ..close();
-    canvas.drawPath(
-      yellowPath,
-      Paint()..color = const Color(0xFFF6C624),
-    );
+    canvas.drawPath(yellowPath, Paint()..color = const Color(0xFFF6C624));
 
     final bluePath = Path()
       ..moveTo(w * 0.28, h)

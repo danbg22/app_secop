@@ -3,16 +3,31 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../services/auth_service.dart';
 import '../services/consent_service.dart';
 import '../services/juridico_contratacion_service.dart';
 import '../utils/document_file_picker.dart';
+import 'gestion_contractual/estilo_contractual.dart';
 import 'supervision/informes_contratista_view.dart';
 import '../tema/cristal.dart';
 
 class PortalContratistaInvitadoScreen extends StatefulWidget {
-  const PortalContratistaInvitadoScreen({super.key, required this.token});
+  const PortalContratistaInvitadoScreen({
+    super.key,
+    required this.token,
+    this.desdeCuenta = false,
+    this.alIngresar,
+  });
 
   final String token;
+
+  /// Lo abre el Contratista desde su cuenta (Supervisión de contratos): el
+  /// nombre y la cédula salen de su perfil y entra sin volver a escribirlos.
+  final bool desdeCuenta;
+
+  /// Se llama cuando el contratista entra al contrato (para guardarlo en su
+  /// cuenta).
+  final ValueChanged<ExpedienteContratoPs>? alIngresar;
 
   @override
   State<PortalContratistaInvitadoScreen> createState() =>
@@ -99,6 +114,26 @@ class _PortalContratistaInvitadoScreenState
       _expediente = exp;
       _cargando = false;
     });
+    if (exp != null && widget.desdeCuenta) await _entrarConLaCuenta();
+  }
+
+  /// Con cuenta de Contratista: nombre y cédula del perfil. La cuenta ya
+  /// aceptó esta misma versión de la política de datos (AuthGate no deja
+  /// entrar sin aceptarla), así que la autorización queda marcada.
+  Future<void> _entrarConLaCuenta() async {
+    var cedula = '';
+    try {
+      final perfil = await AuthService.getActiveUserProfile();
+      cedula = '${perfil['documento'] ?? ''}'.trim();
+    } catch (_) {}
+    final nombre = AuthService.getActiveUserDisplayName().trim();
+    if (!mounted) return;
+    _nombreController.text = nombre;
+    _cedulaController.text = cedula;
+    setState(() => _autorizaDatos = true);
+    if (nombre.contains(' ') && cedula.length >= 5) {
+      await _ingresarAlContrato();
+    }
   }
 
   Future<void> _ingresarAlContrato() async {
@@ -126,6 +161,7 @@ class _PortalContratistaInvitadoScreenState
         _accesoValidado = true;
         _validandoIngreso = false;
       });
+      widget.alIngresar?.call(validado);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -233,13 +269,36 @@ class _PortalContratistaInvitadoScreenState
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: SafeArea(
-          child: _cargando
-              ? const Center(child: CircularProgressIndicator())
-              : _expediente == null
-              ? _buildEnlaceNoValido()
-              : !_accesoValidado
-              ? _buildPantallaIngresoContratista(_expediente!, isMobile)
-              : _buildExpedienteContratistaView(_expediente!, isMobile),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (widget.desdeCuenta)
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    isMobile ? 16 : 28,
+                    isMobile ? 12 : 18,
+                    16,
+                    0,
+                  ),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: PildoraVolver(
+                      etiqueta: 'Mis contratos',
+                      onTap: () => Navigator.of(context).maybePop(),
+                    ),
+                  ),
+                ),
+              Expanded(
+                child: _cargando || (widget.desdeCuenta && _validandoIngreso)
+                    ? const Center(child: CircularProgressIndicator())
+                    : _expediente == null
+                    ? _buildEnlaceNoValido()
+                    : !_accesoValidado
+                    ? _buildPantallaIngresoContratista(_expediente!, isMobile)
+                    : _buildExpedienteContratistaView(_expediente!, isMobile),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -801,7 +860,7 @@ class _PortalContratistaInvitadoScreenState
                 ),
               ),
 
-              // Informes mensuales (solo si el equipo activó la supervisión)
+              // Informes mensuales (solo si el supervisor ya configuró los informes)
               InformesContratistaView(
                 expediente: exp,
                 contratistaNombre: _contratistaNombreActivo,

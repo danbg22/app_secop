@@ -42,7 +42,19 @@ class CollapsibleSideMenu extends StatelessWidget {
       titulo: 'Proyección de contratación',
       icono: Icons.event_note_outlined,
     ),
+    MenuOptionItem(
+      titulo: 'Supervisión de contratos',
+      icono: Icons.assignment_turned_in_outlined,
+    ),
   ];
+
+  /// Sección del rol Supervisión de contratos (Supervisor o Contratista).
+  static const int indiceSupervision = 10;
+
+  /// El usuario tiene alguno de los subroles de Supervisión de contratos.
+  static bool get tieneSupervision =>
+      AuthService.hasActiveRole('supervisor_contratos') ||
+      AuthService.hasActiveRole('contratista');
 
   /// Calcula dinámicamente las secciones habilitadas según los roles pagados y acumulados.
   static List<int> obtenerIndicesVisiblesPorRol() {
@@ -57,6 +69,10 @@ class CollapsibleSideMenu extends StatelessWidget {
     }
     if (AuthService.hasActiveRole('empresa_licitante')) {
       indices.add(9);
+    }
+    // Supervisión de contratos solo habilita su propia sección.
+    if (tieneSupervision) {
+      indices.add(indiceSupervision);
     }
     if (indices.isEmpty) {
       indices.addAll(const <int>[0, 2, 3, 4, 7]);
@@ -216,13 +232,19 @@ class CollapsibleSideMenu extends StatelessWidget {
                                     ? Icons.bookmark_rounded
                                     : (index == 8 && seleccionado)
                                     ? Icons.gavel_rounded
+                                    : (index == indiceSupervision &&
+                                          seleccionado)
+                                    ? Icons.assignment_turned_in_rounded
                                     : opcion.icono;
 
                                 if (isCollapsed) {
                                   return Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      if (index == 7 || (index == 8 && pos > 0))
+                                      if (index == 7 ||
+                                          ((index == 8 ||
+                                                  index == indiceSupervision) &&
+                                              pos > 0))
                                         const Padding(
                                           padding: EdgeInsets.symmetric(
                                             horizontal: 8,
@@ -281,6 +303,22 @@ class CollapsibleSideMenu extends StatelessWidget {
                                         ),
                                       const _RotuloGrupo(
                                         'EQUIPO JURÍDICO',
+                                        inferior: 6,
+                                      ),
+                                    ],
+                                    if (index == indiceSupervision) ...[
+                                      if (pos > 0)
+                                        const Padding(
+                                          padding: EdgeInsets.fromLTRB(
+                                            10,
+                                            8,
+                                            10,
+                                            8,
+                                          ),
+                                          child: Divider(height: 1),
+                                        ),
+                                      const _RotuloGrupo(
+                                        'SUPERVISIÓN',
                                         inferior: 6,
                                       ),
                                     ],

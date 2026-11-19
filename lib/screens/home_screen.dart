@@ -10,6 +10,7 @@ import 'sections/entidades_section.dart';
 import 'sections/equipo_juridico_section.dart';
 import 'sections/inicio_section.dart';
 import 'sections/oportunidades_paa_section.dart';
+import 'sections/supervision_contratos_section.dart';
 import '../tema/cristal.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -35,10 +36,18 @@ class _HomeScreenState extends State<HomeScreen> {
     final tienePersona = AuthService.hasActiveRole('persona');
     final tieneJuridico = AuthService.hasActiveRole('equipo_juridico');
     final tieneLicitante = AuthService.hasActiveRole('empresa_licitante');
+    final tieneSupervision = CollapsibleSideMenu.tieneSupervision;
     final tabs = <int>[
-      if (tienePersona || !tieneJuridico) ...const [0, 2, 3, 4, 7],
+      if (tienePersona || (!tieneJuridico && !tieneSupervision)) ...const [
+        0,
+        2,
+        3,
+        4,
+        7,
+      ],
       if (tieneJuridico) 8,
       if (tieneLicitante) 9,
+      if (tieneSupervision) CollapsibleSideMenu.indiceSupervision,
     ];
     return tabs;
   }
@@ -117,6 +126,10 @@ class _HomeScreenState extends State<HomeScreen> {
         return Expanded(child: EquipoJuridicoSection(onLogout: _cerrarSesion));
       case 9:
         return const Expanded(child: OportunidadesPaaSection());
+      case CollapsibleSideMenu.indiceSupervision:
+        return Expanded(
+          child: SupervisionContratosSection(onLogout: _cerrarSesion),
+        );
       default:
         return Expanded(
           child: Center(
@@ -174,6 +187,15 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: Icon(Icons.event_note_outlined),
           activeIcon: Icon(Icons.event_note_rounded, color: Cristal.dorado),
           label: 'Proyección',
+        );
+      case CollapsibleSideMenu.indiceSupervision:
+        return BottomNavigationBarItem(
+          icon: Icon(Icons.assignment_turned_in_outlined),
+          activeIcon: Icon(
+            Icons.assignment_turned_in_rounded,
+            color: Cristal.dorado,
+          ),
+          label: 'Supervisión',
         );
       default:
         return const BottomNavigationBarItem(

@@ -26,7 +26,9 @@ class _PlantillaInformeScreenState extends State<PlantillaInformeScreen> {
   @override
   void initState() {
     super.initState();
-    SupervisionService.plantillaDelEquipo(entidad: widget.entidad).then((p) {
+    SupervisionService.plantillaDelSupervisor(entidad: widget.entidad).then((
+      p,
+    ) {
       if (!mounted) return;
       setState(() {
         _p = p;
@@ -309,14 +311,11 @@ class _PlantillaInformeScreenState extends State<PlantillaInformeScreen> {
           ),
         ),
         const SizedBox(height: 20),
-        Text(
-          'Plantilla de informes de la entidad',
-          style: EstiloContractual.titulo,
-        ),
+        Text('Mi plantilla de informes', style: EstiloContractual.titulo),
         const SizedBox(height: 6),
         Text(
-          'Lo que esta entidad pide en cada informe. Se aplica a los contratos que configures desde ahora; '
-          'los ya configurados conservan su copia hasta que los edites.',
+          'Lo que la entidad pide en cada informe de los contratos que supervisas. Se aplica a los contratos que '
+          'configures desde ahora; los ya configurados conservan su copia hasta que los edites.',
           style: EstiloContractual.subtitulo,
         ),
         const SizedBox(height: 20),
