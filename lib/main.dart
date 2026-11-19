@@ -47,6 +47,14 @@ Future<void> _activarAppCheck() async {
     debugPrint('App Check desactivado: falta RECAPTCHA_SITE_KEY.');
     return;
   }
+  // En el computador local (flutter run) la clave no vale: solo funciona en
+  // los dominios registrados en Fraud Defense. Cuando App Check se exija en
+  // la consola, para probar en local hay que registrar un token de
+  // depuración.
+  if (kIsWeb && const {'localhost', '127.0.0.1'}.contains(Uri.base.host)) {
+    debugPrint('App Check no se activa en local (${Uri.base.host}).');
+    return;
+  }
   try {
     await FirebaseAppCheck.instance.activate(
       providerWeb: kIsWeb
