@@ -123,6 +123,34 @@ service cloud.firestore {
           get(ruta).data.etapas[i].get('responsableEmail', '') == request.auth.token.email.lower();
     }
 
+    // Lo que puede cambiar en el expediente quien solo tiene el enlace del
+    // contratista (lib/services/juridico_contratacion_service.dart,
+    // _escribirCambiosDelContratista): sus documentos, su ingreso y eventos
+    // nuevos en la trazabilidad. Las decisiones del equipo (aprobar,
+    // devolver, aval, `decisiones`) y los datos del contrato quedan fuera.
+    function cambioDelContratista(antes, despues) {
+      let cambios = despues.diff(antes).affectedKeys();
+      return cambios.hasOnly(['apartados', 'trazabilidad', 'actualizadoEnMs',
+                              'ultimoContratistaValidadoNombre',
+                              'ultimoContratistaValidadoCedula',
+                              'contratistaNombreEsperado',
+                              'contratistaCedulaEsperada']) &&
+          // El nombre y la cédula esperados solo se completan si estaban vacíos.
+          (!cambios.hasAny(['contratistaNombreEsperado']) ||
+           antes.get('contratistaNombreEsperado', '') == '') &&
+          (!cambios.hasAny(['contratistaCedulaEsperada']) ||
+           antes.get('contratistaCedulaEsperada', '') == '') &&
+          // La trazabilidad solo crece y ningún documento desaparece.
+          despues.get('trazabilidad', []).hasAll(antes.get('trazabilidad', [])) &&
+          despues.get('apartados', []).size() >= antes.get('apartados', []).size();
+    }
+
+    // El informe del periodo todavía no existe o está en borrador o devuelto.
+    function informeEditable(token, periodo) {
+      let ruta = /databases/$(database)/documents/expedientes_juridicos/$(token)/informes/$(periodo);
+      return !exists(ruta) || get(ruta).data.get('estado', 'borrador') in ['borrador', 'devuelto'];
+    }
+
     // Campos que escribe el contratista desde su enlace y los del equipo.
     function camposContratistaInforme() {
       return ['id', 'numero', 'desdeIso', 'hastaIso', 'estado', 'valorCobradoCop',
@@ -219,7 +247,10 @@ service cloud.firestore {
     // 2. ÍNDICES OPACOS DE UNICIDAD (`indices_unicidad/{sha256Hash}`)
     // =========================================================================
     match /indices_unicidad/{hash} {
-      allow get: if hash.matches('^[a-f0-9]{64}$');
+      // Solo el dueño lee su índice: nadie puede averiguar si una cédula o
+      // un correo ajenos tienen cuenta. La unicidad la garantiza `create`.
+      allow get: if isSignedIn() && hash.matches('^[a-f0-9]{64}$') &&
+          resource.data.uid == request.auth.uid;
       allow list: if false;
       allow create: if isSignedIn() &&
           hash.matches('^[a-f0-9]{64}$') &&
@@ -262,7 +293,10 @@ service cloud.firestore {
           (resource.data.creadoPorUid == request.auth.uid ||
            resource.data.equipoUid == request.auth.uid ||
            miembroVigente(resource.data.equipoUid));
-      allow create: if token.matches('^[a-f0-9]{32,64}$') &&
+      // Lo crea el equipo, siempre con sesión (antes cualquiera podía crear
+      // expedientes sin iniciar sesión).
+      allow create: if isSignedIn() &&
+          token.matches('^[a-f0-9]{32,64}$') &&
           request.resource.data.tokenInvitado == token &&
           isNonEmptyString(request.resource.data.numeroContrato, 80) &&
           isNonEmptyString(request.resource.data.objetoContrato, 2000) &&
@@ -288,7 +322,10 @@ service cloud.firestore {
                (isSignedIn() &&
                 request.resource.data.equipoUid == request.auth.uid &&
                 resource.data.creadoPorUid == request.auth.uid)) :
-              request.resource.data.get('equipoUid', '') == resource.data.equipoUid);
+              request.resource.data.get('equipoUid', '') == resource.data.equipoUid) &&
+          // El equipo cambia todo; quien solo tiene el enlace, lo suyo.
+          (esEquipoDeExpediente(token) ||
+           cambioDelContratista(resource.data, request.resource.data));
       allow delete: if isSignedIn() && resource.data.creadoPorUid == request.auth.uid;
 
       // Supervisión mensual: plan del contrato (lo configura el equipo) e
@@ -356,16 +393,20 @@ service cloud.firestore {
 
         match /archivos/{tipo} {
           allow get, list: if token.matches('^[a-f0-9]{32,64}$');
+          // Los soportes de un informe se cambian mientras el contratista lo
+          // edita; enviado, aprobado o pagado, solo el equipo.
           allow create, update: if token.matches('^[a-f0-9]{32,64}$') &&
               expedienteActivo(token) &&
-              archivoValido(request.resource.data);
+              archivoValido(request.resource.data) &&
+              (informeEditable(token, periodo) || esEquipoDeExpediente(token));
           allow delete: if puedeEliminarExpediente(expedienteDe(token));
 
           match /partes/{parte} {
             allow get, list: if token.matches('^[a-f0-9]{32,64}$');
             allow create, update: if token.matches('^[a-f0-9]{32,64}$') &&
                 expedienteActivo(token) &&
-                isNonEmptyString(request.resource.data.datos, 950000);
+                isNonEmptyString(request.resource.data.datos, 950000) &&
+                (informeEditable(token, periodo) || esEquipoDeExpediente(token));
             allow delete: if puedeEliminarExpediente(expedienteDe(token));
           }
         }

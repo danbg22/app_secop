@@ -282,7 +282,9 @@ class AuthService {
     if (requiresMandatoryWompiPayment) {
       return const <String>[];
     }
-    final roles = _cachedRoles.isEmpty ? const <String>['persona'] : _cachedRoles;
+    final roles = _cachedRoles.isEmpty
+        ? const <String>['persona']
+        : _cachedRoles;
     // Abogado temporal de un equipo vigente: trabaja con el rol del equipo
     // sin pagar su propia suscripción (la paga el Master Jurídico).
     if (EquipoJuridicoService.esMiembroVigente &&
@@ -460,16 +462,18 @@ class AuthService {
               .trim()
               .toLowerCase();
 
-          // 1. Purga definitiva de contraseñas en texto claro (CWE-256 / CWE-312)
-          if (map.containsKey('password')) {
-            final legacyCleartext = (map.remove('password') ?? '').toString();
-            if (legacyCleartext.isNotEmpty &&
-                (map['passwordVerifier'] ?? '').toString().isEmpty) {
-              map.addAll(
-                SecurityService.createPasswordVerifier(legacyCleartext),
-              );
-            }
-            changed = true;
+          // 1. Ninguna contraseña ni huella de contraseña queda en el
+          //    navegador (CWE-256 / CWE-312 / CWE-916): quien copiara el
+          //    almacenamiento podía intentar adivinarla sin límite. La
+          //    contraseña la valida solo Firebase Auth.
+          for (final clave in const [
+            'password',
+            'passwordVerifier',
+            'passwordSalt',
+            'passwordKdfIterations',
+            'passwordKdf',
+          ]) {
+            if (map.remove(clave) != null) changed = true;
           }
 
           // 2. Sanitización de avatares almacenados previamente
@@ -760,7 +764,8 @@ class AuthService {
     bool fallbackToPersonaWhenEmpty = true,
   }) {
     final roles = <String>[];
-    final hasExplicitList = data['rolesActivos'] is List || data['roles'] is List;
+    final hasExplicitList =
+        data['rolesActivos'] is List || data['roles'] is List;
     final rawList = data['rolesActivos'] ?? data['roles'];
     if (rawList is List) {
       for (final item in rawList) {
@@ -863,10 +868,16 @@ class AuthService {
 
     existing.remove('password');
 
-    final vaultFields =
-        (passwordForVaultUpdate != null && passwordForVaultUpdate.isNotEmpty)
-        ? SecurityService.createPasswordVerifier(passwordForVaultUpdate)
-        : <String, dynamic>{};
+    // La contraseña no se guarda en el navegador de ninguna forma.
+    const vaultFields = <String, dynamic>{};
+    for (final clave in const [
+      'passwordVerifier',
+      'passwordSalt',
+      'passwordKdfIterations',
+      'passwordKdf',
+    ]) {
+      existing.remove(clave);
+    }
 
     final rolesSeal = await SecurityService.computeUserRolesSeal(
       prefs: prefs,
@@ -1045,35 +1056,9 @@ class AuthService {
         allowNewRolesFromExtra: remoteRoles != null,
       );
     } on FirebaseAuthException catch (error) {
-      // Respaldo estrictamente offline: solo se permite si falló la red y el
-      // verificador criptográfico PBKDF2-HMAC-SHA256 coincide en tiempo constante.
-      // (`operation-not-allowed` indica un proveedor deshabilitado, no falta de red.)
-      final bool isOfflineFallbackAllowed =
-          error.code == 'network-request-failed';
-
-      if (isOfflineFallbackAllowed && localEntry != null) {
-        final iterations = localEntry['passwordKdfIterations'] is int
-            ? localEntry['passwordKdfIterations'] as int
-            : 15000;
-        final verified = SecurityService.verifyPasswordVerifier(
-          password: password,
-          saltBase64: localEntry['passwordSalt']?.toString(),
-          verifierBase64: localEntry['passwordVerifier']?.toString(),
-          iterations: iterations,
-        );
-        if (verified) {
-          await SecurityService.resetAuthFailures('login:$cleanEmail');
-          final localName = (localEntry['displayName'] ?? '').toString().trim();
-          await _persistActiveSession(
-            email: cleanEmail,
-            displayName: localName.isNotEmpty
-                ? localName
-                : _humanizeEmailPrefix(cleanEmail),
-          );
-          return;
-        }
-      }
-
+      // Sin inicio de sesión sin conexión: la contraseña la valida solo
+      // Firebase Auth (antes se comparaba con una huella guardada en el
+      // navegador).
       await SecurityService.recordAuthFailure('login:$cleanEmail');
       throw AuthServiceException(_messageFor(error));
     }
@@ -1226,40 +1211,11 @@ class AuthService {
       }
     } catch (_) {}
 
-    // Consulta puntual por hash SHA-256 (`get` directo, sin `list` ni exposición de PII)
-    if (!emailEnUso || !documentoEnUso) {
-      try {
-        final idxCol = FirebaseFirestore.instance.collection(
-          coleccionIndicesUnicidad,
-        );
-        if (!emailEnUso && cleanEmail.isNotEmpty) {
-          final emailHash = SecurityService.hashCredentialUniquenessIndex(
-            type: 'email',
-            normalizedValue: cleanEmail,
-          );
-          final emailDoc = await idxCol
-              .doc(emailHash)
-              .get()
-              .timeout(const Duration(seconds: 3));
-          if (emailDoc.exists) {
-            emailEnUso = true;
-          }
-        }
-        if (!documentoEnUso && normDoc.length >= 5) {
-          final docHash = SecurityService.hashCredentialUniquenessIndex(
-            type: 'doc',
-            normalizedValue: normDoc,
-          );
-          final cedulaDoc = await idxCol
-              .doc(docHash)
-              .get()
-              .timeout(const Duration(seconds: 3));
-          if (cedulaDoc.exists) {
-            documentoEnUso = true;
-          }
-        }
-      } catch (_) {}
-    }
+    // Los índices del servidor ya no se consultan antes de registrarse: nadie
+    // puede leer los de otra persona (así no se puede averiguar si una
+    // cédula o un correo tiene cuenta). El correo duplicado lo rechaza
+    // Firebase Auth y la cédula duplicada se detecta al crear su índice,
+    // justo después de crear la cuenta (ver [signUp]).
 
     return (emailEnUso: emailEnUso, documentoEnUso: documentoEnUso);
   }
@@ -1364,6 +1320,37 @@ class AuthService {
         password: password,
       );
       final user = userCredential.user;
+      if (user != null && normDoc.length >= 5) {
+        // La cédula es única: si su índice ya existe (de otra cuenta), las
+        // reglas no permiten crearlo y la cuenta recién creada se elimina.
+        try {
+          await FirebaseFirestore.instance
+              .collection(coleccionIndicesUnicidad)
+              .doc(
+                SecurityService.hashCredentialUniquenessIndex(
+                  type: 'doc',
+                  normalizedValue: normDoc,
+                ),
+              )
+              .set({
+                'tipo': 'doc',
+                'uid': user.uid,
+                'creado_en': FieldValue.serverTimestamp(),
+              })
+              .timeout(const Duration(seconds: 8));
+        } on FirebaseException catch (e) {
+          if (e.code == 'permission-denied') {
+            try {
+              await user.delete();
+            } catch (_) {}
+            throw const AuthServiceException(
+              'Esa cédula ya está registrada en otra cuenta. Si es tuya, inicia sesión o recupera tu contraseña.',
+            );
+          }
+        } on AuthServiceException {
+          rethrow;
+        } catch (_) {}
+      }
       if (user != null) {
         try {
           await ConsentService.registrarAceptacionTratamientoDatos(
@@ -1376,10 +1363,6 @@ class AuthService {
           final emailIdxHash = SecurityService.hashCredentialUniquenessIndex(
             type: 'email',
             normalizedValue: cleanEmail,
-          );
-          final docIdxHash = SecurityService.hashCredentialUniquenessIndex(
-            type: 'doc',
-            normalizedValue: normDoc,
           );
 
           final batch = db.batch();
@@ -1407,11 +1390,6 @@ class AuthService {
           );
           batch.set(db.collection(coleccionIndicesUnicidad).doc(emailIdxHash), {
             'tipo': 'email',
-            'uid': user.uid,
-            'creado_en': FieldValue.serverTimestamp(),
-          });
-          batch.set(db.collection(coleccionIndicesUnicidad).doc(docIdxHash), {
-            'tipo': 'doc',
             'uid': user.uid,
             'creado_en': FieldValue.serverTimestamp(),
           });

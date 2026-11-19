@@ -387,6 +387,7 @@ class ExpedienteContratoPs {
     this.ultimoContratistaValidadoCedula,
     this.checksVerificacion = const <bool>[false, false, false, false, false],
     this.conceptoJuridico = '',
+    this.decisiones,
   });
 
   final String id;
@@ -421,6 +422,84 @@ class ExpedienteContratoPs {
   final String? ultimoContratistaValidadoCedula;
   final List<bool> checksVerificacion;
   final String conceptoJuridico;
+
+  /// Decisiones del equipo jurídico por documento (`apartadoId` → estado,
+  /// versión del archivo, observación, revisor y fecha). Solo el equipo
+  /// puede escribirlas (firestore.rules): quien tiene el enlace del
+  /// contratista no puede aprobarse un documento. Null en expedientes
+  /// anteriores a este campo, que se protegen con la primera escritura del
+  /// equipo ([conDecisionesDelEquipo]).
+  final Map<String, Map<String, dynamic>>? decisiones;
+
+  /// Estados que solo decide el equipo.
+  static bool esDecisionDelEquipo(EstadoDocumentoJuridico e) =>
+      e == EstadoDocumentoJuridico.aprobado ||
+      e == EstadoDocumentoJuridico.devueltoSubsanar;
+
+  /// Las decisiones actuales más las que reflejan el estado de los
+  /// documentos que el equipo aprobó o devolvió.
+  Map<String, Map<String, dynamic>> get _decisionesActuales {
+    final d = <String, Map<String, dynamic>>{
+      for (final e in (decisiones ?? const {}).entries)
+        e.key: Map<String, dynamic>.from(e.value),
+    };
+    for (final a in apartados) {
+      if (!esDecisionDelEquipo(a.estado)) continue;
+      final previa = d[a.id];
+      if (previa != null &&
+          previa['estado'] == a.estado.codigo &&
+          previa['version'] == a.versionCarga) {
+        continue;
+      }
+      d[a.id] = <String, dynamic>{
+        'estado': a.estado.codigo,
+        'version': a.versionCarga,
+        'observacion': a.observacionJuridica,
+        'revisadoPor': a.revisadoPor,
+        'fechaIso': a.fechaRevisionIso,
+      };
+    }
+    return d;
+  }
+
+  /// El expediente con las decisiones del equipo al día. Lo usa toda
+  /// escritura del equipo (también protege los expedientes anteriores).
+  ExpedienteContratoPs conDecisionesDelEquipo() =>
+      copyWith(decisiones: _decisionesActuales);
+
+  /// Aplica las decisiones del equipo a los documentos: una decisión vale
+  /// para la versión del archivo que revisó; un "aprobado" o "devuelto" que
+  /// no tiene decisión del equipo para esa versión vuelve a "en revisión".
+  static List<ApartadoDocumentoContrato> aplicarDecisiones(
+    List<ApartadoDocumentoContrato> apartados,
+    Map<String, Map<String, dynamic>> decisiones,
+  ) => [
+    for (final a in apartados)
+      () {
+        final d = decisiones[a.id];
+        final vigente = d != null && d['version'] == a.versionCarga;
+        if (vigente) {
+          final estado = EstadoDocumentoJuridico.fromCodigo(
+            d['estado']?.toString(),
+          );
+          return a.copyWith(
+            estado: estado,
+            observacionJuridica: d['observacion']?.toString(),
+            revisadoPor: d['revisadoPor']?.toString(),
+            fechaRevisionIso: d['fechaIso']?.toString(),
+          );
+        }
+        if (!esDecisionDelEquipo(a.estado)) return a;
+        final conArchivo = (a.archivoNombre ?? '').trim().isNotEmpty;
+        return a.copyWith(
+          estado: !conArchivo
+              ? EstadoDocumentoJuridico.pendiente
+              : a.versionCarga > 1
+              ? EstadoDocumentoJuridico.subsanadoEnRevision
+              : EstadoDocumentoJuridico.enRevision,
+        );
+      }(),
+  ];
 
   int get totalApartados => apartados.length;
   int get totalCargados =>
@@ -497,6 +576,7 @@ class ExpedienteContratoPs {
     String? conceptoJuridico,
     int? actualizadoEnMs,
     String? equipoUid,
+    Map<String, Map<String, dynamic>>? decisiones,
   }) {
     return ExpedienteContratoPs(
       id: id,
@@ -533,6 +613,7 @@ class ExpedienteContratoPs {
           this.ultimoContratistaValidadoCedula,
       checksVerificacion: checksVerificacion ?? this.checksVerificacion,
       conceptoJuridico: conceptoJuridico ?? this.conceptoJuridico,
+      decisiones: decisiones ?? this.decisiones,
     );
   }
 
@@ -570,10 +651,28 @@ class ExpedienteContratoPs {
       'ultimoContratistaValidadoCedula': ultimoContratistaValidadoCedula,
       'checksVerificacion': checksVerificacion,
       'conceptoJuridico': conceptoJuridico,
+      'decisiones': ?decisiones,
     };
   }
 
   factory ExpedienteContratoPs.fromMap(Map<String, dynamic> map) {
+    final rawDecisiones = map['decisiones'];
+    final decisiones = rawDecisiones is Map
+        ? <String, Map<String, dynamic>>{
+            for (final e in rawDecisiones.entries)
+              if (e.value is Map)
+                '${e.key}': Map<String, dynamic>.from(e.value as Map),
+          }
+        : null;
+    final base = ExpedienteContratoPs._desdeMapa(map);
+    if (decisiones == null) return base;
+    return base.copyWith(
+      decisiones: decisiones,
+      apartados: aplicarDecisiones(base.apartados, decisiones),
+    );
+  }
+
+  factory ExpedienteContratoPs._desdeMapa(Map<String, dynamic> map) {
     final rawApartados = map['apartados'];
     final rawTraza = map['trazabilidad'];
     final rawNotifs = map['notificacionesCorreo'];
@@ -618,8 +717,10 @@ class ExpedienteContratoPs {
                 )
                 .toList()
           : const <ApartadoDocumentoContrato>[],
+      // Más reciente primero, aunque el contratista agregue sus eventos al
+      // final (arrayUnion).
       trazabilidad: rawTraza is List
-          ? rawTraza
+          ? (rawTraza
                 .whereType<Map>()
                 .map(
                   (e) => EventoTrazabilidadContrato.fromMap(
@@ -627,6 +728,7 @@ class ExpedienteContratoPs {
                   ),
                 )
                 .toList()
+              ..sort((a, b) => b.fechaIso.compareTo(a.fechaIso)))
           : const <EventoTrazabilidadContrato>[],
       notificacionesCorreo: rawNotifs is List
           ? rawNotifs
@@ -1682,7 +1784,29 @@ class JuridicoContratacionService {
       ],
     );
 
-    await _guardarExpedienteInmediato(actualizado);
+    try {
+      await _escribirCambiosDelContratista(
+        tokenInvitado: exp.tokenInvitado,
+        campos: {
+          'ultimoContratistaValidadoNombre': cleanNombre,
+          'ultimoContratistaValidadoCedula': cleanCedula,
+          'actualizadoEnMs': ahoraMs,
+          if (exp.contratistaNombreEsperado.isEmpty)
+            'contratistaNombreEsperado': cleanNombre,
+          if (esperada.isEmpty) 'contratistaCedulaEsperada': cleanCedula,
+        },
+        eventos: [eventoIngreso, ?eventoAutorizacion],
+      );
+    } catch (_) {
+      throw ArgumentError(
+        'No fue posible registrar tu ingreso. Revisa tu conexión e inténtalo de nuevo.',
+      );
+    }
+    await _guardarExpedienteInmediato(
+      actualizado,
+      sincronizarRemoto: false,
+      delEquipo: false,
+    );
     return actualizado;
   }
 
@@ -1790,7 +1914,23 @@ class JuridicoContratacionService {
         'No fue posible enviar el documento al equipo jurídico: $errorSubida',
       );
     }
-    await _guardarExpedienteInmediato(actualizado);
+    try {
+      await _escribirCambiosDelContratista(
+        tokenInvitado: exp.tokenInvitado,
+        campos: {'actualizadoEnMs': ahoraMs},
+        eventos: [evento],
+        apartado: apartadoActualizado,
+      );
+    } catch (_) {
+      throw StateError(
+        'No fue posible registrar el documento en el expediente. Revisa tu conexión e inténtalo de nuevo.',
+      );
+    }
+    await _guardarExpedienteInmediato(
+      actualizado,
+      sincronizarRemoto: false,
+      delEquipo: false,
+    );
     return actualizado;
   }
 
@@ -2538,11 +2678,67 @@ class JuridicoContratacionService {
     return _cacheMemoria!;
   }
 
+  /// Lo que escribe el contratista desde su enlace: solo sus campos y
+  /// sobre la versión del servidor, porque las reglas no le permiten tocar
+  /// los del equipo (firestore.rules). Sus eventos se agregan a la
+  /// trazabilidad sin reemplazarla, y el documento que sube reemplaza solo
+  /// su elemento de la lista. Si el expediente aún no está en el servidor
+  /// (creado en este mismo navegador y sin sincronizar), queda local.
+  static Future<void> _escribirCambiosDelContratista({
+    required String tokenInvitado,
+    Map<String, dynamic> campos = const {},
+    List<EventoTrazabilidadContrato> eventos = const [],
+    ApartadoDocumentoContrato? apartado,
+  }) async {
+    final ref = FirebaseFirestore.instance
+        .collection('expedientes_juridicos')
+        .doc(tokenInvitado.toLowerCase());
+    final cambios = <String, dynamic>{
+      ...campos,
+      if (eventos.isNotEmpty)
+        'trazabilidad': FieldValue.arrayUnion([
+          for (final e in eventos) e.toMap(),
+        ]),
+    };
+    try {
+      if (apartado == null) {
+        await ref.update(cambios).timeout(const Duration(seconds: 12));
+      } else {
+        await FirebaseFirestore.instance
+            .runTransaction((tx) async {
+              final snap = await tx.get(ref);
+              final lista = <Map<String, dynamic>>[
+                for (final m
+                    in (snap.data()?['apartados'] as List?) ?? const [])
+                  if (m is Map) Map<String, dynamic>.from(m),
+              ];
+              final nuevo = apartado.toMap(omitLargeBinary: true);
+              final i = lista.indexWhere((m) => m['id'] == apartado.id);
+              if (i >= 0) {
+                lista[i] = nuevo;
+              } else {
+                lista.add(nuevo);
+              }
+              tx.update(ref, {...cambios, 'apartados': lista});
+            })
+            .timeout(const Duration(seconds: 15));
+      }
+    } on FirebaseException catch (e) {
+      if (e.code == 'not-found') return;
+      rethrow;
+    }
+    _asegurarSuscripcionDocumentoFirestore(tokenInvitado);
+  }
+
   static Future<void> _guardarExpedienteInmediato(
     ExpedienteContratoPs expediente, {
     bool sincronizarRemoto = true,
     bool emitirBroadcast = true,
+    bool delEquipo = true,
   }) async {
+    // Toda escritura del equipo deja al día sus decisiones por documento:
+    // así también quedan protegidos los expedientes anteriores al campo.
+    if (delEquipo) expediente = expediente.conDecisionesDelEquipo();
     final lista = await _obtenerCacheLocalInmediata();
     final idx = lista.indexWhere(
       (e) =>
