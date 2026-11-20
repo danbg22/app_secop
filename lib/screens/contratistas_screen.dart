@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import '../services/busqueda_personas.dart';
 import '../services/entidades_publicas.dart';
 import '../widgets/directorio_sigep.dart';
-import '../utils/app_scroll_behavior.dart';
 import '../utils/csv_exporter.dart';
 import '../widgets/user_profile_header_action.dart';
 import 'perfil_contratista_screen.dart';
@@ -194,36 +193,6 @@ class _ContratistasScreenState extends State<ContratistasScreen>
     ),
     ContractorSummaryRecord(
       initials: 'SE',
-      name: 'Sandra Milena Erazo Pulgarín',
-      rawSearchName: 'SANDRA MILENA ERAZO PULGARIN',
-      nit: '66.900.091',
-      rawDocumentDigits: '66900091',
-      personType: 'Persona natural',
-      totalContracts: 21,
-      totalValue: 445261981.00,
-      lastContractDate: '17/10/2026',
-      sector: 'Ambiente y servicios',
-      year: '2026',
-      entitiesCount: 1,
-      sigepStatus: SigepRoleStatus.contratista,
-    ),
-    ContractorSummaryRecord(
-      initials: 'DP',
-      name: 'Daniel Puentes',
-      rawSearchName: 'DANIEL PUENTES',
-      nit: '1.098.821.514',
-      rawDocumentDigits: '1098821514',
-      personType: 'Persona natural',
-      totalContracts: 10,
-      totalValue: 102173333.00,
-      lastContractDate: '17/10/2026',
-      sector: 'Seguridad y servicios',
-      year: '2026',
-      entitiesCount: 3,
-      sigepStatus: SigepRoleStatus.contratista,
-    ),
-    ContractorSummaryRecord(
-      initials: 'SE',
       name: 'Seguros del Estado S.A.',
       rawSearchName: 'SEGUROS DEL ESTADO S.A.',
       nit: '860.009.578-0',
@@ -397,11 +366,9 @@ class _ContratistasScreenState extends State<ContratistasScreen>
       );
       _ContratistasPersistenceStore.cachedContractors = _contractors;
     }
-    // Al volver a la sección con una búsqueda hecha, se marcan de nuevo
-    // las entidades públicas (ya verificadas, no repite la consulta).
-    if (_ContratistasPersistenceStore.hasExecutedCustomSearch) {
-      unawaited(_marcarEntidadesPublicas());
-    }
+    // Marca las entidades públicas de la lista que se muestra (también los
+    // ejemplos iniciales); lo ya verificado no repite la consulta.
+    unawaited(_marcarEntidadesPublicas());
   }
 
   @override
@@ -786,7 +753,7 @@ class _ContratistasScreenState extends State<ContratistasScreen>
       if (normName.contains(tNorm) || normRaw.contains(tNorm)) {
         return true;
       }
-      // Coincidencia por palabras (Nombre + Apellido, ej. "Sandra Erazo" en "Sandra Milena Erazo Pulgarín")
+      // Coincidencia por palabras (Nombre + Apellido, ej. "María Pérez" en "María Fernanda Pérez Gómez")
       final words = tNorm.split(' ').where((w) => w.isNotEmpty).toList();
       if (words.isNotEmpty &&
           words.every((w) => normName.contains(w) || normRaw.contains(w))) {
@@ -957,6 +924,13 @@ class _ContratistasScreenState extends State<ContratistasScreen>
         out.add('S.A.S.');
       } else if (w == 'ltda' || w == 'ltda.') {
         out.add('LTDA');
+      } else if (w == 's.a' || w == 's.a.' || w == 'sa') {
+        out.add('S.A.');
+      } else if (w == 'e.s.p' || w == 'e.s.p.' || w == 'esp') {
+        out.add('E.S.P.');
+      } else if (w.startsWith('(') && w.endsWith(')') && w.length <= 12) {
+        // Siglas entre paréntesis: "(findeter)" → "(FINDETER)".
+        out.add(w.toUpperCase());
       } else if (i > 0 && lowerWords.contains(w)) {
         out.add(w);
       } else {
@@ -1018,26 +992,21 @@ class _ContratistasScreenState extends State<ContratistasScreen>
         !_ContratistasPersistenceStore.hasExecutedCustomSearch &&
         _activeBulkTerms.isEmpty;
 
-    final String totalContratistasKpi = isDefaultView
-        ? '+280.000'
-        : '${filtered.length}';
+    // Cifras de lo encontrado. Antes de buscar no se muestran: las de la
+    // vista inicial estaban escritas a mano y no salían de SECOP.
+    final String totalContratistasKpi = '${filtered.length}';
     final int sumContracts = filtered.fold<int>(
       0,
       (sum, item) => sum + item.totalContracts,
     );
-    final String totalContratosKpi = isDefaultView ? '+4.5M' : '$sumContracts';
+    final String totalContratosKpi = '$sumContracts';
     final double sumValue = filtered.fold<double>(
       0,
       (sum, item) => sum + item.totalValue,
     );
-    final String valorContratadoKpi = isDefaultView
-        ? '+\$850 Billones'
-        : _formatShortMillionsKpi(sumValue);
-    final int sumEntities = filtered.fold<int>(
-      0,
-      (sum, item) => sum + item.entitiesCount,
-    );
-    final String entidadesKpi = isDefaultView ? '+3.200' : '$sumEntities';
+    final String valorContratadoKpi = _formatShortMillionsKpi(sumValue);
+    final String servidoresKpi =
+        '${filtered.where((c) => c.sigepStatus == SigepRoleStatus.servidorPublico).length}';
 
     final int totalDisplayCount = filtered.length;
     final int totalPages = filtered.isEmpty
@@ -1098,13 +1067,15 @@ class _ContratistasScreenState extends State<ContratistasScreen>
                       onClearSearch: _clearSearchManually,
                     ),
                     const SizedBox(height: 18),
-                    ContratistasKpiRow(
-                      totalContratistas: totalContratistasKpi,
-                      totalContratos: totalContratosKpi,
-                      valorContratado: valorContratadoKpi,
-                      entidadesCount: entidadesKpi,
-                    ),
-                    const SizedBox(height: 20),
+                    if (!isDefaultView) ...[
+                      ContratistasKpiRow(
+                        totalContratistas: totalContratistasKpi,
+                        totalContratos: totalContratosKpi,
+                        valorContratado: valorContratadoKpi,
+                        servidoresPublicos: servidoresKpi,
+                      ),
+                      const SizedBox(height: 20),
+                    ],
                     ContratistasResultsTable(
                       rows: pageItems,
                       totalFoundCount: totalDisplayCount,
@@ -1373,7 +1344,7 @@ class ContratistasBulkSearchBar extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                       ),
                       decoration: InputDecoration(
-                        hintText: 'Escribe nombre y apellido, NIT o cédula (ej: Sandra Erazo, Daniel Puentes, 1065842391, hasta 5 por coma)...',
+                        hintText: 'Escribe nombre y apellido, NIT o cédula (ej: María Pérez, 900123456; hasta 5 separados por coma)…',
                         hintStyle: TextStyle(
                           color: Cristal.textoTenue,
                           fontSize: 13,
@@ -1516,13 +1487,15 @@ class ContratistasKpiRow extends StatelessWidget {
     required this.totalContratistas,
     required this.totalContratos,
     required this.valorContratado,
-    required this.entidadesCount,
+    required this.servidoresPublicos,
   });
 
   final String totalContratistas;
   final String totalContratos;
   final String valorContratado;
-  final String entidadesCount;
+
+  /// Cuántos de los encontrados también son servidores públicos (SIGEP).
+  final String servidoresPublicos;
 
   Widget _buildCardContent({
     required IconData icon,
@@ -1556,7 +1529,7 @@ class ContratistasKpiRow extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Cristal.textoSuave,
@@ -1593,29 +1566,29 @@ class ContratistasKpiRow extends StatelessWidget {
         icon: Icons.people_alt_rounded,
         iconColor: Cristal.acentoClaro,
         iconBg: Cristal.vidrioSuave,
-        label: 'Total contratistas',
+        label: 'Contratistas encontrados',
         value: totalContratistas,
       ),
       _buildCardContent(
         icon: Icons.description_rounded,
         iconColor: Cristal.acentoClaro,
         iconBg: Cristal.vidrioSuave,
-        label: 'Total contratos',
+        label: 'Sus contratos',
         value: totalContratos,
       ),
       _buildCardContent(
         icon: Icons.monetization_on_rounded,
         iconColor: Cristal.verde,
         iconBg: Cristal.verdeVidrio,
-        label: 'Valor contratado',
+        label: 'Valor de sus contratos',
         value: valorContratado,
       ),
       _buildCardContent(
-        icon: Icons.account_balance_rounded,
-        iconColor: Cristal.legible(const Color(0xFFA78BFA)),
-        iconBg: const Color(0x1F8B5CF6),
-        label: 'Entidades que contratan',
-        value: entidadesCount,
+        icon: Icons.badge_outlined,
+        iconColor: Cristal.rojo,
+        iconBg: Cristal.rojoVidrio,
+        label: 'También servidores públicos',
+        value: servidoresPublicos,
       ),
     ];
 
@@ -1634,18 +1607,23 @@ class ContratistasKpiRow extends StatelessWidget {
             ],
           );
         }
-        return HorizontalWebScroll(
+        // Cuadrícula de 2 × 2: en el celular las cifras se desplazaban de lado.
+        Widget fila(Widget a, Widget b) => IntrinsicHeight(
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SizedBox(width: 242, child: cards[0]),
-              const SizedBox(width: 12),
-              SizedBox(width: 242, child: cards[1]),
-              const SizedBox(width: 12),
-              SizedBox(width: 242, child: cards[2]),
-              const SizedBox(width: 12),
-              SizedBox(width: 242, child: cards[3]),
+              Expanded(child: a),
+              const SizedBox(width: 10),
+              Expanded(child: b),
             ],
           ),
+        );
+        return Column(
+          children: [
+            fila(cards[0], cards[1]),
+            const SizedBox(height: 10),
+            fila(cards[2], cards[3]),
+          ],
         );
       },
     );
@@ -1843,7 +1821,7 @@ class ContratistasResultsTable extends StatelessWidget {
                       isLoading
                           ? 'Consultando SECOP II en tiempo real...'
                           : isDefaultView
-                          ? 'Mostrando $totalFoundCount contratistas verificados a nivel nacional (ingresa NIT o razón social para buscar cualquier otro)'
+                          ? 'Ejemplos: $totalFoundCount empresas con muchos contratos en SECOP II. Busca cualquier contratista por nombre, NIT o cédula.'
                           : '$totalFoundCount contratistas encontrados para la consulta',
                       style: TextStyle(
                         color: Cristal.textoSuave,
@@ -2091,6 +2069,21 @@ class ContratistasResultsTable extends StatelessWidget {
                 ],
               );
 
+              // En el celular, tarjetas: la tabla de 860 px se cortaba de lado.
+              if (tableConstraints.maxWidth < 700 && rows.isNotEmpty) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Divider(height: 1, color: Cristal.borde),
+                    for (var i = 0; i < rows.length; i++) ...[
+                      _buildTarjeta(context, record: rows[i]),
+                      Divider(height: 1, color: Cristal.borde),
+                    ],
+                    if (terminoSigep != null)
+                      _notaServidores(context, terminoSigep!),
+                  ],
+                );
+              }
               if (tableConstraints.maxWidth < 820) {
                 return SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -2118,6 +2111,113 @@ class ContratistasResultsTable extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Un contratista como tarjeta, para el celular.
+  Widget _buildTarjeta(
+    BuildContext context, {
+    required ContractorSummaryRecord record,
+  }) {
+    final esPublica = _publica(record);
+    final servidor = record.sigepStatus == SigepRoleStatus.servidorPublico;
+    final tipo = esPublica ? 'Entidad pública' : record.personType;
+    final juridica = record.personType == 'Persona jurídica';
+    Widget ficha(String texto, Color color, Color fondo) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: fondo,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Text(
+        texto,
+        style: TextStyle(
+          color: color,
+          fontSize: 11.5,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+    return InkWell(
+      hoverDuration: Cristal.micro,
+      onTap: () => onOpenProfile(record),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              record.name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Cristal.acentoClaro,
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                height: 1.3,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              record.nit,
+              style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                ficha(
+                  tipo,
+                  juridica ? Cristal.acentoClaro : Cristal.ambar,
+                  esPublica
+                      ? Cristal.acentoVidrio
+                      : juridica
+                      ? Cristal.azulVidrio
+                      : Cristal.doradoVidrio,
+                ),
+                // Solo se marca lo que informa: ser también servidor público.
+                if (servidor)
+                  ficha('Servidor público', Cristal.rojo, Cristal.rojoVidrio),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _valorCorto(record.totalValue),
+                        style: TextStyle(
+                          color: Cristal.texto,
+                          fontSize: 16.5,
+                          fontWeight: FontWeight.w800,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                      Text(
+                        '${record.totalContracts} ${record.totalContracts == 1 ? 'contrato' : 'contratos'}'
+                        '${record.lastContractDate.isNotEmpty && record.lastContractDate != 'Sin fecha' ? ' · último ${record.lastContractDate}' : ''}',
+                        style: TextStyle(
+                          color: Cristal.textoSuave,
+                          fontSize: 12.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => onOpenProfile(record),
+                  child: const Text('Ver perfil'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -130,6 +130,10 @@ class _ContratosSectionState extends State<ContratosSection> {
   int _currentPage = 1;
   bool _isLoadingSecop = false;
 
+  /// Tope de filas de la última consulta: si llegó a él, los resultados son
+  /// solo los más recientes y las cifras lo dicen.
+  int _ultimoLimite = _initialResultsLimit;
+
   /// La última búsqueda no pudo consultar SECOP (no respondió o respondió
   /// con error) y no trajo nada: se avisa en lugar de decir que no hay
   /// contratos, que sería falso.
@@ -1465,6 +1469,7 @@ class _ContratosSectionState extends State<ContratosSection> {
       final int queryLimit = hasSearchOrFilter
           ? _searchResultsLimit
           : _initialResultsLimit;
+      _ultimoLimite = queryLimit;
 
       List<String> buildBaseWhereClauses({
         required bool applyYearFilter,
@@ -4207,10 +4212,22 @@ class _ContratosSectionState extends State<ContratosSection> {
         .toSet()
         .length;
 
-    final String totalContractsText = '${filtered.length}';
-    final String totalValueText = _formatShortMillions(totalSum);
-    final String contractorsCountText = '$uniqueContractors';
-    final String entitiesCountText = '$uniqueEntities';
+    // Cifras de los resultados cargados (no de todo SECOP): mientras llegan
+    // se dice que se está consultando, y si la consulta llegó a su tope se
+    // aclara que son los más recientes.
+    final bool cargando = _isLoadingSecop;
+    final bool enElTope = _secopContracts.length >= _ultimoLimite;
+    final String totalContractsText = cargando ? '—' : '${filtered.length}';
+    final String totalValueText = cargando
+        ? '—'
+        : _formatShortMillions(totalSum);
+    final String contractorsCountText = cargando ? '—' : '$uniqueContractors';
+    final String entitiesCountText = cargando ? '—' : '$uniqueEntities';
+    final String alcance = cargando
+        ? 'consultando SECOP II…'
+        : enElTope
+        ? 'los más recientes'
+        : 'en los resultados';
 
     Widget kpiCardBox({
       required IconData icon,
@@ -4255,42 +4272,32 @@ class _ContratosSectionState extends State<ContratosSection> {
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Flexible(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            value,
-                            maxLines: 1,
-                            style: TextStyle(
-                              color: Cristal.texto,
-                              fontSize: 19,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
+                  // La leyenda va debajo del número: al lado se cortaba
+                  // en las tarjetas angostas ("los…", "sum…").
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      value,
+                      maxLines: 1,
+                      style: TextStyle(
+                        color: Cristal.texto,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
                       ),
-                      if (subtitleText != null) ...[
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            subtitleText,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Cristal.textoSuave,
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
+                    ),
                   ),
+                  if (subtitleText != null)
+                    Text(
+                      subtitleText,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Cristal.textoSuave,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -4304,9 +4311,9 @@ class _ContratosSectionState extends State<ContratosSection> {
         icon: Icons.description_outlined,
         iconColor: Cristal.acentoClaro,
         iconBackground: Cristal.vidrioSuave,
-        label: 'Total contratos',
+        label: 'Contratos',
         value: totalContractsText,
-        subtitleText: 'SECOP II',
+        subtitleText: alcance,
       ),
       kpiCardBox(
         icon: Icons.monetization_on_outlined,
@@ -4314,7 +4321,7 @@ class _ContratosSectionState extends State<ContratosSection> {
         iconBackground: Cristal.verdeVidrio,
         label: 'Valor contratado',
         value: totalValueText,
-        subtitleText: 'acumulado',
+        subtitleText: cargando ? null : 'suma de esos contratos',
       ),
       kpiCardBox(
         icon: Icons.people_outline,
@@ -4322,7 +4329,7 @@ class _ContratosSectionState extends State<ContratosSection> {
         iconBackground: Cristal.vidrioSuave,
         label: 'Contratistas',
         value: contractorsCountText,
-        subtitleText: 'verificados',
+        subtitleText: cargando ? null : 'distintos',
       ),
       kpiCardBox(
         icon: Icons.account_balance_outlined,
@@ -4330,7 +4337,7 @@ class _ContratosSectionState extends State<ContratosSection> {
         iconBackground: Cristal.doradoVidrio,
         label: 'Entidades',
         value: entitiesCountText,
-        subtitleText: 'en consulta',
+        subtitleText: cargando ? null : 'distintas',
       ),
     ];
 
@@ -4350,18 +4357,23 @@ class _ContratosSectionState extends State<ContratosSection> {
           );
         }
 
-        return HorizontalWebScroll(
+        // Cuadrícula de 2 × 2: en el celular las cifras se desplazaban de lado.
+        Widget fila(Widget a, Widget b) => IntrinsicHeight(
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SizedBox(width: 250, child: kpiCardBoxes[0]),
-              const SizedBox(width: 12),
-              SizedBox(width: 250, child: kpiCardBoxes[1]),
-              const SizedBox(width: 12),
-              SizedBox(width: 250, child: kpiCardBoxes[2]),
-              const SizedBox(width: 12),
-              SizedBox(width: 250, child: kpiCardBoxes[3]),
+              Expanded(child: a),
+              const SizedBox(width: 10),
+              Expanded(child: b),
             ],
           ),
+        );
+        return Column(
+          children: [
+            fila(kpiCardBoxes[0], kpiCardBoxes[1]),
+            const SizedBox(height: 10),
+            fila(kpiCardBoxes[2], kpiCardBoxes[3]),
+          ],
         );
       },
     );
@@ -4577,26 +4589,193 @@ class _ContratosSectionState extends State<ContratosSection> {
     );
   }
 
-  Widget _buildTableRow(ContractRecord contract) {
-    final analisis = ContractFinancialAnalysis.fromContract(
-      contract.rawSecopJson,
-    );
-    final Color statusColor = switch (contract.status) {
+  static (Color, Color) _coloresEstado(String estado) => (
+    switch (estado) {
       'En ejecución' => Cristal.verde,
       'Aprobado' || 'En aprobación' => Cristal.ambar,
       'Modificado' => Cristal.legible(const Color(0xFFA78BFA)),
       'Terminado' || 'Cerrado' => Cristal.legible(const Color(0xFF38BDF8)),
       'Liquidado' => Cristal.rojo,
       _ => Cristal.textoSuave,
-    };
-    final Color statusBackground = switch (contract.status) {
+    },
+    switch (estado) {
       'En ejecución' => Cristal.verdeVidrio,
       'Aprobado' || 'En aprobación' => Cristal.ambarVidrio,
       'Modificado' => const Color(0x248B5CF6),
       'Terminado' || 'Cerrado' => Cristal.azulVidrio,
       'Liquidado' => Cristal.rojoVidrio,
       _ => Cristal.vidrioSuave,
-    };
+    },
+  );
+
+  /// Un contrato como tarjeta, para el celular: primero qué se contrató,
+  /// luego quién, cuánto, en qué estado y cuándo. Nada se corta de lado.
+  Widget _buildContractCard(ContractRecord contract) {
+    final analisis = ContractFinancialAnalysis.fromContract(
+      contract.rawSecopJson,
+    );
+    final (statusColor, statusBackground) = _coloresEstado(contract.status);
+    final mensual = analisis.tienePlazo && analisis.valorTotal > 0
+        ? analisis.esMenorAUnMes
+              ? 'Pago por ${analisis.plazoDias} días'
+              : '≈ ${ContractFinancialAnalysis.formatCop(analisis.valorMensualEstimado)} al mes'
+        : null;
+    return InkWell(
+      hoverDuration: Cristal.micro,
+      onTap: () => _openContractDetail(contract),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: contract.iconBg,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(contract.icon, color: contract.color, size: 17),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    contract.title,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Cristal.texto,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              contract.entity,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Cristal.textoCuerpo,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            Text(
+              [
+                contract.location,
+                if (contract.dependencia != null) contract.dependencia!,
+              ].where((t) => t.trim().isNotEmpty).join(' · '),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
+            ),
+            if (contract.contractor.trim().isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Icon(
+                    Icons.person_outline,
+                    size: 15,
+                    color: Cristal.textoSuave,
+                  ),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      contract.contractor,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Cristal.textoMedio,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        contract.valueFormatted,
+                        style: TextStyle(
+                          color: Cristal.texto,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                      if (mensual != null)
+                        Text(
+                          mensual,
+                          style: TextStyle(
+                            color: Cristal.verde,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 5,
+                    horizontal: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusBackground,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    contract.status,
+                    style: TextStyle(
+                      color: statusColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${contract.startDate} – ${contract.endDate}',
+                    style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => _openContractDetail(contract),
+                  child: const Text('Ver detalle'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTableRow(ContractRecord contract) {
+    final analisis = ContractFinancialAnalysis.fromContract(
+      contract.rawSecopJson,
+    );
+    final (statusColor, statusBackground) = _coloresEstado(contract.status);
 
     Widget cell(int flex, Widget child) => Expanded(
       flex: flex,
@@ -4963,6 +5142,25 @@ class _ContratosSectionState extends State<ContratosSection> {
             ],
           );
 
+          // En el celular, tarjetas: la tabla de 880 px se cortaba de lado.
+          if (tableConstraints.maxWidth < 700 && rows.isNotEmpty) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_isLoadingSecop)
+                  LinearProgressIndicator(
+                    minHeight: 2.5,
+                    color: Cristal.acentoClaro,
+                    backgroundColor: Cristal.vidrioFuerte,
+                  ),
+                for (var index = 0; index < rows.length; index++) ...[
+                  _buildContractCard(rows[index]),
+                  if (index < rows.length - 1)
+                    Divider(height: 1, color: Cristal.borde),
+                ],
+              ],
+            );
+          }
           if (tableConstraints.maxWidth < 820) {
             return HorizontalWebScroll(
               child: SizedBox(width: 880, child: tableBody),

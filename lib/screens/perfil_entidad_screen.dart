@@ -5,11 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../services/presupuesto_dependencias_service.dart';
+import '../services/seguimiento_service.dart';
 import '../services/reporte_contratos_modelo.dart';
 import '../services/reporte_contratos_service.dart';
 import '../utils/anios_secop.dart';
+import '../utils/banderas_control.dart';
+import '../utils/dependencia_contrato.dart';
 import '../utils/nit.dart';
 import '../widgets/presupuesto_dependencias_panel.dart';
+import '../widgets/boton_seguir.dart';
 import '../widgets/reporte_contratos_flujo.dart';
 import 'detalle_screen.dart';
 import 'perfil_contratista_screen.dart';
@@ -285,7 +289,6 @@ class _RegionalBreakdownItem {
 class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   int _selectedTabIndex =
       0; // 0: Resumen, 1: Contratos, 2: Dependencias, 3: Contratistas
-  bool _isFollowing = false;
   bool _isLoadingLive = true;
   bool _isLoadingContractsPage = false;
 
@@ -304,6 +307,11 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   double _ejecutadoCop = 0;
   double _disponibleCop = 0;
   int _porcentajeEjecutado = 0;
+
+  /// Parte del valor de los contratos cerrados o terminados cuyo pago la
+  /// entidad registró en SECOP II (null si no hay contratos cerrados).
+  /// Muchas entidades pagan por el SIIF sin registrarlo aquí.
+  double? _pagosRegistradosPct;
 
   int _totalContratos = 0;
   double _valorTotalContratadoCop = 0;
@@ -390,6 +398,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     _ejecutadoCop = 0;
     _disponibleCop = 0;
     _porcentajeEjecutado = 0;
+    _pagosRegistradosPct = null;
 
     _totalContratos = widget.entity.contractsCount;
     _valorTotalContratadoCop = safeContracted;
@@ -528,7 +537,8 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   static String _formatCompactCardMillions(double cop) {
     if (cop >= 1000000000000) {
       final billones = cop / 1000000000000;
-      return '\$ ${billones.toStringAsFixed(2).replaceAll('.', ',')} B';
+      // "B" se lee mal en Colombia (un billón es un millón de millones).
+      return '\$ ${billones.toStringAsFixed(2).replaceAll('.', ',')} billones';
     }
     if (cop >= 1000000) {
       final millions = (cop / 1000000).round();
@@ -802,7 +812,12 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
 
   Future<void> _fetchLiveEntityProfileData() async {
     if (!mounted) return;
-    setState(() => _isLoadingLive = true);
+    setState(() {
+      _isLoadingLive = true;
+      // Otra vigencia o regional: la comparación anterior ya no aplica.
+      _compActual = null;
+      _compAnterior = null;
+    });
 
     try {
       int yearToUse = _selectedContratosYear ?? AniosSecop.actual;
@@ -831,7 +846,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
 
         final stateAggUrl = Uri.parse(
           'https://www.datos.gov.co/resource/jbjy-vk9h.json?'
-          '\$select=estado_contrato,count(*)%20as%20contratos,sum(valor_del_contrato)%20as%20total_valor'
+          '\$select=estado_contrato,count(*)%20as%20contratos,sum(valor_del_contrato)%20as%20total_valor,sum(valor_pagado)%20as%20pagado'
           '&\$where=$wRegEnc'
           '&\$group=estado_contrato'
           '&\$limit=40',
@@ -987,6 +1002,10 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       int aggTotalContracts = 0;
       double aggTotalCop = 0;
       double executedCop = 0;
+      // Contratos cerrados, terminados o liquidados y lo que la entidad
+      // registró como pagado de ellos en SECOP II.
+      double cerradosCop = 0;
+      double cerradosPagadoCop = 0;
 
       if (aggResp.statusCode == 200) {
         final aggData = jsonDecode(aggResp.body) as List<dynamic>;
@@ -1001,6 +1020,13 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
 
           aggTotalContracts += cCount;
           aggTotalCop += rawVal;
+          if (estRaw.contains('CERR') ||
+              estRaw.contains('TERM') ||
+              estRaw.contains('LIQUID')) {
+            cerradosCop += rawVal;
+            cerradosPagadoCop +=
+                double.tryParse((row['pagado'] ?? '0').toString()) ?? 0;
+          }
 
           if (estRaw.contains('EJEC') ||
               estRaw.contains('TERM') ||
@@ -1178,6 +1204,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           _porcentajeEjecutado = ((executedCop / aggTotalCop) * 100)
               .round()
               .clamp(0, 100);
+          _pagosRegistradosPct = cerradosCop > 0
+              ? (cerradosPagadoCop / cerradosCop * 100).clamp(0, 100).toDouble()
+              : null;
         }
         _contractsPage = 1;
         _isLoadingLive = false;
@@ -1467,20 +1496,6 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     }
   }
 
-  void _alternarSeguir() {
-    setState(() => _isFollowing = !_isFollowing);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          _isFollowing
-              ? 'Ahora sigues a ${widget.entity.name}.'
-              : 'Dejaste de seguir a ${widget.entity.name}.',
-        ),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
   static String _normalizeModalityLabel(String raw) {
     final norm = _normalizar(raw);
     if (norm.contains('DIRECTA')) return 'Contratación directa';
@@ -1493,7 +1508,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       return 'Concurso de méritos';
     }
     if (norm.contains('ESPECIAL')) return 'Régimen especial';
-    return 'Contratación directa';
+    // Antes todo lo no reconocido (p. ej. enajenación de bienes) se contaba
+    // como contratación directa e inflaba esa cifra.
+    return 'Otras modalidades';
   }
 
   static (Color, Color, IconData) _modalityVisualStyle(String modName) {
@@ -1543,7 +1560,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       ),
       (
         Icons.description_outlined,
-        '${_formatIntWithDots(_totalContratos)} contratos · ${_formatCompactCardMillions(_valorTotalContratadoCop)}',
+        _isLoadingLive && _totalContratos == 0
+            ? 'Consultando contratos…'
+            : '${_formatIntWithDots(_totalContratos)} ${_totalContratos == 1 ? 'contrato' : 'contratos'} · ${_formatCompactCardMillions(_valorTotalContratadoCop)}',
       ),
       if (_selectedRegionalDept != null)
         (
@@ -1646,45 +1665,13 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          if (mobile)
-            IconButton(
-              onPressed: _alternarSeguir,
-              tooltip: _isFollowing ? 'Dejar de seguir' : 'Seguir entidad',
-              icon: Icon(
-                _isFollowing
-                    ? Icons.bookmark_added_rounded
-                    : Icons.bookmark_border_rounded,
-                color: Cristal.texto,
-              ),
-            )
-          else
-            OutlinedButton.icon(
-              onPressed: _alternarSeguir,
-              icon: Icon(
-                _isFollowing
-                    ? Icons.bookmark_added_rounded
-                    : Icons.bookmark_border_rounded,
-                size: 16,
-              ),
-              label: Text(
-                _isFollowing ? 'Siguiendo' : 'Seguir entidad',
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Cristal.texto,
-                side: BorderSide(color: Cristal.bordeFuerte),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
+          // Seguir: sus contratos nuevos aparecen en Alertas.
+          BotonSeguir(
+            tipo: TipoSeguido.entidad,
+            clave: _nitEntidad,
+            nombre: widget.entity.name,
+            compacto: mobile,
+          ),
         ],
       ),
     );
@@ -2313,6 +2300,369 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   // PESTAÑA 1: RESUMEN (EJECUCIÓN CONTRACTUAL + CONTRATOS DE LA ENTIDAD)
   // ===========================================================================
 
+  /// Primera carga sin ninguna cifra todavía: se dice que se consulta en
+  /// lugar de mostrar ceros como si fueran el resultado.
+  bool get _cargandoResumen =>
+      _isLoadingLive && _totalContratos == 0 && _presupuestoTotalCop == 0;
+
+  /// Qué parte de lo contratado y ya cerrado tiene su pago registrado en
+  /// SECOP II: también dice cuánto informa la entidad en SECOP.
+  Widget _pagosRegistrados(double pct) {
+    final casiNada = pct < 20;
+    final texto = pct >= 99.5
+        ? '100'
+        : pct.toStringAsFixed(pct < 10 ? 1 : 0).replaceAll('.', ',');
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: casiNada ? Cristal.ambarVidrio : Cristal.vidrioSuave,
+        borderRadius: BorderRadius.circular(Cristal.radioCampo),
+        border: Border.all(
+          color: casiNada ? Cristal.ambarBorde : Cristal.borde,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.receipt_long_outlined,
+            size: 19,
+            color: casiNada ? Cristal.ambar : Cristal.acentoClaro,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Pagos registrados en SECOP II: $texto % de los contratos cerrados o terminados',
+                  style: TextStyle(
+                    color: Cristal.texto,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  casiNada
+                      ? 'La entidad casi no registra sus pagos en SECOP II (probablemente los registra solo en el SIIF). Que un contrato aparezca sin pagos no significa que no se haya pagado.'
+                      : 'Es la parte del valor de esos contratos cuyo pago la entidad registró en SECOP II.',
+                  style: TextStyle(
+                    color: Cristal.textoMedio,
+                    fontSize: 12.5,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Parte de la contratación de la vigencia que se hizo por contratación
+  /// directa (sin competencia), en número de contratos y en valor.
+  Widget? _proporcionDirecta() {
+    var n = 0, nDirecta = 0;
+    var v = 0.0, vDirecta = 0.0;
+    for (final m in _modalityStats) {
+      n += m.contractsCount;
+      v += m.totalCop;
+      if (m.name == 'Contratación directa') {
+        nDirecta += m.contractsCount;
+        vDirecta += m.totalCop;
+      }
+    }
+    if (n == 0 || v <= 0) return null;
+    String pct(num a, num b) => '${(a / b * 100).round()} %';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Cristal.vidrioSuave,
+        borderRadius: BorderRadius.circular(Cristal.radioCampo),
+        border: Border.all(color: Cristal.borde),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.gavel_rounded, size: 19, color: Cristal.acentoClaro),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Contratación directa: ${pct(nDirecta, n)} de los contratos y ${pct(vDirecta, v)} del valor',
+                  style: TextStyle(
+                    color: Cristal.texto,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Sin competencia entre oferentes. Incluye los contratos de prestación de servicios, '
+                  'que por ley se hacen así (Ley 1150 de 2007, art. 2, num. 4, lit. h).',
+                  style: TextStyle(
+                    color: Cristal.textoMedio,
+                    fontSize: 12.5,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Comparación con el año anterior, con el mismo corte de fechas
+  // ---------------------------------------------------------------------------
+
+  ({int n, double v, int c})? _compActual;
+  ({int n, double v, int c})? _compAnterior;
+  bool _comparando = false;
+  String? _errorComparacion;
+
+  /// Corte del año [anio]: hoy (mismo día y mes) si es el año en curso;
+  /// el 31 de diciembre si ya terminó.
+  DateTime _corte(int anio, int anioVista) {
+    final hoy = DateTime.now();
+    if (anioVista < hoy.year) return DateTime(anio, 12, 31);
+    final ultimo = DateTime(anio, hoy.month + 1, 0).day;
+    return DateTime(anio, hoy.month, hoy.day.clamp(1, ultimo));
+  }
+
+  Future<({int n, double v, int c})?> _cifrasAnio(int anio) async {
+    final where = _buildEntityWhereClause(
+      onlyYear2026: true,
+      includeRegionalFilter: true,
+      rango: (desde: anio, corte: _corte(anio, _activeBudgetYear)),
+    );
+    final filas = await DatosAbiertos.filas('jbjy-vk9h', {
+      r'$select': 'count(*) as n, sum(valor_del_contrato) as v, count(distinct documento_proveedor) as c',
+      r'$where': where,
+    });
+    if (filas.isEmpty) return null;
+    final f = filas.first;
+    return (
+      n: int.tryParse('${f['n'] ?? 0}') ?? 0,
+      v: double.tryParse('${f['v'] ?? 0}') ?? 0,
+      c: int.tryParse('${f['c'] ?? 0}') ?? 0,
+    );
+  }
+
+  Future<void> _comparar() async {
+    setState(() {
+      _comparando = true;
+      _errorComparacion = null;
+    });
+    try {
+      final r = await Future.wait([
+        _cifrasAnio(_activeBudgetYear),
+        _cifrasAnio(_activeBudgetYear - 1),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _compActual = r[0];
+        _compAnterior = r[1];
+        _comparando = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _comparando = false;
+        _errorComparacion =
+            'SECOP II no respondió. Intenta de nuevo en un momento.';
+      });
+    }
+  }
+
+  Widget _comparacionAnual() {
+    final anio = _activeBudgetYear;
+    final antes = anio - 1;
+    final actual = _compActual;
+    final anterior = _compAnterior;
+    final corte = _corte(anio, anio);
+    final periodo = corte.month == 12 && corte.day == 31
+        ? 'año completo'
+        : '1 de enero al ${corte.day} de ${_mesesCortos[corte.month - 1]}';
+    if (actual == null || anterior == null) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Wrap(
+          spacing: 12,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            OutlinedButton.icon(
+              onPressed: _comparando ? null : _comparar,
+              icon: _comparando
+                  ? const SizedBox(
+                      width: 15,
+                      height: 15,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.compare_arrows_rounded, size: 18),
+              label: Text(
+                _comparando ? 'Comparando…' : 'Comparar con $antes ($periodo)',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Cristal.texto,
+                side: BorderSide(color: Cristal.bordeFuerte),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(22),
+                ),
+              ),
+            ),
+            if (_errorComparacion != null)
+              Text(
+                _errorComparacion!,
+                style: TextStyle(color: Cristal.ambar, fontSize: 12.5),
+              ),
+          ],
+        ),
+      );
+    }
+    Widget dato(String etiqueta, String ahora, String entonces, num a, num b) {
+      final cambio = b > 0 ? ((a - b) / b * 100).round() : null;
+      final sube = (cambio ?? 0) >= 0;
+      return Container(
+        constraints: const BoxConstraints(minWidth: 180),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Cristal.vidrioSuave,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Cristal.borde),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              etiqueta,
+              style: TextStyle(color: Cristal.textoSuave, fontSize: 12),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              ahora,
+              style: TextStyle(
+                color: Cristal.texto,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              cambio == null
+                  ? 'En $antes: $entonces'
+                  : '${sube ? '▲' : '▼'} ${cambio.abs()} % frente a $entonces en $antes',
+              style: TextStyle(
+                color: Cristal.textoMedio,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$anio frente a $antes · $periodo de cada año',
+          style: TextStyle(
+            color: Cristal.texto,
+            fontSize: 13.5,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            dato(
+              'Contratos',
+              _formatIntWithDots(actual.n),
+              _formatIntWithDots(anterior.n),
+              actual.n,
+              anterior.n,
+            ),
+            dato(
+              'Valor contratado',
+              _formatCompactCardMillions(actual.v),
+              _formatCompactCardMillions(anterior.v),
+              actual.v,
+              anterior.v,
+            ),
+            dato(
+              'Contratistas distintos',
+              _formatIntWithDots(actual.c),
+              _formatIntWithDots(anterior.c),
+              actual.c,
+              anterior.c,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  static const _mesesCortos = [
+    'enero',
+    'febrero',
+    'marzo',
+    'abril',
+    'mayo',
+    'junio',
+    'julio',
+    'agosto',
+    'septiembre',
+    'octubre',
+    'noviembre',
+    'diciembre',
+  ];
+
+  Widget _consultandoSecop(String que) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              minHeight: 4,
+              color: Cristal.acentoClaro,
+              backgroundColor: Cristal.vidrioFuerte,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Consultando $que en SECOP II…',
+            style: TextStyle(
+              color: Cristal.textoMedio,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildResumenTab() {
     final pctEjecutado = _porcentajeEjecutado.clamp(0, 100);
     final pctDisponible = 100 - pctEjecutado;
@@ -2399,162 +2749,173 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    Flex(
-                      direction: _isMobile ? Axis.vertical : Axis.horizontal,
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: _isMobile
-                          ? CrossAxisAlignment.stretch
-                          : CrossAxisAlignment.center,
-                      children: [
-                        // Gráfica circular dinámica (Donut)
-                        SizedBox(
-                          width: 146,
-                          height: 146,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              CustomPaint(
-                                size: const Size(146, 146),
-                                painter: _DynamicBudgetDonutPainter(
-                                  progress: pctEjecutado / 100.0,
+                    if (_cargandoResumen)
+                      _consultandoSecop('la ejecución contractual')
+                    else
+                      Flex(
+                        direction: _isMobile ? Axis.vertical : Axis.horizontal,
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: _isMobile
+                            ? CrossAxisAlignment.stretch
+                            : CrossAxisAlignment.center,
+                        children: [
+                          // Gráfica circular dinámica (Donut)
+                          SizedBox(
+                            width: 146,
+                            height: 146,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                CustomPaint(
+                                  size: const Size(146, 146),
+                                  painter: _DynamicBudgetDonutPainter(
+                                    progress: pctEjecutado / 100.0,
+                                  ),
                                 ),
-                              ),
-                              Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    '$pctEjecutado%',
+                                Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      '$pctEjecutado%',
+                                      style: TextStyle(
+                                        color: Cristal.texto,
+                                        fontSize: 25,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                    Text(
+                                      'en ejecución',
+                                      style: TextStyle(
+                                        color: Cristal.textoSuave,
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 28, height: 18),
+                          _flexOrFull(
+                            1,
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Valor total contratado · vigencia $_activeBudgetYear$scopeSuffix',
+                                  style: TextStyle(
+                                    color: Cristal.textoSuave,
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    _formatCopFull(_presupuestoTotalCop),
                                     style: TextStyle(
                                       color: Cristal.texto,
-                                      fontSize: 25,
+                                      fontSize: 26,
                                       fontWeight: FontWeight.w900,
                                     ),
                                   ),
-                                  Text(
-                                    'en ejecución',
-                                    style: TextStyle(
-                                      color: Cristal.textoSuave,
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.w600,
+                                ),
+                                const SizedBox(height: 14),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: LinearProgressIndicator(
+                                    value: pctEjecutado / 100.0,
+                                    minHeight: 13,
+                                    backgroundColor: Cristal.vidrioFuerte,
+                                    color: Cristal.legible(
+                                      Cristal.legible(const Color(0xFFFBBF24)),
                                     ),
                                   ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 28, height: 18),
-                        _flexOrFull(
-                          1,
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Valor total contratado · vigencia $_activeBudgetYear$scopeSuffix',
-                                style: TextStyle(
-                                  color: Cristal.textoSuave,
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w600,
                                 ),
-                              ),
-                              const SizedBox(height: 4),
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  _formatCopFull(_presupuestoTotalCop),
-                                  style: TextStyle(
-                                    color: Cristal.texto,
-                                    fontSize: 26,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: LinearProgressIndicator(
-                                  value: pctEjecutado / 100.0,
-                                  minHeight: 13,
-                                  backgroundColor: Cristal.vidrioFuerte,
-                                  color: Cristal.legible(
-                                    Cristal.legible(const Color(0xFFFBBF24)),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 10,
-                                    height: 10,
-                                    decoration: BoxDecoration(
-                                      color: Cristal.legible(
-                                        Cristal.legible(
-                                          const Color(0xFFFBBF24),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 10,
+                                      height: 10,
+                                      decoration: BoxDecoration(
+                                        color: Cristal.legible(
+                                          Cristal.legible(
+                                            const Color(0xFFFBBF24),
+                                          ),
+                                        ),
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Celebrados, en ejecución o terminados',
+                                        style: TextStyle(
+                                          color: Cristal.textoMedio,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
-                                      shape: BoxShape.circle,
                                     ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      'Celebrados, en ejecución o terminados',
+                                    Text(
+                                      '${_formatCopFull(_ejecutadoCop)}  ($pctEjecutado%)',
                                       style: TextStyle(
-                                        color: Cristal.textoMedio,
+                                        color: Cristal.texto,
                                         fontSize: 13,
-                                        fontWeight: FontWeight.w600,
+                                        fontWeight: FontWeight.w800,
                                       ),
                                     ),
-                                  ),
-                                  Text(
-                                    '${_formatCopFull(_ejecutadoCop)}  ($pctEjecutado%)',
-                                    style: TextStyle(
-                                      color: Cristal.texto,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 10,
-                                    height: 10,
-                                    decoration: BoxDecoration(
-                                      color: Cristal.vidrioIntenso,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      'Otros estados (borrador, suspendido, cancelado…)',
-                                      style: TextStyle(
-                                        color: Cristal.textoMedio,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 10,
+                                      height: 10,
+                                      decoration: BoxDecoration(
+                                        color: Cristal.vidrioIntenso,
+                                        shape: BoxShape.circle,
                                       ),
                                     ),
-                                  ),
-                                  Text(
-                                    '${_formatCopFull(_disponibleCop)}  ($pctDisponible%)',
-                                    style: TextStyle(
-                                      color: Cristal.texto,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w800,
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Otros estados (borrador, suspendido, cancelado…)',
+                                        style: TextStyle(
+                                          color: Cristal.textoMedio,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                                    Text(
+                                      '${_formatCopFull(_disponibleCop)}  ($pctDisponible%)',
+                                      style: TextStyle(
+                                        color: Cristal.texto,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                    if (!_cargandoResumen && _pagosRegistradosPct != null) ...[
+                      const SizedBox(height: 18),
+                      _pagosRegistrados(_pagosRegistradosPct!),
+                    ],
+                    if (!_cargandoResumen && _proporcionDirecta() != null) ...[
+                      const SizedBox(height: 10),
+                      _proporcionDirecta()!,
+                    ],
                   ],
                 ),
               ),
@@ -2598,9 +2959,12 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                           iconColor: Cristal.ambar,
                           iconBg: Cristal.ambarVidrio,
                           label: 'Total contratos ($_activeBudgetYear)',
-                          value: _formatIntWithDots(_totalContratos),
-                          trend:
-                              '${(_totalContratos / _contractsPageSize).ceil()} páginas en SECOP II',
+                          value: _cargandoResumen
+                              ? '—'
+                              : _formatIntWithDots(_totalContratos),
+                          trend: _cargandoResumen
+                              ? 'Consultando SECOP II…'
+                              : 'Registrados en SECOP II',
                         ),
                         const SizedBox(width: 12, height: 10),
                         _summaryMetricMiniCard(
@@ -2608,10 +2972,12 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                           iconColor: Cristal.verde,
                           iconBg: Cristal.verdeVidrio,
                           label: 'Valor contratado ($_activeBudgetYear)',
-                          value: _formatCompactCardMillions(
-                            _valorTotalContratadoCop,
-                          ),
-                          trend: '100% verificado SECOP II',
+                          value: _cargandoResumen
+                              ? '—'
+                              : _formatCompactCardMillions(
+                                  _valorTotalContratadoCop,
+                                ),
+                          trend: 'Según SECOP II',
                         ),
                         const SizedBox(width: 12, height: 10),
                         _summaryMetricMiniCard(
@@ -2619,7 +2985,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                           iconColor: Cristal.acentoClaro,
                           iconBg: Cristal.azulVidrio,
                           label: 'Contratistas únicos',
-                          value: _formatIntWithDots(_contratistasUnicos),
+                          value: _cargandoResumen
+                              ? '—'
+                              : _formatIntWithDots(_contratistasUnicos),
                           trend: 'Proveedores adjudicados',
                         ),
                         const SizedBox(width: 14, height: 12),
@@ -2650,6 +3018,10 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                         ),
                       ],
                     ),
+                    if (!_cargandoResumen) ...[
+                      const SizedBox(height: 16),
+                      _comparacionAnual(),
+                    ],
                   ],
                 ),
               ),
@@ -3249,37 +3621,51 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
               ],
             ),
           ),
-          _responsiveTable([
-            _buildContractsTableHeaderRow(),
-            if (pageItems.isEmpty)
-              Padding(
-                padding: const EdgeInsets.all(36),
-                child: Center(
-                  child: Text(
-                    _isLoadingContractsPage
-                        ? 'Consultando SECOP II…'
-                        : buscando
-                        ? 'Ningún contrato de la entidad coincide con "$_busqueda". Prueba con el número exacto, otra palabra del objeto o el nombre del contratista.'
-                        : 'No hay contratos con estos filtros.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Cristal.textoSuave,
-                      fontWeight: FontWeight.w600,
+          _responsiveTable(
+            [
+              _buildContractsTableHeaderRow(),
+              if (pageItems.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(36),
+                  child: Center(
+                    child: Text(
+                      _isLoadingContractsPage || _isLoadingLive
+                          ? 'Consultando SECOP II…'
+                          : buscando
+                          ? 'Ningún contrato de la entidad coincide con "$_busqueda". Prueba con el número exacto, otra palabra del objeto o el nombre del contratista.'
+                          : 'No hay contratos con estos filtros.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Cristal.textoSuave,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
-              )
-            else
-              for (var i = 0; i < pageItems.length; i++) ...[
-                AnimatedOpacity(
-                  opacity: _isLoadingContractsPage ? 0.4 : 1,
-                  duration: Cristal.micro,
-                  child: _buildContractRowWidget(pageItems[i]),
-                ),
-                if (i < pageItems.length - 1)
-                  Divider(height: 1, color: Cristal.borde),
-              ],
-          ]),
+                )
+              else
+                for (var i = 0; i < pageItems.length; i++) ...[
+                  AnimatedOpacity(
+                    opacity: _isLoadingContractsPage ? 0.4 : 1,
+                    duration: Cristal.micro,
+                    child: _buildContractRowWidget(pageItems[i]),
+                  ),
+                  if (i < pageItems.length - 1)
+                    Divider(height: 1, color: Cristal.borde),
+                ],
+            ],
+            movil: pageItems.isEmpty
+                ? null
+                : [
+                    for (var i = 0; i < pageItems.length; i++) ...[
+                      Divider(height: 1, color: Cristal.borde),
+                      AnimatedOpacity(
+                        opacity: _isLoadingContractsPage ? 0.4 : 1,
+                        duration: Cristal.micro,
+                        child: _tarjetaContrato(pageItems[i]),
+                      ),
+                    ],
+                  ],
+          ),
           _buildFullHistoryPaginationFooter(
             currentPage: safePage,
             totalPages: totalPages,
@@ -3365,6 +3751,137 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           ),
           SizedBox(width: 24),
         ],
+      ),
+    );
+  }
+
+  /// Un contrato de la entidad como tarjeta, para el celular.
+  Widget _tarjetaContrato(Map<String, dynamic> c) {
+    final objeto =
+        '${c['objeto_del_contrato'] ?? c['descripcion_del_proceso'] ?? 'Contrato público'}'
+            .replaceAll(RegExp(r'\s+'), ' ')
+            .trim();
+    final contratista = '${c['proveedor_adjudicado'] ?? ''}'.trim();
+    final dependencia = DependenciaContrato.desde(c);
+    final mod = _normalizeModalityLabel(
+      (c['modalidad_de_contratacion'] ?? '').toString(),
+    );
+    final firma = BanderasControl.fecha(c['fecha_de_firma']);
+    return InkWell(
+      hoverDuration: Cristal.micro,
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => DetalleContratoScreen(contrato: c)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              objeto,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Cristal.texto,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+                height: 1.35,
+              ),
+            ),
+            if (contratista.isNotEmpty || dependencia != null) ...[
+              const SizedBox(height: 5),
+              Text(
+                [
+                  contratista,
+                  ?dependencia,
+                ].where((t) => t.isNotEmpty).join(' · '),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
+              ),
+            ],
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _formatCopFull(_parseSafeContractCop(c)),
+                    style: TextStyle(
+                      color: Cristal.texto,
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                Text(
+                  [mod, if (firma != null) fechaDiaMesAnio(firma)].join(' · '),
+                  style: TextStyle(color: Cristal.textoSuave, fontSize: 12),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Un contratista de la entidad como tarjeta, para el celular.
+  Widget _tarjetaContratista(_ContractorSummary item) {
+    return InkWell(
+      hoverDuration: Cristal.micro,
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PerfilContratistaScreen(
+            nombreContratista: item.name,
+            nombreBuscado: item.name,
+            nit: item.document,
+            documentoProveedor: item.document,
+          ),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Cristal.texto,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      height: 1.3,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${item.document} · ${item.contractsCount} ${item.contractsCount == 1 ? 'contrato' : 'contratos'} · ${item.mainModality}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: Cristal.textoSuave, fontSize: 12),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    _formatCopFull(item.totalCop),
+                    style: TextStyle(
+                      color: Cristal.texto,
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: Cristal.textoMedio),
+          ],
+        ),
       ),
     );
   }
@@ -4075,7 +4592,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                       ),
                       SizedBox(height: 3),
                       Text(
-                        'Resultado directo de los proveedores y contratistas vinculados con la entidad en SECOP II. Haz clic en cualquiera para ver su perfil.',
+                        _isLoadingLive && _contractorsList.isEmpty
+                            ? 'Consultando SECOP II…'
+                            : 'Contratistas de los ${_formatIntWithDots(_entityContracts.length)} contratos más recientes de la entidad en SECOP II${_contratistasUnicos > 0 ? ' (en total, ${_formatIntWithDots(_contratistasUnicos)} contratistas distintos)' : ''}. Toca cualquiera para ver su perfil.',
                         style: TextStyle(
                           color: Cristal.textoSuave,
                           fontSize: 12.5,
@@ -4086,7 +4605,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                 ),
                 if (!_isMobile)
                   Text(
-                    '${_contractorsList.length} contratistas en muestra activa',
+                    '${_formatIntWithDots(_contractorsList.length)} en esta muestra',
                     style: TextStyle(
                       color: Cristal.acentoClaro,
                       fontSize: 12.5,
@@ -4096,211 +4615,226 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
               ],
             ),
           ),
-          _responsiveTable([
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 11),
-              color: Cristal.vidrioSuave,
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 44,
-                    child: Text(
-                      '#',
-                      style: TextStyle(
-                        color: Cristal.texto,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 4,
-                    child: Text(
-                      'Contratista / Razón social',
-                      style: TextStyle(
-                        color: Cristal.texto,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Text(
-                      'Documento / NIT',
-                      style: TextStyle(
-                        color: Cristal.texto,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Text(
-                      'Contratos',
-                      style: TextStyle(
-                        color: Cristal.texto,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Text(
-                      'Modalidad frecuente',
-                      style: TextStyle(
-                        color: Cristal.texto,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Text(
-                      'Valor adjudicado',
-                      style: TextStyle(
-                        color: Cristal.texto,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 28),
-                ],
-              ),
-            ),
-            if (pageItems.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(36),
-                child: Center(
-                  child: Text('Consultando contratistas de la entidad...'),
+          _responsiveTable(
+            [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 22,
+                  vertical: 11,
                 ),
-              )
-            else
-              for (var i = 0; i < pageItems.length; i++) ...[
-                InkWell(
-                  hoverDuration: Cristal.micro,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => PerfilContratistaScreen(
-                          nombreContratista: pageItems[i].name,
-                          nombreBuscado: pageItems[i].name,
-                          nit: pageItems[i].document,
-                          documentoProveedor: pageItems[i].document,
+                color: Cristal.vidrioSuave,
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 44,
+                      child: Text(
+                        '#',
+                        style: TextStyle(
+                          color: Cristal.texto,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                    );
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 22,
-                      vertical: 14,
                     ),
-                    child: Row(
-                      children: [
-                        SizedBox(
-                          width: 44,
-                          child: Container(
-                            width: 26,
-                            height: 26,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: Cristal.vidrioSuave,
-                              shape: BoxShape.circle,
+                    Expanded(
+                      flex: 4,
+                      child: Text(
+                        'Contratista / Razón social',
+                        style: TextStyle(
+                          color: Cristal.texto,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        'Documento / NIT',
+                        style: TextStyle(
+                          color: Cristal.texto,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        'Contratos',
+                        style: TextStyle(
+                          color: Cristal.texto,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        'Modalidad frecuente',
+                        style: TextStyle(
+                          color: Cristal.texto,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        'Valor adjudicado',
+                        style: TextStyle(
+                          color: Cristal.texto,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 28),
+                  ],
+                ),
+              ),
+              if (pageItems.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(36),
+                  child: Center(
+                    child: Text('Consultando contratistas de la entidad...'),
+                  ),
+                )
+              else
+                for (var i = 0; i < pageItems.length; i++) ...[
+                  InkWell(
+                    hoverDuration: Cristal.micro,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PerfilContratistaScreen(
+                            nombreContratista: pageItems[i].name,
+                            nombreBuscado: pageItems[i].name,
+                            nit: pageItems[i].document,
+                            documentoProveedor: pageItems[i].document,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 22,
+                        vertical: 14,
+                      ),
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 44,
+                            child: Container(
+                              width: 26,
+                              height: 26,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: Cristal.vidrioSuave,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                '${startIdx + i + 1}',
+                                style: TextStyle(
+                                  color: Cristal.texto,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
                             ),
+                          ),
+                          Expanded(
+                            flex: 4,
                             child: Text(
-                              '${startIdx + i + 1}',
+                              pageItems[i].name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 color: Cristal.texto,
-                                fontSize: 11.5,
+                                fontSize: 13,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
                           ),
-                        ),
-                        Expanded(
-                          flex: 4,
-                          child: Text(
-                            pageItems[i].name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Cristal.texto,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
+                          Expanded(
+                            flex: 2,
+                            child: Text(
+                              pageItems[i].document,
+                              style: TextStyle(
+                                color: Cristal.textoMedio,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: Text(
-                            pageItems[i].document,
-                            style: TextStyle(
-                              color: Cristal.textoMedio,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
+                          Expanded(
+                            flex: 2,
+                            child: Text(
+                              '${pageItems[i].contractsCount} ${pageItems[i].contractsCount == 1 ? 'contrato' : 'contratos'}',
+                              style: TextStyle(
+                                color: Cristal.acentoClaro,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: Text(
-                            '${pageItems[i].contractsCount} contratos',
-                            style: TextStyle(
+                          Expanded(
+                            flex: 2,
+                            child: Text(
+                              pageItems[i].mainModality,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Cristal.textoSuave,
+                                fontSize: 11.5,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: Text(
+                              _formatCopFull(pageItems[i].totalCop),
+                              style: TextStyle(
+                                color: Cristal.texto,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                          SizedBox(
+                            width: 28,
+                            child: Icon(
+                              Icons.chevron_right_rounded,
                               color: Cristal.acentoClaro,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
+                              size: 19,
                             ),
                           ),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: Text(
-                            pageItems[i].mainModality,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Cristal.textoSuave,
-                              fontSize: 11.5,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: Text(
-                            _formatCopFull(pageItems[i].totalCop),
-                            style: TextStyle(
-                              color: Cristal.texto,
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                        SizedBox(
-                          width: 28,
-                          child: Icon(
-                            Icons.chevron_right_rounded,
-                            color: Cristal.acentoClaro,
-                            size: 19,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                if (i < pageItems.length - 1)
-                  Divider(height: 1, color: Cristal.borde),
-              ],
-          ]),
+                  if (i < pageItems.length - 1)
+                    Divider(height: 1, color: Cristal.borde),
+                ],
+            ],
+            movil: pageItems.isEmpty
+                ? null
+                : [
+                    for (final item in pageItems) ...[
+                      Divider(height: 1, color: Cristal.borde),
+                      _tarjetaContratista(item),
+                    ],
+                  ],
+          ),
           _buildFullHistoryPaginationFooter(
             currentPage: safePage,
             totalPages: totalPages,
             totalRecords: _contractorsList.length,
+            resumen:
+                '${_formatIntWithDots(_contractorsList.length)} contratistas en la muestra',
             onPageChanged: (p) => setState(() => _contractorsPage = p),
           ),
         ],
@@ -4314,9 +4848,11 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     required int totalPages,
     required int totalRecords,
     required ValueChanged<int> onPageChanged,
+    String? resumen,
   }) {
     final summary = Text(
-      'Total en SECOP II: ${_formatIntWithDots(totalRecords)} registros (${_formatIntWithDots(totalPages)} páginas)',
+      resumen ??
+          'Total en SECOP II: ${_formatIntWithDots(totalRecords)} registros (${_formatIntWithDots(totalPages)} páginas)',
       style: TextStyle(
         color: Cristal.textoSuave,
         fontSize: 12,
@@ -4535,13 +5071,22 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       _isMobile ? child : Expanded(flex: flex, child: child);
 
   /// Tablas anchas: en celular se desplazan horizontalmente para no desbordarse.
-  Widget _responsiveTable(List<Widget> rows) {
+  /// Tabla en escritorio. En el celular, si hay [movil] (tarjetas), se usan
+  /// en lugar de la tabla de 880 px, que se cortaba de lado.
+  Widget _responsiveTable(List<Widget> rows, {List<Widget>? movil}) {
     final column = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: rows,
     );
     if (!_isMobile) return column;
+    if (movil != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: movil,
+      );
+    }
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: SizedBox(width: 880, child: column),

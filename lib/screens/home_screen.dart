@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../services/seguimiento_service.dart';
 import '../widgets/collapsible_side_menu.dart';
 import '../widgets/user_profile_header_action.dart';
 import 'favoritos_screen.dart';
@@ -10,6 +11,7 @@ import 'sections/entidades_section.dart';
 import 'sections/equipo_juridico_section.dart';
 import 'sections/inicio_section.dart';
 import 'sections/oportunidades_paa_section.dart';
+import 'sections/alertas_section.dart';
 import 'sections/supervision_contratos_section.dart';
 import '../tema/cristal.dart';
 
@@ -43,6 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
         2,
         3,
         4,
+        CollapsibleSideMenu.indiceAlertas,
         7,
       ],
       if (tieneJuridico) 8,
@@ -120,6 +123,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return const EntidadesSection();
       case 4:
         return ContratistasSection(onLogout: _cerrarSesion);
+      case CollapsibleSideMenu.indiceAlertas:
+        return Expanded(child: AlertasSection(onIrASeccion: _onItemTapped));
       case 7:
         return Expanded(child: FavoritosScreen(onLogout: _cerrarSesion));
       case 8:
@@ -170,6 +175,17 @@ class _HomeScreenState extends State<HomeScreen> {
           activeIcon: Icon(Icons.people_alt_rounded, color: Cristal.dorado),
           label: 'Contratistas',
         );
+      case CollapsibleSideMenu.indiceAlertas:
+        final nuevos = SeguimientoService.totalNuevos;
+        return BottomNavigationBarItem(
+          icon: Badge(
+            isLabelVisible: nuevos > 0,
+            label: Text(nuevos > 99 ? '99+' : '$nuevos'),
+            child: const Icon(Icons.notifications_none_rounded),
+          ),
+          activeIcon: Icon(Icons.notifications_rounded, color: Cristal.dorado),
+          label: 'Alertas',
+        );
       case 7:
         return BottomNavigationBarItem(
           icon: Icon(Icons.star_border_rounded),
@@ -209,124 +225,130 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<int>(
       valueListenable: AuthService.authStateVersion,
-      builder: (context, _, _) {
-        final isMobile = MediaQuery.sizeOf(context).width < 768;
-        final activeIndex = _effectiveSelectedIndex();
-        final mobileTabs = _resolverMobileTabIndices();
-        final int activeBottomIdx = () {
-          final found = mobileTabs.indexOf(activeIndex);
-          return found >= 0 ? found : 0;
-        }();
-
-        Widget mainContent;
-        if (isMobile) {
-          mainContent = Scaffold(
-            key: _scaffoldKey,
-            backgroundColor: Colors.transparent,
-            drawer: null,
-            drawerEnableOpenDragGesture: false,
-            appBar: AppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              scrolledUnderElevation: 0,
-              automaticallyImplyLeading: false,
-              titleSpacing: 16,
-              title: Row(
-                children: [
-                  Image.asset(
-                    Cristal.logo,
-                    height: 34,
-                    fit: BoxFit.contain,
-                    alignment: Alignment.centerLeft,
-                    filterQuality: FilterQuality.high,
-                  ),
-                  const SizedBox(width: 10),
-                  Flexible(
-                    child: Text(
-                      CollapsibleSideMenu.opcionesMenu[activeIndex].titulo,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Cristal.texto,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                UserProfileHeaderAction(onLogout: _cerrarSesion),
-                const SizedBox(width: 8),
-              ],
-              bottom: PreferredSize(
-                preferredSize: const Size.fromHeight(1),
-                child: Container(height: 1, color: Cristal.borde),
-              ),
-            ),
-            body: SeccionesVivas(
-              activa: activeIndex,
-              construir: _buildCurrentView,
-              recrear: _seccionesQueSeRecrean,
-            ),
-            bottomNavigationBar: mobileTabs.length >= 2
-                ? DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: Cristal.vidrioSuave,
-                      border: Border(top: BorderSide(color: Cristal.borde)),
-                    ),
-                    child: BottomNavigationBar(
-                      currentIndex: activeBottomIdx,
-                      onTap: (bottomIdx) {
-                        if (bottomIdx >= 0 && bottomIdx < mobileTabs.length) {
-                          _onItemTapped(mobileTabs[bottomIdx]);
-                        }
-                      },
-                      type: BottomNavigationBarType.fixed,
-                      backgroundColor: Colors.transparent,
-                      selectedItemColor: Cristal.dorado,
-                      unselectedItemColor: Cristal.textoTenue,
-                      selectedLabelStyle: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                      ),
-                      unselectedLabelStyle: const TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      items: [
-                        for (final idx in mobileTabs) _buildMobileNavItem(idx),
-                      ],
-                    ),
-                  )
-                : null,
-          );
-        } else {
-          mainContent = Scaffold(
-            key: _scaffoldKey,
-            backgroundColor: Colors.transparent,
-            body: Row(
-              children: [
-                CollapsibleSideMenu(
-                  selectedIndex: activeIndex,
-                  isCollapsed: _isSidebarCollapsed,
-                  onItemSelected: _onItemTapped,
-                  onToggleCollapse: _toggleSidebar,
-                  onLogout: _cerrarSesion,
-                ),
-                Expanded(
-                  child: SeccionesVivas(
-                    activa: activeIndex,
-                    construir: _buildCurrentView,
-                    recrear: _seccionesQueSeRecrean,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
-
-        return SelectionArea(child: mainContent);
-      },
+      builder: (context, _, _) => ListenableBuilder(
+        // El número de Alertas de la barra inferior.
+        listenable: SeguimientoService.cambios,
+        builder: (context, _) => _construir(context),
+      ),
     );
+  }
+
+  Widget _construir(BuildContext context) {
+    final isMobile = MediaQuery.sizeOf(context).width < 768;
+    final activeIndex = _effectiveSelectedIndex();
+    final mobileTabs = _resolverMobileTabIndices();
+    final int activeBottomIdx = () {
+      final found = mobileTabs.indexOf(activeIndex);
+      return found >= 0 ? found : 0;
+    }();
+
+    Widget mainContent;
+    if (isMobile) {
+      mainContent = Scaffold(
+        key: _scaffoldKey,
+        backgroundColor: Colors.transparent,
+        drawer: null,
+        drawerEnableOpenDragGesture: false,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          automaticallyImplyLeading: false,
+          titleSpacing: 16,
+          title: Row(
+            children: [
+              Image.asset(
+                Cristal.logo,
+                height: 34,
+                fit: BoxFit.contain,
+                alignment: Alignment.centerLeft,
+                filterQuality: FilterQuality.high,
+              ),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  CollapsibleSideMenu.opcionesMenu[activeIndex].titulo,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Cristal.texto,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            UserProfileHeaderAction(onLogout: _cerrarSesion),
+            const SizedBox(width: 8),
+          ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(1),
+            child: Container(height: 1, color: Cristal.borde),
+          ),
+        ),
+        body: SeccionesVivas(
+          activa: activeIndex,
+          construir: _buildCurrentView,
+          recrear: _seccionesQueSeRecrean,
+        ),
+        bottomNavigationBar: mobileTabs.length >= 2
+            ? DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Cristal.vidrioSuave,
+                  border: Border(top: BorderSide(color: Cristal.borde)),
+                ),
+                child: BottomNavigationBar(
+                  currentIndex: activeBottomIdx,
+                  onTap: (bottomIdx) {
+                    if (bottomIdx >= 0 && bottomIdx < mobileTabs.length) {
+                      _onItemTapped(mobileTabs[bottomIdx]);
+                    }
+                  },
+                  type: BottomNavigationBarType.fixed,
+                  backgroundColor: Colors.transparent,
+                  selectedItemColor: Cristal.dorado,
+                  unselectedItemColor: Cristal.textoTenue,
+                  selectedLabelStyle: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                  unselectedLabelStyle: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  items: [
+                    for (final idx in mobileTabs) _buildMobileNavItem(idx),
+                  ],
+                ),
+              )
+            : null,
+      );
+    } else {
+      mainContent = Scaffold(
+        key: _scaffoldKey,
+        backgroundColor: Colors.transparent,
+        body: Row(
+          children: [
+            CollapsibleSideMenu(
+              selectedIndex: activeIndex,
+              isCollapsed: _isSidebarCollapsed,
+              onItemSelected: _onItemTapped,
+              onToggleCollapse: _toggleSidebar,
+              onLogout: _cerrarSesion,
+            ),
+            Expanded(
+              child: SeccionesVivas(
+                activa: activeIndex,
+                construir: _buildCurrentView,
+                recrear: _seccionesQueSeRecrean,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return SelectionArea(child: mainContent);
   }
 }

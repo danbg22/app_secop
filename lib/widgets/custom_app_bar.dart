@@ -204,37 +204,14 @@ class CustomUserHeaderActions extends StatelessWidget {
     super.key,
     this.onLogout,
     this.darkTheme = false,
-    this.showNotificationBell = true,
     this.isProfileScreen = false,
     this.compactAvatarOnly = false,
   });
 
   final VoidCallback? onLogout;
   final bool darkTheme;
-  final bool showNotificationBell;
   final bool isProfileScreen;
   final bool compactAvatarOnly;
-
-  static void showNoNotificationsSnackBar(BuildContext context) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(
-                Icons.notifications_off_outlined,
-                color: Cristal.texto,
-                size: 18,
-              ),
-              SizedBox(width: 10),
-              Text('Sin notificaciones'),
-            ],
-          ),
-          duration: Duration(seconds: 2),
-        ),
-      );
-  }
 
   static Future<void> handleMenuSelection({
     required BuildContext context,
@@ -467,19 +444,6 @@ class CustomUserHeaderActions extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            if (showNotificationBell) ...[
-              IconButton(
-                tooltip: 'Notificaciones',
-                visualDensity: VisualDensity.compact,
-                onPressed: () => showNoNotificationsSnackBar(context),
-                icon: Icon(
-                  Icons.notifications_none_rounded,
-                  color: textColor,
-                  size: 22,
-                ),
-              ),
-              SizedBox(width: isCompact ? 4 : 8),
-            ],
             PopupMenuButton<String>(
               tooltip: 'Opciones de cuenta',
               offset: const Offset(0, 46),

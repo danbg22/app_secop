@@ -13,6 +13,7 @@ import 'equipo_juridico_service.dart';
 import 'consent_service.dart';
 import 'payment_service.dart';
 import 'security_service.dart';
+import 'seguimiento_service.dart';
 
 class AuthServiceException implements Exception {
   const AuthServiceException(this.message);
@@ -251,6 +252,8 @@ class AuthService {
     _auth.authStateChanges().listen((_) => authStateVersion.value++);
     EquipoJuridicoService.iniciar();
     ConsentService.iniciar();
+    // Alertas: carga lo que la persona sigue y revisa sus contratos nuevos.
+    SeguimientoService.iniciar();
     unawaited(
       _auth.authStateChanges().first.then((_) => refrescarVerificacionCorreo()),
     );

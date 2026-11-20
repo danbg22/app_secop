@@ -10,12 +10,10 @@ class UserProfileHeaderAction extends StatelessWidget {
     super.key,
     this.onLogout,
     this.darkTheme = false,
-    this.showNotificationBell = true,
   });
 
   final VoidCallback? onLogout;
   final bool darkTheme;
-  final bool showNotificationBell;
 
   /// En escritorio el perfil vive al pie del menú lateral
   /// (`CollapsibleSideMenu`); la barra superior solo lo muestra en celular.
@@ -29,7 +27,6 @@ class UserProfileHeaderAction extends StatelessWidget {
     return CustomUserHeaderActions(
       onLogout: onLogout,
       darkTheme: darkTheme,
-      showNotificationBell: showNotificationBell,
     );
   }
 }

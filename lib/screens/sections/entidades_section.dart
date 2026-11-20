@@ -1617,6 +1617,9 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       );
     }
 
+    // Mientras llega la primera respuesta no se muestran ceros como dato.
+    final sinDatos =
+        _isLoadingLive && _kpiTotalEntities == 0 && _kpiTotalContracts == 0;
     final card1 = kpiCard(
       iconCircle: doubleRingIcon(
         outerColor: Cristal.azulVidrio,
@@ -1629,9 +1632,9 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       ),
       title: 'Entidades',
       subtitleUnderTitle: 'mostradas · $_kpiPeriodo',
-      mainValue: '$_kpiTotalEntities',
+      mainValue: sinDatos ? '—' : '$_kpiTotalEntities',
       trendPercent: 'SECOP II',
-      trendComparison: 'Datos Abiertos',
+      trendComparison: sinDatos ? 'consultando…' : 'Datos Abiertos',
     );
     final card2 = kpiCard(
       iconCircle: doubleRingIcon(
@@ -1644,7 +1647,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
         ),
       ),
       title: 'Total de contratos',
-      mainValue: _formatIntWithDots(_kpiTotalContracts),
+      mainValue: sinDatos ? '—' : _formatIntWithDots(_kpiTotalContracts),
       trendPercent: 'SECOP II',
       trendComparison: 'registrados',
     );
@@ -1671,7 +1674,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
         ),
       ),
       title: 'Valor contratado',
-      mainValue: _formatMillions(_kpiTotalAmountMillions),
+      mainValue: sinDatos ? '—' : _formatMillions(_kpiTotalAmountMillions),
       valueFontSize: 21,
       trendPercent: 'SECOP II',
       trendComparison: 'consolidado',
@@ -1687,7 +1690,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
         ),
       ),
       title: 'Contratistas únicos',
-      mainValue: _formatIntWithDots(_kpiUniqueContractors),
+      mainValue: sinDatos ? '—' : _formatIntWithDots(_kpiUniqueContractors),
       trendPercent: 'SECOP II',
       trendComparison: 'adjudicados',
     );

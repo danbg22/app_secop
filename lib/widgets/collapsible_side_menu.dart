@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../services/seguimiento_service.dart';
 import 'custom_app_bar.dart';
 import 'pqrs_help_dialog.dart';
 import '../tema/cristal.dart';
@@ -51,6 +52,9 @@ class CollapsibleSideMenu extends StatelessWidget {
   /// Sección del rol Supervisión de contratos (Supervisor o Contratista).
   static const int indiceSupervision = 10;
 
+  /// Contratos nuevos de las entidades y contratistas que la persona sigue.
+  static const int indiceAlertas = 6;
+
   /// El usuario tiene alguno de los subroles de Supervisión de contratos.
   static bool get tieneSupervision =>
       AuthService.hasActiveRole('supervisor_contratos') ||
@@ -62,7 +66,7 @@ class CollapsibleSideMenu extends StatelessWidget {
     final tieneJuridico = AuthService.hasActiveRole('equipo_juridico');
     final indices = <int>[];
     if (tienePersona) {
-      indices.addAll(const <int>[0, 2, 3, 4, 7]);
+      indices.addAll(const <int>[0, 2, 3, 4, indiceAlertas, 7]);
     }
     if (tieneJuridico) {
       indices.add(8);
@@ -213,8 +217,11 @@ class CollapsibleSideMenu extends StatelessWidget {
                     const SizedBox(height: 8),
                     if (!isCollapsed) const _RotuloGrupo('MENÚ PRINCIPAL'),
                     Expanded(
-                      child: Builder(
-                        builder: (context) {
+                      // También se redibuja cuando cambian las novedades de
+                      // lo que la persona sigue (número junto a Alertas).
+                      child: ListenableBuilder(
+                        listenable: SeguimientoService.cambios,
+                        builder: (context, _) {
                           final visibleIndices = obtenerIndicesVisiblesPorRol();
                           return _ListaDesvanecida(
                             builder: (controlador) => ListView.builder(
@@ -232,6 +239,8 @@ class CollapsibleSideMenu extends StatelessWidget {
                                     ? Icons.bookmark_rounded
                                     : (index == 8 && seleccionado)
                                     ? Icons.gavel_rounded
+                                    : (index == indiceAlertas && seleccionado)
+                                    ? Icons.notifications_rounded
                                     : (index == indiceSupervision &&
                                           seleccionado)
                                     ? Icons.assignment_turned_in_rounded
@@ -264,6 +273,10 @@ class CollapsibleSideMenu extends StatelessWidget {
                                               icono: icono,
                                               titulo: opcion.titulo,
                                               seleccionado: seleccionado,
+                                              insignia: index == indiceAlertas
+                                                  ? SeguimientoService
+                                                        .totalNuevos
+                                                  : 0,
                                               compacta: true,
                                               onTap: () =>
                                                   onItemSelected(index),
@@ -328,6 +341,9 @@ class CollapsibleSideMenu extends StatelessWidget {
                                         icono: icono,
                                         titulo: opcion.titulo,
                                         seleccionado: seleccionado,
+                                        insignia: index == indiceAlertas
+                                            ? SeguimientoService.totalNuevos
+                                            : 0,
                                         onTap: () => onItemSelected(index),
                                       ),
                                     ),
@@ -624,12 +640,16 @@ class _OpcionMenu extends StatefulWidget {
     required this.seleccionado,
     required this.onTap,
     this.compacta = false,
+    this.insignia = 0,
   });
 
   final IconData icono;
   final String titulo;
   final bool seleccionado;
   final VoidCallback onTap;
+
+  /// Novedades pendientes (contratos nuevos de lo que la persona sigue).
+  final int insignia;
 
   /// Solo el ícono, para el menú contraído.
   final bool compacta;
@@ -714,7 +734,39 @@ class _OpcionMenuState extends State<_OpcionMenu> {
                 size: 21,
                 weight: activa ? 700 : 400,
               );
-              if (widget.compacta) return Center(child: icono);
+              final punto = widget.insignia > 0
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Cristal.acento,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        widget.insignia > 99 ? '99+' : '${widget.insignia}',
+                        style: TextStyle(
+                          color: Cristal.blanco,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    )
+                  : null;
+              if (widget.compacta) {
+                return Center(
+                  child: Badge(
+                    isLabelVisible: widget.insignia > 0,
+                    backgroundColor: Cristal.acento,
+                    label: Text(
+                      widget.insignia > 99 ? '99+' : '${widget.insignia}',
+                      style: TextStyle(color: Cristal.blanco),
+                    ),
+                    child: icono,
+                  ),
+                );
+              }
               return Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
@@ -739,6 +791,7 @@ class _OpcionMenuState extends State<_OpcionMenu> {
                         ),
                       ),
                     ),
+                    if (punto != null) ...[const SizedBox(width: 8), punto],
                   ],
                 ),
               );

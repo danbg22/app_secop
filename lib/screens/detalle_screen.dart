@@ -17,6 +17,8 @@ import '../services/secop_document_intelligence_service.dart';
 import '../services/security_service.dart';
 import '../utils/dependencia_contrato.dart';
 import '../utils/contract_financial_calculator.dart';
+import '../utils/banderas_control.dart';
+import '../widgets/aviso_para_revisar.dart';
 import '../utils/secop_i.dart';
 import '../utils/secop_launcher.dart';
 import '../widgets/collapsible_side_menu.dart';
@@ -1507,6 +1509,19 @@ FORMATO (Markdown)
               ],
             ),
           ],
+          if (BanderasControl.enLeyDeGarantias(_contratoData)
+              case final periodo?) ...[
+            const SizedBox(height: 22),
+            AvisoParaRevisar(
+              titulo: 'Contratación directa en Ley de Garantías',
+              detalle:
+                  'Se firmó por contratación directa durante la Ley de Garantías de las elecciones '
+                  '${periodo.eleccion} (${fechaDiaMesAnio(periodo.desde)} a ${fechaDiaMesAnio(periodo.hasta)}). '
+                  'La Ley 996 de 2005 (art. 33) suspende la contratación directa en ese periodo, salvo '
+                  'defensa y seguridad, crédito público, emergencias, reconstrucción por desastres o '
+                  'atentados y las entidades de salud. Revisa en SECOP II la justificación del contrato.',
+            ),
+          ],
           const SizedBox(height: 22),
           _buildAnalisisFinancieroCard(isMobile: isMobile),
           const SizedBox(height: 22),
@@ -1867,11 +1882,17 @@ FORMATO (Markdown)
           if (a.pagos.isNotEmpty) ...[
             const SizedBox(height: 18),
             _finDesgloseMontos(
-              titulo: 'Ejecución de pagos reportada',
+              titulo: 'Pagos registrados en SECOP II',
               icono: Icons.receipt_long_outlined,
               valores: a.pagos,
               base: a.valorTotal,
             ),
+          ],
+          // Muchas entidades pagan por el SIIF y no registran el pago en
+          // SECOP II: un "pendiente" del 100 % no prueba que no se haya pagado.
+          if (a.valorTotal > 0 && !a.pagos.containsKey('Valor pagado')) ...[
+            const SizedBox(height: 12),
+            _notaPagosNoRegistrados(),
           ],
           if (a.fuentesRecursos.isNotEmpty) ...[
             const SizedBox(height: 18),
@@ -1934,6 +1955,41 @@ FORMATO (Markdown)
           style: TextStyle(color: Cristal.textoSuave, fontSize: 11.5),
         ),
       ],
+    );
+  }
+
+  Widget _notaPagosNoRegistrados() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Cristal.vidrio,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Cristal.borde),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            size: 17,
+            color: Cristal.acentoClaro,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'La entidad no ha registrado pagos de este contrato en SECOP II. '
+              'Muchas entidades registran sus pagos solo en el SIIF: esto no '
+              'significa que no se haya pagado.',
+              style: TextStyle(
+                color: Cristal.textoMedio,
+                fontSize: 12.5,
+                height: 1.45,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

@@ -16,7 +16,11 @@ import '../widgets/user_profile_header_action.dart';
 import 'detalle_screen.dart';
 import 'home_screen.dart';
 import '../tema/cristal.dart';
+import '../services/seguimiento_service.dart';
+import '../widgets/boton_seguir.dart';
 import '../utils/dependencia_contrato.dart';
+import '../utils/banderas_control.dart';
+import '../widgets/aviso_para_revisar.dart';
 import '../services/datos_abiertos.dart';
 import '../services/directorio_sigep_service.dart';
 import '../services/busqueda_personas.dart';
@@ -341,6 +345,28 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
     );
   }
 
+  static const _siglas = {
+    'sena',
+    'icbf',
+    'dian',
+    'invias',
+    'findeter',
+    'etb',
+    'epm',
+    'bbva',
+    'uis',
+    'unal',
+    'ese',
+    'ips',
+    'eps',
+    'esp',
+    'sas',
+    'ani',
+    'ungrd',
+    'fonade',
+    'udea',
+  };
+
   String _toTitleCase(String text) {
     final clean = text.replaceAll(RegExp(r'\s+'), ' ').trim();
     if (clean.isEmpty) return 'Contratista SECOP';
@@ -363,10 +389,17 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
     for (var i = 0; i < words.length; i++) {
       final w = words[i];
       if (w.isEmpty) continue;
+      final letras = w.replaceAll(RegExp(r'[^a-zñáéíóú]'), '');
       if (w == 's.a.s' || w == 's.a.s.' || w == 'sas') {
         out.add('S.A.S.');
       } else if (w == 'ltda' || w == 'ltda.') {
         out.add('LTDA');
+      } else if (w == 's.a' || w == 's.a.' || w == 'sa' || w == 'e.s.p.') {
+        out.add(w == 'e.s.p.' ? 'E.S.P.' : 'S.A.');
+      } else if (w.startsWith('(') && w.endsWith(')') && letras.length <= 10 ||
+          _siglas.contains(letras)) {
+        // Siglas: "(findeter)" → "(FINDETER)", "sena" → "SENA".
+        out.add(w.toUpperCase());
       } else if (i > 0 && smallWords.contains(w)) {
         out.add(w);
       } else {
@@ -484,6 +517,60 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
         duration: const Duration(seconds: 2),
       ),
     );
+  }
+
+  /// Banderas de control del historial: contratos de prestación de
+  /// servicios que se cruzan en fechas y contratación directa firmada en
+  /// Ley de Garantías.
+  List<Widget> _banderas() {
+    if (isLoading || historialContratos.isEmpty) return const [];
+    final contratos = [
+      for (final c in historialContratos)
+        if (c is Map) c,
+    ];
+    final cruces = BanderasControl.cruces(contratos);
+    final garantias = [
+      for (final c in contratos)
+        if (BanderasControl.enLeyDeGarantias(c) != null) c,
+    ];
+    String entidad(Map<dynamic, dynamic> c) => _toTitleCase(
+      '${c['nombre_entidad'] ?? c['nombre_de_la_entidad'] ?? 'Entidad'}',
+    );
+    return [
+      if (cruces.isNotEmpty) ...[
+        const SizedBox(height: 16),
+        AvisoParaRevisar(
+          titulo: cruces.length == 1
+              ? 'Dos contratos que se cruzan en fechas'
+              : '${cruces.length} cruces de contratos en fechas',
+          detalle:
+              'Contratos de prestación de servicios de este contratista con fechas de ejecución que se '
+              'cruzan al menos 15 días. No es ilegal por sí mismo, pero conviene revisar que pueda '
+              'cumplir todas las obligaciones y horarios de cada uno.',
+          puntos: [
+            for (final c in cruces.take(4))
+              '${fechaDiaMesAnio(c.desde)} a ${fechaDiaMesAnio(c.hasta)} (${c.dias} días): '
+                  '${entidad(c.a)} y ${entidad(c.b)}',
+          ],
+        ),
+      ],
+      if (garantias.isNotEmpty) ...[
+        const SizedBox(height: 12),
+        AvisoParaRevisar(
+          titulo: garantias.length == 1
+              ? 'Un contrato directo en Ley de Garantías'
+              : '${garantias.length} contratos directos en Ley de Garantías',
+          detalle:
+              'Firmados por contratación directa en un periodo en que la Ley 996 de 2005 (art. 33) la '
+              'suspende, salvo excepciones como defensa y seguridad, emergencias, crédito público y '
+              'entidades de salud. Revisa en SECOP II la justificación de cada uno.',
+          puntos: [
+            for (final c in garantias.take(4))
+              '${fechaDiaMesAnio(BanderasControl.fecha(c['fecha_de_firma'])!)}: ${entidad(c)}',
+          ],
+        ),
+      ],
+    ];
   }
 
   (int, double) _calcularResumen(List<dynamic> contratos) {
@@ -728,7 +815,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Perfil Unificado',
+                'Perfil del contratista',
                 style: TextStyle(
                   color: Cristal.texto,
                   fontSize: isMobile ? 22 : 32,
@@ -775,6 +862,19 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
           ),
         ),
         const SizedBox(width: 10),
+        // Seguir: sus contratos nuevos aparecen en Alertas.
+        if ((widget.documentoProveedor ?? widget.nit ?? '')
+                .replaceAll(RegExp(r'[^0-9]'), '')
+                .length >=
+            5) ...[
+          BotonSeguir(
+            tipo: TipoSeguido.contratista,
+            clave: widget.documentoProveedor ?? widget.nit ?? '',
+            nombre: _nombreAuditar,
+            compacto: isMobile,
+          ),
+          const SizedBox(width: 10),
+        ],
         UserProfileHeaderAction(onLogout: _cerrarSesion),
       ],
     );
@@ -1131,7 +1231,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
             icon: Icons.description_outlined,
             iconColor: Cristal.acentoClaro,
             iconBg: Cristal.azulVidrio,
-            value: formatoMoneda.format(cantidadContratos),
+            value: isLoading ? '—' : formatoMoneda.format(cantidadContratos),
             subtitle: 'Contratos celebrados',
           ),
           const SizedBox(height: 10),
@@ -1139,7 +1239,9 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
             icon: Icons.toll_outlined,
             iconColor: Cristal.verde,
             iconBg: Cristal.verdeVidrio,
-            value: '\$ ${formatoMoneda.format(valorTotalAcumulado.round())}',
+            value: isLoading
+                ? '—'
+                : '\$ ${formatoMoneda.format(valorTotalAcumulado.round())}',
             subtitle: 'Valor total acumulado',
           ),
         ],
@@ -1153,7 +1255,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
             icon: Icons.description_outlined,
             iconColor: Cristal.acentoClaro,
             iconBg: Cristal.azulVidrio,
-            value: formatoMoneda.format(cantidadContratos),
+            value: isLoading ? '—' : formatoMoneda.format(cantidadContratos),
             subtitle: 'Contratos celebrados',
           ),
         ),
@@ -1163,7 +1265,9 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
             icon: Icons.toll_outlined,
             iconColor: Cristal.verde,
             iconBg: Cristal.verdeVidrio,
-            value: '\$ ${formatoMoneda.format(valorTotalAcumulado.round())}',
+            value: isLoading
+                ? '—'
+                : '\$ ${formatoMoneda.format(valorTotalAcumulado.round())}',
             subtitle: 'Valor total',
           ),
         ),
@@ -1564,6 +1668,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
                     const SizedBox(height: 16),
                     _buildHojaSigep(isMobile),
                     _buildKpiSummaryRow(isMobile),
+                    ..._banderas(),
                     const SizedBox(height: 24),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
