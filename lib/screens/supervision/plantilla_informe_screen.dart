@@ -93,36 +93,69 @@ class _PlantillaInformeScreenState extends State<PlantillaInformeScreen> {
   Future<void> _editarEtapa(int? i) async {
     final p = _p!;
     final e = i == null ? null : p.etapas[i];
-    final nombre = TextEditingController(text: e?.nombre ?? '');
-    final cert = TextEditingController(text: e?.certificacion ?? '');
+    var nombre = e?.nombre ?? '';
+    var certificacion = e?.certificacion ?? '';
+    var responsable = e?.responsableNombre ?? '';
+    var correo = e?.responsableEmail ?? '';
+    final form = GlobalKey<FormState>();
     final ok = await mostrarDialogoCristal<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Cristal.flotante,
+        scrollable: true,
         title: Text(e == null ? 'Nueva etapa' : 'Editar etapa'),
         content: SizedBox(
           width: 520,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nombre,
-                decoration: decoracionCampo(
-                  'Nombre',
-                  ayuda: 'Ej.: Enlace, Jefe de sectorial, Apoyo jurídico',
+          child: Form(
+            key: form,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  initialValue: nombre,
+                  decoration: decoracionCampo('Nombre de la etapa'),
+                  onChanged: (v) => nombre = v.trim(),
+                  validator: (v) => (v ?? '').trim().isEmpty
+                      ? 'Indica el nombre de esta etapa.'
+                      : null,
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: cert,
-                minLines: 3,
-                maxLines: 6,
-                decoration: decoracionCampo(
-                  'Texto que certifica (opcional)',
-                  ayuda: 'Si lo escribes, sale como bloque de certificación en el informe y se completa al aprobar.',
+                const SizedBox(height: 12),
+                TextFormField(
+                  initialValue: responsable,
+                  onChanged: (v) => responsable = v.trim(),
+                  decoration: decoracionCampo(
+                    'Responsable habitual (opcional)',
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                TextFormField(
+                  initialValue: correo,
+                  onChanged: (v) => correo = v.trim().toLowerCase(),
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: decoracionCampo(
+                    'Correo del responsable',
+                    ayuda:
+                        'También puedes asignarlo al configurar cada contrato.',
+                  ),
+                  validator: (v) =>
+                      correo.isEmpty ||
+                          RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(correo)
+                      ? null
+                      : 'Indica un correo válido.',
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  initialValue: certificacion,
+                  onChanged: (v) => certificacion = v.trim(),
+                  minLines: 3,
+                  maxLines: 6,
+                  decoration: decoracionCampo(
+                    'Texto que certifica (opcional)',
+                    ayuda: 'Aparece en el informe al aprobar esta etapa.',
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         actions: [
@@ -131,24 +164,23 @@ class _PlantillaInformeScreenState extends State<PlantillaInformeScreen> {
             child: const Text('Cancelar'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () {
+              if (form.currentState!.validate()) Navigator.pop(ctx, true);
+            },
             style: EstiloContractual.botonPrincipal(),
             child: const Text('Guardar'),
           ),
         ],
       ),
     );
-    if (ok != true || nombre.text.trim().isEmpty) return;
-    final nueva =
-        (e ??
-                EtapaAprobacion(
-                  id: 'e${DateTime.now().microsecondsSinceEpoch}',
-                  nombre: '',
-                ))
-            .copyWith(
-              nombre: nombre.text.trim(),
-              certificacion: cert.text.trim(),
-            );
+    if (ok != true || !mounted) return;
+    final nueva = EtapaAprobacion(
+      id: e?.id ?? 'e${DateTime.now().microsecondsSinceEpoch}',
+      nombre: nombre,
+      certificacion: certificacion,
+      responsableNombre: responsable,
+      responsableEmail: correo,
+    );
     _set(
       p.copyWith(
         etapas: i == null ? [...p.etapas, nueva] : ([...p.etapas]..[i] = nueva),
@@ -377,7 +409,7 @@ class _PlantillaInformeScreenState extends State<PlantillaInformeScreen> {
           const SizedBox(height: 16),
           TarjetaSupervision(
             titulo: 'Cadena de aprobación',
-            subtitulo: 'Etapas por las que pasa cada informe, en orden. Los responsables se asignan en cada contrato.',
+            subtitulo: 'Ordena las etapas y asigna sus responsables habituales. Puedes ajustarlos en cada contrato.',
             icono: Icons.alt_route_rounded,
             accion: TextButton.icon(
               onPressed: p.etapas.length >= 5 ? null : () => _editarEtapa(null),

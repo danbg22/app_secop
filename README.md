@@ -46,14 +46,11 @@ En la consola de Firebase / Google Cloud:
 | Rol | Precio | Sección |
 |---|---|---|
 | Persona | plan pago | Consulta (Inicio, Contratos, Entidades, Contratistas, Favoritos) |
-| Equipo jurídico entidad | plan pago | Gestión contractual: crea y organiza contratos, pide y verifica documentos, **designa al supervisor** |
-| Supervisión de contratos → Supervisor | plan pago (módico) | Supervisión de contratos: configura los informes, los aprueba o devuelve y registra el pago |
-| Supervisión de contratos → Contratista | gratis | Supervisión de contratos: vincula su contrato con el enlace, sube documentos e informes |
+| Equipo jurídico entidad | plan pago | Gestión contractual y revisión documental |
+| Supervisión → Supervisor | plan pago | Registra su vinculación y dependencia, designa a Jurídico y configura el flujo de revisión |
+| Supervisión → Jurídico | gratis | Revisa los informes en las etapas asignadas a su correo verificado |
+| Supervisión → Contratista | gratis | Registra los datos del contrato, elige supervisor por NIT y dependencia y presenta sus informes |
 
-El equipo jurídico ya no supervisa: designa al supervisor de cada contrato
-(nombre y correo) en `asignaciones_supervision/{token}`. El supervisor
-entra con ese correo **verificado** y ve el contrato en su sección; los
-responsables de las demás etapas de aprobación también deben tener el rol
-Supervisor y el correo verificado. El Contratista se activa sin Wompi.
+Al completar su alta, el supervisor registra el acto de nombramiento o su propio contrato. La persona designada como Jurídico activa su cuenta con el mismo correo. Cada contrato recibe una copia de la plantilla al configurar sus informes. El supervisor puede ajustar las etapas, los responsables, las obligaciones y los documentos.
 
-Después de actualizar la app hay que publicar de nuevo `firestore.rules`.
+Los contratos nuevos se guardan en `contratos_supervision`. La bandeja del supervisor conserva sus asignaciones anteriores y el contratista puede abrir sus enlaces históricos. Publica las reglas de Firestore junto con la versión de la app.

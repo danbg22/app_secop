@@ -377,6 +377,10 @@ class ExpedienteContratoPs {
     required this.fechaCreacionIso,
     required this.apartados,
     required this.trazabilidad,
+    this.formaPago = '',
+    this.rp = '',
+    this.cdp = '',
+    this.aprobacionSecop = '',
     this.creadoPorUid = '',
     this.equipoUid = '',
     this.actualizadoEnMs = 0,
@@ -399,6 +403,7 @@ class ExpedienteContratoPs {
   final String objetoContrato;
   final int valorContratoCop;
   final String plazoEjecucion;
+  final String formaPago, rp, cdp, aprobacionSecop;
   final String contratistaNombreEsperado;
   final String contratistaCedulaEsperada;
   final String contratistaCorreo;
@@ -579,6 +584,10 @@ class ExpedienteContratoPs {
     Map<String, Map<String, dynamic>>? decisiones,
   }) {
     return ExpedienteContratoPs(
+      formaPago: formaPago,
+      rp: rp,
+      cdp: cdp,
+      aprobacionSecop: aprobacionSecop,
       id: id,
       tokenInvitado: tokenInvitado,
       entidadNombre: entidadNombre,
@@ -619,6 +628,10 @@ class ExpedienteContratoPs {
 
   Map<String, dynamic> toMap({bool omitLargeBinary = false}) {
     return <String, dynamic>{
+      if (aprobacionSecop.isNotEmpty) 'aprobacionSecop': aprobacionSecop,
+      if (formaPago.isNotEmpty) 'formaPago': formaPago,
+      if (rp.isNotEmpty) 'rp': rp,
+      if (cdp.isNotEmpty) 'cdp': cdp,
       'id': id,
       'tokenInvitado': tokenInvitado.toLowerCase(),
       'entidadNombre': entidadNombre,
@@ -686,6 +699,10 @@ class ExpedienteContratoPs {
     }
 
     return ExpedienteContratoPs(
+      formaPago: '${map['formaPago'] ?? ''}',
+      rp: '${map['rp'] ?? ''}',
+      cdp: '${map['cdp'] ?? ''}',
+      aprobacionSecop: '${map['aprobacionSecop'] ?? ''}',
       id: (map['id'] ?? '').toString(),
       tokenInvitado: (map['tokenInvitado'] ?? '').toString().toLowerCase(),
       entidadNombre: (map['entidadNombre'] ?? '').toString(),

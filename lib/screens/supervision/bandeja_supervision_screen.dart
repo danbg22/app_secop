@@ -589,21 +589,12 @@ class _ContratosState extends State<_Contratos> {
   @override
   Widget build(BuildContext context) {
     if (widget.expedientes.isEmpty) {
-      return TarjetaSupervision(
+      return const TarjetaSupervision(
         titulo: 'Contratos',
-        subtitulo: 'Aún no te han designado como supervisor de un contrato.',
         icono: Icons.folder_shared_outlined,
         children: [
           Text(
-            'El equipo jurídico de la entidad te designa como supervisor en cada contrato de prestación de '
-            'servicios, con el correo de esta cuenta (${SupervisionService.emailActual}). Cuando lo haga, el '
-            'contrato aparece aquí para que configures sus informes: periodos, obligaciones y quién aprueba. '
-            'El contratista llena cada informe desde su cuenta gratuita de Contratista o el enlace del contrato.',
-            style: TextStyle(
-              color: Cristal.textoMedio,
-              fontSize: 13.5,
-              height: 1.5,
-            ),
+            'Aquí aparecerán los contratos vinculados a tu supervisión o asignados para revisión.',
           ),
         ],
       );

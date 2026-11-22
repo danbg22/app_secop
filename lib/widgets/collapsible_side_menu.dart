@@ -58,7 +58,8 @@ class CollapsibleSideMenu extends StatelessWidget {
   /// El usuario tiene alguno de los subroles de Supervisión de contratos.
   static bool get tieneSupervision =>
       AuthService.hasActiveRole('supervisor_contratos') ||
-      AuthService.hasActiveRole('contratista');
+      AuthService.hasActiveRole('contratista') ||
+      AuthService.hasActiveRole('juridico_supervision');
 
   /// Calcula dinámicamente las secciones habilitadas según los roles pagados y acumulados.
   static List<int> obtenerIndicesVisiblesPorRol() {

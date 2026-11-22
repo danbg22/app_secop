@@ -122,8 +122,7 @@ class AdminConfiguracionRolesYPagos {
   static const String rolPorDefectoId = 'persona';
 
   /// Grupo "Supervisión de contratos": al escoger rol se muestra como una
-  /// sola tarjeta que se despliega en sus dos subroles (Supervisor y
-  /// Contratista).
+  /// sola tarjeta con los perfiles Supervisor, Contratista y Jurídico.
   static const String grupoSupervision = 'supervision_contratos';
 
   // ---------------------------------------------------------------------------
@@ -215,15 +214,12 @@ class AdminConfiguracionRolesYPagos {
     // -------------------------------------------------------------------------
     // ROL 3: SUPERVISIÓN DE CONTRATOS — SUBROL SUPERVISOR ($100 COP TEMPORAL)
     // -------------------------------------------------------------------------
-    // La supervisión de los contratos de prestación de servicios no es del
-    // equipo jurídico (que crea y organiza los contratos): la hace el
-    // supervisor que la entidad designa en cada contrato.
     RolPaqueteConfig(
       id: 'supervisor_contratos',
       nombre: 'Supervisor de contratos',
       nombrePlan: 'Plan Supervisor de Contratos',
       etiquetaDestacada: null,
-      descripcionCorta: 'Revisa, aprueba o devuelve los informes mensuales de los contratos de prestación de servicios que te designaron.',
+      descripcionCorta: 'Registra tu entidad, designa a Jurídico y dirige la revisión de los informes de tus contratistas.',
       precioCop: 100, // <-- PRECIO TEMPORAL DE PRUEBA ($100 COP); el real es una cuota módica
       habilitadoParaRegistro: true,
       colorPrimarioHex: 0xFF0F766E,
@@ -236,7 +232,7 @@ class AdminConfiguracionRolesYPagos {
         'Informe de supervisión, cuenta de cobro y registro del pago',
       ],
       todosLosBeneficios: <String>[
-        'Ves solo los contratos en los que la entidad te designó como supervisor',
+        'Recibes los contratos vinculados a tu dependencia y a tu cuenta',
         'Configuras periodos, valor, obligaciones y quién aprueba cada etapa',
         'Revisas cada informe con sus soportes y lo apruebas o lo devuelves',
         'La app arma el informe de supervisión y la cuenta de cobro en PDF',
@@ -266,12 +262,29 @@ class AdminConfiguracionRolesYPagos {
         'Estado de cada informe: en revisión, devuelto, aprobado o pagado',
       ],
       todosLosBeneficios: <String>[
-        'Vinculas el contrato con el enlace que te envió la entidad',
+        'Registras tu contrato por NIT, dependencia y supervisor',
         'Subes cada documento del contrato y ves sus observaciones',
         'Diligencias y firmas tus informes de actividades en la app',
         'Sin costo para el contratista',
       ],
       permisosPlataforma: <String>['supervision_contratista', 'pqrs'],
+    ),
+
+    RolPaqueteConfig(
+      id: 'juridico_supervision',
+      nombre: 'Jurídico',
+      nombrePlan: 'Jurídico de supervisión',
+      etiquetaDestacada: 'Gratis',
+      descripcionCorta: 'Revisa los informes en las etapas que te asigna el supervisor.',
+      precioCop: 0,
+      habilitadoParaRegistro: true,
+      colorPrimarioHex: 0xFF0F766E,
+      colorFondoIlustracionHex: 0xFFE0F2EF,
+      colorBordeTarjetaHex: 0xFF0F766E,
+      grupo: grupoSupervision,
+      beneficiosPrincipales: ['Bandeja de informes asignados', 'Devolución con observaciones'],
+      todosLosBeneficios: ['Revisas los soportes y apruebas o solicitas correcciones en tu etapa'],
+      permisosPlataforma: ['supervision_juridico', 'pqrs'],
     ),
 
     // -------------------------------------------------------------------------
@@ -629,6 +642,7 @@ class PaymentService {
     if (trimmed == 'contratista' || trimmed == 'contratista_supervision') {
       return 'contratista';
     }
+    if (const {'juridico_supervision', 'jurídico', 'juridico', 'jurídico de supervisión'}.contains(trimmed)) return 'juridico_supervision';
     if (trimmed.contains('juridico') || trimmed.contains('jurídico')) {
       return 'equipo_juridico';
     }

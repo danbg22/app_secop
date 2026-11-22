@@ -33,7 +33,7 @@ service cloud.firestore {
       return despues.rolesActivos is list &&
           despues.rolesActivos.toSet()
               .difference(antes.get('rolesActivos', []).toSet())
-              .hasOnly(['contratista']);
+              .hasOnly(['contratista','juridico_supervision']);
     }
 
     // Correos administradores (misma lista que lib/services/admin_access.dart).
@@ -133,14 +133,18 @@ service cloud.firestore {
     // Supervisor designado del contrato: configura los informes, decide
     // cualquier etapa y registra el pago. El equipo jurídico ya no supervisa.
     function esSupervisorDeExpediente(token) {
-      return correoVerificado() &&
+      return correoVerificado() && tieneRol('supervisor_contratos') &&
           exists(rutaAsignacion(token)) &&
           get(rutaAsignacion(token)).data.get('supervisorEmail', '') == request.auth.token.email.lower();
     }
 
+    function revisorSupervision() {
+      return correoVerificado() && (tieneRol('supervisor_contratos') || tieneRol('juridico_supervision'));
+    }
+
     // Supervisor o responsable de alguna etapa de la cadena de aprobación.
     function esRevisorDeExpediente(token) {
-      return correoVerificado() &&
+      return revisorSupervision() &&
           exists(rutaAsignacion(token)) &&
           get(rutaAsignacion(token)).data.get('revisoresEmails', []).hasAny([request.auth.token.email.lower()]);
     }
@@ -148,7 +152,7 @@ service cloud.firestore {
     // Responsable de la etapa `i` de la cadena de aprobación del contrato.
     function esResponsableEtapa(token, i) {
       let ruta = /databases/$(database)/documents/expedientes_juridicos/$(token)/supervision/plan;
-      return correoVerificado() &&
+      return revisorSupervision() &&
           exists(ruta) &&
           get(ruta).data.get('etapas', []).size() > i &&
           get(ruta).data.etapas[i].get('responsableEmail', '') == request.auth.token.email.lower();
@@ -251,7 +255,9 @@ service cloud.firestore {
             request.resource.data.rolesActivos == resource.data.rolesActivos) ||
            isUnpaidOrBaseRoleOnly(request.resource.data) ||
            soloSumaRolGratuito(resource.data, request.resource.data) ||
-           hasVerifiedWompiLedger(request.resource.data));
+           (hasVerifiedWompiLedger(request.resource.data) &&
+            request.resource.data.rolesActivos.toSet().difference(resource.data.get('rolesActivos', []).toSet())
+              .hasOnly([get(/databases/$(database)/documents/pagos_wompi/$(request.resource.data.ultimoPagoWompi.transactionId)).data.rolId])));
 
       allow delete: if false;
 
@@ -416,7 +422,7 @@ service cloud.firestore {
               // Registro del pago de un informe aprobado.
               (resource.data.estado == 'aprobado' &&
                request.resource.data.estado == 'pagado' &&
-               esRevisorDeExpediente(token) &&
+               esSupervisorDeExpediente(token) &&
                request.resource.data.diff(resource.data).affectedKeys()
                    .hasOnly(camposEquipoInforme()))
             );
@@ -463,48 +469,178 @@ service cloud.firestore {
     }
 
     // =========================================================================
-    // 4a. DESIGNACIÓN DE LA SUPERVISIÓN (`asignaciones_supervision/{token}`)
-    // =========================================================================
-    // El equipo jurídico que creó el contrato designa al supervisor (lo
-    // organiza, no lo supervisa). El supervisor ve aquí sus contratos y solo
-    // puede cambiar quiénes revisan los informes (`revisoresEmails`).
+    // Designaciones anteriores. Se conservan para los contratos ya existentes.
     match /asignaciones_supervision/{token} {
-      function asignacionValida(d) {
-        return d.token == token &&
-            isNonEmptyString(d.supervisorEmail, 160) &&
-            d.supervisorEmail == d.supervisorEmail.lower() &&
-            isNonEmptyString(d.supervisorNombre, 160) &&
-            d.revisoresEmails is list &&
-            d.revisoresEmails.size() <= 8 &&
-            d.revisoresEmails.hasAny([d.supervisorEmail]);
-      }
-
-      allow get: if token.matches('^[a-f0-9]{32,64}$') &&
-          (esEquipoDeExpediente(token) ||
-           (correoVerificado() &&
-            resource.data.revisoresEmails.hasAny([request.auth.token.email.lower()])));
-      // Contratos del supervisor y de los responsables de etapa: la consulta
-      // debe filtrar `revisoresEmails array-contains <su correo>`.
-      allow list: if correoVerificado() &&
-          request.auth.token.email in resource.data.revisoresEmails;
-      allow create: if token.matches('^[a-f0-9]{32,64}$') &&
-          expedienteActivo(token) &&
-          esEquipoDeExpediente(token) &&
-          asignacionValida(request.resource.data);
-      allow update: if token.matches('^[a-f0-9]{32,64}$') &&
-          expedienteActivo(token) &&
-          asignacionValida(request.resource.data) &&
-          (esEquipoDeExpediente(token) ||
-           (correoVerificado() &&
-            resource.data.supervisorEmail == request.auth.token.email.lower() &&
-            request.resource.data.diff(resource.data).affectedKeys()
-                .hasOnly(['revisoresEmails', 'actualizadoEnMs'])));
-      allow delete: if token.matches('^[a-f0-9]{32,64}$') &&
-          (esEquipoDeExpediente(token) ||
-           puedeEliminarExpediente(expedienteDe(token)));
+      allow read: if revisorSupervision() &&
+          request.auth.token.email.lower() in resource.data.revisoresEmails;
+      allow update: if esSupervisorDeExpediente(token) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revisoresEmails','actualizadoEnMs']) &&
+          request.resource.data.revisoresEmails is list &&
+          request.resource.data.revisoresEmails.size() <= 8 &&
+          resource.data.supervisorEmail in request.resource.data.revisoresEmails;
+      allow delete: if puedeEliminarExpediente(expedienteDe(token));
     }
 
-    // =========================================================================
+    function tieneRol(rol) {
+      return isSignedIn() && (isAdmin() ||
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('rolesActivos', []).hasAny([rol]));
+    }
+
+    function titularSupervision(uid) {
+      return isOwner(uid) && correoVerificado() && tieneRol('supervisor_contratos');
+    }
+
+    function perfilSupervisor(uid) {
+      return /databases/$(database)/documents/perfiles_supervision/$(uid);
+    }
+
+    // La vinculación y el documento de nombramiento solo los consulta el titular.
+    match /perfiles_supervision/{uid} {
+      allow get: if titularSupervision(uid);
+      allow create, update: if titularSupervision(uid) &&
+          request.resource.data.vinculacion in ['nombramiento', 'contrato'] &&
+          request.resource.data.entidadNit.matches('^[0-9]{9}$') &&
+          isNonEmptyString(request.resource.data.entidadNombre, 160) &&
+          isNonEmptyString(request.resource.data.dependencia, 160) &&
+          isNonEmptyString(request.resource.data.supervisorNombre, 160) &&
+          isNonEmptyString(request.resource.data.referencia, 160) &&
+          isNonEmptyString(request.resource.data.cargoObjeto, 2000) &&
+          (request.resource.data.vinculacion == 'nombramiento' ||
+            (request.resource.data.valorContratoCop is int && request.resource.data.valorContratoCop > 0 &&
+             isNonEmptyString(request.resource.data.plazoEjecucion,160) && isNonEmptyString(request.resource.data.formaPago,160) &&
+             isNonEmptyString(request.resource.data.rp,160) && isNonEmptyString(request.resource.data.cdp,160))) &&
+          request.resource.data.fecha.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
+          getAfter(/databases/$(database)/documents/juridicos_supervision/$(uid)).data.email == request.resource.data.juridicoEmail &&
+          getAfter(/databases/$(database)/documents/juridicos_supervision/$(uid)).data.nombre == request.resource.data.juridicoNombre;
+    }
+
+    function coincideConPerfil(d, uid) {
+      let p = getAfter(perfilSupervisor(uid)).data;
+      return d.entidadNit == p.entidadNit && d.entidadNombre == p.entidadNombre &&
+          d.supervisorNombre == p.supervisorNombre && d.dependencia == p.dependencia;
+    }
+
+    match /directorio_supervision/{nit}/supervisores/{uid} {
+      allow delete: if titularSupervision(uid) && getAfter(perfilSupervisor(uid)).data.entidadNit != nit;
+      allow read: if tieneRol('contratista') || titularSupervision(uid);
+      allow create, update: if titularSupervision(uid) && request.resource.data.entidadNit == nit &&
+          request.resource.data.keys().hasOnly(['entidadNit','entidadNombre','dependencia','supervisorNombre']) &&
+          coincideConPerfil(request.resource.data, uid);
+    }
+
+    match /juridicos_supervision/{uid} {
+      allow read: if titularSupervision(uid) || (correoVerificado() && tieneRol('juridico_supervision') &&
+          resource.data.email == request.auth.token.email.lower());
+      allow create, update: if titularSupervision(uid) && coincideConPerfil(request.resource.data, uid) &&
+          isNonEmptyString(request.resource.data.nombre, 160) &&
+          isNonEmptyString(request.resource.data.email, 160) &&
+          request.resource.data.email == request.resource.data.email.lower() &&
+          request.resource.data.email != request.auth.token.email.lower();
+    }
+
+    match /contratos_supervision/{id} {
+      function contrato() {
+        return get(/databases/$(database)/documents/contratos_supervision/$(id)).data;
+      }
+      function contratista(d) {
+        return isOwner(d.contratistaUid) && tieneRol('contratista');
+      }
+      function juridico(d) {
+        return correoVerificado() && tieneRol('juridico_supervision') &&
+            request.auth.token.email.lower() in d.revisoresEmails;
+      }
+      function participa(d) {
+        return contratista(d) || titularSupervision(d.supervisorUid) || juridico(d);
+      }
+      function destinoValido(d) {
+        let ref = /databases/$(database)/documents/directorio_supervision/$(d.entidadNit)/supervisores/$(d.supervisorUid);
+        let entrada = get(ref).data;
+        return entrada.entidadNombre == d.entidadNombre && entrada.dependencia == d.dependencia &&
+            entrada.supervisorNombre == d.supervisorNombre;
+      }
+      function datoContratoValido(d) {
+        return isNonEmptyString(d.numeroContrato, 80) && isNonEmptyString(d.objetoContrato, 2000) &&
+            d.valorContratoCop is int && d.valorContratoCop > 0 &&
+            isNonEmptyString(d.plazoEjecucion,160) && isNonEmptyString(d.formaPago,160) &&
+            isNonEmptyString(d.rp,160) && isNonEmptyString(d.cdp,160) &&
+            d.aprobacionSecop.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+      }
+      allow get: if tieneRol('contratista') && id.matches('^sc_[a-f0-9]{64}$') &&
+          !exists(/databases/$(database)/documents/contratos_supervision/$(id));
+      allow read: if participa(resource.data);
+      allow create: if contratista(request.resource.data) &&
+          id.matches('^sc_[a-f0-9]{64}$') && request.resource.data.id == id &&
+          request.resource.data.tokenInvitado == id && request.resource.data.revisoresEmails == [] &&
+          request.resource.data.contratistaCorreo == request.auth.token.email.lower() &&
+          request.resource.data.supervisorUid != request.auth.uid &&
+          request.resource.data.keys().hasOnly(['id','tokenInvitado','supervisorUid','contratistaUid',
+            'entidadNit','entidadNombre','dependencia','supervisorNombre','revisoresEmails',
+            'contratistaNombreEsperado','contratistaCedulaEsperada','contratistaCorreo','numeroContrato',
+            'objetoContrato','valorContratoCop','plazoEjecucion','formaPago','rp','cdp','aprobacionSecop']) &&
+          destinoValido(request.resource.data) && datoContratoValido(request.resource.data);
+      allow update: if titularSupervision(resource.data.supervisorUid) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revisoresEmails','supervisorEmail']) &&
+          request.resource.data.supervisorEmail == request.auth.token.email.lower() &&
+          request.resource.data.revisoresEmails is list && request.resource.data.revisoresEmails.size() <= 5 &&
+          !(resource.data.contratistaCorreo in request.resource.data.revisoresEmails);
+
+      allow update: if titularSupervision(resource.data.supervisorUid) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['objetoContrato','aprobacionSecop',
+            'valorContratoCop','plazoEjecucion','formaPago','rp','cdp']) && datoContratoValido(request.resource.data);
+
+      match /supervision/{doc} {
+        allow get: if participa(contrato());
+        allow create, update: if doc == 'plan' && titularSupervision(contrato().supervisorUid) &&
+            request.resource.data.etapas is list && request.resource.data.etapas.size() in [1,2,3,4,5] &&
+            request.resource.data.obligaciones is list && request.resource.data.obligaciones.size() > 0 &&
+            request.resource.data.obligaciones.size() <= 60;
+        allow create, update: if doc == 'firma' && contratista(contrato()) &&
+            request.resource.data.keys().hasOnly(['archivoBase64','partes','mime','actualizadoEnIso']) &&
+            isNonEmptyString(request.resource.data.archivoBase64, 900000);
+      }
+
+      match /informes/{periodo} {
+        function decisionValida(d) {
+          let etapas = get(/databases/$(database)/documents/contratos_supervision/$(id)/supervision/plan).data.etapas;
+          let i = resource.data.get('etapaActual', 0);
+          let actual = i < etapas.size() ? i : etapas.size() - 1;
+          let estado = request.resource.data.estado;
+          let nuevo = request.resource.data.get('etapaActual', 0);
+          return resource.data.estado == 'enRevision' &&
+              (titularSupervision(d.supervisorUid) || (juridico(d) &&
+               etapas[actual].responsableEmail == request.auth.token.email.lower())) &&
+              ((estado == 'devuelto' && nuevo == i) ||
+               (estado == 'enRevision' && actual + 1 < etapas.size() && nuevo == actual + 1) ||
+               (estado == 'aprobado' && actual + 1 == etapas.size() && nuevo == i));
+        }
+        allow read: if participa(contrato());
+        allow create: if contratista(contrato()) && periodo.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
+            exists(/databases/$(database)/documents/contratos_supervision/$(id)/supervision/plan) &&
+            request.resource.data.id == periodo && request.resource.data.estado in ['borrador','enRevision'] &&
+            request.resource.data.keys().hasOnly(camposContratistaInforme());
+        allow update: if request.resource.data.id == periodo &&
+            ((contratista(contrato()) && resource.data.estado in ['borrador','devuelto'] &&
+              (request.resource.data.estado == resource.data.estado || request.resource.data.estado == 'enRevision') &&
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly(camposContratistaInforme())) ||
+             (request.resource.data.diff(resource.data).affectedKeys().hasOnly(camposEquipoInforme()) &&
+              (decisionValida(contrato()) || (titularSupervision(contrato().supervisorUid) &&
+               resource.data.estado == 'aprobado' && request.resource.data.estado == 'pagado'))));
+
+        function editable() {
+          let informe = get(/databases/$(database)/documents/contratos_supervision/$(id)/informes/$(periodo)).data;
+          return contratista(contrato()) && informe.estado in ['borrador','devuelto'];
+        }
+        match /archivos/{archivo} {
+          allow read: if participa(contrato());
+          allow create, update: if editable() && archivoValido(request.resource.data);
+          match /partes/{parte} {
+            allow read: if participa(contrato());
+            allow create, update: if editable() && isNonEmptyString(request.resource.data.datos, 950000);
+          }
+        }
+      }
+    }
+
     // 4b. EQUIPO JURÍDICO "MASTER CHIEF" (`miembros_equipo/{correo}`)
     // =========================================================================
     // El Master Jurídico crea abogados temporales con permisos y vigencia. El
@@ -590,9 +726,8 @@ service cloud.firestore {
     // 4d. PLANTILLA DE INFORMES DE LA ENTIDAD (`plantillas_informe/{equipoUid}`)
     // =========================================================================
     match /plantillas_informe/{equipoUid} {
-      allow get: if esDelEquipo(equipoUid);
-      allow create, update: if isSignedIn() &&
-          (equipoUid == request.auth.uid || permisoEquipo(equipoUid, 'crear_contratos')) &&
+      allow get: if titularSupervision(equipoUid);
+      allow create, update: if titularSupervision(equipoUid) &&
           request.resource.data.etapas is list &&
           request.resource.data.etapas.size() > 0 &&
           request.resource.data.etapas.size() <= 5 &&

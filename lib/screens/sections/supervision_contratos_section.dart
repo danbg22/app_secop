@@ -1,33 +1,22 @@
-import 'dart:async';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../services/auth_service.dart';
 import '../../services/contratos_vinculados_service.dart';
+import '../../services/juridico_contratacion_service.dart';
 import '../../services/supervision_service.dart';
 import '../../tema/cristal.dart';
 import '../gestion_contractual/estilo_contractual.dart';
 import '../portal_contratista_invitado_screen.dart';
 import '../supervision/bandeja_supervision_screen.dart';
 import '../supervision/componentes_supervision.dart';
+import '../supervision/informes_contratista_view.dart';
 import '../supervision/plantilla_informe_screen.dart';
+import '../supervision/registro_supervision.dart';
 
-enum _Subrol { supervisor, contratista }
-
-/// Sección del rol Supervisión de contratos. Tiene dos subroles:
-/// - Supervisor: los contratos donde la entidad lo designó como supervisor
-///   (o responsable de una etapa); configura y aprueba los informes.
-/// - Contratista (gratis): vincula sus contratos con el enlace de la
-///   entidad, sube sus documentos y presenta sus informes.
-///
-/// El equipo jurídico crea y organiza los contratos (y designa al
-/// supervisor), pero no los supervisa.
 class SupervisionContratosSection extends StatefulWidget {
   const SupervisionContratosSection({super.key, required this.onLogout});
-
   final VoidCallback onLogout;
-
   @override
   State<SupervisionContratosSection> createState() =>
       _SupervisionContratosSectionState();
@@ -35,449 +24,269 @@ class SupervisionContratosSection extends StatefulWidget {
 
 class _SupervisionContratosSectionState
     extends State<SupervisionContratosSection> {
-  _Subrol? _elegido;
+  PerfilSupervision? _elegido;
+  bool _verificando = false;
 
-  bool get _esSupervisor => AuthService.hasActiveRole('supervisor_contratos');
-  bool get _esContratista => AuthService.hasActiveRole('contratista');
-
-  _Subrol get _subrol {
-    final elegido = _elegido;
-    if (elegido == _Subrol.supervisor && _esSupervisor) return elegido!;
-    if (elegido == _Subrol.contratista && _esContratista) return elegido!;
-    return _esSupervisor ? _Subrol.supervisor : _Subrol.contratista;
+  Future<void> _verificar(bool reenviar) async {
+    setState(() => _verificando = true);
+    try {
+      if (reenviar) {
+        await AuthService.reenviarVerificacionCorreo();
+      } else {
+        await FirebaseAuth.instance.currentUser?.reload();
+        await FirebaseAuth.instance.currentUser?.getIdToken(true);
+      }
+      if (mounted && FirebaseAuth.instance.currentUser?.emailVerified != true) {
+        mensajeSupervision(
+          context,
+          reenviar ? 'Enviamos el correo de verificación.' : 'Abre el enlace de verificación de tu correo y vuelve a intentar.',
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        mensajeSupervision(
+          context,
+          'No pudimos verificar tu correo. Intenta de nuevo.',
+          error: true,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _verificando = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final mobile = MediaQuery.sizeOf(context).width < 768;
-    final subrol = _subrol;
-    final ambos = _esSupervisor && _esContratista;
-    return ColoredBox(
-      color: Cristal.vidrioSuave,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              mobile ? 16 : 40,
-              mobile ? 18 : 26,
-              mobile ? 16 : 40,
-              0,
-            ),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1120),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: Wrap(
-                    spacing: 14,
-                    runSpacing: 14,
-                    alignment: WrapAlignment.spaceBetween,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 640),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+    final roles = PerfilSupervision.values
+        .where((r) => AuthService.hasActiveRole(r.rol))
+        .toList();
+    if (roles.isEmpty) {
+      return const Center(
+        child: Text('Selecciona un rol de supervisión para entrar.'),
+      );
+    }
+    final rol = roles.contains(_elegido)
+        ? _elegido!
+        : roles.firstWhere(
+            (r) => r.rol == AuthService.getPendingRegistrationRoleId(),
+            orElse: () => roles.first,
+          );
+    final user = FirebaseAuth.instance.currentUser;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text('Supervisión de contratos', style: EstiloContractual.titulo),
+              if (roles.length > 1)
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final r in roles)
+                      ChoiceChip(
+                        label: Text(r.nombre),
+                        selected: r == rol,
+                        onSelected: (_) => setState(() => _elegido = r),
+                      ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: user == null
+              ? const Center(
+                  child: Text('Inicia sesión para acceder a tus contratos.'),
+                )
+              : rol != PerfilSupervision.contratista && !user.emailVerified
+              ? _Lienzo(
+                  children: [
+                    TarjetaSupervision(
+                      titulo: 'Verifica tu correo',
+                      subtitulo:
+                          'Abre el enlace enviado a ${user.email} para entrar con tu identidad verificada.',
+                      icono: Icons.mark_email_unread_outlined,
+                      children: [
+                        Wrap(
+                          spacing: 8,
                           children: [
-                            Text(
-                              'Supervisión de contratos',
-                              style: EstiloContractual.titulo.copyWith(
-                                fontSize: mobile ? 26 : 32,
+                            FilledButton(
+                              onPressed: _verificando
+                                  ? null
+                                  : () => _verificar(false),
+                              child: const Text('Ya lo verifiqué'),
+                            ),
+                            OutlinedButton(
+                              onPressed: _verificando
+                                  ? null
+                                  : () => _verificar(true),
+                              child: const Text('Reenviar correo'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                )
+              : rol == PerfilSupervision.contratista
+              ? _Contratista(key: ValueKey(user.uid))
+              : _Revision(key: ValueKey('${user.uid}/${rol.name}'), rol: rol),
+        ),
+      ],
+    );
+  }
+}
+
+class _Revision extends StatefulWidget {
+  const _Revision({super.key, required this.rol});
+  final PerfilSupervision rol;
+  @override
+  State<_Revision> createState() => _RevisionState();
+}
+
+class _RevisionState extends State<_Revision> {
+  late final _perfil = RegistroSupervisionService.perfil();
+  late final _designaciones =
+      RegistroSupervisionService.designacionesJuridicas();
+  late final _contratos = RegistroSupervisionService.contratos(widget.rol);
+  late final _anteriores = SupervisionService.escucharMisContratos();
+
+  Widget _bandejaConHistorico() => StreamBuilder(
+    stream: _anteriores,
+    builder: (context, snap) => Column(
+      children: [
+        if (snap.hasError)
+          const Text('No se pudieron cargar los contratos anteriores.'),
+        Expanded(
+          child: _bandeja([
+            for (final c in snap.data ?? const <ContratoSupervisado>[])
+              if (widget.rol == PerfilSupervision.supervisor ||
+                  !c.asignacion.esSupervisor(SupervisionService.emailActual))
+                c.expediente,
+          ]),
+        ),
+      ],
+    ),
+  );
+
+  Widget _bandeja([List<ExpedienteContratoPs> anteriores = const []]) =>
+      StreamBuilder(
+        stream: _contratos,
+        builder: (context, snap) {
+          if (snap.hasError) {
+            return const Center(
+              child: Text(
+                'No fue posible cargar los contratos de supervisión.',
+              ),
+            );
+          }
+          if (!snap.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final todos = [...snap.data!, ...anteriores];
+          return BandejaSupervisionScreen(
+            key: ValueKey(todos.map((e) => e.id).join(',')),
+            expedientes: todos,
+            incrustada: true,
+          );
+        },
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.rol == PerfilSupervision.juridico) {
+      return Column(
+        children: [
+          StreamBuilder(
+            stream: _designaciones,
+            builder: (context, snap) => Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(
+                snap.hasError
+                    ? 'No se pudieron consultar tus designaciones.'
+                    : snap.data?.isNotEmpty == true
+                    ? 'Jurídico de ${snap.data!.join(' · ')}'
+                    : 'Aquí recibirás las etapas asignadas a ${SupervisionService.emailActual}.',
+              ),
+            ),
+          ),
+          Expanded(child: _bandejaConHistorico()),
+        ],
+      );
+    }
+    return StreamBuilder(
+      stream: _perfil,
+      builder: (context, snap) {
+        if (snap.hasError) {
+          return const Center(
+            child: Text('No se pudo cargar el perfil de supervisión.'),
+          );
+        }
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final datos = snap.data;
+        if (datos == null) {
+          return const _Lienzo(
+            children: [RegistroSupervision(esSupervisor: true)],
+          );
+        }
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 16,
+                children: [
+                  Text(
+                    '${datos['entidadNombre']} · NIT ${datos['entidadNit']} · ${datos['dependencia']}',
+                  ),
+                  TextButton.icon(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (ctx) => PantallaContractual(
+                          children: [
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: PildoraVolver(
+                                etiqueta: 'Supervisión',
+                                onTap: () => Navigator.pop(ctx),
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              subrol == _Subrol.supervisor
-                                  ? 'Los contratos de prestación de servicios que te designaron: configura sus informes, revísalos y apruébalos o devuélvelos.'
-                                  : 'Tus contratos de prestación de servicios: sube sus documentos y presenta tus informes de ejecución.',
-                              style: EstiloContractual.subtitulo,
+                            RegistroSupervision(
+                              esSupervisor: true,
+                              perfil: datos,
+                              alGuardar: () => Navigator.pop(ctx),
                             ),
                           ],
                         ),
                       ),
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          if (ambos)
-                            SegmentedButton<_Subrol>(
-                              segments: const [
-                                ButtonSegment(
-                                  value: _Subrol.supervisor,
-                                  icon: Icon(
-                                    Icons.fact_check_outlined,
-                                    size: 18,
-                                  ),
-                                  label: Text('Supervisor'),
-                                ),
-                                ButtonSegment(
-                                  value: _Subrol.contratista,
-                                  icon: Icon(Icons.badge_outlined, size: 18),
-                                  label: Text('Contratista'),
-                                ),
-                              ],
-                              selected: {subrol},
-                              showSelectedIcon: false,
-                              onSelectionChanged: (s) =>
-                                  setState(() => _elegido = s.first),
-                            ),
-                          if (subrol == _Subrol.supervisor)
-                            OutlinedButton.icon(
-                              onPressed: () => Navigator.push(
-                                context,
-                                MaterialPageRoute<void>(
-                                  builder: (_) =>
-                                      const PlantillaInformeScreen(entidad: ''),
-                                ),
-                              ),
-                              style: EstiloContractual.botonSecundario(),
-                              icon: const Icon(Icons.tune_rounded, size: 18),
-                              label: const Text(
-                                'Mi plantilla',
-                                style: EstiloContractual.etiquetaBoton,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: subrol == _Subrol.supervisor
-                ? const _VistaSupervisor()
-                : const _VistaContratista(),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// =============================================================================
-// Supervisor
-// =============================================================================
-
-class _VistaSupervisor extends StatefulWidget {
-  const _VistaSupervisor();
-
-  @override
-  State<_VistaSupervisor> createState() => _VistaSupervisorState();
-}
-
-class _VistaSupervisorState extends State<_VistaSupervisor> {
-  late Stream<List<ContratoSupervisado>> _contratos =
-      SupervisionService.escucharMisContratos();
-  bool _revisando = false;
-
-  bool get _correoVerificado =>
-      FirebaseAuth.instance.currentUser?.emailVerified ?? false;
-
-  /// Después de verificar el correo hay que renovar el token: las reglas de
-  /// Firestore leen `email_verified` del token, no del perfil.
-  Future<void> _yaVerifique() async {
-    setState(() => _revisando = true);
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      await user?.reload();
-      await FirebaseAuth.instance.currentUser?.getIdToken(true);
-    } catch (_) {}
-    if (!mounted) return;
-    setState(() {
-      _revisando = false;
-      _contratos = SupervisionService.escucharMisContratos();
-    });
-    if (!_correoVerificado) {
-      _aviso(
-        'Tu correo aún no aparece verificado. Abre el enlace que te enviamos y vuelve a intentarlo.',
-      );
-    }
-  }
-
-  Future<void> _reenviar() async {
-    try {
-      await AuthService.reenviarVerificacionCorreo();
-      _aviso(
-        'Te enviamos el correo de verificación a ${SupervisionService.emailActual}.',
-      );
-    } catch (e) {
-      _aviso('$e');
-    }
-  }
-
-  void _aviso(String texto) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(behavior: SnackBarBehavior.floating, content: Text(texto)),
-      );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (!_correoVerificado) {
-      return _Lienzo(
-        children: [
-          TarjetaSupervision(
-            titulo: 'Verifica tu correo para ver tus contratos',
-            subtitulo:
-                'La entidad te designa como supervisor con tu correo. Para que nadie más pueda usarlo, '
-                'la app te muestra los contratos solo cuando lo verificas.',
-            icono: Icons.mark_email_unread_outlined,
-            children: [
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  FilledButton.icon(
-                    onPressed: _revisando ? null : _yaVerifique,
-                    style: EstiloContractual.botonPrincipal(),
-                    icon: _revisando
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.refresh_rounded, size: 18),
-                    label: const Text(
-                      'Ya lo verifiqué',
-                      style: EstiloContractual.etiquetaBoton,
                     ),
+                    icon: const Icon(Icons.manage_accounts_outlined),
+                    label: const Text('Mi vinculación y Jurídico'),
                   ),
                   OutlinedButton.icon(
-                    onPressed: _reenviar,
-                    style: EstiloContractual.botonSecundario(),
-                    icon: const Icon(Icons.forward_to_inbox_outlined, size: 18),
-                    label: const Text(
-                      'Reenviar el correo',
-                      style: EstiloContractual.etiquetaBoton,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-      );
-    }
-    return StreamBuilder<List<ContratoSupervisado>>(
-      stream: _contratos,
-      builder: (context, snap) {
-        if (snap.hasError) {
-          final permisos =
-              snap.error is FirebaseException &&
-              (snap.error as FirebaseException).code == 'permission-denied';
-          return _Lienzo(
-            children: [
-              TarjetaSupervision(
-                titulo: 'No fue posible cargar tus contratos',
-                icono: Icons.cloud_off_rounded,
-                children: [
-                  Text(
-                    permisos
-                        ? 'El servidor no dio permiso. Si acabas de actualizar la app, publica de nuevo las reglas de Firestore.'
-                        : 'Revisa tu conexión e intenta de nuevo.',
-                    style: TextStyle(color: Cristal.textoMedio, height: 1.45),
-                  ),
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: OutlinedButton.icon(
-                      onPressed: () => setState(
-                        () => _contratos =
-                            SupervisionService.escucharMisContratos(),
-                      ),
-                      style: EstiloContractual.botonSecundario(),
-                      icon: const Icon(Icons.refresh_rounded, size: 18),
-                      label: const Text(
-                        'Reintentar',
-                        style: EstiloContractual.etiquetaBoton,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          );
-        }
-        if (!snap.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final contratos = snap.data!;
-        final expedientes = [for (final c in contratos) c.expediente];
-        return BandejaSupervisionScreen(
-          // La bandeja escucha los contratos que recibe al crearse.
-          key: ValueKey(expedientes.map((e) => e.tokenInvitado).join(',')),
-          expedientes: expedientes,
-          incrustada: true,
-        );
-      },
-    );
-  }
-}
-
-// =============================================================================
-// Contratista
-// =============================================================================
-
-class _VistaContratista extends StatefulWidget {
-  const _VistaContratista();
-
-  @override
-  State<_VistaContratista> createState() => _VistaContratistaState();
-}
-
-class _VistaContratistaState extends State<_VistaContratista> {
-  final TextEditingController _enlace = TextEditingController();
-  late final Stream<List<ContratoVinculado>> _contratos =
-      ContratosVinculadosService.escuchar();
-  String? _error;
-
-  @override
-  void dispose() {
-    _enlace.dispose();
-    super.dispose();
-  }
-
-  void _vincular() {
-    final token = ContratosVinculadosService.tokenDesdeTexto(_enlace.text);
-    if (token.isEmpty) {
-      setState(
-        () => _error = 'Pega el enlace completo que te envió el equipo jurídico de la entidad.',
-      );
-      return;
-    }
-    setState(() => _error = null);
-    _abrir(token);
-  }
-
-  Future<void> _abrir(String token) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute<void>(
-        builder: (_) => PortalContratistaInvitadoScreen(
-          token: token,
-          desdeCuenta: true,
-          alIngresar: (exp) {
-            _enlace.clear();
-            unawaited(
-              ContratosVinculadosService.vincular(exp).catchError((_) {
-                _aviso(
-                  'Entraste al contrato, pero no se pudo guardar en tu cuenta. Revisa tu conexión.',
-                );
-              }),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Future<void> _quitar(ContratoVinculado c) async {
-    try {
-      await ContratosVinculadosService.desvincular(c.token);
-      _aviso(
-        'Quitaste el contrato ${c.numeroContrato} de tu cuenta. Puedes volver a vincularlo con su enlace.',
-      );
-    } catch (_) {
-      _aviso('No fue posible quitarlo. Revisa tu conexión.');
-    }
-  }
-
-  void _aviso(String texto) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(behavior: SnackBarBehavior.floating, content: Text(texto)),
-      );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<List<ContratoVinculado>>(
-      stream: _contratos,
-      builder: (context, snap) {
-        final contratos = snap.data ?? const <ContratoVinculado>[];
-        return _Lienzo(
-          children: [
-            TarjetaSupervision(
-              titulo: contratos.isEmpty
-                  ? 'Vincula tu contrato'
-                  : 'Vincular otro contrato',
-              subtitulo:
-                  'Pega el enlace que te envió el equipo jurídico de la entidad. Entras con el nombre y la cédula '
-                  'de tu cuenta y el contrato queda guardado aquí.',
-              icono: Icons.link_rounded,
-              children: [
-                LayoutBuilder(
-                  builder: (context, c) {
-                    final campo = TextField(
-                      controller: _enlace,
-                      onSubmitted: (_) => _vincular(),
-                      decoration: decoracionCampo('Enlace del contrato')
-                          .copyWith(errorText: _error),
-                    );
-                    final boton = FilledButton.icon(
-                      onPressed: _vincular,
-                      style: EstiloContractual.botonPrincipal(),
-                      icon: const Icon(Icons.add_link_rounded, size: 19),
-                      label: const Text(
-                        'Vincular',
-                        style: EstiloContractual.etiquetaBoton,
-                      ),
-                    );
-                    if (c.maxWidth < 520) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [campo, const SizedBox(height: 10), boton],
-                      );
-                    }
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: campo),
-                        const SizedBox(width: 12),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: boton,
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => PlantillaInformeScreen(
+                          entidad: datos['entidadNombre'],
                         ),
-                      ],
-                    );
-                  },
-                ),
-              ],
+                      ),
+                    ),
+                    icon: const Icon(Icons.tune),
+                    label: const Text('Editar flujo y plantilla'),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 18),
-            if (snap.hasError)
-              Text(
-                'No fue posible cargar tus contratos. Revisa tu conexión.',
-                style: TextStyle(color: Cristal.textoMedio),
-              )
-            else if (!snap.hasData)
-              const Padding(
-                padding: EdgeInsets.all(30),
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (contratos.isEmpty)
-              const _SinContratos()
-            else ...[
-              Text('Mis contratos', style: EstiloContractual.tituloGrupo),
-              const SizedBox(height: 10),
-              for (final c in contratos) ...[
-                _TarjetaContrato(
-                  contrato: c,
-                  onAbrir: () => _abrir(c.token),
-                  onQuitar: () => _quitar(c),
-                ),
-                const SizedBox(height: 10),
-              ],
-            ],
+            Expanded(child: _bandejaConHistorico()),
           ],
         );
       },
@@ -485,71 +294,145 @@ class _VistaContratistaState extends State<_VistaContratista> {
   }
 }
 
-class _SinContratos extends StatelessWidget {
-  const _SinContratos();
-
+class _Contratista extends StatefulWidget {
+  const _Contratista({super.key});
   @override
-  Widget build(BuildContext context) {
-    Widget paso(String numero, String texto) => Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 24,
-            height: 24,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: Cristal.vidrioSuave,
-              shape: BoxShape.circle,
-              border: Border.all(color: Cristal.borde),
-            ),
-            child: Text(
-              numero,
-              style: TextStyle(
-                color: Cristal.texto,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              texto,
-              style: TextStyle(
-                color: Cristal.textoMedio,
-                fontSize: 13.5,
-                height: 1.45,
-              ),
-            ),
-          ),
-        ],
+  State<_Contratista> createState() => _ContratistaState();
+}
+
+class _ContratistaState extends State<_Contratista> {
+  late final _contratos = RegistroSupervisionService.contratos(
+    PerfilSupervision.contratista,
+  );
+  late final _anteriores = ContratosVinculadosService.escuchar();
+  bool _agregando = false;
+
+  Future<void> _abrirAnterior(String token) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => PortalContratistaInvitadoScreen(
+          token: token,
+          desdeCuenta: true,
+          alIngresar: (exp) async {
+            try {
+              await ContratosVinculadosService.vincular(exp);
+            } catch (_) {
+              if (mounted) {
+                mensajeSupervision(
+                  context,
+                  'No se pudo guardar el enlace.',
+                  error: true,
+                );
+              }
+            }
+          },
+        ),
       ),
     );
-    return TarjetaSupervision(
-      titulo: 'Así funciona',
-      icono: Icons.route_outlined,
-      children: [
-        paso(
-          '1',
-          'El equipo jurídico de la entidad crea tu contrato y te envía su enlace.',
-        ),
-        paso(
-          '2',
-          'Lo pegas arriba: entras con tu nombre y cédula y queda en tu cuenta.',
-        ),
-        paso(
-          '3',
-          'Subes los documentos que pide el contrato y, cada periodo, tu informe de actividades.',
-        ),
-        paso(
-          '4',
-          'Tu supervisor lo revisa: si lo devuelve, ves la observación y lo corriges aquí mismo.',
-        ),
-      ],
-    );
   }
+
+  @override
+  Widget build(BuildContext context) => StreamBuilder(
+    stream: _contratos,
+    builder: (context, snap) {
+      if (snap.hasError) {
+        return const Center(
+          child: Text('No fue posible cargar tus contratos.'),
+        );
+      }
+      if (!snap.hasData) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      return _Lienzo(
+        children: [
+          if (snap.data!.isEmpty || _agregando)
+            RegistroSupervision(
+              esSupervisor: false,
+              alGuardar: () {
+                setState(() => _agregando = false);
+                mensajeSupervision(
+                  context,
+                  'Contrato vinculado a tu supervisor.',
+                );
+              },
+            )
+          else
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: () => setState(() => _agregando = true),
+                icon: const Icon(Icons.add),
+                label: const Text('Registrar otro contrato'),
+              ),
+            ),
+          for (final exp in snap.data!)
+            Padding(
+              padding: const EdgeInsets.only(top: 14),
+              child: TarjetaSupervision(
+                titulo: 'Contrato ${exp.numeroContrato}',
+                subtitulo: '${exp.entidadNombre} · ${exp.dependencia}',
+                children: [
+                  Text(
+                    '${exp.objetoContrato}\n${formatoCop(exp.valorContratoCop)} · ${exp.plazoEjecucion} · ${exp.formaPago}\nAprobación SECOP ${exp.aprobacionSecop} · RP ${exp.rp} · CDP ${exp.cdp}',
+                  ),
+                  InformesContratistaView(
+                    key: ValueKey(exp.id),
+                    expediente: exp,
+                    contratistaNombre: exp.contratistaNombreEsperado,
+                  ),
+                ],
+              ),
+            ),
+          StreamBuilder(
+            stream: _anteriores,
+            builder: (context, prev) => Column(
+              children: [
+                for (final c in prev.data ?? const <ContratoVinculado>[])
+                  _TarjetaContrato(
+                    contrato: c,
+                    onAbrir: () => _abrirAnterior(c.token),
+                    onQuitar: () async {
+                      try {
+                        await ContratosVinculadosService.desvincular(c.token);
+                      } catch (_) {
+                        if (context.mounted) {
+                          mensajeSupervision(
+                            context,
+                            'No se pudo quitar el enlace.',
+                          );
+                        }
+                      }
+                    },
+                  ),
+              ],
+            ),
+          ),
+          ExpansionTile(
+            title: const Text('Abrir un contrato anterior con enlace'),
+            children: [
+              TextField(
+                decoration: decoracionCampo('Pega el enlace y pulsa Intro'),
+                onSubmitted: (texto) {
+                  final token = ContratosVinculadosService.tokenDesdeTexto(
+                    texto,
+                  );
+                  if (token.isEmpty) {
+                    mensajeSupervision(
+                      context,
+                      'El enlace de contrato no es válido.',
+                    );
+                    return;
+                  }
+                  _abrirAnterior(token);
+                },
+              ),
+            ],
+          ),
+        ],
+      );
+    },
+  );
 }
 
 class _TarjetaContrato extends StatelessWidget {

@@ -6,6 +6,7 @@ import '../gestion_contractual/estilo_contractual.dart';
 import 'componentes_supervision.dart';
 import 'editar_plan_screen.dart';
 import 'revision_supervisor_screen.dart';
+import 'registro_supervision.dart';
 import '../../tema/cristal.dart';
 
 /// Supervisión de un contrato: plan, avance del pago y los informes por
@@ -21,7 +22,7 @@ class SupervisionContratoScreen extends StatefulWidget {
 }
 
 class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
-  ExpedienteContratoPs get _exp => widget.expediente;
+  late ExpedienteContratoPs _exp = widget.expediente;
   late final Stream<PlanSupervision?> _plan = SupervisionService.escucharPlan(
     _exp.tokenInvitado,
   );
@@ -34,6 +35,27 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
       builder: (_) => EditarPlanScreen(expediente: _exp, plan: plan),
     ),
   );
+
+  Future<void> _corregirContrato() async {
+    final actualizado = await Navigator.push<ExpedienteContratoPs>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PantallaContractual(
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: PildoraVolver(
+                etiqueta: 'Contrato',
+                onTap: () => Navigator.pop(context),
+              ),
+            ),
+            RegistroSupervision(esSupervisor: false, contrato: _exp),
+          ],
+        ),
+      ),
+    );
+    if (mounted && actualizado != null) setState(() => _exp = actualizado);
+  }
 
   void _abrir(String id) => Navigator.push(
     context,
@@ -69,6 +91,22 @@ class _SupervisionContratoScreenState extends State<SupervisionContratoScreen> {
                 style: EstiloContractual.subtitulo,
               ),
               const SizedBox(height: 20),
+              if (_exp.aprobacionSecop.isNotEmpty)
+                TarjetaSupervision(
+                  titulo: _exp.entidadNombre,
+                  subtitulo: _exp.dependencia,
+                  accion: SupervisionService.esSupervisor(_exp)
+                      ? TextButton(
+                          onPressed: _corregirContrato,
+                          child: const Text('Corregir datos'),
+                        )
+                      : null,
+                  children: [
+                    Text(
+                      '${_exp.objetoContrato}\nAprobación SECOP ${_exp.aprobacionSecop} · ${_exp.plazoEjecucion}\n${formatoCop(_exp.valorContratoCop)} · ${_exp.formaPago} · RP ${_exp.rp} · CDP ${_exp.cdp}',
+                    ),
+                  ],
+                ),
               if (planSnap.connectionState == ConnectionState.waiting)
                 const Padding(
                   padding: EdgeInsets.all(40),

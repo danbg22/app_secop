@@ -56,7 +56,17 @@ class _InformesContratistaViewState extends State<InformesContratistaView> {
       stream: _plan,
       builder: (context, planSnap) {
         final plan = planSnap.data;
-        if (plan == null) return const SizedBox.shrink();
+        if (planSnap.hasError) {
+          return const Text('No se pudieron cargar los periodos del informe.');
+        }
+        if (plan == null) {
+          return widget.expediente.tokenInvitado.startsWith('sc_') &&
+                  planSnap.connectionState != ConnectionState.waiting
+              ? const Text(
+                  'Pendiente de que tu supervisor configure los periodos del informe.',
+                )
+              : const SizedBox.shrink();
+        }
         return StreamBuilder<Map<String, InformePeriodo>>(
           stream: _informes,
           builder: (context, snap) {

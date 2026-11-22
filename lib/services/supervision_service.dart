@@ -6,11 +6,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 import '../utils/document_file_picker.dart';
+import '../utils/nit.dart';
 import '../utils/file_downloader.dart';
 import 'archivo_fragmentado.dart';
 import 'auth_service.dart';
 import 'juridico_contratacion_service.dart';
 import 'security_service.dart';
+
+part 'registro_supervision_service.dart';
 
 /// Supervisión de la ejecución de contratos de prestación de servicios.
 ///
@@ -1384,10 +1387,7 @@ class InformeEnBandeja {
       : null;
 }
 
-/// Designación de la supervisión de un contrato
-/// (`asignaciones_supervision/{token}`). La hace el equipo jurídico que creó
-/// el contrato; el supervisor designado la ve en su sección y solo cambia
-/// quiénes revisan los informes (los responsables de cada etapa).
+/// Identidad del supervisor y responsables de revisión de un contrato.
 class AsignacionSupervision {
   const AsignacionSupervision({
     required this.token,
@@ -1634,7 +1634,13 @@ class SupervisionService {
   static FirebaseFirestore get _db => FirebaseFirestore.instance;
 
   static DocumentReference<Map<String, dynamic>> _expediente(String token) =>
-      _db.collection('expedientes_juridicos').doc(token.toLowerCase());
+      _db
+          .collection(
+            token.startsWith('sc_')
+                ? 'contratos_supervision'
+                : 'expedientes_juridicos',
+          )
+          .doc(token.toLowerCase());
 
   static DocumentReference<Map<String, dynamic>> _refPlan(String token) =>
       _expediente(token).collection('supervision').doc('plan');
@@ -1690,7 +1696,7 @@ class SupervisionService {
       FirebaseAuth.instance.currentUser?.email?.toLowerCase() ?? '';
 
   /// Designaciones conocidas en esta sesión (las carga la sección de
-  /// Supervisión con [escucharMisContratos] o [leerAsignacion]).
+  /// Supervisión desde los contratos actuales y las asignaciones anteriores).
   static final Map<String, AsignacionSupervision> _asignacionesConocidas = {};
 
   static AsignacionSupervision? asignacionDe(ExpedienteContratoPs e) =>
@@ -1699,7 +1705,8 @@ class SupervisionService {
   /// Supervisor designado del contrato: configura los informes, decide
   /// cualquier etapa y registra el pago. El equipo jurídico ya no supervisa.
   static bool esSupervisor(ExpedienteContratoPs e) =>
-      asignacionDe(e)?.esSupervisor(emailActual) ?? false;
+      AuthService.hasActiveRole('supervisor_contratos') &&
+      (asignacionDe(e)?.esSupervisor(emailActual) ?? false);
 
   /// Supervisor o responsable de alguna etapa de aprobación.
   static bool esRevisor(ExpedienteContratoPs e) =>
@@ -1713,13 +1720,15 @@ class SupervisionService {
     PlanSupervision plan,
     InformePeriodo inf,
   ) {
-    if (inf.estado != EstadoInforme.enRevision) return false;
+    if (inf.estado != EstadoInforme.enRevision || plan.etapas.isEmpty) {
+      return false;
+    }
     if (esSupervisor(e)) return true;
-    return inf.etapaActual < plan.etapas.length &&
-        plan.etapas[inf.etapaActual].esResponsable(emailActual);
+    return plan.etapas[inf.etapaActual.clamp(0, plan.etapas.length - 1)]
+        .esResponsable(emailActual);
   }
 
-  static bool puedeRegistrarPago(ExpedienteContratoPs e) => esRevisor(e);
+  static bool puedeRegistrarPago(ExpedienteContratoPs e) => esSupervisor(e);
 
   // ------------------------------------------------------------- Lectura
 
@@ -1784,61 +1793,6 @@ class SupervisionService {
             ),
           );
         });
-  }
-
-  /// Designación del supervisor de un contrato (o null si no la tiene).
-  static Future<AsignacionSupervision?> leerAsignacion(String token) async {
-    final s = await _asignaciones
-        .doc(token.toLowerCase())
-        .get()
-        .timeout(const Duration(seconds: 12));
-    final data = s.data();
-    if (data == null) return null;
-    final a = AsignacionSupervision.fromMap(data);
-    _asignacionesConocidas[a.token] = a;
-    return a;
-  }
-
-  /// El equipo jurídico que creó el contrato designa a su supervisor; la
-  /// supervisión la hace él desde su rol Supervisor de contratos.
-  static Future<AsignacionSupervision> designarSupervisor(
-    ExpedienteContratoPs exp, {
-    required String nombre,
-    required String email,
-  }) async {
-    final limpio = email.trim().toLowerCase();
-    if (nombre.trim().length < 3) {
-      throw const SupervisionException('Escribe el nombre del supervisor.');
-    }
-    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(limpio)) {
-      throw const SupervisionException(
-        'Escribe un correo válido: con ese correo el supervisor entra a la app.',
-      );
-    }
-    AsignacionSupervision? previa;
-    try {
-      previa = await leerAsignacion(exp.tokenInvitado);
-    } catch (_) {}
-    // Si cambia el supervisor se conservan los responsables de etapa que
-    // había configurado el anterior (el nuevo los ajusta en el plan).
-    final otros = previa == null
-        ? const <String>[]
-        : previa.revisoresEmails.where((e) => e != previa!.supervisorEmail);
-    final a = AsignacionSupervision(
-      token: exp.tokenInvitado.toLowerCase(),
-      supervisorNombre: nombre.trim(),
-      supervisorEmail: limpio,
-      revisoresEmails: AsignacionSupervision.revisoresCon(limpio, otros),
-      numeroContrato: exp.numeroContrato,
-      objetoContrato: exp.objetoContrato,
-      entidadNombre: exp.entidadNombre,
-      contratistaNombre: exp.contratistaNombreEsperado,
-      designadoPor: _actor,
-      actualizadoEnMs: DateTime.now().millisecondsSinceEpoch,
-    );
-    await _guardar(() => _asignaciones.doc(a.token).set(a.toMap()));
-    _asignacionesConocidas[a.token] = a;
-    return a;
   }
 
   /// Bandeja del supervisor: informes enviados de sus contratos con plan.
@@ -1925,8 +1879,10 @@ class SupervisionService {
 
   static Future<void> guardarPlantilla(PlantillaInforme p) async {
     final uid = _uidPlantilla;
-    if (uid.isEmpty) {
-      throw const SupervisionException('Inicia sesión nuevamente.');
+    if (uid.isEmpty || !AuthService.hasActiveRole('supervisor_contratos')) {
+      throw const SupervisionException(
+        'Solo el supervisor puede editar el flujo.',
+      );
     }
     if (p.etapas.isEmpty) {
       throw const SupervisionException(
@@ -1949,7 +1905,7 @@ class SupervisionService {
     PlanSupervision plan,
   ) async {
     final asignacion = asignacionDe(expediente);
-    if (asignacion == null || !asignacion.esSupervisor(emailActual)) {
+    if (asignacion == null || !esSupervisor(expediente)) {
       throw const SupervisionException(
         'Solo el supervisor designado configura los informes de este contrato.',
       );
@@ -1964,8 +1920,16 @@ class SupervisionService {
         'Agrega al menos una obligación del contrato.',
       );
     }
+    if (expediente.tokenInvitado.startsWith('sc_') &&
+        plan.etapas.any((e) => e.esResponsable(expediente.contratistaCorreo))) {
+      throw const SupervisionException(
+        'Elige un revisor diferente del contratista que presenta el informe.',
+      );
+    }
     final sinResponsable = plan.etapas.where(
-      (e) => !e.responsableEmail.contains('@'),
+      (e) =>
+          !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+              .hasMatch(e.responsableEmail.trim()),
     );
     if (sinResponsable.isNotEmpty) {
       throw SupervisionException(
@@ -1978,7 +1942,6 @@ class SupervisionService {
         'La entidad no tiene habilitados los informes quincenales.',
       );
     }
-    // El supervisor es el que designó el equipo jurídico.
     final datos = PlanSupervision(
       supervisorNombre: plan.supervisorNombre.trim().isEmpty
           ? asignacion.supervisorNombre
@@ -1998,26 +1961,32 @@ class SupervisionService {
       actualizadoPor: _actor,
       actualizadoEnMs: DateTime.now().millisecondsSinceEpoch,
     ).toMap();
-    await _guardar(() => _refPlan(expediente.tokenInvitado).set(datos));
+    final lote = _db.batch()..set(_refPlan(expediente.tokenInvitado), datos);
     // Los responsables de cada etapa ven el contrato en su sección.
     final revisores = AsignacionSupervision.revisoresCon(
       asignacion.supervisorEmail,
       plan.etapas.map((e) => e.responsableEmail),
     );
-    if (revisores.join(',') != asignacion.revisoresEmails.join(',')) {
-      final ahora = DateTime.now().millisecondsSinceEpoch;
-      await _guardar(
-        () => _asignaciones.doc(asignacion.token).update({
-          'revisoresEmails': revisores,
-          'actualizadoEnMs': ahora,
-        }),
-      );
-      _asignacionesConocidas[asignacion.token] = AsignacionSupervision.fromMap({
-        ...asignacion.toMap(),
+    final ahora = DateTime.now().millisecondsSinceEpoch;
+    if (asignacion.token.startsWith('sc_')) {
+      lote.update(_expediente(asignacion.token), {
+        'revisoresEmails': revisores
+            .where((e) => e != asignacion.supervisorEmail)
+            .toList(),
+        'supervisorEmail': asignacion.supervisorEmail,
+      });
+    } else {
+      lote.update(_asignaciones.doc(asignacion.token), {
         'revisoresEmails': revisores,
         'actualizadoEnMs': ahora,
       });
     }
+    await _guardar(lote.commit);
+    _asignacionesConocidas[asignacion.token] = AsignacionSupervision.fromMap({
+      ...asignacion.toMap(),
+      'revisoresEmails': revisores,
+      'actualizadoEnMs': ahora,
+    });
   }
 
   // ------------------------------------------------------------- Contratista
@@ -2176,19 +2145,39 @@ class SupervisionService {
 
   // ------------------------------------------------------------- Revisión
 
-  static Future<void> _actualizarEquipo(
+  static Future<void> _guardarDecision(
     ExpedienteContratoPs exp,
     InformePeriodo informe,
     Map<String, dynamic> cambios,
-    EventoInforme evento,
-  ) => _guardar(
-    () => _informes(exp.tokenInvitado).doc(informe.id).update({
-      ...cambios,
-      'historial': [
-        ...informe.historial,
-        evento,
-      ].map((e) => e.toMap()).toList(),
-      'actualizadoEnMs': DateTime.now().millisecondsSinceEpoch,
+    EventoInforme evento, {
+    PlanSupervision? plan,
+  }) => _guardar(
+    () => _db.runTransaction((tx) async {
+      final ref = _informes(exp.tokenInvitado).doc(informe.id);
+      final actual = (await tx.get(ref)).data();
+      if (actual == null ||
+          actual['estado'] != informe.estado.name ||
+          (actual['etapaActual'] ?? 0) != informe.etapaActual ||
+          (actual['revisiones'] as List? ?? []).length !=
+              informe.revisiones.length) {
+        throw const SupervisionException(
+          'El informe cambió mientras lo revisabas. Consulta la última decisión.',
+        );
+      }
+      if (plan != null) {
+        final vigente = (await tx.get(_refPlan(exp.tokenInvitado))).data();
+        if (vigente == null ||
+            (vigente['actualizadoEnMs'] ?? 0) != plan.actualizadoEnMs) {
+          throw const SupervisionException(
+            'El flujo cambió. Revisa la etapa actual antes de continuar.',
+          );
+        }
+      }
+      tx.update(ref, {
+        ...cambios,
+        'historial': FieldValue.arrayUnion([evento.toMap()]),
+        'actualizadoEnMs': DateTime.now().millisecondsSinceEpoch,
+      });
     }),
   );
 
@@ -2203,10 +2192,10 @@ class SupervisionService {
         'Esta etapa le corresponde a otro responsable.',
       );
     }
-    final etapa = plan.etapas[inf.etapaActual];
+    final etapa = plan.etapas[inf.etapaActual.clamp(0, plan.etapas.length - 1)];
     final ultima = inf.etapaActual >= plan.etapas.length - 1;
     final ahora = _ahora();
-    await _actualizarEquipo(
+    await _guardarDecision(
       exp,
       inf,
       {
@@ -2234,6 +2223,7 @@ class SupervisionService {
             : 'Revisó y verificó (${etapa.nombre}); pasa a ${plan.etapas[inf.etapaActual + 1].nombre}',
         detalle: concepto.trim(),
       ),
+      plan: plan,
     );
   }
 
@@ -2254,9 +2244,9 @@ class SupervisionService {
         'Escribe qué debe corregir el contratista y cómo.',
       );
     }
-    final etapa = plan.etapas[inf.etapaActual];
+    final etapa = plan.etapas[inf.etapaActual.clamp(0, plan.etapas.length - 1)];
     final ahora = _ahora();
-    await _actualizarEquipo(
+    await _guardarDecision(
       exp,
       inf,
       {
@@ -2281,6 +2271,7 @@ class SupervisionService {
         accion: 'Devolvió el informe al contratista (${etapa.nombre})',
         detalle: observacion.trim(),
       ),
+      plan: plan,
     );
   }
 
@@ -2295,7 +2286,7 @@ class SupervisionService {
       );
     }
     final ahora = _ahora();
-    await _actualizarEquipo(
+    await _guardarDecision(
       exp,
       inf,
       {

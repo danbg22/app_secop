@@ -309,8 +309,7 @@ class EscogerRolScreen extends StatefulWidget {
 class _EscogerRolScreenState extends State<EscogerRolScreen> {
   String? _hoveredRoleId;
 
-  /// Tarjeta que agrupa los subroles de Supervisión de contratos (Supervisor
-  /// y Contratista): al tocarla se despliegan para escoger uno.
+  /// Tarjeta que agrupa los perfiles de Supervisión de contratos: al tocarla se despliegan para escoger uno.
   static const RolPaqueteConfig _tarjetaSupervision = RolPaqueteConfig(
     id: AdminConfiguracionRolesYPagos.grupoSupervision,
     nombre: 'Supervisión de contratos',
@@ -355,7 +354,7 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
     if (!_esGrupo(rol)) return rol.precioFormateadoCop;
     final precios = PaymentService.subrolesDe(rol.id)
         .map((r) => r.precioFormateadoCop.replaceAll(' COP', ''))
-        .toList();
+        .toSet().toList();
     return precios.reversed.join(' o ');
   }
 
@@ -755,8 +754,7 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
     bool precioDebajo = false,
   }) {
     final bool isPersona = rol.id == 'persona';
-    // La tarjeta de Supervisión queda "activa" cuando la cuenta tiene sus dos
-    // subroles; con uno solo todavía puede sumar el otro.
+    // La cuenta puede sumar cada perfil por separado.
     final bool isAlreadyOwned = _esGrupo(rol)
         ? PaymentService.subrolesDe(rol.id).every(_yaTiene)
         : _yaTiene(rol);
@@ -1116,9 +1114,7 @@ class _OpcionSubrol extends StatelessWidget {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
-                          rol.id == 'contratista'
-                              ? 'Contratista'
-                              : 'Supervisor',
+                          rol.id == 'supervisor_contratos' ? 'Supervisor' : rol.nombre,
                           style: TextStyle(
                             color: Cristal.texto,
                             fontSize: 17,

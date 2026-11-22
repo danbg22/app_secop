@@ -48,7 +48,6 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
     _fin = p?.fechaFin ?? DateTime(hoy.year, 12, 31);
     _periodicidad = p?.periodicidad ?? Periodicidad.mensual;
     _riesgo = p?.claseRiesgo ?? 1;
-    // El supervisor es el que designó el equipo jurídico en el contrato.
     final asignacion = SupervisionService.asignacionDe(_exp);
     _t(
       'supNombre',
@@ -68,11 +67,11 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
           ? milesCop(p.valorPeriodoCop)
           : (sugerido > 0 ? milesCop(sugerido) : ''),
     );
-    _t('formaPago', p?.formaPago ?? '');
+    _t('formaPago', p?.formaPago ?? _exp.formaPago);
     _t('sectorial', p?.sectorial ?? _exp.dependencia);
-    _t('cdpNum', p?.cdp.numero ?? '');
+    _t('cdpNum', p?.cdp.numero ?? _exp.cdp);
     _t('cdpValor', (p?.cdp.valorCop ?? 0) > 0 ? milesCop(p!.cdp.valorCop) : '');
-    _t('rpNum', p?.rp.numero ?? '');
+    _t('rpNum', p?.rp.numero ?? _exp.rp);
     _t('rpValor', (p?.rp.valorCop ?? 0) > 0 ? milesCop(p!.rp.valorCop) : '');
     _fechaCdp = p?.cdp.fechaIso;
     _fechaRp = p?.rp.fechaIso;
@@ -492,7 +491,7 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
             titulo: 'Quién aprueba el informe',
             subtitulo:
                 'Cada etapa aprueba o devuelve en este orden. Cada responsable entra con este correo, verificado y '
-                'con el rol Supervisor de contratos, y ve el contrato en su sección de Supervisión.',
+                'con el rol gratuito Jurídico, y ve el contrato en su sección de Supervisión.',
             icono: Icons.alt_route_rounded,
             accion: TextButton.icon(
               onPressed: () async {
@@ -573,7 +572,7 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
                   enabled: false,
                   decoration: decoracionCampo(
                     'Correo',
-                    ayuda: 'Lo designó el equipo jurídico del contrato.',
+                    ayuda: 'Correo del supervisor titular.',
                   ),
                 ),
               ),

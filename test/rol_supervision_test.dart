@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:app_secop/services/contratos_vinculados_service.dart';
+import 'package:app_secop/screens/supervision/registro_supervision.dart';
 import 'package:app_secop/services/payment_service.dart';
 import 'package:app_secop/services/supervision_service.dart';
 import 'package:app_secop/widgets/ilustracion_rol.dart';
@@ -10,16 +11,18 @@ void main() {
   const token = '0123456789abcdef0123456789abcdef';
 
   group('Rol Supervisión de contratos', () {
-    test('tiene dos subroles: Supervisor (pago) y Contratista (gratis)', () {
+    test('solo el Supervisor paga entre los tres perfiles', () {
       final subroles = PaymentService.subrolesDe(
         AdminConfiguracionRolesYPagos.grupoSupervision,
       );
       expect(subroles.map((r) => r.id), [
         'supervisor_contratos',
         'contratista',
+        'juridico_supervision',
       ]);
       final supervisor = subroles.first;
-      final contratista = subroles.last;
+      final contratista = subroles[1];
+      expect(subroles.last.esGratuito, isTrue);
       expect(supervisor.esGratuito, isFalse);
       expect(supervisor.precioCop, greaterThan(0));
       expect(contratista.esGratuito, isTrue);
@@ -28,7 +31,11 @@ void main() {
     });
 
     test('solo habilita su propia sección, no la de Equipo jurídico', () {
-      for (final id in ['supervisor_contratos', 'contratista']) {
+      for (final id in [
+        'supervisor_contratos',
+        'contratista',
+        'juridico_supervision',
+      ]) {
         final permisos = PaymentService.obtenerConfiguracionRol(id)
             .permisosPlataforma;
         expect(permisos, isNot(contains('gestion_juridica_entidad')));
@@ -58,6 +65,10 @@ void main() {
       expect(
         PaymentService.normalizarRolId('Supervisor'),
         'supervisor_contratos',
+      );
+      expect(
+        PaymentService.normalizarRolId('Jurídico'),
+        'juridico_supervision',
       );
       expect(PaymentService.normalizarRolId('contratista'), 'contratista');
       expect(
@@ -122,6 +133,37 @@ void main() {
   });
 
   group('Contratos del Contratista', () {
+    test('vincula por NIT canónico, cuenta y número del contrato', () {
+      expect(
+        RegistroSupervisionService.nitEntidad('899.999.061-9'),
+        '899999061',
+      );
+      expect(RegistroSupervisionService.nitEntidad('899999061'), '899999061');
+      expect(RegistroSupervisionService.nitEntidad('899999061-8'), isNull);
+      expect(RegistroSupervisionService.nitEntidad('otra entidad'), isNull);
+      final id = RegistroSupervisionService.idContrato(
+        'usuario',
+        '899999061',
+        ' CPS-01 ',
+      );
+      expect(
+        RegistroSupervisionService.idContrato('usuario', '899999061', 'cps-01'),
+        id,
+      );
+      expect(
+        RegistroSupervisionService.idContrato('usuario', '900000002', 'CPS-01'),
+        isNot(id),
+      );
+      expect(
+        RegistroSupervisionService.idContrato(
+          'otra cuenta',
+          '899999061',
+          'CPS-01',
+        ),
+        isNot(id),
+      );
+    });
+
     test('toma el contrato del enlace que envía la entidad', () {
       expect(
         ContratosVinculadosService.tokenDesdeTexto(
@@ -162,6 +204,68 @@ void main() {
     });
   });
 
+  testWidgets(
+    'el alta del supervisor muestra los datos de su vinculación y de Jurídico',
+    (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: RegistroSupervision(esSupervisor: true),
+            ),
+          ),
+        ),
+      );
+      expect(find.text('Número del acto de nombramiento'), findsOneWidget);
+      expect(find.text('Correo de Jurídico'), findsOneWidget);
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Contratista').last);
+      await tester.pumpAndSettle();
+      for (final etiqueta in [
+        'Número de tu contrato',
+        'Fecha de aprobación en SECOP',
+        'Número del RP',
+        'Forma de pago',
+        'Correo de Jurídico',
+      ]) {
+        expect(find.text(etiqueta), findsOneWidget);
+      }
+      expect(find.text('Número del acto de nombramiento'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'el contratista busca un destino y completa los datos presupuestales',
+    (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: RegistroSupervision(esSupervisor: false),
+            ),
+          ),
+        ),
+      );
+      for (final etiqueta in [
+        'Buscar supervisores',
+        'Número del contrato',
+        'Fecha de aprobación en SECOP',
+        'Valor total del contrato (COP)',
+        'Duración',
+        'Forma de pago',
+        'Número del RP',
+        'Número del CDP',
+      ]) {
+        expect(find.text(etiqueta), findsOneWidget);
+      }
+      await tester.tap(find.text('Buscar supervisores'));
+      await tester.pump();
+      expect(find.textContaining('Escribe el NIT'), findsOneWidget);
+      expect(find.text('Correo de Jurídico'), findsNothing);
+    },
+  );
+
   testWidgets('la ilustración de Supervisión se dibuja sin imagen propia', (
     tester,
   ) async {
@@ -169,6 +273,7 @@ void main() {
       AdminConfiguracionRolesYPagos.grupoSupervision,
       'supervisor_contratos',
       'contratista',
+      'juridico_supervision',
     ]) {
       await tester.pumpWidget(
         MaterialApp(

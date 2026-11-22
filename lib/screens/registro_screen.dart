@@ -887,7 +887,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
           margin: const EdgeInsets.only(bottom: 14, left: 4, right: 4),
           color: Cristal.vidrioFuerte,
         ),
-        _buildStepMiniItem(label: 'Pago', completed: false, active: false),
+        _buildStepMiniItem(label: _rolConfig.esGratuito ? 'Activación' : 'Pago', completed: false, active: false),
       ],
     );
 

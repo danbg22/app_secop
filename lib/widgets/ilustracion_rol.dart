@@ -28,6 +28,7 @@ class IlustracionRol extends StatelessWidget {
         Icons.badge_rounded,
       ],
       'supervisor_contratos' => const [Icons.fact_check_rounded],
+      'juridico_supervision' => const [Icons.gavel_rounded],
       'contratista' => const [Icons.badge_rounded],
       _ => const <IconData>[],
     };
