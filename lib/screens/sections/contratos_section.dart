@@ -13,6 +13,7 @@ import '../../utils/app_scroll_behavior.dart';
 import '../../utils/contract_financial_calculator.dart';
 import '../../utils/csv_exporter.dart';
 import '../../utils/dependencia_contrato.dart';
+import '../../widgets/buscador_procesos.dart';
 import '../../utils/secop_i.dart';
 import '../../widgets/user_profile_header_action.dart';
 import '../detalle_screen.dart';
@@ -129,6 +130,10 @@ class _ContratosSectionState extends State<ContratosSection> {
   String _sortBy = 'Más recientes';
   int _currentPage = 1;
   bool _isLoadingSecop = false;
+
+  /// Muestra el buscador de procesos (cualquier estado) en lugar de los
+  /// contratos firmados.
+  bool _verProcesos = false;
 
   /// Tope de filas de la última consulta: si llegó a él, los resultados son
   /// solo los más recientes y las cifras lo dicen.
@@ -5326,15 +5331,57 @@ class _ContratosSectionState extends State<ContratosSection> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       _buildHeaderSection(),
+                      const SizedBox(height: 14),
+                      // Contratos ya firmados o procesos en cualquier estado
+                      // (borrador, recibiendo ofertas, evaluación…).
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: SegmentedButton<bool>(
+                          segments: [
+                            ButtonSegment(
+                              value: false,
+                              icon: const Icon(
+                                Icons.description_outlined,
+                                size: 18,
+                              ),
+                              label: Text(
+                                constraints.maxWidth < 600
+                                    ? 'Contratos'
+                                    : 'Contratos firmados',
+                              ),
+                            ),
+                            ButtonSegment(
+                              value: true,
+                              icon: const Icon(
+                                Icons.pending_actions_outlined,
+                                size: 18,
+                              ),
+                              label: Text(
+                                constraints.maxWidth < 600
+                                    ? 'Procesos'
+                                    : 'Procesos (todos los estados)',
+                              ),
+                            ),
+                          ],
+                          selected: {_verProcesos},
+                          showSelectedIcon: false,
+                          onSelectionChanged: (v) =>
+                              setState(() => _verProcesos = v.first),
+                        ),
+                      ),
                       const SizedBox(height: 16),
-                      _buildFiltersPanel(),
-                      const SizedBox(height: 16),
-                      _buildKPIsRow(),
-                      const SizedBox(height: 24),
-                      _buildTableHeader(),
-                      const SizedBox(height: 10),
-                      _buildContractsTable(),
-                      _buildPaginationRow(),
+                      if (_verProcesos)
+                        const BuscadorProcesos()
+                      else ...[
+                        _buildFiltersPanel(),
+                        const SizedBox(height: 16),
+                        _buildKPIsRow(),
+                        const SizedBox(height: 24),
+                        _buildTableHeader(),
+                        const SizedBox(height: 10),
+                        _buildContractsTable(),
+                        _buildPaginationRow(),
+                      ],
                     ],
                   ),
                 ),
