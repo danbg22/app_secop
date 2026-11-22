@@ -14,6 +14,7 @@ import '../utils/dependencia_contrato.dart';
 import '../utils/nit.dart';
 import '../widgets/presupuesto_dependencias_panel.dart';
 import '../widgets/boton_seguir.dart';
+import '../widgets/buscador_procesos.dart';
 import '../widgets/reporte_contratos_flujo.dart';
 import 'detalle_screen.dart';
 import 'perfil_contratista_screen.dart';
@@ -2199,7 +2200,13 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   // ===========================================================================
 
   Widget _buildProfileTabsBar() {
-    const tabs = ['Resumen', 'Contratos', 'Dependencias', 'Contratistas'];
+    const tabs = [
+      'Resumen',
+      'Contratos',
+      'Dependencias',
+      'Contratistas',
+      'Procesos',
+    ];
 
     final tabsRow = Row(
       children: [
@@ -5029,6 +5036,14 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       1 => _buildContratosTab(),
       2 => _buildDependenciasTab(),
       3 => _buildContratistasTab(),
+      // Procesos en cualquier estado (borrador, abiertos, en evaluación…),
+      // de la entidad y de la regional elegida.
+      4 => BuscadorProcesos(
+        key: ValueKey('procesos-$_nitEntidad-$_selectedRegionalDept'),
+        nitEntidad: _nitEntidad,
+        departamento: _selectedRegionalDept ?? '',
+        nombreEntidad: widget.entity.name,
+      ),
       _ => _buildResumenTab(),
     };
 

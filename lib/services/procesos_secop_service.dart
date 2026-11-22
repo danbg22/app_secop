@@ -240,8 +240,22 @@ class ProcesosSecopService {
     String entidad = '',
     FiltroEstadoProceso estado = FiltroEstadoProceso.todos,
     PeriodoProcesos periodo = PeriodoProcesos.anio,
+    String nit = '',
+    String departamento = '',
   }) async {
     final where = <String>[];
+    // Desde el perfil de una entidad: su NIT y, si se eligió, su regional.
+    final nitLimpio = nit.replaceAll(RegExp(r'[^0-9]'), '');
+    if (nitLimpio.length >= 8) {
+      where.add(
+        "nit_entidad in (${Nit.formasNumericas(nitLimpio).map((f) => "'$f'").join(',')})",
+      );
+    }
+    if (departamento.trim().isNotEmpty) {
+      where.add(
+        "departamento_entidad = '${departamento.trim().replaceAll("'", "''")}'",
+      );
+    }
     if (periodo.dias > 0) {
       final desde = DateTime.now().subtract(Duration(days: periodo.dias));
       where.add(

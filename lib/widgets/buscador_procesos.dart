@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../screens/detalle_proceso_screen.dart';
 import '../services/procesos_secop_service.dart';
 import '../tema/cristal.dart';
 import '../utils/banderas_control.dart';
@@ -10,7 +11,21 @@ import '../utils/banderas_control.dart';
 /// adjudicados o cancelados. Sirve para revisar un proceso (pliegos,
 /// estudios previos) antes de que se adjudique.
 class BuscadorProcesos extends StatefulWidget {
-  const BuscadorProcesos({super.key});
+  const BuscadorProcesos({
+    super.key,
+    this.nitEntidad = '',
+    this.departamento = '',
+    this.nombreEntidad = '',
+  });
+
+  /// Desde el perfil de una entidad: solo sus procesos (y los de la
+  /// regional elegida), sin pedir la entidad.
+  final String nitEntidad;
+  final String departamento;
+  final String nombreEntidad;
+
+  bool get deEntidad =>
+      nitEntidad.replaceAll(RegExp(r'[^0-9]'), '').length >= 8;
 
   @override
   State<BuscadorProcesos> createState() => _BuscadorProcesosState();
@@ -19,8 +34,22 @@ class BuscadorProcesos extends StatefulWidget {
 class _BuscadorProcesosState extends State<BuscadorProcesos> {
   final _texto = TextEditingController();
   final _entidad = TextEditingController();
-  FiltroEstadoProceso _estado = FiltroEstadoProceso.abiertos;
-  PeriodoProcesos _periodo = PeriodoProcesos.trimestre;
+  // En una entidad se ven todos sus procesos del último año; en general,
+  // los abiertos del último mes.
+  late FiltroEstadoProceso _estado = widget.deEntidad
+      ? FiltroEstadoProceso.todos
+      : FiltroEstadoProceso.abiertos;
+  late PeriodoProcesos _periodo = widget.deEntidad
+      ? PeriodoProcesos.anio
+      : PeriodoProcesos.mes;
+
+  @override
+  void initState() {
+    super.initState();
+    // Se cargan solos, como los contratos firmados; buscar es opcional.
+    _buscar();
+  }
+
   List<ProcesoSecop>? _resultados;
   bool _buscando = false;
   String? _error;
@@ -44,9 +73,11 @@ class _BuscadorProcesosState extends State<BuscadorProcesos> {
     try {
       final r = await ProcesosSecopService.buscar(
         texto: _texto.text,
-        entidad: _entidad.text,
+        entidad: widget.deEntidad ? '' : _entidad.text,
         estado: _estado,
         periodo: _periodo,
+        nit: widget.nitEntidad,
+        departamento: widget.departamento,
       );
       if (!mounted || id != _consulta) return;
       setState(() {
@@ -87,7 +118,7 @@ class _BuscadorProcesosState extends State<BuscadorProcesos> {
       textInputAction: TextInputAction.search,
       onSubmitted: (_) => _buscar(),
       decoration: _campo(
-        'Qué se va a contratar',
+        'Buscar dentro de los procesos (opcional)',
         'Ej.: juegos zonales, vigilancia, mantenimiento…',
         Icons.search_rounded,
       ),
@@ -131,9 +162,14 @@ class _BuscadorProcesosState extends State<BuscadorProcesos> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Procesos en cualquier estado: en borrador o aprobación, recibiendo observaciones u ofertas, '
-                'en evaluación, adjudicados o cancelados. Ábrelos en SECOP II para ver los pliegos y los '
-                'estudios previos antes de que se adjudiquen.',
+                widget.deEntidad
+                    ? 'Procesos de ${widget.nombreEntidad.isEmpty ? 'la entidad' : widget.nombreEntidad}'
+                          '${widget.departamento.isEmpty ? '' : ' en ${widget.departamento}'} en cualquier estado: '
+                          'en borrador o aprobación, recibiendo observaciones u ofertas, en evaluación, adjudicados '
+                          'o cancelados. Ábrelos en SECOP II para ver los pliegos antes de que se adjudiquen.'
+                    : 'Procesos en cualquier estado: en borrador o aprobación, recibiendo observaciones u ofertas, '
+                          'en evaluación, adjudicados o cancelados. Ábrelos en SECOP II para ver los pliegos y los '
+                          'estudios previos antes de que se adjudiquen.',
                 style: TextStyle(
                   color: Cristal.textoMedio,
                   fontSize: 13.5,
@@ -143,16 +179,20 @@ class _BuscadorProcesosState extends State<BuscadorProcesos> {
               const SizedBox(height: 14),
               if (angosto) ...[
                 campoTexto,
-                const SizedBox(height: 10),
-                campoEntidad,
+                if (!widget.deEntidad) ...[
+                  const SizedBox(height: 10),
+                  campoEntidad,
+                ],
                 const SizedBox(height: 10),
                 boton,
               ] else
                 Row(
                   children: [
                     Expanded(flex: 3, child: campoTexto),
-                    const SizedBox(width: 10),
-                    Expanded(flex: 2, child: campoEntidad),
+                    if (!widget.deEntidad) ...[
+                      const SizedBox(width: 10),
+                      Expanded(flex: 2, child: campoEntidad),
+                    ],
                     const SizedBox(width: 10),
                     boton,
                   ],
@@ -177,7 +217,7 @@ class _BuscadorProcesosState extends State<BuscadorProcesos> {
                       selected: _estado == e,
                       onSelected: (_) {
                         setState(() => _estado = e);
-                        if (_resultados != null) _buscar();
+                        _buscar();
                       },
                     ),
                 ],
@@ -202,7 +242,7 @@ class _BuscadorProcesosState extends State<BuscadorProcesos> {
                       selected: _periodo == p,
                       onSelected: (_) {
                         setState(() => _periodo = p);
-                        if (_resultados != null) _buscar();
+                        _buscar();
                       },
                     ),
                 ],
@@ -346,135 +386,158 @@ class _TarjetaProceso extends StatelessWidget {
         : p.precioBase > 0
         ? 'Presupuesto ${_pesos(p.precioBase)}'
         : null;
-    return Container(
-      decoration: BoxDecoration(
-        color: Cristal.vidrio,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: p.tipo == TipoEstadoProceso.abierto
-              ? Cristal.verdeBorde
-              : Cristal.borde,
+    void abrirDetalle() => Navigator.push(
+      context,
+      MaterialPageRoute<void>(builder: (_) => DetalleProcesoScreen(proceso: p)),
+    );
+    // Toda la tarjeta abre el detalle (datos, fases y documentos).
+    return InkWell(
+      onTap: abrirDetalle,
+      borderRadius: BorderRadius.circular(16),
+      hoverDuration: Cristal.micro,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Cristal.vidrio,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: p.tipo == TipoEstadoProceso.abierto
+                ? Cristal.verdeBorde
+                : Cristal.borde,
+          ),
         ),
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: fondo,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  p.estado,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: fondo,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    p.estado,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
-              ),
-              if (faltan != null)
-                Text(
-                  faltan == 0
-                      ? 'Cierra hoy a las ${_hora(cierre!)}'
-                      : faltan == 1
-                      ? 'Cierra mañana a las ${_hora(cierre!)}'
-                      : 'Cierra en $faltan días · ${fechaDiaMesAnio(cierre!)} ${_hora(cierre)}',
-                  style: TextStyle(
-                    color: Cristal.verde,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
+                if (faltan != null)
+                  Text(
+                    faltan == 0
+                        ? 'Cierra hoy a las ${_hora(cierre!)}'
+                        : faltan == 1
+                        ? 'Cierra mañana a las ${_hora(cierre!)}'
+                        : 'Cierra en $faltan días · ${fechaDiaMesAnio(cierre!)} ${_hora(cierre)}',
+                    style: TextStyle(
+                      color: Cristal.verde,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-              if (p.referencia.isNotEmpty)
-                Text(
-                  p.referencia,
-                  style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            p.nombre.isEmpty ? p.descripcion : p.nombre,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: Cristal.texto,
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              height: 1.3,
+                if (p.referencia.isNotEmpty)
+                  Text(
+                    p.referencia,
+                    style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
+                  ),
+              ],
             ),
-          ),
-          if (p.descripcion.isNotEmpty && p.descripcion != p.nombre) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
             Text(
-              p.descripcion,
-              maxLines: 3,
+              p.nombre.isEmpty ? p.descripcion : p.nombre,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: Cristal.textoMedio,
-                fontSize: 13,
-                height: 1.4,
+                color: Cristal.texto,
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                height: 1.3,
               ),
             ),
-          ],
-          const SizedBox(height: 8),
-          Text(
-            [p.entidad, p.departamento].where((t) => t.isNotEmpty).join(' · '),
-            style: TextStyle(
-              color: Cristal.textoCuerpo,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            [
-              p.modalidad,
-              if (p.fase.isNotEmpty) 'Fase: ${p.fase}',
-              if (p.publicado != null)
-                'Publicado ${fechaDiaMesAnio(p.publicado!)}',
-              if (p.adjudicado && p.proveedor.isNotEmpty)
-                'Adjudicado a ${p.proveedor}',
-            ].where((t) => t.isNotEmpty).join(' · '),
-            style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
-          ),
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 12,
-            children: [
-              if (valor != null)
-                Text(
-                  valor,
-                  style: TextStyle(
-                    color: Cristal.texto,
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w800,
-                  ),
+            if (p.descripcion.isNotEmpty && p.descripcion != p.nombre) ...[
+              const SizedBox(height: 4),
+              Text(
+                p.descripcion,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Cristal.textoMedio,
+                  fontSize: 13,
+                  height: 1.4,
                 ),
-              if (p.url.startsWith('http'))
-                TextButton.icon(
-                  onPressed: () => launchUrl(
-                    Uri.parse(p.url),
-                    mode: LaunchMode.externalApplication,
-                  ),
-                  icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                  label: const Text('Ver pliegos en SECOP II'),
-                ),
+              ),
             ],
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              [
+                p.entidad,
+                p.departamento,
+              ].where((t) => t.isNotEmpty).join(' · '),
+              style: TextStyle(
+                color: Cristal.textoCuerpo,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              [
+                p.modalidad,
+                if (p.fase.isNotEmpty) 'Fase: ${p.fase}',
+                if (p.publicado != null)
+                  'Publicado ${fechaDiaMesAnio(p.publicado!)}',
+                if (p.adjudicado && p.proveedor.isNotEmpty)
+                  'Adjudicado a ${p.proveedor}',
+              ].where((t) => t.isNotEmpty).join(' · '),
+              style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
+            ),
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12,
+              children: [
+                if (valor != null)
+                  Text(
+                    valor,
+                    style: TextStyle(
+                      color: Cristal.texto,
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                Wrap(
+                  spacing: 4,
+                  children: [
+                    if (p.url.startsWith('http'))
+                      TextButton.icon(
+                        onPressed: () => launchUrl(
+                          Uri.parse(p.url),
+                          mode: LaunchMode.externalApplication,
+                        ),
+                        icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                        label: const Text('SECOP II'),
+                      ),
+                    FilledButton.tonalIcon(
+                      onPressed: abrirDetalle,
+                      icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+                      label: const Text('Ver detalle y documentos'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
