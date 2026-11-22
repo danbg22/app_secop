@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../services/datos_abiertos.dart';
 import '../services/procesos_secop_service.dart';
 import '../services/secop_document_intelligence_service.dart';
+import '../services/security_service.dart';
 import '../tema/cristal.dart';
 import '../utils/banderas_control.dart';
+import '../utils/compartir_enlace.dart';
+import '../utils/enlace_proceso.dart';
+import '../widgets/estado_proceso_chip.dart';
 
 /// Detalle de un proceso de SECOP II en cualquier estado (borrador, abierto,
 /// en evaluación, adjudicado o cancelado): sus datos, sus fases y los
@@ -23,7 +27,9 @@ class DetalleProcesoScreen extends StatefulWidget {
 class _DetalleProcesoScreenState extends State<DetalleProcesoScreen> {
   ProcesoSecop get p => widget.proceso;
 
-  late final Future<List<ProcesoSecop>> _fases = _cargarFases();
+  late final Future<List<ProcesoSecop>> _fases = ProcesosSecopService.fasesDe(
+    p,
+  );
   late final Future<SecopExtractionResult?> _documentos =
       SecopDocumentIntelligenceService.obtenerDocumentosDatosAbiertos({
         'proceso_de_compra': p.portafolio,
@@ -31,15 +37,38 @@ class _DetalleProcesoScreenState extends State<DetalleProcesoScreen> {
         'urlproceso': p.fila['urlproceso'],
       });
 
-  /// Todas las fases del proceso (una fila por fase en SECOP II).
-  Future<List<ProcesoSecop>> _cargarFases() async {
-    if (p.portafolio.isEmpty) return [p];
-    final filas = await DatosAbiertos.filas('p6dx-8zbt', {
-      r'$where': "id_del_portafolio = '${p.portafolio.replaceAll("'", "''")}'",
-      r'$order': 'fecha_de_publicacion_del',
-      r'$limit': '50',
-    });
-    return [for (final f in filas) ProcesoSecop(f)];
+  Future<void> _compartir() async {
+    final enlace = enlaceProcesoCompartido(p.idCompartido);
+    if (await compartirEnNavegador(enlace)) return;
+    if (!mounted) return;
+    try {
+      await Clipboard.setData(ClipboardData(text: enlace.toString()));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Copiaste el enlace de la vista previa.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Compartir vista previa'),
+          content: SelectableText(enlace.toString()),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  Future<void> _volver() async {
+    final navegador = Navigator.of(context);
+    if (await navegador.maybePop() || !mounted) return;
+    navegador.pushReplacementNamed('/home');
   }
 
   String _t(String k) {
@@ -66,19 +95,8 @@ class _DetalleProcesoScreenState extends State<DetalleProcesoScreen> {
   @override
   Widget build(BuildContext context) {
     final angosto = MediaQuery.sizeOf(context).width < 700;
-    final (color, fondo) = switch (p.tipo) {
-      TipoEstadoProceso.abierto => (Cristal.verde, Cristal.verdeVidrio),
-      TipoEstadoProceso.preparacion => (Cristal.ambar, Cristal.ambarVidrio),
-      TipoEstadoProceso.evaluacion => (
-        Cristal.acentoClaro,
-        Cristal.acentoVidrio,
-      ),
-      TipoEstadoProceso.adjudicado => (
-        Cristal.legible(const Color(0xFFA78BFA)),
-        const Color(0x248B5CF6),
-      ),
-      TipoEstadoProceso.cancelado => (Cristal.rojo, Cristal.rojoVidrio),
-    };
+    final enlaceSecop = SecurityService.validateOfficialGovUrl(p.url);
+    final sePuedeCompartir = ProcesosSecopService.idCompartible(p.idCompartido);
     final duracion = [
       _t('duracion'),
       _t('unidad_de_duracion'),
@@ -137,7 +155,7 @@ class _DetalleProcesoScreenState extends State<DetalleProcesoScreen> {
                     children: [
                       IconButton(
                         tooltip: 'Volver',
-                        onPressed: () => Navigator.of(context).maybePop(),
+                        onPressed: _volver,
                         icon: const Icon(Icons.arrow_back_rounded),
                       ),
                       const SizedBox(width: 6),
@@ -151,6 +169,21 @@ class _DetalleProcesoScreenState extends State<DetalleProcesoScreen> {
                           ),
                         ),
                       ),
+                      if (sePuedeCompartir)
+                        angosto
+                            ? IconButton(
+                                tooltip: 'Compartir proceso',
+                                onPressed: _compartir,
+                                icon: const Icon(Icons.share_outlined),
+                              )
+                            : OutlinedButton.icon(
+                                onPressed: _compartir,
+                                icon: const Icon(
+                                  Icons.share_outlined,
+                                  size: 18,
+                                ),
+                                label: const Text('Compartir proceso'),
+                              ),
                     ],
                   ),
                   const SizedBox(height: 14),
@@ -161,21 +194,12 @@ class _DetalleProcesoScreenState extends State<DetalleProcesoScreen> {
                         runSpacing: 8,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: fondo,
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              p.estado,
-                              style: TextStyle(
-                                color: color,
-                                fontWeight: FontWeight.w800,
-                              ),
+                          EstadoProcesoChip(p),
+                          Text(
+                            'SECOP II',
+                            style: TextStyle(
+                              color: Cristal.textoMedio,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                           if (p.referencia.isNotEmpty)
@@ -209,21 +233,17 @@ class _DetalleProcesoScreenState extends State<DetalleProcesoScreen> {
                           ),
                         ),
                       ],
-                      if (p.url.startsWith('http')) ...[
+                      if (enlaceSecop != null) ...[
                         const SizedBox(height: 14),
                         Align(
                           alignment: Alignment.centerLeft,
                           child: FilledButton.icon(
-                            onPressed: () => _abrir(p.url),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: Cristal.acento,
-                              foregroundColor: Cristal.blanco,
-                            ),
+                            onPressed: () => _abrir(enlaceSecop.toString()),
                             icon: const Icon(
                               Icons.open_in_new_rounded,
                               size: 18,
                             ),
-                            label: const Text('Abrir el proceso en SECOP II'),
+                            label: const Text('Abrir en SECOP II'),
                           ),
                         ),
                       ],
@@ -278,6 +298,12 @@ class _DetalleProcesoScreenState extends State<DetalleProcesoScreen> {
                             return const Padding(
                               padding: EdgeInsets.all(16),
                               child: Center(child: CircularProgressIndicator()),
+                            );
+                          }
+                          if (snap.hasError) {
+                            return Text(
+                              'No pudimos consultar los documentos. Puedes revisarlos en SECOP II.',
+                              style: TextStyle(color: Cristal.textoMedio),
                             );
                           }
                           final docs =
@@ -371,6 +397,12 @@ class _DetalleProcesoScreenState extends State<DetalleProcesoScreen> {
                               child: Center(child: CircularProgressIndicator()),
                             );
                           }
+                          if (snap.hasError) {
+                            return Text(
+                              'No pudimos consultar el historial de fases.',
+                              style: TextStyle(color: Cristal.textoMedio),
+                            );
+                          }
                           final fases = snap.data ?? [p];
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -442,7 +474,7 @@ class _DetalleProcesoScreenState extends State<DetalleProcesoScreen> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Fuente: Datos Abiertos de SECOP II (con 1 a 3 días de retraso). Lo vigente es lo que muestra SECOP II.',
+                    'Fuente · Datos Abiertos de SECOP II',
                     style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
                   ),
                 ],

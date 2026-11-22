@@ -8,6 +8,7 @@ import 'firebase_options.dart';
 import 'screens/escoger_rol_screen.dart';
 import 'screens/pasarela_pago_wompi_screen.dart';
 import 'screens/perfil_usuario_screen.dart';
+import 'screens/proceso_compartido_screen.dart';
 import 'screens/planes_screen.dart';
 import 'screens/portal_contratista_invitado_screen.dart';
 import 'screens/login_screen.dart';
@@ -18,6 +19,7 @@ import 'services/datos_abiertos.dart';
 import 'services/juridico_contratacion_service.dart';
 import 'tema/cristal.dart';
 import 'utils/app_scroll_behavior.dart';
+import 'utils/enlace_proceso.dart';
 import 'widgets/route_security_guard.dart';
 
 Future<void> main() async {
@@ -66,8 +68,40 @@ Future<void> _activarAppCheck() async {
   }
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  String? _procesoTrasAutenticacion;
+
+  void _limpiarDestino(String id) {
+    if (_procesoTrasAutenticacion == id) _procesoTrasAutenticacion = null;
+  }
+
+  Widget _procesoCompartido(String id) => AuthGate(
+    visitante: ProcesoCompartidoScreen(
+      key: ValueKey('vista-$id'),
+      id: id,
+      soloEncabezado: true,
+      onVistaActiva: () => _limpiarDestino(id),
+      onAutenticar: (ruta) {
+        _procesoTrasAutenticacion = id;
+        _navegador.currentState!.pushNamed(ruta);
+      },
+    ),
+    autenticado: ProcesoCompartidoScreen(
+      key: ValueKey('detalle-$id'),
+      id: id,
+      soloEncabezado: false,
+      onVistaActiva: () => _limpiarDestino(id),
+    ),
+  );
+
+  final _navegador = GlobalKey<NavigatorState>();
 
   @override
   Widget build(BuildContext context) {
@@ -78,6 +112,7 @@ class MyApp extends StatelessWidget {
 
   Widget _app() {
     return MaterialApp(
+      navigatorKey: _navegador,
       debugShowCheckedModeBanner: false,
       title: 'Contrata Legal',
       scrollBehavior: const AppScrollBehavior(),
@@ -89,7 +124,10 @@ class MyApp extends StatelessWidget {
       builder: (context, child) => FondoCristal(child: child!),
       home: const AuthGate(),
       routes: {
-        '/portada': (context) => const PortadaScreen(),
+        '/portada': (context) {
+          _procesoTrasAutenticacion = null;
+          return const PortadaScreen();
+        },
         '/auth': (context) => const LoginScreen(),
         '/registro': (context) => const EscogerRolScreen(),
         '/escoger-rol': (context) => const EscogerRolScreen(),
@@ -101,10 +139,29 @@ class MyApp extends StatelessWidget {
         '/planes': (context) => const RouteSecurityGuard(child: PlanesScreen()),
         '/perfil': (context) =>
             const RouteSecurityGuard(child: PerfilUsuarioScreen()),
-        '/home': (context) => const AuthGate(),
       },
       onGenerateRoute: (settings) {
         final rawName = settings.name ?? '';
+        final uri = Uri.tryParse(rawName);
+        if (rawName == '/home') {
+          final id = _procesoTrasAutenticacion;
+          return MaterialPageRoute<void>(
+            settings: id == null
+                ? settings
+                : RouteSettings(name: rutaProcesoCompartido(id)),
+            builder: (_) =>
+                id == null ? const AuthGate() : _procesoCompartido(id),
+          );
+        }
+        if (uri != null &&
+            uri.pathSegments.length == 2 &&
+            uri.pathSegments.first == 'proceso-compartido') {
+          final id = uri.pathSegments.last;
+          return MaterialPageRoute<void>(
+            settings: settings,
+            builder: (_) => _procesoCompartido(id),
+          );
+        }
         if (rawName.startsWith('/invitado-contrato')) {
           final parsed = Uri.tryParse(rawName);
           var token = (parsed?.queryParameters['token'] ?? '').trim();

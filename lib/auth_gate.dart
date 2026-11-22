@@ -15,11 +15,14 @@ import 'services/juridico_contratacion_service.dart';
 import 'services/payment_service.dart';
 
 class AuthGate extends StatelessWidget {
-  const AuthGate({super.key});
+  const AuthGate({super.key, this.visitante, this.autenticado});
+
+  final Widget? visitante;
+  final Widget? autenticado;
 
   @override
   Widget build(BuildContext context) {
-    if (kIsWeb) {
+    if (kIsWeb && visitante == null) {
       final guestToken = JuridicoContratacionService.extraerTokenInvitadoDeUri(
         Uri.base,
       );
@@ -76,10 +79,10 @@ class AuthGate extends StatelessWidget {
                   esFlujoRegistro: true,
                 );
               }
-              return const MainDashboard();
+              return autenticado ?? const MainDashboard();
             }
 
-            return const PortadaScreen();
+            return visitante ?? const PortadaScreen();
           },
         );
       },

@@ -7,6 +7,7 @@ import '../widgets/user_profile_header_action.dart';
 import 'favoritos_screen.dart';
 import 'sections/contratistas_section.dart';
 import 'sections/contratos_section.dart';
+import 'sections/procesos_section.dart';
 import 'sections/entidades_section.dart';
 import 'sections/equipo_juridico_section.dart';
 import 'sections/inicio_section.dart';
@@ -113,6 +114,8 @@ class _HomeScreenState extends State<HomeScreen> {
           onNavigateToSection: _onItemTapped,
           onLogout: _cerrarSesion,
         );
+      case CollapsibleSideMenu.indiceProcesos:
+        return const Expanded(child: ProcesosSection());
       case 2:
         return ContratosSection(
           topSearchController: _searchController,
@@ -233,6 +236,30 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _mostrarMenuMovil(int activo) async {
+    final opcion = await showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Cristal.flotante,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final indice in _resolverIndicesPermitidos())
+              ListTile(
+                leading: Icon(CollapsibleSideMenu.opcionesMenu[indice].icono),
+                title: Text(CollapsibleSideMenu.opcionesMenu[indice].titulo),
+                selected: activo == indice,
+                selectedColor: Cristal.dorado,
+                onTap: () => Navigator.pop(context, indice),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (mounted && opcion != null) _onItemTapped(opcion);
+  }
+
   Widget _construir(BuildContext context) {
     final isMobile = MediaQuery.sizeOf(context).width < 768;
     final activeIndex = _effectiveSelectedIndex();
@@ -254,6 +281,13 @@ class _HomeScreenState extends State<HomeScreen> {
           elevation: 0,
           scrolledUnderElevation: 0,
           automaticallyImplyLeading: false,
+          leading: AuthService.hasActiveRole('persona')
+              ? IconButton(
+                  tooltip: 'Abrir menú de secciones',
+                  icon: const Icon(Icons.menu_rounded),
+                  onPressed: () => _mostrarMenuMovil(activeIndex),
+                )
+              : null,
           titleSpacing: 16,
           title: Row(
             children: [
@@ -292,7 +326,9 @@ class _HomeScreenState extends State<HomeScreen> {
           construir: _buildCurrentView,
           recrear: _seccionesQueSeRecrean,
         ),
-        bottomNavigationBar: mobileTabs.length >= 2
+        bottomNavigationBar:
+            mobileTabs.length >= 2 &&
+                activeIndex != CollapsibleSideMenu.indiceProcesos
             ? DecoratedBox(
                 decoration: BoxDecoration(
                   color: Cristal.vidrioSuave,

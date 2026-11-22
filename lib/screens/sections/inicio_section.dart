@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../services/auth_service.dart';
+import '../../widgets/collapsible_side_menu.dart';
 import '../../widgets/dashboard_top_bar.dart';
 import '../../tema/cristal.dart';
 
@@ -136,6 +138,18 @@ class InicioSection extends StatelessWidget {
     final isMobile = screenW < 768;
 
     final cards = [
+      if (AuthService.hasActiveRole('persona'))
+        _buildCategoryCardContent(
+          title: 'Procesos',
+          description:
+              'Explora convocatorias, plazos y estados de contratación.',
+          iconBackground: Cristal.azulVidrio,
+          waveColor: Cristal.acento,
+          iconColor: Cristal.acentoClaro,
+          icon: Icons.pending_actions_outlined,
+          onTap: () => onNavigateToSection(CollapsibleSideMenu.indiceProcesos),
+          isMobile: isMobile,
+        ),
       _buildCategoryCardContent(
         title: 'Contratos',
         description: 'Consulta todos los contratos de la entidad o filtra por criterios específicos.',
@@ -237,23 +251,33 @@ class InicioSection extends StatelessWidget {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              cards[0],
-                              const SizedBox(height: 16),
-                              cards[1],
-                              const SizedBox(height: 16),
-                              cards[2],
+                              for (final (index, card) in cards.indexed) ...[
+                                if (index > 0) const SizedBox(height: 16),
+                                card,
+                              ],
                             ],
                           )
                         else
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            children: [
-                              Expanded(child: cards[0]),
-                              const SizedBox(width: 24),
-                              Expanded(child: cards[1]),
-                              const SizedBox(width: 24),
-                              Expanded(child: cards[2]),
-                            ],
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              const espacio = 16.0;
+                              final columnas =
+                                  constraints.maxWidth >= cards.length * 225
+                                  ? cards.length
+                                  : 2;
+                              final ancho =
+                                  (constraints.maxWidth -
+                                      (columnas - 1) * espacio) /
+                                  columnas;
+                              return Wrap(
+                                spacing: espacio,
+                                runSpacing: espacio,
+                                children: [
+                                  for (final card in cards)
+                                    SizedBox(width: ancho, child: card),
+                                ],
+                              );
+                            },
                           ),
                       ],
                     ),

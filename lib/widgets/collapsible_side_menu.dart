@@ -47,7 +47,10 @@ class CollapsibleSideMenu extends StatelessWidget {
       titulo: 'Supervisión de contratos',
       icono: Icons.assignment_turned_in_outlined,
     ),
+    MenuOptionItem(titulo: 'Procesos', icono: Icons.pending_actions_outlined),
   ];
+
+  static const int indiceProcesos = 11;
 
   /// Sección del rol Supervisión de contratos (Supervisor o Contratista).
   static const int indiceSupervision = 10;
@@ -67,7 +70,7 @@ class CollapsibleSideMenu extends StatelessWidget {
     final tieneJuridico = AuthService.hasActiveRole('equipo_juridico');
     final indices = <int>[];
     if (tienePersona) {
-      indices.addAll(const <int>[0, 2, 3, 4, indiceAlertas, 7]);
+      indices.addAll(const <int>[0, indiceProcesos, 2, 3, 4, indiceAlertas, 7]);
     }
     if (tieneJuridico) {
       indices.add(8);
