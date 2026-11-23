@@ -10,14 +10,21 @@ import '../tema/cristal.dart';
 /// almacenando los registros en la nube (Firestore / Google Sheets en Drive)
 /// sin abrir clientes de correo externos (`mailto:`).
 class PqrsHelpDialog extends StatefulWidget {
-  const PqrsHelpDialog({super.key, this.isBottomSheet = false});
+  const PqrsHelpDialog({
+    super.key,
+    this.isBottomSheet = false,
+    this.desdeMisSolicitudes = false,
+  });
 
   final bool isBottomSheet;
+  final bool desdeMisSolicitudes;
 
   /// Abre automáticamente un BottomSheet en pantallas móviles (< 600px) o un
   /// Dialog centrado en pantallas de escritorio/tablet.
   static Future<void> show(BuildContext context) async {
     final isMobile = MediaQuery.sizeOf(context).width < 600;
+    final desdeMisSolicitudes =
+        ModalRoute.of(context)?.settings.name == '/mis-solicitudes';
     if (isMobile) {
       await showModalBottomSheet<void>(
         context: context,
@@ -27,7 +34,10 @@ class PqrsHelpDialog extends StatefulWidget {
           padding: EdgeInsets.only(
             bottom: MediaQuery.viewInsetsOf(sheetCtx).bottom,
           ),
-          child: const PqrsHelpDialog(isBottomSheet: true),
+          child: PqrsHelpDialog(
+            isBottomSheet: true,
+            desdeMisSolicitudes: desdeMisSolicitudes,
+          ),
         ),
       );
     } else {
@@ -41,7 +51,7 @@ class PqrsHelpDialog extends StatefulWidget {
           ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 520),
-            child: const PqrsHelpDialog(),
+            child: PqrsHelpDialog(desdeMisSolicitudes: desdeMisSolicitudes),
           ),
         ),
       );
@@ -328,7 +338,7 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
               ),
               const SizedBox(height: 5),
               Text(
-                'Tu formulario quedó registrado directamente en nuestro repositorio sin necesidad de usar tu correo externo.',
+                'Tu solicitud quedó radicada. La campana de soporte te avisará cuando recibas una respuesta.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Cristal.textoMedio,
@@ -464,6 +474,10 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
             ),
           ],
         ),
+        TextButton(
+          onPressed: _irAMisSolicitudes,
+          child: const Text('Consultar mis solicitudes'),
+        ),
       ],
     );
   }
@@ -497,15 +511,19 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
                   children: [
                     Row(
                       children: [
-                        Text(
-                          item.radicado,
-                          style: TextStyle(
-                            color: Cristal.texto,
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w800,
+                        Expanded(
+                          child: Text(
+                            item.radicado,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Cristal.texto,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
-                        const Spacer(),
+                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
@@ -553,9 +571,14 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
           ),
         ),
         const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
           children: [
+            FilledButton(
+              onPressed: _irAMisSolicitudes,
+              child: const Text('Consultar respuestas'),
+            ),
             OutlinedButton.icon(
               onPressed: _exportarCsv,
               style: OutlinedButton.styleFrom(
@@ -587,6 +610,12 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
         ),
       ],
     );
+  }
+
+  void _irAMisSolicitudes() {
+    final navigator = Navigator.of(context);
+    navigator.pop();
+    if (!widget.desdeMisSolicitudes) navigator.pushNamed('/mis-solicitudes');
   }
 
   Widget _buildFormulario() {

@@ -1,12 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../screens/activacion_gratuita_screen.dart';
 import '../screens/login_screen.dart';
-import '../screens/pasarela_pago_wompi_screen.dart';
 import '../screens/portada_screen.dart';
 import '../services/auth_service.dart';
-import '../services/payment_service.dart';
+import 'acceso_plan_guard.dart';
 
 /// Guardián de control de acceso para rutas protegidas (OWASP A01 - Broken Access Control).
 ///
@@ -40,21 +38,11 @@ class RouteSecurityGuard extends StatelessWidget {
               );
             }
 
-            if (snapshot.hasData || AuthService.hasActiveSession) {
-              if (AuthService.requiresMandatoryWompiPayment &&
-                  !allowWhenPaymentPending) {
-                // El Contratista es gratuito: se activa sin Wompi.
-                final pendiente = AuthService.getPendingRegistrationRoleId();
-                if (PaymentService.obtenerConfiguracionRol(pendiente)
-                    .esGratuito) {
-                  return ActivacionGratuitaScreen(rolId: pendiente);
-                }
-                return PasarelaPagoWompiScreen(
-                  rolId: AuthService.getPendingRegistrationRoleId(),
-                  esFlujoRegistro: true,
-                );
-              }
-              return child;
+            if (FirebaseAuth.instance.currentUser != null) {
+              return AccesoPlanGuard(
+                permitirPago: allowWhenPaymentPending,
+                child: child,
+              );
             }
 
             return fallbackToPortada

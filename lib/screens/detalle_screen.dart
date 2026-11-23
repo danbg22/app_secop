@@ -10,7 +10,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/auth_service.dart';
-import '../services/datos_abiertos.dart';
+import '../services/expediente_contrato_service.dart';
 import '../services/favorites_service.dart';
 import '../services/ia_config.dart';
 import '../services/secop_document_intelligence_service.dart';
@@ -52,7 +52,6 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
   final List<Map<String, dynamic>> _mensajes = [];
   bool _isTyping = false;
   bool _esFavorito = false;
-  bool _isSidebarCollapsed = false;
   bool _contextExpanded = true;
   bool _isExtractingDocs = false;
   String _extractingStepText = 'Conectando con el expediente en SECOP II...';
@@ -105,109 +104,20 @@ class _DetalleContratoScreenState extends State<DetalleContratoScreen> {
     super.dispose();
   }
 
-  /// Limpia identificadores para literales SoQL conservando su formato real
-  /// (puntos, guiones, guion bajo), sin comillas ni operadores peligrosos.
-  static String _soqlIdLiteral(dynamic raw) {
-    var clean = (raw ?? '')
-        .toString()
-        .replaceAll(RegExp(r'[^A-Za-z0-9.\-_/ ÁÉÍÓÚÑáéíóúñ]'), '')
-        .replaceAll('--', '-')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-    if (clean.length > 90) clean = clean.substring(0, 90);
-    return clean;
-  }
-
-  static bool _valorSecopVacio(dynamic v) {
-    if (v == null) return true;
-    final s = v.toString().trim();
-    return s.isEmpty || s.toLowerCase() == 'no definido';
-  }
-
-  bool get _esContratoSecopI {
-    final c = _contratoData;
-    return c.containsKey('ruta_proceso_en_secop_i') ||
-        c.containsKey('nom_razon_social_contratista') ||
-        c.containsKey('numero_de_constancia') ||
-        (c.containsKey('uid') && !c.containsKey('id_contrato'));
-  }
-
-  /// Descarga la fila completa del contrato (todas las columnas oficiales)
-  /// desde Datos Abiertos Colombia, sin `$select` para evitar errores 400.
   Future<void> _cargarExpedienteCompletoSecop() async {
     _contratoData = SecopI.normalizar(_contratoData);
-    if (_cargandoExpedienteCompleto || _expedienteEnriquecido) return;
-
-    final c = _contratoData;
-    final clauses = <String>[];
-    String dataset;
-
-    if (_esContratoSecopI) {
-      dataset = SecopI.dataset;
-      final uid = _soqlIdLiteral(c['uid']);
-      final constancia = _soqlIdLiteral(c['numero_de_constancia']);
-      final numContrato = _soqlIdLiteral(c['numero_de_contrato']);
-      final nit = _soqlIdLiteral(c['nit_de_la_entidad'] ?? c['nit_entidad']);
-      if (uid.isNotEmpty) {
-        clauses.add("uid='$uid'");
-      } else if (constancia.isNotEmpty) {
-        clauses.add("numero_de_constancia='$constancia'");
-      } else if (numContrato.isNotEmpty && nit.isNotEmpty) {
-        clauses.add("numero_de_contrato='$numContrato'");
-        clauses.add("nit_de_la_entidad='$nit'");
-      }
-    } else {
-      dataset = 'jbjy-vk9h';
-      final id = _soqlIdLiteral(c['id_contrato']);
-      final ref = _soqlIdLiteral(c['referencia_del_contrato']);
-      final nit = _soqlIdLiteral(c['nit_entidad']);
-      final proceso = _soqlIdLiteral(c['proceso_de_compra']);
-      final docProv = _soqlIdLiteral(c['documento_proveedor']);
-      if (id.isNotEmpty) {
-        clauses.add("id_contrato='$id'");
-      } else if (ref.isNotEmpty && nit.isNotEmpty) {
-        clauses.add("referencia_del_contrato='$ref'");
-        clauses.add("nit_entidad='$nit'");
-      } else if (proceso.isNotEmpty && proceso.toUpperCase() != 'NO DEFINIDO') {
-        clauses.add("proceso_de_compra='$proceso'");
-        if (docProv.isNotEmpty) clauses.add("documento_proveedor='$docProv'");
-      }
-    }
-
-    if (clauses.isEmpty) return;
-
-    // Se invoca desde initState (antes del primer build): no requiere setState.
     _cargandoExpedienteCompleto = true;
     try {
-      final uri = Uri.https('www.datos.gov.co', '/resource/$dataset.json', {
-        r'$where': clauses.join(' AND '),
-        r'$limit': '1',
-      });
-      // Con caché: volver a abrir el mismo contrato es instantáneo.
-      final res = await DatosAbiertos.obtener(
-        uri,
-        timeout: const Duration(seconds: 9),
-        cache: DatosAbiertos.ttlPorDefecto,
+      final expediente = await ExpedienteContratoService.consultar(
+        _contratoData,
       );
-      if (res.statusCode == 200) {
-        final decoded = json.decode(utf8.decode(res.bodyBytes));
-        if (decoded is List && decoded.isNotEmpty && decoded.first is Map) {
-          final fila = (decoded.first as Map).map(
-            (k, v) => MapEntry(k.toString(), v),
-          );
-          final merged = Map<String, dynamic>.from(_contratoData);
-          fila.forEach((k, v) {
-            if (!_valorSecopVacio(v) || !merged.containsKey(k)) merged[k] = v;
-          });
-          if (!mounted) return;
-          setState(() {
-            _contratoData = SecopI.normalizar(merged);
-            _expedienteEnriquecido = true;
-          });
-        }
-      }
+      if (!mounted || expediente == null) return;
+      setState(() {
+        _contratoData = expediente;
+        _expedienteEnriquecido = true;
+      });
     } catch (_) {
-      // Se conserva la información ya disponible si la consulta falla.
+      // Conserva los datos ya disponibles en la vista.
     } finally {
       if (mounted) setState(() => _cargandoExpedienteCompleto = false);
     }
@@ -4237,10 +4147,7 @@ FORMATO (Markdown)
         children: [
           CollapsibleSideMenu(
             selectedIndex: 2,
-            isCollapsed: _isSidebarCollapsed,
             onItemSelected: _onSidebarItemSelected,
-            onToggleCollapse: () =>
-                setState(() => _isSidebarCollapsed = !_isSidebarCollapsed),
             onLogout: _cerrarSesion,
           ),
           Expanded(child: bodyContent),

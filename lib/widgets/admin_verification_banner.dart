@@ -62,7 +62,7 @@ class _AdminVerificationBannerState extends State<AdminVerificationBanner> {
         if (!AuthService.adminPendienteDeVerificacion && !esAbogadoPendiente) {
           return const SizedBox.shrink();
         }
-        if (esAbogadoPendiente) {
+        if (esAbogadoPendiente && !AuthService.adminPendienteDeVerificacion) {
           final equipo =
               EquipoJuridicoService.membresia.value?.masterNombre ??
               'tu entidad';

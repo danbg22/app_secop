@@ -51,7 +51,7 @@ class ReporteContratosPdfService {
 
   static pw.ThemeData? _tema;
 
-  static Future<pw.ThemeData> _cargarTema() async {
+  static Future<pw.ThemeData> cargarTemaPdf() async {
     if (_tema != null) return _tema!;
     Future<pw.Font> f(String peso) async => pw.Font.ttf(
       await rootBundle.load('assets/fonts/inter/Inter-$peso.ttf'),
@@ -121,7 +121,7 @@ class ReporteContratosPdfService {
     List<String> notas = const [],
     bool firmaResponsable = false,
   }) async {
-    final tema = await _cargarTema();
+    final tema = await cargarTemaPdf();
     final logo = await _logo(entidad, nit);
     final doc = pw.Document(
       theme: tema,

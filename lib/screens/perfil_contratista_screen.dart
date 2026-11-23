@@ -61,7 +61,6 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
   final NumberFormat formatoMoneda = NumberFormat.decimalPattern('es_CO');
 
   bool isLoading = true;
-  bool _isSidebarCollapsed = false;
   bool _perfilFavoritoGuardado = false;
   Set<String> _contratosFavoritosIds = {};
   bool? esServidorPublico;
@@ -1952,10 +1951,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
         children: [
           CollapsibleSideMenu(
             selectedIndex: -1,
-            isCollapsed: _isSidebarCollapsed,
             onItemSelected: _onSidebarItemSelected,
-            onToggleCollapse: () =>
-                setState(() => _isSidebarCollapsed = !_isSidebarCollapsed),
             onLogout: _cerrarSesion,
           ),
           Expanded(child: bodyContent),

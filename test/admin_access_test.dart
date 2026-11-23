@@ -25,4 +25,26 @@ void main() {
       expect(AdminAccess.esAdministrador('  ${correo.toUpperCase()} '), isTrue);
     }
   });
+
+  test(
+    'el acceso administrativo distingue correo listado de identidad verificada',
+    () {
+      final correo = AdminAccess.correosAdministradores.first;
+      expect(
+        AdminAccess.esAdministradorVerificado(correo, correoVerificado: true),
+        isTrue,
+      );
+      expect(
+        AdminAccess.esAdministradorVerificado(correo, correoVerificado: false),
+        isFalse,
+      );
+      expect(
+        AdminAccess.esAdministradorVerificado(
+          'otra@ejemplo.com',
+          correoVerificado: true,
+        ),
+        isFalse,
+      );
+    },
+  );
 }

@@ -77,4 +77,30 @@ void main() {
       expect(contraste(p.texto, p.fondo), greaterThan(7));
     }
   });
+
+  test('los botones no dibujan una capa al pasar el cursor', () {
+    for (final modo in ModoCristal.values) {
+      Cristal.modo.value = modo;
+      final tema = temaCristal();
+      expect(tema.hoverColor, Colors.transparent);
+      for (final estilo in [
+        tema.filledButtonTheme.style!,
+        tema.elevatedButtonTheme.style!,
+        tema.outlinedButtonTheme.style!,
+        tema.textButtonTheme.style!,
+        tema.iconButtonTheme.style!,
+        tema.segmentedButtonTheme.style!,
+      ]) {
+        expect(estilo.backgroundBuilder, isNull);
+        expect(
+          estilo.overlayColor!.resolve({WidgetState.hovered}),
+          Colors.transparent,
+        );
+        expect(
+          estilo.overlayColor!.resolve({WidgetState.focused}),
+          isNot(Colors.transparent),
+        );
+      }
+    }
+  });
 }

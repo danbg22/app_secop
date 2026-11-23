@@ -2,17 +2,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import 'screens/activacion_gratuita_screen.dart';
 import 'screens/consentimiento_equipo_screen.dart';
 import 'screens/main_dashboard.dart';
-import 'screens/pasarela_pago_wompi_screen.dart';
 import 'screens/portada_screen.dart';
 import 'screens/portal_contratista_invitado_screen.dart';
 import 'services/auth_service.dart';
 import 'services/consent_service.dart';
 import 'services/equipo_juridico_service.dart';
 import 'services/juridico_contratacion_service.dart';
-import 'services/payment_service.dart';
+import 'widgets/acceso_plan_guard.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key, this.visitante, this.autenticado});
@@ -47,7 +45,7 @@ class AuthGate extends StatelessWidget {
               );
             }
 
-            if (snapshot.hasData || AuthService.hasActiveSession) {
+            if (FirebaseAuth.instance.currentUser != null) {
               // Autorización de tratamiento de datos (Ley 1581 de 2012):
               // nadie entra a la app sin haber aceptado la versión vigente de
               // la política. El abogado de un equipo ve la versión con el
@@ -63,23 +61,9 @@ class AuthGate extends StatelessWidget {
               if (ConsentService.pendiente) {
                 return const ConsentimientoUsuarioScreen();
               }
-              // Bloqueo de ciberseguridad estricto: ninguna cuenta registrada
-              // sin pago aprobado en Wompi puede entrar al panel principal,
-              // ni devolviéndose con el botón Atrás ni recargando la URL.
-              if (AuthService.requiresMandatoryWompiPayment) {
-                // El Contratista (Supervisión de contratos) es gratuito: se
-                // activa sin pasar por Wompi.
-                final pendiente = AuthService.getPendingRegistrationRoleId();
-                if (PaymentService.obtenerConfiguracionRol(pendiente)
-                    .esGratuito) {
-                  return ActivacionGratuitaScreen(rolId: pendiente);
-                }
-                return PasarelaPagoWompiScreen(
-                  rolId: AuthService.getPendingRegistrationRoleId(),
-                  esFlujoRegistro: true,
-                );
-              }
-              return autenticado ?? const MainDashboard();
+              return AccesoPlanGuard(
+                child: autenticado ?? const MainDashboard(),
+              );
             }
 
             return visitante ?? const PortadaScreen();

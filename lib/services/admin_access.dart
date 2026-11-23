@@ -17,8 +17,13 @@ class AdminAccess {
   static bool esAdministrador(String? email) =>
       correosAdministradores.contains((email ?? '').trim().toLowerCase());
 
+  static bool esAdministradorVerificado(
+    String? email, {
+    required bool correoVerificado,
+  }) => correoVerificado && esAdministrador(email);
+
   /// Todos los roles del catálogo, en el orden oficial.
   static List<String> get todosLosRoles => List<String>.unmodifiable(
-        AdminConfiguracionRolesYPagos.catalogoRoles.map((r) => r.id),
-      );
+    AdminConfiguracionRolesYPagos.catalogoRoles.map((r) => r.id),
+  );
 }

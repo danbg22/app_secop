@@ -22,11 +22,16 @@ bool downloadBinaryBytes({
   final safeName = SecurityService.sanitizeFileName(fileName);
   final blob = html.Blob(<dynamic>[bytes], mimeType);
   final url = html.Url.createObjectUrlFromBlob(blob);
-  html.AnchorElement(href: url)
+  final enlace = html.AnchorElement(href: url)
     ..setAttribute('download', safeName)
     ..setAttribute('rel', 'noopener noreferrer')
-    ..click();
-  html.Url.revokeObjectUrl(url);
+    ..style.display = 'none';
+  html.document.body?.append(enlace);
+  enlace.click();
+  enlace.remove();
+  Future<void>.delayed(const Duration(seconds: 30), () {
+    html.Url.revokeObjectUrl(url);
+  });
   return true;
 }
 

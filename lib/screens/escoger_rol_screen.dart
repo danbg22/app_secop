@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../services/acceso_planes.dart';
 import '../services/payment_service.dart';
 import 'login_screen.dart';
 import 'pasarela_pago_wompi_screen.dart';
@@ -351,11 +352,16 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
       AuthService.hasActiveRole(rol.id);
 
   String _precioTarjeta(RolPaqueteConfig rol) {
-    if (!_esGrupo(rol)) return rol.precioFormateadoCop;
-    final precios = PaymentService.subrolesDe(rol.id)
-        .map((r) => r.precioFormateadoCop.replaceAll(' COP', ''))
-        .toSet().toList();
-    return precios.reversed.join(' o ');
+    final primerRegistro = !widget.modoAcumularRol;
+    if (!_esGrupo(rol)) {
+      return primerRegistro && rol.habilitadoParaRegistro && !rol.esGratuito
+          ? 'Después, ${rol.precioMensualFormateado}'
+          : rol.precioMensualFormateado;
+    }
+    final supervisor = PaymentService.obtenerConfiguracionRol(
+      'supervisor_contratos',
+    );
+    return '${supervisor.precioMensualFormateado} para Supervisor · Otros perfiles gratis';
   }
 
   /// Despliega los subroles de Supervisión de contratos.
@@ -398,6 +404,7 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                   _OpcionSubrol(
                     rol: rol,
                     activo: _yaTiene(rol),
+                    mostrarPrueba: !widget.modoAcumularRol && !rol.esGratuito,
                     onTap: () => Navigator.of(ctx).pop(rol),
                   ),
                   const SizedBox(height: 12),
@@ -485,7 +492,8 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
 
     // Si el usuario ya tiene cuenta activa y está comprando un módulo adicional (Roles acumulables):
     if (widget.modoAcumularRol && AuthService.hasAuthorizedPlatformAccess) {
-      if (AuthService.hasActiveRole(rol.id)) {
+      if (AuthService.hasActiveRole(rol.id) &&
+          AccesoPlanes.estado?.rolPrueba != rol.id) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(
@@ -602,7 +610,7 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                         children: [
                           OnboardingUnifiedTopBar(
                             currentStep: 1,
-                            totalSteps: widget.modoAcumularRol ? 2 : 3,
+                            totalSteps: 2,
                             onBack: _regresar,
                             backLabel: widget.modoAcumularRol
                                 ? 'Volver a la app'
@@ -627,7 +635,7 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                           Text(
                             widget.modoAcumularRol
                                 ? 'Tus roles actuales (${AuthService.getActiveUserRoleDisplayLabel()}) se conservarán intactos.\nAl confirmar el pago en Wompi, el nuevo rol se sumará automáticamente sin cerrar tu sesión.'
-                                : 'Personaliza tu experiencia según tus necesidades.\nLos roles son acumulables: puedes sumar módulos adicionales en cualquier momento.',
+                                : 'Prueba los planes de pago 30 días gratis. Crea tu cuenta sin tarjeta y suscríbete cuando quieras.',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Cristal.textoMedio,
@@ -758,6 +766,18 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
     final bool isAlreadyOwned = _esGrupo(rol)
         ? PaymentService.subrolesDe(rol.id).every(_yaTiene)
         : _yaTiene(rol);
+    final grupo = _esGrupo(rol);
+    final mostrarPrueba =
+        !widget.modoAcumularRol &&
+        rol.habilitadoParaRegistro &&
+        (grupo || !rol.esGratuito);
+    final etiquetaAccion = grupo
+        ? 'Elegir perfil'
+        : widget.modoAcumularRol
+        ? 'Acumular rol'
+        : mostrarPrueba
+        ? 'Inicia tu prueba gratuita'
+        : 'Seleccionar';
     final bool isHovered = _hoveredRoleId == rol.id;
 
     // El color del rol en su variante brillante, para el fondo oscuro.
@@ -851,10 +871,27 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                           ),
                         ),
                       );
-                      if (precioDebajo) {
+                      if (precioDebajo || mostrarPrueba || grupo) {
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [titulo, const SizedBox(height: 8), precio],
+                          children: [
+                            titulo,
+                            if (mostrarPrueba) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                grupo
+                                    ? 'Supervisor · 30 días gratis'
+                                    : '30 días gratis',
+                                style: TextStyle(
+                                  color: luz,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 8),
+                            precio,
+                          ],
                         );
                       }
                       return Row(
@@ -943,13 +980,54 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                               ),
                             ),
                           )
-                        : (isPersona
+                        : (rol.habilitadoParaRegistro
                               ? ElevatedButton(
                                   onPressed: () => _seleccionarRol(rol),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Cristal.doradoRelleno,
+                                    backgroundColor: isPersona
+                                        ? Cristal.doradoRelleno
+                                        : luz,
                                     foregroundColor: Cristal.tinta,
                                     elevation: 0,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(28),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          etiquetaAccion,
+                                          textAlign: TextAlign.center,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      const Icon(
+                                        Icons.arrow_forward_rounded,
+                                        size: 17,
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : OutlinedButton(
+                                  onPressed: () => _seleccionarRol(rol),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Cristal.texto,
+                                    backgroundColor: Cristal.vidrio,
+                                    side: BorderSide(
+                                      color: luz.withValues(alpha: 0.45),
+                                      width: 1.2,
+                                    ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(28),
                                     ),
@@ -958,96 +1036,22 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Text(
-                                        widget.modoAcumularRol
-                                            ? 'Acumular rol'
-                                            : 'Seleccionar',
+                                        'Próximamente',
                                         style: TextStyle(
-                                          color: Cristal.tinta,
-                                          fontSize: 15.2,
-                                          fontWeight: FontWeight.w800,
+                                          color: Cristal.textoSuave,
+                                          fontSize: 14.5,
+                                          fontWeight: FontWeight.w700,
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
+                                      SizedBox(width: 6),
                                       Icon(
-                                        Icons.arrow_forward_rounded,
-                                        size: 19,
-                                        color: Cristal.tinta,
+                                        Icons.lock_clock_outlined,
+                                        size: 17,
+                                        color: Cristal.textoSuave,
                                       ),
                                     ],
                                   ),
-                                )
-                              : (rol.habilitadoParaRegistro
-                                    ? ElevatedButton(
-                                        onPressed: () => _seleccionarRol(rol),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: luz,
-                                          foregroundColor: Cristal.tinta,
-                                          elevation: 0,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              28,
-                                            ),
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              widget.modoAcumularRol
-                                                  ? 'Acumular rol'
-                                                  : 'Seleccionar',
-                                              style: TextStyle(
-                                                color: Cristal.tinta,
-                                                fontSize: 15,
-                                                fontWeight: FontWeight.w800,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Icon(
-                                              Icons.arrow_forward_rounded,
-                                              size: 19,
-                                              color: Cristal.tinta,
-                                            ),
-                                          ],
-                                        ),
-                                      )
-                                    : OutlinedButton(
-                                        onPressed: () => _seleccionarRol(rol),
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: Cristal.texto,
-                                          backgroundColor: Cristal.vidrio,
-                                          side: BorderSide(
-                                            color: luz.withValues(alpha: 0.45),
-                                            width: 1.2,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              28,
-                                            ),
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              'Próximamente',
-                                              style: TextStyle(
-                                                color: Cristal.textoSuave,
-                                                fontSize: 14.5,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            SizedBox(width: 6),
-                                            Icon(
-                                              Icons.lock_clock_outlined,
-                                              size: 17,
-                                              color: Cristal.textoSuave,
-                                            ),
-                                          ],
-                                        ),
-                                      ))),
+                                )),
                   ),
                 ),
               ],
@@ -1064,11 +1068,13 @@ class _OpcionSubrol extends StatelessWidget {
   const _OpcionSubrol({
     required this.rol,
     required this.activo,
+    required this.mostrarPrueba,
     required this.onTap,
   });
 
   final RolPaqueteConfig rol;
   final bool activo;
+  final bool mostrarPrueba;
   final VoidCallback onTap;
 
   @override
@@ -1114,7 +1120,9 @@ class _OpcionSubrol extends StatelessWidget {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
-                          rol.id == 'supervisor_contratos' ? 'Supervisor' : rol.nombre,
+                          rol.id == 'supervisor_contratos'
+                              ? 'Supervisor'
+                              : rol.nombre,
                           style: TextStyle(
                             color: Cristal.texto,
                             fontSize: 17,
@@ -1134,7 +1142,9 @@ class _OpcionSubrol extends StatelessWidget {
                             ),
                           ),
                           child: Text(
-                            rol.precioFormateadoCop,
+                            mostrarPrueba
+                                ? 'Después, ${rol.precioMensualFormateado}'
+                                : rol.precioMensualFormateado,
                             style: TextStyle(
                               color: luz,
                               fontSize: 11.5,
@@ -1153,6 +1163,16 @@ class _OpcionSubrol extends StatelessWidget {
                           ),
                       ],
                     ),
+                    if (mostrarPrueba) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Inicia tu prueba gratuita · 30 días',
+                        style: TextStyle(
+                          color: luz,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 6),
                     Text(
                       rol.descripcionCorta,

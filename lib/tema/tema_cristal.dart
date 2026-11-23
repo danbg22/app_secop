@@ -16,35 +16,15 @@ Color _tinte(int alfa) => Cristal.esClaro
     ? Color.fromARGB(alfa, 0x0B, 0x14, 0x26)
     : Color.fromARGB(alfa, 0xFF, 0xFF, 0xFF);
 
-/// Velo que sube de opacidad bajo el cursor, en 0,3 s: la microinteracción
-/// común de todos los botones.
-Widget _veloBoton(
-  BuildContext context,
-  Set<WidgetState> estados,
-  Widget? child,
+/// El cursor no pinta una capa. Se conserva la indicación de foco y pulsación.
+final WidgetStateProperty<Color?> _capaBoton = WidgetStateProperty.resolveWith((
+  estados,
 ) {
-  final activo = !estados.contains(WidgetState.disabled);
-  final Color velo;
-  if (activo && estados.contains(WidgetState.pressed)) {
-    velo = _tinte(0x29);
-  } else if (activo && estados.contains(WidgetState.hovered)) {
-    velo = _tinte(0x17);
-  } else {
-    velo = _tinte(0x00);
-  }
-  return AnimatedContainer(
-    duration: Cristal.micro,
-    curve: Cristal.curvaMicro,
-    color: velo,
-    child: child,
-  );
-}
-
-/// Bajo el cursor ya responde el velo; aquí solo el foco del teclado.
-final WidgetStateProperty<Color?> _capaBoton = WidgetStateProperty.resolveWith(
-  (estados) =>
-      estados.contains(WidgetState.focused) ? _tinte(0x24) : Colors.transparent,
-);
+  if (estados.contains(WidgetState.disabled)) return Colors.transparent;
+  if (estados.contains(WidgetState.pressed)) return _tinte(0x29);
+  if (estados.contains(WidgetState.focused)) return _tinte(0x24);
+  return Colors.transparent;
+});
 
 OutlineInputBorder _bordeCampo(Color color) => OutlineInputBorder(
   borderRadius: BorderRadius.circular(Cristal.radioCampo),
@@ -142,7 +122,7 @@ ThemeData temaCristal() {
     dividerColor: Cristal.borde,
     disabledColor: Cristal.textoApagado,
     hintColor: Cristal.textoTenue,
-    hoverColor: Cristal.vidrio,
+    hoverColor: Colors.transparent,
     highlightColor: Cristal.vidrioSuave,
     splashColor: Cristal.vidrioFuerte,
     focusColor: Cristal.vidrioIntenso,
@@ -289,7 +269,6 @@ ThemeData temaCristal() {
               : Colors.white,
         ),
         overlayColor: _capaBoton,
-        backgroundBuilder: _veloBoton,
         shape: const WidgetStatePropertyAll(StadiumBorder()),
         animationDuration: Cristal.micro,
       ),
@@ -307,7 +286,6 @@ ThemeData temaCristal() {
               : Cristal.texto,
         ),
         overlayColor: _capaBoton,
-        backgroundBuilder: _veloBoton,
         elevation: const WidgetStatePropertyAll(0),
         shadowColor: const WidgetStatePropertyAll(Colors.transparent),
         surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
@@ -330,7 +308,6 @@ ThemeData temaCristal() {
           ),
         ),
         overlayColor: _capaBoton,
-        backgroundBuilder: _veloBoton,
         animationDuration: Cristal.micro,
       ),
     ),
@@ -342,7 +319,6 @@ ThemeData temaCristal() {
               : Cristal.acentoClaro,
         ),
         overlayColor: _capaBoton,
-        backgroundBuilder: _veloBoton,
         animationDuration: Cristal.micro,
       ),
     ),
@@ -354,7 +330,6 @@ ThemeData temaCristal() {
               : Cristal.textoCuerpo,
         ),
         overlayColor: _capaBoton,
-        backgroundBuilder: _veloBoton,
         animationDuration: Cristal.micro,
       ),
     ),
@@ -370,6 +345,7 @@ ThemeData temaCristal() {
               ? Cristal.texto
               : Cristal.textoSuave,
         ),
+        overlayColor: _capaBoton,
         side: WidgetStatePropertyAll(BorderSide(color: Cristal.bordeFuerte)),
         animationDuration: Cristal.micro,
       ),
@@ -441,6 +417,7 @@ ThemeData temaCristal() {
       circularTrackColor: Colors.transparent,
     ),
     tabBarTheme: TabBarThemeData(
+      overlayColor: _capaBoton,
       labelColor: Cristal.texto,
       unselectedLabelColor: Cristal.textoTenue,
       indicatorColor: Cristal.dorado,

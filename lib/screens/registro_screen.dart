@@ -7,7 +7,6 @@ import '../services/payment_service.dart';
 import '../services/security_service.dart';
 import 'activacion_gratuita_screen.dart';
 import 'escoger_rol_screen.dart';
-import 'pasarela_pago_wompi_screen.dart';
 import '../tema/cristal.dart';
 import '../widgets/ilustracion_rol.dart';
 
@@ -302,17 +301,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
         );
         return;
       }
-      _showMessage(
-        'Datos validados correctamente. Continúa con la activación de tu rol ${rolConfig.nombre}.',
-      );
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute<void>(
-          builder: (_) => PasarelaPagoWompiScreen(
-            rolId: rolConfig.id,
-            esFlujoRegistro: true,
-          ),
-        ),
-      );
+      Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
     } catch (error) {
       if (!mounted) return;
       final msg = error.toString().replaceFirst('Exception: ', '');
@@ -440,6 +429,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
 
               final fieldPais = DropdownButtonFormField<String>(
                 initialValue: _pais,
+                isExpanded: true,
                 style: TextStyle(
                   color: Cristal.texto,
                   fontSize: 14.8,
@@ -460,7 +450,10 @@ class _RegistroScreenState extends State<RegistroScreen> {
                   DropdownMenuItem(value: 'España', child: Text('España')),
                   DropdownMenuItem(
                     value: 'Estados Unidos',
-                    child: Text('Estados Unidos'),
+                    child: Text(
+                      'Estados Unidos',
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   DropdownMenuItem(value: 'Otro', child: Text('Otro')),
                 ],
@@ -559,7 +552,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                             // Barra superior sin logo duplicado (el logo HD grande va dentro de la tarjeta)
                             OnboardingUnifiedTopBar(
                               currentStep: 2,
-                              totalSteps: 3,
+                              totalSteps: 2,
                               onBack: _cambiarRol,
                               backLabel: 'Cambiar rol',
                               showBrandLogo: false,
@@ -568,7 +561,9 @@ class _RegistroScreenState extends State<RegistroScreen> {
 
                             // Título y subtítulo centrados
                             Text(
-                              'Crea tu cuenta para continuar',
+                              rol.esGratuito
+                                  ? 'Crea tu cuenta gratis'
+                                  : 'Empieza con 30 días gratis',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 color: Cristal.texto,
@@ -779,7 +774,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                                                         child: Text(
                                                           rol.esGratuito
                                                               ? 'Crear cuenta gratis'
-                                                              : 'Continuar al pago (${rol.precioFormateadoCop})',
+                                                              : 'Inicia tu prueba gratuita',
                                                           overflow: TextOverflow
                                                               .ellipsis,
                                                           style: TextStyle(
@@ -887,7 +882,11 @@ class _RegistroScreenState extends State<RegistroScreen> {
           margin: const EdgeInsets.only(bottom: 14, left: 4, right: 4),
           color: Cristal.vidrioFuerte,
         ),
-        _buildStepMiniItem(label: _rolConfig.esGratuito ? 'Activación' : 'Pago', completed: false, active: false),
+        _buildStepMiniItem(
+          label: _rolConfig.esGratuito ? 'Activación' : 'Pago',
+          completed: false,
+          active: false,
+        ),
       ],
     );
 
@@ -1033,7 +1032,9 @@ class _RegistroScreenState extends State<RegistroScreen> {
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Text(
-                            rol.precioFormateadoCop,
+                            rol.esGratuito
+                                ? rol.precioFormateadoCop
+                                : '30 días gratis',
                             style: TextStyle(
                               color: Cristal.tinta,
                               fontSize: 12.5,
@@ -1043,6 +1044,16 @@ class _RegistroScreenState extends State<RegistroScreen> {
                         ),
                       ],
                     ),
+                    if (!rol.esGratuito) ...[
+                      const SizedBox(height: 5),
+                      Text(
+                        'Después, ${rol.precioMensualFormateado}. La renovación es manual.',
+                        style: TextStyle(
+                          color: Cristal.textoCuerpo,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     Text(
                       rol.descripcionCorta,

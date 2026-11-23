@@ -67,3 +67,10 @@ key.properties
 
 # Capturas de revisión visual (tool/vista): se generan con --update-goldens
 tool/vista/capturas/
+
+# Dependencias y configuración local de Cloud Functions.
+functions/node_modules/
+functions/.env*
+functions/.secret.local
+/firebase-debug.log
+/firestore-debug.log

@@ -7,6 +7,9 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../data/colombia_secop_catalog.dart';
 import '../../services/consulta_natural_contratos.dart';
 import '../../services/favorites_service.dart';
+import '../../services/expediente_contrato_service.dart';
+import '../../services/reporte_contratos_pdf_service.dart';
+import '../../services/reporte_seleccion_contratos.dart';
 import '../../services/security_service.dart';
 import '../../utils/anios_secop.dart';
 import '../../utils/app_scroll_behavior.dart';
@@ -140,6 +143,10 @@ class _ContratosSectionState extends State<ContratosSection> {
   bool _consultaFallida = false;
   List<ContractRecord> _secopContracts = [];
   Set<String> _favoriteIds = {};
+
+  final _contratosDelReporte = <String, ContractRecord>{};
+  bool _seleccionandoReporte = false;
+  int? _contratosPreparados;
 
   static List<
     ({
@@ -1425,17 +1432,6 @@ class _ContratosSectionState extends State<ContratosSection> {
     final queryText = (customQuery ?? _contractsSearchController.text).trim();
     final cacheKey = _buildQueryCacheKey(queryText);
 
-    // Respuesta en 0ms si esta consulta ya está en la caché en memoria
-    final cachedList = _fastContractsQueryCache[cacheKey];
-    if (cachedList != null && cachedList.isNotEmpty) {
-      setState(() {
-        _secopContracts = cachedList;
-        _isLoadingSecop = false;
-        _currentPage = 1;
-      });
-      return;
-    }
-
     final int requestId = ++_latestRequestId;
     final interpretada = queryText.isEmpty
         ? null
@@ -1452,6 +1448,18 @@ class _ContratosSectionState extends State<ContratosSection> {
         interpretacion != null &&
         interpretacion.tieneAnios &&
         !interpretacion.aniosPorDefecto;
+    final cachedList = _fastContractsQueryCache[cacheKey];
+    if (cachedList != null && cachedList.isNotEmpty) {
+      setState(() {
+        _secopContracts = cachedList;
+        _isLoadingSecop = false;
+        _consultaFallida = false;
+        _interpretacion = interpretacion;
+        if (aniosDeLaPregunta) _selectedAnio = '';
+        _currentPage = 1;
+      });
+      return;
+    }
     setState(() {
       _isLoadingSecop = true;
       _consultaFallida = false;
@@ -2157,6 +2165,203 @@ class _ContratosSectionState extends State<ContratosSection> {
       _contractsSearchController.clear();
     });
     _fetchLiveSecopContracts(silent: true);
+  }
+
+  String _claveReporte(ContractRecord contrato) {
+    final raw = contrato.rawSecopJson;
+    final fuente = ExpedienteContratoService.esSecopI(raw) ? 'I' : 'II';
+    final id = (raw['id_contrato'] ?? '').toString().trim();
+    if (id.isNotEmpty && id.toLowerCase() != 'no definido') {
+      return '$fuente:$id';
+    }
+    return '$fuente:${jsonEncode([raw['nit_entidad'] ?? contrato.entity, raw['referencia_del_contrato'], raw['proceso_de_compra'], contrato.contractorId, _contractRawIsoDate(contrato), contrato.title])}';
+  }
+
+  void _alternarEnReporte(ContractRecord contrato) {
+    if (!_seleccionandoReporte || _contratosPreparados != null) return;
+    final clave = _claveReporte(contrato);
+    setState(() {
+      if (_contratosDelReporte.remove(clave) == null) {
+        _contratosDelReporte[clave] = contrato;
+      }
+    });
+  }
+
+  void _activarContrato(ContractRecord contrato) {
+    if (_seleccionandoReporte) {
+      _alternarEnReporte(contrato);
+    } else {
+      _openContractDetail(contrato);
+    }
+  }
+
+  Widget _casillaReporte(ContractRecord contrato) => Checkbox(
+    value: _contratosDelReporte.containsKey(_claveReporte(contrato)),
+    onChanged: _contratosPreparados == null
+        ? (_) => _alternarEnReporte(contrato)
+        : null,
+    semanticLabel: 'Seleccionar ${contrato.processCode} para el reporte',
+    activeColor: Cristal.doradoRelleno,
+    checkColor: Cristal.tinta,
+  );
+
+  Future<void> _revisarSeleccionReporte() => mostrarDialogoCristal<void>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, actualizar) => AlertDialog(
+        title: Text('Contratos seleccionados (${_contratosDelReporte.length})'),
+        content: SizedBox(
+          width: 500,
+          child: _contratosDelReporte.isEmpty
+              ? const Text('Marca contratos en los resultados de búsqueda.')
+              : ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final c in _contratosDelReporte.values)
+                      ListTile(
+                        title: Text(c.processCode),
+                        subtitle: Text(
+                          c.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: IconButton(
+                          tooltip: 'Quitar ${c.processCode} del reporte',
+                          icon: const Icon(Icons.remove_circle_outline_rounded),
+                          onPressed: () {
+                            _alternarEnReporte(c);
+                            actualizar(() {});
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Seguir seleccionando'),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Future<void> _descargarReporteSeleccion() async {
+    if (_contratosPreparados != null || _contratosDelReporte.isEmpty) return;
+    final seleccion = _contratosDelReporte.values.toList();
+    setState(() => _contratosPreparados = 0);
+    try {
+      final contratos = <ContratoDelReporte>[];
+      const lote = 3;
+      for (var i = 0; i < seleccion.length; i += lote) {
+        contratos.addAll(
+          await Future.wait(
+            seleccion
+                .skip(i)
+                .take(lote)
+                .map((c) => ContratoDelReporte.consultar(c.toSecopMap())),
+          ),
+        );
+        if (!mounted) return;
+        setState(() => _contratosPreparados = contratos.length);
+      }
+      final bytes = await ReporteSeleccionContratos.generar(contratos);
+      if (!mounted) return;
+      final nombre = ReporteContratosPdfService.nombreArchivo(
+        'seleccionados',
+        '',
+        ReporteContratosPdfService.horaColombia(),
+      );
+      if (!ReporteContratosPdfService.descargar(bytes, nombre)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Abre la plataforma en el navegador para descargar el PDF.',
+            ),
+          ),
+        );
+        return;
+      }
+      setState(() {
+        _contratosDelReporte.clear();
+        _seleccionandoReporte = false;
+      });
+      _resetAllFilters();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reporte de contratos descargado.')),
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No se pudo generar el PDF. Puedes volver a descargar la selección.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _contratosPreparados = null);
+    }
+  }
+
+  Widget _buildSeleccionReporte() {
+    final cantidad = _contratosDelReporte.length;
+    final progreso = _contratosPreparados;
+    return Wrap(
+      spacing: 12,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        FilledButton.icon(
+          style: FilledButton.styleFrom(
+            backgroundColor: Cristal.doradoRelleno,
+            foregroundColor: Cristal.tinta,
+          ),
+          onPressed: !_seleccionandoReporte
+              ? () => setState(() => _seleccionandoReporte = true)
+              : (cantidad == 0 || progreso != null
+                    ? null
+                    : _descargarReporteSeleccion),
+          icon: Icon(
+            _seleccionandoReporte
+                ? Icons.download_rounded
+                : Icons.checklist_rounded,
+          ),
+          label: Text(
+            !_seleccionandoReporte
+                ? 'Seleccionar contratos para el reporte'
+                : progreso == null
+                ? 'Descargar reporte PDF'
+                : (progreso == cantidad
+                      ? 'Generando el PDF…'
+                      : 'Preparando $progreso de $cantidad…'),
+          ),
+        ),
+        if (_seleccionandoReporte && progreso == null) ...[
+          if (cantidad == 0)
+            Text(
+              'Marca los contratos que quieras incluir. Puedes seguir buscando.',
+              style: TextStyle(color: Cristal.textoMedio),
+            )
+          else
+            OutlinedButton(
+              onPressed: _revisarSeleccionReporte,
+              child: Text(
+                '$cantidad ${cantidad == 1 ? 'seleccionado' : 'seleccionados'}',
+              ),
+            ),
+          TextButton(
+            onPressed: () => setState(() {
+              _seleccionandoReporte = false;
+              _contratosDelReporte.clear();
+            }),
+            child: const Text('Cancelar selección'),
+          ),
+        ],
+      ],
+    );
   }
 
   void _exportFilteredToCsv() {
@@ -4043,11 +4248,17 @@ class _ContratosSectionState extends State<ContratosSection> {
               if (c.maxWidth >= 900) {
                 return Row(
                   children: [
-                    Expanded(child: buscador),
-                    for (final w in controles) ...[
-                      const SizedBox(width: 10),
-                      w,
-                    ],
+                    Expanded(flex: 4, child: buscador),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      flex: 7,
+                      child: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 10,
+                        runSpacing: 8,
+                        children: controles,
+                      ),
+                    ),
                   ],
                 );
               }
@@ -4549,6 +4760,7 @@ class _ContratosSectionState extends State<ContratosSection> {
       color: Cristal.vidrioSuave,
       child: Row(
         children: [
+          if (_seleccionandoReporte) const SizedBox(width: 48),
           for (var index = 0; index < titles.length; index++)
             Expanded(
               flex: flexes[index],
@@ -4622,7 +4834,7 @@ class _ContratosSectionState extends State<ContratosSection> {
         : null;
     return InkWell(
       hoverDuration: Cristal.micro,
-      onTap: () => _openContractDetail(contract),
+      onTap: () => _activarContrato(contract),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
         child: Column(
@@ -4631,6 +4843,7 @@ class _ContratosSectionState extends State<ContratosSection> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (_seleccionandoReporte) _casillaReporte(contract),
                 Container(
                   width: 32,
                   height: 32,
@@ -4788,11 +5001,13 @@ class _ContratosSectionState extends State<ContratosSection> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
+        if (_seleccionandoReporte)
+          SizedBox(width: 48, child: _casillaReporte(contract)),
         cell(
           3,
           InkWell(
             hoverDuration: Cristal.micro,
-            onTap: () => _openContractDetail(contract),
+            onTap: () => _activarContrato(contract),
             borderRadius: BorderRadius.circular(8),
             child: Row(
               children: [
@@ -5017,37 +5232,46 @@ class _ContratosSectionState extends State<ContratosSection> {
                   ),
                 ),
                 const SizedBox(width: 6),
-                InkWell(
-                  hoverDuration: Cristal.micro,
-                  onTap: () => _openContractDetail(contract),
-                  borderRadius: BorderRadius.circular(6),
-                  child: Container(
-                    height: 28,
-                    padding: const EdgeInsets.only(left: 10, right: 6),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: Cristal.vidrioSuave,
+                Flexible(
+                  child: Tooltip(
+                    message: 'Ver detalle',
+                    child: InkWell(
+                      hoverDuration: Cristal.micro,
+                      onTap: () => _openContractDetail(contract),
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Cristal.borde),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Ver detalle',
-                          style: TextStyle(
-                            color: Cristal.acentoClaro,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      child: Container(
+                        height: 28,
+                        padding: const EdgeInsets.only(left: 10, right: 6),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Cristal.vidrioSuave,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Cristal.borde),
                         ),
-                        SizedBox(width: 2),
-                        Icon(
-                          Icons.chevron_right,
-                          size: 15,
-                          color: Cristal.acentoClaro,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                'Ver detalle',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Cristal.acentoClaro,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 2),
+                            Icon(
+                              Icons.chevron_right,
+                              size: 15,
+                              color: Cristal.acentoClaro,
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -5326,6 +5550,8 @@ class _ContratosSectionState extends State<ContratosSection> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       _buildHeaderSection(),
+                      const SizedBox(height: 14),
+                      _buildSeleccionReporte(),
                       const SizedBox(height: 14),
                       _buildFiltersPanel(),
                       const SizedBox(height: 16),

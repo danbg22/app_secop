@@ -46,7 +46,6 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
   final _confirmPasswordController = TextEditingController();
 
   String _pais = 'Colombia';
-  bool _isSidebarCollapsed = false;
 
   bool _isLoadingProfile = true;
   bool _isSavingProfile = false;
@@ -1142,11 +1141,7 @@ class _PerfilUsuarioScreenState extends State<PerfilUsuarioScreen> {
                 children: [
                   CollapsibleSideMenu(
                     selectedIndex: -1,
-                    isCollapsed: _isSidebarCollapsed,
                     onItemSelected: _navegarASeccion,
-                    onToggleCollapse: () => setState(
-                      () => _isSidebarCollapsed = !_isSidebarCollapsed,
-                    ),
                     onLogout: _cerrarSesion,
                   ),
                   Expanded(child: _buildMainPane(isMobile: false)),

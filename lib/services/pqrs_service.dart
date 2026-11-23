@@ -9,7 +9,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/file_downloader.dart';
 import 'auth_service.dart';
-import 'consent_service.dart';
 import 'security_service.dart';
 
 class PqrsRecord {
@@ -113,7 +112,10 @@ class PqrsService {
     final m = ahora.month.toString().padLeft(2, '0');
     final d = ahora.day.toString().padLeft(2, '0');
     final rng = Random.secure();
-    final aleatorio = (100000 + rng.nextInt(900000)).toString();
+    final aleatorio = List.generate(
+      6,
+      (_) => rng.nextInt(256).toRadixString(16).padLeft(2, '0'),
+    ).join().toUpperCase();
     return 'PQRS-$y$m$d-$aleatorio';
   }
 
@@ -144,8 +146,7 @@ class PqrsService {
       actionKey: 'pqrs_submit:${AuthService.getActiveUserStorageScope()}',
       maxAttempts: 4,
       window: const Duration(minutes: 10),
-      customErrorMessage:
-          'Has radicado varias solicitudes recientemente. Espera unos minutos antes de enviar otra.',
+      customErrorMessage: 'Has radicado varias solicitudes recientemente. Espera unos minutos antes de enviar otra.',
     );
     if (!rate.allowed) {
       throw Exception(rate.message);
@@ -172,7 +173,12 @@ class PqrsService {
     } catch (_) {}
 
     final fbUser = FirebaseAuth.instance.currentUser;
-    final uid = fbUser?.uid ?? '';
+    if (fbUser == null) {
+      throw Exception(
+        'Inicia sesión para enviar la solicitud y recibir su respuesta.',
+      );
+    }
+    final uid = fbUser.uid;
     final rawNombre =
         (nombreContacto != null && nombreContacto.trim().isNotEmpty)
         ? nombreContacto.trim()
@@ -215,34 +221,17 @@ class PqrsService {
       'fecha_cliente_iso': fechaIso,
     };
 
-    bool guardadoFirestore = false;
-
-    // 1A. Guardado en colección global `pqrs_solicitudes/{radicado}`
+    // El buzón es la fuente de la respuesta y de la notificación.
     try {
       await FirebaseFirestore.instance
           .collection(coleccionGlobalPqrs)
           .doc(radicado)
           .set(firestorePayload)
-          .timeout(const Duration(seconds: 6));
-      guardadoFirestore = true;
+          .timeout(const Duration(seconds: 8));
     } catch (_) {
-      debugPrint('Aviso PQRS: respaldo global diferido.');
-    }
-
-    // 1B. Espejo en `usuarios/{uid}/pqrs_solicitudes/{radicado}` si hay sesión Firebase
-    if (uid.isNotEmpty) {
-      try {
-        await FirebaseFirestore.instance
-            .collection(ConsentService.coleccionUsuarios)
-            .doc(uid)
-            .collection(subcoleccionUsuarioPqrs)
-            .doc(radicado)
-            .set(firestorePayload)
-            .timeout(const Duration(seconds: 6));
-        guardadoFirestore = true;
-      } catch (_) {
-        debugPrint('Aviso PQRS: respaldo en subcolección diferido.');
-      }
+      throw Exception(
+        'No fue posible confirmar la entrega al buzón. Revisa tu conexión e inténtalo nuevamente.',
+      );
     }
 
     // 2. Envío seguro a Google Sheets (solo dominios oficiales de Google Apps Script
@@ -291,14 +280,6 @@ class PqrsService {
       }
     }
 
-    // Si la solicitud no llegó a ningún destino, nadie la recibiría: se
-    // informa al usuario para que reintente en lugar de confirmarla.
-    if (!guardadoFirestore && !enviadoGoogleDrive) {
-      throw Exception(
-        'No fue posible enviar tu solicitud. Revisa tu conexión e inténtalo nuevamente.',
-      );
-    }
-
     final record = PqrsRecord(
       radicado: radicado,
       tipoSolicitud: cleanTipo,
@@ -310,7 +291,7 @@ class PqrsService {
       telefonoUsuario: telefono,
       estado: 'Radicado',
       fechaIso: fechaIso,
-      sincronizadoNube: guardadoFirestore,
+      sincronizadoNube: true,
       sincronizadoGoogleDrive: enviadoGoogleDrive,
     );
 
@@ -367,8 +348,9 @@ class PqrsService {
       'Mensaje',
     ];
 
-    String cell(String v) =>
-        SecurityService.formatSafeCsvCell(v.replaceAll('\r\n', ' ').replaceAll('\n', ' ').trim());
+    String cell(String v) => SecurityService.formatSafeCsvCell(
+      v.replaceAll('\r\n', ' ').replaceAll('\n', ' ').trim(),
+    );
 
     final lineas = <String>[
       encabezados.join(';'),

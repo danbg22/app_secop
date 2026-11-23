@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -10,16 +12,19 @@ import 'screens/pasarela_pago_wompi_screen.dart';
 import 'screens/perfil_usuario_screen.dart';
 import 'screens/proceso_compartido_screen.dart';
 import 'screens/planes_screen.dart';
+import 'screens/soporte_buzon_screen.dart';
 import 'screens/portal_contratista_invitado_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/portada_screen.dart';
 import 'screens/registro_screen.dart';
+import 'services/acceso_planes.dart';
 import 'services/auth_service.dart';
 import 'services/datos_abiertos.dart';
 import 'services/juridico_contratacion_service.dart';
 import 'tema/cristal.dart';
 import 'utils/app_scroll_behavior.dart';
 import 'utils/enlace_proceso.dart';
+import 'widgets/collapsible_side_menu.dart';
 import 'widgets/route_security_guard.dart';
 
 Future<void> main() async {
@@ -103,6 +108,98 @@ class _MyAppState extends State<MyApp> {
 
   final _navegador = GlobalKey<NavigatorState>();
 
+  final _mensajes = GlobalKey<ScaffoldMessengerState>();
+  late final AppLifecycleListener _ciclo;
+  String? _uidVisto;
+  Set<String> _rolesVistos = {};
+  bool _reinicioPendiente = false;
+  bool _retornoProcesado = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ciclo = AppLifecycleListener(
+      onResume: () => unawaited(AccesoPlanes.refrescar()),
+    );
+    AccesoPlanes.cambios.addListener(_alCambiarAcceso);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _alCambiarAcceso();
+    });
+  }
+
+  @override
+  void dispose() {
+    AccesoPlanes.cambios.removeListener(_alCambiarAcceso);
+    _ciclo.dispose();
+    super.dispose();
+  }
+
+  void _alCambiarAcceso() {
+    final uid = AccesoPlanes.uid;
+    if (uid != _uidVisto) CollapsibleSideMenu.reiniciarParaSesion();
+    final roles = AuthService.getActiveUserRoles().toSet();
+    if (uid == _uidVisto &&
+        uid != null &&
+        !roles.containsAll(_rolesVistos) &&
+        !_reinicioPendiente) {
+      _reinicioPendiente = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _reinicioPendiente = false;
+        if (!mounted || AccesoPlanes.uid != uid) return;
+        _navegador.currentState?.pushNamedAndRemoveUntil('/home', (_) => false);
+      });
+      WidgetsBinding.instance.ensureVisualUpdate();
+    }
+    _uidVisto = uid;
+    _rolesVistos = roles;
+
+    if (!kIsWeb ||
+        uid == null ||
+        _retornoProcesado ||
+        AuthService.isActiveUserAdmin) {
+      return;
+    }
+    final params = Uri.base.queryParameters;
+    final id = params['id'];
+    if (params['retorno_wompi'] == '1' && id != null) {
+      _retornoProcesado = true;
+      unawaited(_confirmarRetorno(id, uid));
+    }
+  }
+
+  Future<void> _confirmarRetorno(String id, String uid) async {
+    try {
+      String? estado;
+      for (var intento = 0; intento < 4; intento++) {
+        if (!mounted || AccesoPlanes.uid != uid) return;
+        estado = await AccesoPlanes.confirmarPago(id);
+        if (estado != 'PENDING') break;
+        if (intento < 3) await Future<void>.delayed(const Duration(seconds: 3));
+      }
+      if (mounted && AccesoPlanes.uid == uid) {
+        _mensajes.currentState?.showSnackBar(
+          SnackBar(
+            content: Text(
+              estado == 'APPROVED'
+                  ? 'Wompi confirmó el pago. Tu plan está activo.'
+                  : 'Wompi aún no confirma el pago. Puedes verificarlo en Suscripción.',
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted && AccesoPlanes.uid == uid) {
+        _mensajes.currentState?.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No pudimos consultar el pago. Puedes verificarlo en Suscripción.',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Al cambiar entre claro y oscuro se reconstruye toda la app con el
@@ -113,6 +210,7 @@ class _MyAppState extends State<MyApp> {
   Widget _app() {
     return MaterialApp(
       navigatorKey: _navegador,
+      scaffoldMessengerKey: _mensajes,
       debugShowCheckedModeBanner: false,
       title: 'Contrata Legal',
       scrollBehavior: const AppScrollBehavior(),
@@ -137,6 +235,8 @@ class _MyAppState extends State<MyApp> {
           child: PasarelaPagoWompiScreen(),
         ),
         '/planes': (context) => const RouteSecurityGuard(child: PlanesScreen()),
+        '/mis-solicitudes': (_) =>
+            const RouteSecurityGuard(child: MisMensajesSoporteScreen()),
         '/perfil': (context) =>
             const RouteSecurityGuard(child: PerfilUsuarioScreen()),
       },

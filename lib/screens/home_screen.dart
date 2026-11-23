@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/seguimiento_service.dart';
 import '../widgets/collapsible_side_menu.dart';
+import '../widgets/boton_notificaciones_soporte.dart';
 import '../widgets/user_profile_header_action.dart';
+import '../widgets/prueba_plan_banner.dart';
 import 'favoritos_screen.dart';
+import 'soporte_buzon_screen.dart';
 import 'sections/contratistas_section.dart';
 import 'sections/contratos_section.dart';
 import 'sections/procesos_section.dart';
@@ -29,7 +32,6 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final TextEditingController _searchController = TextEditingController();
   late int _selectedIndex;
-  bool _isSidebarCollapsed = false;
 
   List<int> _resolverIndicesPermitidos() {
     return CollapsibleSideMenu.obtenerIndicesVisiblesPorRol();
@@ -83,10 +85,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _toggleSidebar() {
-    setState(() => _isSidebarCollapsed = !_isSidebarCollapsed);
-  }
-
   /// Las búsquedas viven en sus secciones (Contratos, Entidades y
   /// Contratistas): una búsqueda general lleva a Contratistas.
   void _handleUniversalSearch(String query) => _onItemTapped(4);
@@ -114,6 +112,8 @@ class _HomeScreenState extends State<HomeScreen> {
           onNavigateToSection: _onItemTapped,
           onLogout: _cerrarSesion,
         );
+      case CollapsibleSideMenu.indiceSoporteAdmin:
+        return const Expanded(child: BandejaSoporteSection());
       case CollapsibleSideMenu.indiceProcesos:
         return const Expanded(child: ProcesosSection());
       case 2:
@@ -260,6 +260,12 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted && opcion != null) _onItemTapped(opcion);
   }
 
+  Widget _seccionActiva(int indice) => SeccionesVivas(
+    activa: indice,
+    construir: _buildCurrentView,
+    recrear: _seccionesQueSeRecrean,
+  );
+
   Widget _construir(BuildContext context) {
     final isMobile = MediaQuery.sizeOf(context).width < 768;
     final activeIndex = _effectiveSelectedIndex();
@@ -313,6 +319,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
           actions: [
+            const BotonNotificacionesSoporte(),
             UserProfileHeaderAction(onLogout: _cerrarSesion),
             const SizedBox(width: 8),
           ],
@@ -321,14 +328,14 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Container(height: 1, color: Cristal.borde),
           ),
         ),
-        body: SeccionesVivas(
-          activa: activeIndex,
-          construir: _buildCurrentView,
-          recrear: _seccionesQueSeRecrean,
+        body: Column(
+          children: [
+            const PruebaPlanBanner(),
+            Expanded(child: _seccionActiva(activeIndex)),
+          ],
         ),
         bottomNavigationBar:
-            mobileTabs.length >= 2 &&
-                activeIndex != CollapsibleSideMenu.indiceProcesos
+            mobileTabs.length >= 2 && mobileTabs.contains(activeIndex)
             ? DecoratedBox(
                 decoration: BoxDecoration(
                   color: Cristal.vidrioSuave,
@@ -368,16 +375,15 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             CollapsibleSideMenu(
               selectedIndex: activeIndex,
-              isCollapsed: _isSidebarCollapsed,
               onItemSelected: _onItemTapped,
-              onToggleCollapse: _toggleSidebar,
               onLogout: _cerrarSesion,
             ),
             Expanded(
-              child: SeccionesVivas(
-                activa: activeIndex,
-                construir: _buildCurrentView,
-                recrear: _seccionesQueSeRecrean,
+              child: Column(
+                children: [
+                  const PruebaPlanBanner(),
+                  Expanded(child: _seccionActiva(activeIndex)),
+                ],
               ),
             ),
           ],

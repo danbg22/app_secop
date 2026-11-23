@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/seguimiento_service.dart';
 import 'custom_app_bar.dart';
+import 'boton_notificaciones_soporte.dart';
 import 'pqrs_help_dialog.dart';
 import '../tema/cristal.dart';
 
@@ -17,17 +18,19 @@ class CollapsibleSideMenu extends StatelessWidget {
   const CollapsibleSideMenu({
     super.key,
     required this.selectedIndex,
-    required this.isCollapsed,
     required this.onItemSelected,
-    required this.onToggleCollapse,
     required this.onLogout,
   });
 
   final int selectedIndex;
-  final bool isCollapsed;
   final ValueChanged<int> onItemSelected;
-  final VoidCallback onToggleCollapse;
   final VoidCallback onLogout;
+
+  static final _contraido = ValueNotifier<bool>(true);
+
+  static void reiniciarParaSesion() => _contraido.value = true;
+
+  static void _cambiarTamanio() => _contraido.value = !_contraido.value;
 
   static const List<MenuOptionItem> opcionesMenu = [
     MenuOptionItem(titulo: 'Inicio', icono: Icons.home_outlined),
@@ -48,9 +51,11 @@ class CollapsibleSideMenu extends StatelessWidget {
       icono: Icons.assignment_turned_in_outlined,
     ),
     MenuOptionItem(titulo: 'Procesos', icono: Icons.pending_actions_outlined),
+    MenuOptionItem(titulo: 'Mensajes de soporte', icono: Icons.inbox_outlined),
   ];
 
   static const int indiceProcesos = 11;
+  static const int indiceSoporteAdmin = 12;
 
   /// Sección del rol Supervisión de contratos (Supervisor o Contratista).
   static const int indiceSupervision = 10;
@@ -70,7 +75,7 @@ class CollapsibleSideMenu extends StatelessWidget {
     final tieneJuridico = AuthService.hasActiveRole('equipo_juridico');
     final indices = <int>[];
     if (tienePersona) {
-      indices.addAll(const <int>[0, indiceProcesos, 2, 3, 4, indiceAlertas, 7]);
+      indices.addAll(const <int>[0, 2, 3, 4, indiceProcesos, indiceAlertas, 7]);
     }
     if (tieneJuridico) {
       indices.add(8);
@@ -82,6 +87,7 @@ class CollapsibleSideMenu extends StatelessWidget {
     if (tieneSupervision) {
       indices.add(indiceSupervision);
     }
+    if (AuthService.isActiveUserAdmin) indices.add(indiceSoporteAdmin);
     if (indices.isEmpty) {
       indices.addAll(const <int>[0, 2, 3, 4, 7]);
     }
@@ -119,9 +125,10 @@ class CollapsibleSideMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<int>(
-      valueListenable: AuthService.authStateVersion,
-      builder: (context, _, _) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([AuthService.authStateVersion, _contraido]),
+      builder: (context, _) {
+        final isCollapsed = _contraido.value;
         final String fullName = AuthService.getActiveUserDisplayName();
         final String email = AuthService.getActiveUserEmail();
         final ImageProvider<Object>? avatarImage =
@@ -160,7 +167,7 @@ class CollapsibleSideMenu extends StatelessWidget {
                             key: const ValueKey('collapsed-logo-bubble'),
                             label: 'Expandir barra lateral',
                             child: InkWell(
-                              onTap: onToggleCollapse,
+                              onTap: _cambiarTamanio,
                               borderRadius: BorderRadius.circular(12),
                               hoverDuration: Cristal.micro,
                               child: SizedBox(
@@ -184,7 +191,7 @@ class CollapsibleSideMenu extends StatelessWidget {
                           children: [
                             Expanded(
                               child: InkWell(
-                                onTap: onToggleCollapse,
+                                onTap: _cambiarTamanio,
                                 borderRadius: BorderRadius.circular(10),
                                 hoverDuration: Cristal.micro,
                                 child: Image.asset(
@@ -200,7 +207,7 @@ class CollapsibleSideMenu extends StatelessWidget {
                             const InterruptorModo(compacto: true),
                             IconButton(
                               tooltip: 'Ocultar barra lateral',
-                              onPressed: onToggleCollapse,
+                              onPressed: _cambiarTamanio,
                               visualDensity: VisualDensity.compact,
                               style: IconButton.styleFrom(
                                 backgroundColor: Cristal.vidrio,
@@ -359,6 +366,7 @@ class CollapsibleSideMenu extends StatelessWidget {
                         },
                       ),
                     ),
+                    const Center(child: BotonNotificacionesSoporte()),
                     if (isCollapsed) ...[
                       const InterruptorModo(compacto: true),
                       const SizedBox(height: 6),

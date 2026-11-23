@@ -8,6 +8,7 @@ import 'package:flutter/painting.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'acceso_planes.dart';
 import 'admin_access.dart';
 import 'equipo_juridico_service.dart';
 import 'consent_service.dart';
@@ -196,22 +197,25 @@ class AuthService {
     await SecurityService.clearSessionSeal(prefs);
   }
 
-  /// Indica si la cuenta autenticada tiene un pago inicial obligatorio pendiente
-  /// en Wompi y por lo tanto TIENE BLOQUEADO el acceso al panel principal `/home`.
-  static bool get requiresMandatoryWompiPayment =>
-      hasActiveSession && _cachedPaymentPending && !isActiveUserAdmin;
+  static bool get requiresMandatoryWompiPayment {
+    if (isActiveUserAdmin || adminPendienteDeVerificacion) return false;
+    final estado = AccesoPlanes.estado;
+    return estado != null && !estado.preparando && estado.roles.isEmpty;
+  }
 
-  /// Indica si existe sesión autenticada Y con pago validado/autorizado para usar la app.
   static bool get hasAuthorizedPlatformAccess =>
-      hasActiveSession && (!_cachedPaymentPending || isActiveUserAdmin);
+      isActiveUserAdmin ||
+      (!adminPendienteDeVerificacion &&
+          AccesoPlanes.estado?.roles.isNotEmpty == true);
 
   /// Cuenta administradora (ver [AdminAccess]): requiere sesión real de
   /// Firebase con el correo verificado.
   static bool get isActiveUserAdmin {
     final user = _auth.currentUser;
-    return user != null &&
-        user.emailVerified &&
-        AdminAccess.esAdministrador(user.email);
+    return AdminAccess.esAdministradorVerificado(
+      user?.email,
+      correoVerificado: user?.emailVerified == true,
+    );
   }
 
   /// Correo administrador que aún no está verificado en Firebase: el acceso
@@ -235,9 +239,20 @@ class AuthService {
   /// navegador lo conserva en caché hasta recargar la sesión).
   static Future<void> refrescarVerificacionCorreo() async {
     final user = _auth.currentUser;
-    if (user == null || user.emailVerified) return;
+    if (user == null ||
+        (user.emailVerified && !AdminAccess.esAdministrador(user.email))) {
+      return;
+    }
     try {
-      await user.reload().timeout(const Duration(seconds: 6));
+      if (!user.emailVerified) {
+        await user.reload().timeout(const Duration(seconds: 6));
+      }
+      final actualizado = _auth.currentUser;
+      if (actualizado != null &&
+          actualizado.uid == user.uid &&
+          actualizado.emailVerified) {
+        await actualizado.getIdToken(true).timeout(const Duration(seconds: 6));
+      }
     } catch (_) {}
     await EquipoJuridicoService.recargarMembresia();
     authStateVersion.value++;
@@ -250,6 +265,8 @@ class AuthService {
     // `restoreSessionFromPrefs`: cada cambio de sesión recalcula los permisos
     // (incluido el acceso de administrador) en toda la app.
     _auth.authStateChanges().listen((_) => authStateVersion.value++);
+    AccesoPlanes.iniciar();
+    AccesoPlanes.cambios.addListener(() => authStateVersion.value++);
     EquipoJuridicoService.iniciar();
     ConsentService.iniciar();
     // Alertas: carga lo que la persona sigue y revisa sus contratos nuevos.
@@ -275,27 +292,20 @@ class AuthService {
 
   /// Rol elegido durante el registro que está pendiente de activación en Wompi.
   static String getPendingRegistrationRoleId() =>
-      PaymentService.normalizarRolId(_cachedPendingRoleId);
+      PaymentService.normalizarRolId(
+        AccesoPlanes.estado?.rolInicial ?? _cachedPendingRoleId,
+      );
 
   /// Devuelve la lista de roles acumulados del usuario activo.
-  /// Si el pago obligatorio está pendiente, devuelve lista vacía (cero permisos).
+  /// Los roles de planes provienen de la vigencia confirmada por el servidor.
   static List<String> getActiveUserRoles() {
     if (isActiveUserAdmin) {
       return AdminAccess.todosLosRoles;
     }
-    if (requiresMandatoryWompiPayment) {
-      return const <String>[];
-    }
-    final roles = _cachedRoles.isEmpty
-        ? const <String>['persona']
-        : _cachedRoles;
-    // Abogado temporal de un equipo vigente: trabaja con el rol del equipo
-    // sin pagar su propia suscripción (la paga el Master Jurídico).
-    if (EquipoJuridicoService.esMiembroVigente &&
-        !roles.contains('equipo_juridico')) {
-      return List<String>.unmodifiable(<String>[...roles, 'equipo_juridico']);
-    }
-    return List<String>.unmodifiable(roles);
+    if (adminPendienteDeVerificacion) return const <String>[];
+    return List<String>.unmodifiable(
+      AccesoPlanes.estado?.roles ?? const <String>{},
+    );
   }
 
   /// Devuelve la etiqueta visible de los roles activos (ej. `'Persona'` o `'Persona + Empresa licitante'`).
@@ -753,14 +763,6 @@ class AuthService {
       paymentPending: false,
       pendingRoleId: 'persona',
     );
-  }
-
-  static Future<List<String>> _lookupVerifiedRolesForEmail(
-    SharedPreferences prefs,
-    String email,
-  ) async {
-    final state = await _lookupVerifiedAccountStateForEmail(prefs, email);
-    return state.roles;
   }
 
   static List<String> _extractNormalizedRolesFromMap(
@@ -1304,9 +1306,7 @@ class AuthService {
     final selectedRolId = PaymentService.normalizarRolId(
       (userData['rol'] ?? userData['rolPrincipal'] ?? 'persona').toString(),
     );
-    // CERO ACCESO SIN PAGO: durante el registro la cuenta inicia con 0 roles activos
-    // y `pagoWompiPendiente = true` sellado criptográficamente. Ningún módulo se
-    // desbloquea hasta que Wompi confirme `APPROVED` en `assignPaidRoleToActiveUser`.
+    // El servidor concede la prueba al plan elegido en el registro.
     const initialRoles = <String>[];
     final rolEtiqueta = PaymentService.formatearEtiquetaRolesAcumulados(
       initialRoles,
@@ -1385,6 +1385,7 @@ class AuthService {
               'rolesActivos': initialRoles,
               'rolPrincipal': selectedRolId,
               'rolSolicitadoRegistro': selectedRolId,
+              'rolInicialRegistro': selectedRolId,
               'rolEtiqueta': rolEtiqueta,
               'pagoWompiPendiente': true,
               'pagoWompiActivo': false,
@@ -1552,8 +1553,7 @@ class AuthService {
       _cachedPhotoData = verifiedPhoto;
     }
 
-    final activeRoles = await _lookupVerifiedRolesForEmail(prefs, activeEmail);
-    _cachedRoles = activeRoles;
+    final activeRoles = getActiveUserRoles();
 
     return <String, dynamic>{
       'nombres': nombres,
@@ -1571,7 +1571,9 @@ class AuthService {
       'rolEtiqueta': PaymentService.formatearEtiquetaRolesAcumulados(
         activeRoles,
       ),
-      'pagoWompiActivo': localData['pagoWompiActivo'] == true,
+      'pagoWompiActivo': activeRoles.any(
+        (rol) => AccesoPlanes.estado?.tieneSuscripcionVigente(rol) == true,
+      ),
       'aceptacion_datos': localData['aceptacion_datos'] == true,
       'version_politica':
           (localData['version_politica'] ?? ConsentService.versionPolitica)
@@ -1611,143 +1613,6 @@ class AuthService {
     );
   }
 
-  /// Valida criptográficamente el recibo de Wompi (incluyendo protección anti-replay)
-  /// y asigna/acumula el rol pagado sellando su integridad en cliente y Firestore.
-  static Future<void> assignPaidRoleToActiveUser(
-    WompiTransactionReceipt receipt,
-  ) async {
-    if (!PaymentService.verificarReciboTransaccion(receipt)) {
-      throw const AuthServiceException(
-        'No se pudo verificar la autenticidad e integridad criptográfica del pago en Wompi.',
-      );
-    }
-
-    final activeEmail = getActiveUserEmail().trim().toLowerCase();
-    if (activeEmail.isEmpty) {
-      throw const AuthServiceException(
-        'No se encontró una sesión de usuario activa para asignar el rol.',
-      );
-    }
-
-    final prefs = await SharedPreferences.getInstance();
-    final registry = await _loadRegistry(prefs);
-    final existing = registry[activeEmail] is Map
-        ? Map<String, dynamic>.from(registry[activeEmail] as Map)
-        : <String, dynamic>{};
-
-    final historyRaw = existing['historialPagosWompi'];
-    final history = <Map<String, dynamic>>[
-      if (historyRaw is List)
-        for (final item in historyRaw)
-          if (item is Map) Map<String, dynamic>.from(item),
-    ];
-
-    // Protección Anti-Replay: rechaza recibos cuyo transactionId o reference ya fue aplicado
-    final alreadyRedeemed = history.any(
-      (tx) =>
-          tx['transactionId']?.toString() == receipt.transactionId ||
-          tx['reference']?.toString() == receipt.reference,
-    );
-    if (alreadyRedeemed) {
-      throw const AuthServiceException(
-        'Esta transacción de pago ya fue procesada y aplicada anteriormente.',
-      );
-    }
-    history.add(receipt.toMap());
-
-    final verifiedState = await _lookupVerifiedAccountStateForEmail(
-      prefs,
-      activeEmail,
-    );
-    // Si la cuenta tenía pago inicial pendiente, parte de [] y recibe su primer rol pagado;
-    // si ya tenía roles activos (ej. `['persona']`), ACUMULA el nuevo rol (`['persona', 'equipo_juridico']`).
-    final baseRoles = verifiedState.paymentPending
-        ? <String>[]
-        : verifiedState.roles;
-    final paidRolId = PaymentService.normalizarRolId(receipt.rolId);
-    final updatedRoles = <String>[
-      ...baseRoles,
-      if (!baseRoles.contains(paidRolId)) paidRolId,
-    ];
-    final rolEtiqueta = PaymentService.formatearEtiquetaRolesAcumulados(
-      updatedRoles,
-    );
-    final rolesSeal = await SecurityService.computeUserRolesSeal(
-      prefs: prefs,
-      email: activeEmail,
-      roles: updatedRoles,
-    );
-    final paymentStateSeal = await SecurityService.computePaymentStateSeal(
-      prefs: prefs,
-      email: activeEmail,
-      paymentPending: false,
-      paymentActive: true,
-      requestedRoleId: paidRolId,
-      roles: updatedRoles,
-    );
-
-    existing.remove('password');
-    existing['rolesActivos'] = updatedRoles;
-    existing['rolPrincipal'] = updatedRoles.first;
-    existing['rolSolicitadoRegistro'] = paidRolId;
-    existing['rolEtiqueta'] = rolEtiqueta;
-    existing['rolesSeal'] = rolesSeal;
-    existing['paymentStateSeal'] = paymentStateSeal;
-    existing['pagoWompiActivo'] = true;
-    existing['pagoWompiPendiente'] = false;
-    existing['ultimoPagoWompi'] = receipt.toMap();
-    existing['historialPagosWompi'] = history;
-    existing['updatedAt'] = DateTime.now().toIso8601String();
-    registry[activeEmail] = existing;
-    await prefs.setString(_kUsersRegistryKey, jsonEncode(registry));
-    await SecurityService.sealActiveSession(
-      prefs: prefs,
-      email: activeEmail,
-      roles: updatedRoles,
-      paymentPending: false,
-      pendingRoleId: paidRolId,
-    );
-
-    _cachedRoles = updatedRoles;
-    _cachedPaymentPending = false;
-    _cachedPendingRoleId = paidRolId;
-    authStateVersion.value++;
-
-    final fbUser = _auth.currentUser;
-    if (fbUser != null) {
-      try {
-        await FirebaseFirestore.instance
-            .collection('pagos_wompi')
-            .doc(receipt.transactionId)
-            .set({
-              ...receipt.toMap(),
-              'uid': fbUser.uid,
-              'email': activeEmail,
-              'registrado_en': FieldValue.serverTimestamp(),
-            })
-            .timeout(const Duration(seconds: 5));
-
-        await FirebaseFirestore.instance
-            .collection(ConsentService.coleccionUsuarios)
-            .doc(fbUser.uid)
-            .set({
-              'rolesActivos': updatedRoles,
-              'rolPrincipal': updatedRoles.first,
-              'rolEtiqueta': rolEtiqueta,
-              'pagoWompiActivo': true,
-              'pagoWompiPendiente': false,
-              'ultimoPagoWompi': receipt.toMap(),
-              'actualizado_en': FieldValue.serverTimestamp(),
-            }, SetOptions(merge: true))
-            .timeout(const Duration(seconds: 5));
-      } catch (_) {
-        debugPrint(
-          'Aviso de auditoría: recibo Wompi verificado y sellado localmente.',
-        );
-      }
-    }
-  }
-
   /// La cuenta solo tiene roles que no se pagan (el Contratista): sus roles
   /// valen aunque nunca haya pasado por Wompi.
   static bool _soloRolesGratuitos(Object? roles) =>
@@ -1780,19 +1645,44 @@ class AuthService {
     final existing = registry[activeEmail] is Map
         ? Map<String, dynamic>.from(registry[activeEmail] as Map)
         : <String, dynamic>{};
-    final verifiedState = await _lookupVerifiedAccountStateForEmail(
-      prefs,
-      activeEmail,
-    );
-    // Con el pago inicial pendiente la cuenta no tiene roles: el gratuito es
-    // el primero. Si ya tenía roles, se acumula.
-    final baseRoles = verifiedState.paymentPending
-        ? <String>[]
-        : verifiedState.roles;
-    final updatedRoles = <String>[
-      ...baseRoles,
-      if (!baseRoles.contains(cleanRol)) cleanRol,
-    ];
+    final fbUser = _auth.currentUser;
+    if (fbUser == null) {
+      throw const AuthServiceException('Inicia sesión para activar el rol.');
+    }
+    final db = FirebaseFirestore.instance;
+    final ref = db.collection(ConsentService.coleccionUsuarios).doc(fbUser.uid);
+    final List<String> updatedRoles;
+    try {
+      updatedRoles = await db
+          .runTransaction((tx) async {
+            final perfil = (await tx.get(ref)).data();
+            final anteriores =
+                (perfil?['rolesActivos'] as List?)?.whereType<String>() ??
+                const <String>[];
+            final roles = {...anteriores, cleanRol}.toList();
+            tx.set(ref, {
+              'uid': fbUser.uid,
+              'rolesActivos': roles,
+              'rolPrincipal': perfil?['rolPrincipal'] ?? cleanRol,
+              'rolSolicitadoRegistro': cleanRol,
+              'rolEtiqueta': PaymentService.formatearEtiquetaRolesAcumulados(
+                roles,
+              ),
+              'pagoWompiPendiente': false,
+              'actualizado_en': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+            return roles;
+          })
+          .timeout(const Duration(seconds: 8));
+    } on FirebaseException {
+      throw const AuthServiceException(
+        'No pudimos activar el rol. Intenta nuevamente.',
+      );
+    } on TimeoutException {
+      throw const AuthServiceException(
+        'El servidor no respondió. Intenta nuevamente.',
+      );
+    }
     final pagoActivo = existing['pagoWompiActivo'] == true;
     final rolEtiqueta = PaymentService.formatearEtiquetaRolesAcumulados(
       updatedRoles,
@@ -1810,36 +1700,6 @@ class AuthService {
       requestedRoleId: cleanRol,
       roles: updatedRoles,
     );
-
-    // Primero Firestore: si las reglas no lo permiten, no se activa nada.
-    final fbUser = _auth.currentUser;
-    if (fbUser != null) {
-      try {
-        await FirebaseFirestore.instance
-            .collection(ConsentService.coleccionUsuarios)
-            .doc(fbUser.uid)
-            .set({
-              'rolesActivos': updatedRoles,
-              'rolPrincipal': updatedRoles.first,
-              'rolSolicitadoRegistro': cleanRol,
-              'rolEtiqueta': rolEtiqueta,
-              'pagoWompiPendiente': false,
-              'actualizado_en': FieldValue.serverTimestamp(),
-            }, SetOptions(merge: true))
-            .timeout(const Duration(seconds: 8));
-      } on FirebaseException catch (e) {
-        debugPrint('activarRolGratuito: ${e.code} ${e.message}');
-        throw AuthServiceException(
-          e.code == 'permission-denied'
-              ? 'No fue posible activar el rol: publica de nuevo las reglas de Firestore.'
-              : 'No fue posible activar el rol. Revisa tu conexión e intenta de nuevo.',
-        );
-      } on TimeoutException {
-        throw const AuthServiceException(
-          'El servidor no respondió. Revisa tu conexión e intenta de nuevo.',
-        );
-      }
-    }
 
     existing.remove('password');
     existing['rolesActivos'] = updatedRoles;
@@ -1865,6 +1725,7 @@ class AuthService {
     _cachedPaymentPending = false;
     _cachedPendingRoleId = cleanRol;
     authStateVersion.value++;
+    await AccesoPlanes.refrescar();
   }
 
   /// Actualiza o restaura la foto de perfil validando formato raster (Magic Bytes),

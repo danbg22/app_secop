@@ -4079,12 +4079,18 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       selected: {_vistaDependencias},
       showSelectedIcon: false,
       onSelectionChanged: (v) => setState(() => _vistaDependencias = v.first),
-      style: SegmentedButton.styleFrom(
-        selectedBackgroundColor: Cristal.acento,
-        selectedForegroundColor: Cristal.blanco,
-        foregroundColor: Cristal.texto,
-        side: BorderSide(color: Cristal.bordeFuerte),
-      ),
+      style:
+          SegmentedButton.styleFrom(
+            selectedBackgroundColor: Cristal.acento,
+            selectedForegroundColor: Cristal.blanco,
+            foregroundColor: Cristal.texto,
+            side: BorderSide(color: Cristal.bordeFuerte),
+          ).copyWith(
+            overlayColor: Theme.of(context)
+                .segmentedButtonTheme
+                .style
+                ?.overlayColor,
+          ),
     );
 
     return Column(

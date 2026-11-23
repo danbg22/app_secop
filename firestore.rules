@@ -18,13 +18,35 @@ service cloud.firestore {
       return val is string && val.size() > 0 && val.size() <= maxLen;
     }
 
-    function isUnpaidOrBaseRoleOnly(data) {
-      return !('rolesActivos' in data) ||
-          (data.rolesActivos is list &&
-           (data.rolesActivos.size() == 0 ||
-            (data.rolesActivos.size() == 1 &&
-             data.rolesActivos[0] == 'persona' &&
-             (!('pagoWompiPendiente' in data) || data.pagoWompiPendiente == false))));
+    function rolesInicialesValidos(data) {
+      return data.get('rolesActivos', []) is list &&
+          data.get('rolesActivos', []).hasOnly(['contratista', 'juridico_supervision']);
+    }
+
+    function fechaVigente(fecha) {
+      return fecha is timestamp && fecha > request.time;
+    }
+
+    function vigenciaDe(datos, rol) {
+      return datos.get('historicos', []).hasAny([rol]) ||
+          fechaVigente(datos.get('pagadosHasta', {}).get(rol, null)) ||
+          (datos.get('pruebaRol', '') == rol &&
+           fechaVigente(datos.get('pruebaHasta', null)));
+    }
+
+    function planVigente(uid, rol) {
+      let ruta = /databases/$(database)/documents/accesos_planes/$(uid);
+      return exists(ruta) && (vigenciaDe(get(ruta).data, rol) ||
+          (uid != request.auth.uid && get(ruta).data.get('admin', false) == true));
+    }
+
+    function rolesGratuitosHabilitados(uid) {
+      let ruta = /databases/$(database)/documents/accesos_planes/$(uid);
+      return exists(ruta) &&
+          (get(ruta).data.rolInicial in ['contratista', 'juridico_supervision'] ||
+           vigenciaDe(get(ruta).data, 'persona') ||
+           vigenciaDe(get(ruta).data, 'equipo_juridico') ||
+           vigenciaDe(get(ruta).data, 'supervisor_contratos'));
     }
 
     // El Contratista de Supervisión de contratos es gratuito: se puede sumar
@@ -39,8 +61,8 @@ service cloud.firestore {
     // Correos administradores (misma lista que lib/services/admin_access.dart).
     function isAdmin() {
       return isSignedIn() &&
-          request.auth.token.email_verified == true &&
-          request.auth.token.email in [
+          request.auth.token.get('email_verified', false) == true &&
+          request.auth.token.get('email', '').lower() in [
             'danielbg2231@gmail.com',
             'ivanbolano19@gmail.com',
             'ibolano@sena.edu.co'
@@ -49,10 +71,8 @@ service cloud.firestore {
 
     // Titular de la suscripción Equipo Jurídico (o administrador).
     function isMasterJuridico() {
-      return isAdmin() ||
-          (isSignedIn() &&
-           exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
-           get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('rolesActivos', []).hasAny(['equipo_juridico']));
+      return isSignedIn() &&
+          (isAdmin() || planVigente(request.auth.uid, 'equipo_juridico'));
     }
 
     // Abogado temporal vigente del equipo de `masterUid`: correo verificado,
@@ -67,7 +87,8 @@ service cloud.firestore {
           exists(/databases/$(database)/documents/miembros_equipo/$(request.auth.token.email)) &&
           membresiaPropia().masterUid == masterUid &&
           membresiaPropia().estado == 'activo' &&
-          membresiaPropia().vigenteHasta > request.time;
+          membresiaPropia().vigenteHasta > request.time &&
+          planVigente(masterUid, 'equipo_juridico');
     }
 
     function permisoEquipo(masterUid, permiso) {
@@ -87,10 +108,10 @@ service cloud.firestore {
     // abogado del equipo con permiso para crear contratos.
     function puedeEliminarExpediente(data) {
       return isSignedIn() &&
-          (data.get('creadoPorUid', '') == request.auth.uid ||
+          ((isMasterJuridico() && (data.get('creadoPorUid', '') == request.auth.uid ||
+                                   data.get('equipoUid', '') == request.auth.uid)) ||
            (data.get('equipoUid', '') != '' &&
-            (data.equipoUid == request.auth.uid ||
-             permisoEquipo(data.equipoUid, 'crear_contratos'))));
+            permisoEquipo(data.equipoUid, 'crear_contratos')));
     }
 
     function expedienteDe(token) {
@@ -111,8 +132,8 @@ service cloud.firestore {
     function esEquipoDeExpediente(token) {
       let equipo = equipoDeExpediente(token);
       return isSignedIn() &&
-          (equipo == request.auth.uid ||
-           expedienteDe(token).get('creadoPorUid', '') == request.auth.uid ||
+          ((isMasterJuridico() && (equipo == request.auth.uid ||
+             expedienteDe(token).get('creadoPorUid', '') == request.auth.uid)) ||
            miembroVigente(equipo));
     }
 
@@ -202,23 +223,20 @@ service cloud.firestore {
     // Master del equipo o abogado vigente de su equipo.
     function esDelEquipo(equipoUid) {
       return isSignedIn() &&
-          (equipoUid == request.auth.uid || miembroVigente(equipoUid));
+          ((equipoUid == request.auth.uid && isMasterJuridico()) || miembroVigente(equipoUid));
     }
 
-    // Verifica que cualquier activación o acumulación de rol pagado esté
-    // respaldada por un recibo aprobado y registrado en el libro mayor `pagos_wompi`.
-    function hasVerifiedWompiLedger(data) {
-      return ('pagoWompiActivo' in data) &&
-          data.pagoWompiActivo == true &&
-          ('ultimoPagoWompi' in data) &&
-          (data.ultimoPagoWompi is map) &&
-          data.ultimoPagoWompi.status == 'APPROVED' &&
-          (data.ultimoPagoWompi.transactionId is string) &&
-          data.ultimoPagoWompi.transactionId.size() >= 6 &&
-          (data.ultimoPagoWompi.integritySignature is string) &&
-          data.ultimoPagoWompi.integritySignature.size() == 64 &&
-          exists(/databases/$(database)/documents/pagos_wompi/$(data.ultimoPagoWompi.transactionId)) &&
-          get(/databases/$(database)/documents/pagos_wompi/$(data.ultimoPagoWompi.transactionId)).data.uid == request.auth.uid;
+    // Credenciales de vigencia, reclamos de prueba e intentos: solo Admin SDK.
+    match /accesos_planes/{uid} {
+      allow read, write: if false;
+    }
+
+    match /identidades_prueba/{huella} {
+      allow read, write: if false;
+    }
+
+    match /intentos_pago_planes/{referencia} {
+      allow read, write: if false;
     }
 
     // =========================================================================
@@ -232,7 +250,9 @@ service cloud.firestore {
 
       allow create: if isOwner(uid) &&
           request.resource.data.uid == uid &&
-          isUnpaidOrBaseRoleOnly(request.resource.data);
+          rolesInicialesValidos(request.resource.data) &&
+          request.resource.data.get('pagoWompiActivo', false) == false &&
+          request.resource.data.get('ultimoPagoWompi', null) == null;
 
       allow update: if isOwner(uid) &&
           (!('uid' in request.resource.data) || request.resource.data.uid == uid) &&
@@ -249,15 +269,12 @@ service cloud.firestore {
           (!('aceptacion_datos' in resource.data) ||
            resource.data.aceptacion_datos != true ||
            request.resource.data.aceptacion_datos == true) &&
-          // Bloqueo de auto-asignación de roles pagos sin recibo verificado
-          (!('rolesActivos' in request.resource.data) ||
-           ('rolesActivos' in resource.data &&
-            request.resource.data.rolesActivos == resource.data.rolesActivos) ||
-           isUnpaidOrBaseRoleOnly(request.resource.data) ||
-           soloSumaRolGratuito(resource.data, request.resource.data) ||
-           (hasVerifiedWompiLedger(request.resource.data) &&
-            request.resource.data.rolesActivos.toSet().difference(resource.data.get('rolesActivos', []).toSet())
-              .hasOnly([get(/databases/$(database)/documents/pagos_wompi/$(request.resource.data.ultimoPagoWompi.transactionId)).data.rolId])));
+          (!('rolInicialRegistro' in resource.data) ||
+           request.resource.data.rolInicialRegistro == resource.data.rolInicialRegistro) &&
+          request.resource.data.get('pagoWompiActivo', false) == resource.data.get('pagoWompiActivo', false) &&
+          request.resource.data.get('ultimoPagoWompi', null) == resource.data.get('ultimoPagoWompi', null) &&
+          (request.resource.data.get('rolesActivos', []) == resource.data.get('rolesActivos', []) ||
+           soloSumaRolGratuito(resource.data, request.resource.data));
 
       allow delete: if false;
 
@@ -271,13 +288,12 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
-      // Espejo de radicados PQRS del titular (solo adición, inmutable)
+      // Radicados históricos del titular guardados en su perfil.
       match /pqrs_solicitudes/{radicado} {
-        allow get, list: if isOwner(uid);
-        allow create: if isOwner(uid) &&
-            isNonEmptyString(request.resource.data.asunto, 160) &&
-            isNonEmptyString(request.resource.data.mensaje, 3000);
-        allow update, delete: if false;
+        allow get, list: if isOwner(uid) || isAdmin();
+        allow create: if isOwner(uid) && nuevaPqrs(radicado);
+        allow update: if respuestaAdminPqrs() || lecturaPqrs(uid);
+        allow delete: if false;
       }
     }
 
@@ -305,16 +321,7 @@ service cloud.firestore {
     match /pagos_wompi/{transactionId} {
       allow get: if isSignedIn() && resource.data.uid == request.auth.uid;
       allow list: if false;
-      allow create: if isSignedIn() &&
-          !exists(/databases/$(database)/documents/pagos_wompi/$(transactionId)) &&
-          request.resource.data.uid == request.auth.uid &&
-          request.resource.data.transactionId == transactionId &&
-          request.resource.data.status == 'APPROVED' &&
-          (request.resource.data.integritySignature is string) &&
-          request.resource.data.integritySignature.size() == 64 &&
-          (request.resource.data.amountInCents is int) &&
-          request.resource.data.amountInCents > 0;
-      allow update, delete: if false;
+      allow create, update, delete: if false;
     }
 
     // =========================================================================
@@ -328,8 +335,8 @@ service cloud.firestore {
       allow get: if token.matches('^[a-f0-9]{32,64}$');
       // Listan el creador, el Master del equipo y sus abogados vigentes.
       allow list: if isSignedIn() &&
-          (resource.data.creadoPorUid == request.auth.uid ||
-           resource.data.equipoUid == request.auth.uid ||
+          ((isMasterJuridico() && (resource.data.creadoPorUid == request.auth.uid ||
+                                   resource.data.equipoUid == request.auth.uid)) ||
            miembroVigente(resource.data.equipoUid));
       // Lo crea el equipo, siempre con sesión (antes cualquiera podía crear
       // expedientes sin iniciar sesión).
@@ -339,10 +346,10 @@ service cloud.firestore {
           isNonEmptyString(request.resource.data.numeroContrato, 80) &&
           isNonEmptyString(request.resource.data.objetoContrato, 2000) &&
           // Un expediente de equipo solo lo crea su Master o un abogado con permiso.
-          (request.resource.data.get('equipoUid', '') == '' ||
-           (isSignedIn() &&
-            (request.resource.data.equipoUid == request.auth.uid ||
-             permisoEquipo(request.resource.data.equipoUid, 'crear_contratos'))));
+          ((isMasterJuridico() &&
+            request.resource.data.get('equipoUid', '') in ['', request.auth.uid]) ||
+           (request.resource.data.get('equipoUid', '') != '' &&
+            permisoEquipo(request.resource.data.equipoUid, 'crear_contratos')));
       // Un expediente eliminado queda solo como marca, sin datos personales,
       // y ya no admite cambios.
       allow update: if token.matches('^[a-f0-9]{32,64}$') &&
@@ -364,7 +371,7 @@ service cloud.firestore {
           // El equipo cambia todo; quien solo tiene el enlace, lo suyo.
           (esEquipoDeExpediente(token) ||
            cambioDelContratista(resource.data, request.resource.data));
-      allow delete: if isSignedIn() && resource.data.creadoPorUid == request.auth.uid;
+      allow delete: if puedeEliminarExpediente(resource.data);
 
       // Supervisión mensual: plan del contrato (lo configura el supervisor
       // designado) e informes del contratista, que aprueba la cadena de
@@ -483,7 +490,10 @@ service cloud.firestore {
 
     function tieneRol(rol) {
       return isSignedIn() && (isAdmin() ||
-        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('rolesActivos', []).hasAny([rol]));
+          (rol in ['contratista', 'juridico_supervision'] ?
+            (rolesGratuitosHabilitados(request.auth.uid) &&
+             get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('rolesActivos', []).hasAny([rol])) :
+            planVigente(request.auth.uid, rol)));
     }
 
     function titularSupervision(uid) {
@@ -669,10 +679,10 @@ service cloud.firestore {
       allow create: if isMasterJuridico() &&
           email != request.auth.token.email &&
           membresiaValida(request.resource.data);
-      allow update: if isSignedIn() &&
+      allow update: if isMasterJuridico() &&
           resource.data.masterUid == request.auth.uid &&
           membresiaValida(request.resource.data);
-      allow delete: if isSignedIn() && resource.data.masterUid == request.auth.uid;
+      allow delete: if isMasterJuridico() && resource.data.masterUid == request.auth.uid;
     }
 
     // =========================================================================
@@ -696,8 +706,8 @@ service cloud.firestore {
           request.resource.data.modalidadId == resource.data.modalidadId;
       // Elimina el proceso quien lo creó, el Master o un abogado con permiso.
       allow delete: if isSignedIn() &&
-          (resource.data.creadoPorUid == request.auth.uid ||
-           resource.data.equipoUid == request.auth.uid ||
+          ((isMasterJuridico() && (resource.data.creadoPorUid == request.auth.uid ||
+                                   resource.data.equipoUid == request.auth.uid)) ||
            permisoEquipo(resource.data.equipoUid, 'crear_contratos'));
 
       // Documentos de la entidad por etapa (mismo esquema que los expedientes).
@@ -741,7 +751,10 @@ service cloud.firestore {
     // =========================================================================
     match /notificaciones_correo/{notifId} {
       allow get, list: if isSignedIn() && resource.data.remitenteUid == request.auth.uid;
-      allow create: if isSignedIn() &&
+      allow create: if (isMasterJuridico() ||
+           (correoVerificado() &&
+            exists(/databases/$(database)/documents/miembros_equipo/$(request.auth.token.email)) &&
+            miembroVigente(membresiaPropia().masterUid))) &&
           request.resource.data.remitenteUid == request.auth.uid &&
           isNonEmptyString(request.resource.data.destinatarioEmail, 160) &&
           isNonEmptyString(request.resource.data.asunto, 220);
@@ -751,23 +764,50 @@ service cloud.firestore {
     // =========================================================================
     // 6. BUZÓN GLOBAL DE RADICADOS PQRS (`pqrs_solicitudes/{radicado}`)
     // =========================================================================
+    function nuevaPqrs(radicado) {
+      let datos = request.resource.data;
+      return isSignedIn() &&
+          datos.keys().hasOnly(['radicado', 'tipo_solicitud', 'asunto', 'mensaje',
+                                'usuario_nombre', 'correo_contacto', 'usuario_correo_cuenta',
+                                'usuario_documento', 'usuario_telefono', 'uid', 'estado',
+                                'canal', 'plataforma', 'fecha_creacion', 'fecha_cliente_iso']) &&
+          isNonEmptyString(datos.radicado, 48) && datos.radicado == radicado &&
+          datos.tipo_solicitud in ['Soporte técnico', 'Petición', 'Queja o reclamo', 'Sugerencia'] &&
+          isNonEmptyString(datos.asunto, 160) &&
+          isNonEmptyString(datos.mensaje, 3000) &&
+          datos.uid == request.auth.uid && datos.estado == 'Radicado' &&
+          datos.fecha_creacion == request.time;
+    }
+
+    function respuestaAdminPqrs() {
+      let despues = request.resource.data;
+      return isAdmin() && !('respuesta' in resource.data) &&
+          despues.diff(resource.data).affectedKeys().hasOnly(['respuesta', 'estado']) &&
+          despues.estado == 'Respondido' && despues.respuesta is map &&
+          despues.respuesta.keys().hasOnly(['texto', 'enviada_en', 'autor_uid']) &&
+          isNonEmptyString(despues.respuesta.texto, 3000) &&
+          despues.respuesta.autor_uid == request.auth.uid &&
+          despues.respuesta.enviada_en == request.time;
+    }
+
+    function lecturaPqrs(uid) {
+      let despues = request.resource.data;
+      return isOwner(uid) && resource.data.get('uid', '') == uid &&
+          'respuesta' in resource.data &&
+          despues.diff(resource.data).affectedKeys().hasOnly(['respuesta_leida_en']) &&
+          despues.respuesta_leida_en == resource.data.respuesta.enviada_en;
+    }
+
+    // La bandeja administrativa incluye globales y espejos históricos.
+    match /{ruta=**}/pqrs_solicitudes/{radicado} {
+      allow list: if isAdmin();
+    }
+
     match /pqrs_solicitudes/{radicado} {
-      allow get: if isSignedIn() && resource.data.uid == request.auth.uid;
-      allow list: if false;
-      allow create: if isNonEmptyString(request.resource.data.radicado, 48) &&
-          request.resource.data.radicado == radicado &&
-          request.resource.data.tipo_solicitud in [
-            'Soporte técnico',
-            'Petición',
-            'Queja o reclamo',
-            'Sugerencia'
-          ] &&
-          isNonEmptyString(request.resource.data.asunto, 160) &&
-          isNonEmptyString(request.resource.data.mensaje, 3000) &&
-          (isSignedIn()
-              ? request.resource.data.uid == request.auth.uid
-              : request.resource.data.uid == '');
-      allow update, delete: if false;
+      allow get, list: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
+      allow create: if nuevaPqrs(radicado);
+      allow update: if respuestaAdminPqrs() || lecturaPqrs(resource.data.uid);
+      allow delete: if false;
     }
 
     // =========================================================================

@@ -22,8 +22,16 @@
       }
     }
   },
+  "emulators": {
+    "auth": { "port": 9099 }
+  },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs22"
+  },
   "firestore": {
-    "rules": "firestore.rules"
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
   },
   "hosting": {
     "public": "build/web",
