@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:app_secop/services/contratos_vinculados_service.dart';
+import 'package:app_secop/services/juridico_contratacion_service.dart';
 import 'package:app_secop/screens/supervision/registro_supervision.dart';
 import 'package:app_secop/services/payment_service.dart';
 import 'package:app_secop/services/supervision_service.dart';
@@ -126,14 +127,48 @@ void main() {
       expect(b.numeroContrato, 'CPS-001');
     });
 
-    test('la cadena por defecto empieza en el supervisor, sin el jurídico', () {
+    test('la plantilla genérica conserva compatibilidad con expedientes anteriores', () {
       final etapas = PlantillaInforme.porDefecto('Entidad').etapas;
       expect(etapas.map((e) => e.id), ['supervisor']);
     });
+
+    test(
+      'el contrato vinculado fija verificación inicial y aprobación final',
+      () {
+        final exp = ExpedienteContratoPs.fromMap({
+          'estadoVinculacion': 'aprobada',
+          'juridicoRevisionEmail': 'juridico@entidad.gov.co',
+          'juridicoRevisionNombre': 'Asesora jurídica',
+        });
+        final etapas = SupervisionService.etapasDelContrato(
+          exp,
+          [
+            ...PlantillaInforme.porDefecto('Entidad').etapas,
+            const EtapaAprobacion(id: 'finanzas', nombre: 'Control financiero'),
+            const EtapaAprobacion(id: 'juridico', nombre: 'Otra etapa'),
+          ],
+          supervisorNombre: 'Supervisora',
+          supervisorEmail: 'supervision@entidad.gov.co',
+        );
+        expect(etapas.map((e) => e.id), ['juridico', 'finanzas', 'supervisor']);
+        expect(etapas.first.responsableEmail, 'juridico@entidad.gov.co');
+        expect(etapas.last.responsableEmail, 'supervision@entidad.gov.co');
+        expect(
+          ExpedienteContratoPs.fromMap(exp.toMap()).juridicoRevisionNombre,
+          'Asesora jurídica',
+        );
+        expect(ExpedienteContratoPs.fromMap({}).vinculacionAprobada, isTrue);
+        expect(
+          ExpedienteContratoPs.fromMap({'estadoVinculacion': 'pendiente'})
+              .vinculacionAprobada,
+          isFalse,
+        );
+      },
+    );
   });
 
   group('Contratos del Contratista', () {
-    test('vincula por NIT canónico, cuenta y número del contrato', () {
+    test('identifica el contrato por NIT canónico, cuenta y número', () {
       expect(
         RegistroSupervisionService.nitEntidad('899.999.061-9'),
         '899999061',
@@ -162,6 +197,17 @@ void main() {
         ),
         isNot(id),
       );
+    });
+
+    test('normaliza el código del supervisor y rechaza datos incompletos', () {
+      expect(
+        RegistroSupervisionService.normalizarCodigo(
+          ' sup-abcd-ef12 3456 7890 abcd ef12 ',
+        ),
+        'SUP-ABCDEF1234567890ABCDEF12',
+      );
+      expect(RegistroSupervisionService.normalizarCodigo('SUP-ABC'), isNull);
+      expect(RegistroSupervisionService.normalizarCodigo('800222222'), isNull);
     });
 
     test('toma el contrato del enlace que envía la entidad', () {
@@ -236,7 +282,7 @@ void main() {
   );
 
   testWidgets(
-    'el contratista busca un destino y completa los datos presupuestales',
+    'el contratista confirma el código y completa los datos presupuestales',
     (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
@@ -248,7 +294,9 @@ void main() {
         ),
       );
       for (final etiqueta in [
-        'Buscar supervisores',
+        'Código único del supervisor',
+        'Confirmar supervisor',
+        'Enviar solicitud de vinculación',
         'Número del contrato',
         'Fecha de aprobación en SECOP',
         'Valor total del contrato (COP)',
@@ -259,9 +307,9 @@ void main() {
       ]) {
         expect(find.text(etiqueta), findsOneWidget);
       }
-      await tester.tap(find.text('Buscar supervisores'));
+      await tester.tap(find.text('Confirmar supervisor'));
       await tester.pump();
-      expect(find.textContaining('Escribe el NIT'), findsOneWidget);
+      expect(find.textContaining('Ingresa el código SUP'), findsOneWidget);
       expect(find.text('Correo de Jurídico'), findsNothing);
     },
   );

@@ -92,13 +92,23 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
   }
 
   void _aplicarPlantilla(PlantillaInforme p) {
-    _plantilla = p;
-    for (final e in p.etapas) {
+    final etapas = SupervisionService.etapasDelContrato(
+      _exp,
+      p.etapas,
+      supervisorNombre: _t('supNombre').text,
+      supervisorEmail: _t('supEmail').text,
+    );
+    _plantilla = p.copyWith(etapas: etapas);
+    for (final e in etapas) {
       _t('etNombre:${e.id}', e.responsableNombre).text = e.responsableNombre;
       _t('etEmail:${e.id}', e.responsableEmail).text = e.responsableEmail;
     }
     if (!p.quincenalHabilitado) _periodicidad = Periodicidad.mensual;
   }
+
+  bool _esEtapaFija(EtapaAprobacion etapa) =>
+      _exp.juridicoRevisionEmail.isNotEmpty &&
+      (etapa.id == 'juridico' || etapa.id == 'supervisor');
 
   Future<void> _cargarPlantilla() async {
     final p = await SupervisionService.plantillaDelSupervisor(
@@ -488,10 +498,11 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
           ),
           const SizedBox(height: 16),
           TarjetaSupervision(
-            titulo: 'Quién aprueba el informe',
-            subtitulo:
-                'Cada etapa aprueba o devuelve en este orden. Cada responsable entra con este correo, verificado y '
-                'con el rol gratuito Jurídico, y ve el contrato en su sección de Supervisión.',
+            titulo: 'Responsables del flujo de revisión',
+            subtitulo: _exp.juridicoRevisionEmail.isNotEmpty
+                ? 'Jurídico verifica el informe primero. El supervisor emite la decisión final.'
+                : 'Cada etapa aprueba o devuelve en este orden. Cada responsable entra con este correo, verificado y '
+                      'con el rol gratuito Jurídico, y ve el contrato en su sección de Supervisión.',
             icono: Icons.alt_route_rounded,
             accion: TextButton.icon(
               onPressed: () async {
@@ -519,7 +530,8 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                if (_t('supEmail').text.isNotEmpty &&
+                if (!_esEtapaFija(e) &&
+                    _t('supEmail').text.isNotEmpty &&
                     _t('etEmail:${e.id}').text.trim().toLowerCase() !=
                         _t('supEmail').text) ...[
                   Align(
@@ -541,10 +553,12 @@ class _EditarPlanScreenState extends State<EditarPlanScreen> {
                 par(
                   TextField(
                     controller: _t('etNombre:${e.id}'),
+                    readOnly: _esEtapaFija(e),
                     decoration: decoracionCampo('Nombre del responsable'),
                   ),
                   TextField(
                     controller: _t('etEmail:${e.id}'),
+                    readOnly: _esEtapaFija(e),
                     keyboardType: TextInputType.emailAddress,
                     decoration: decoracionCampo('Correo del responsable'),
                   ),

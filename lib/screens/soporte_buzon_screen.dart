@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -14,65 +13,72 @@ String? _fechaLocal(DateTime? fecha) => fecha == null
     ? null
     : DateFormat('dd/MM/yyyy HH:mm').format(fecha.toLocal());
 
-class BandejaSoporteSection extends StatefulWidget {
+class BandejaSoporteSection extends StatelessWidget {
   const BandejaSoporteSection({super.key});
 
   @override
-  State<BandejaSoporteSection> createState() => _BandejaSoporteSectionState();
+  Widget build(BuildContext context) {
+    final usuario = FirebaseAuth.instance.currentUser;
+    if (usuario == null || !AuthService.isActiveUserAdmin) {
+      return const SizedBox.shrink();
+    }
+    return _BandejaAdmin(key: ValueKey(usuario.uid), usuario: usuario);
+  }
 }
 
-class _BandejaSoporteSectionState extends State<BandejaSoporteSection> {
-  static const _tamanoPagina = 30;
-  int _limite = _tamanoPagina;
-  Stream<QuerySnapshot<Map<String, dynamic>>>? _mensajes;
+class _BandejaAdmin extends StatefulWidget {
+  const _BandejaAdmin({super.key, required this.usuario});
 
-  void _consultar() {
-    _mensajes = PqrsBandejaService.consultaAdministrativa(_limite).snapshots();
-  }
+  final User usuario;
 
   @override
-  Widget build(BuildContext context) {
-    if (!AuthService.isActiveUserAdmin) return const SizedBox.shrink();
-    _mensajes ??= PqrsBandejaService.consultaAdministrativa(_limite)
-        .snapshots();
+  State<_BandejaAdmin> createState() => _BandejaAdminState();
+}
 
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _mensajes,
-      builder: (context, snapshot) {
-        final datos = snapshot.data;
-        final mensajes = datos == null
-            ? const <SolicitudBuzon>[]
-            : PqrsBandejaService.agrupar(datos.docs);
-        return _ListaBuzon(
-          titulo: 'Mensajes de soporte',
-          subtitulo:
-              'Consulta y responde las solicitudes enviadas desde Ayuda.',
-          mensajes: mensajes,
-          cargando: snapshot.connectionState == ConnectionState.waiting,
-          error: snapshot.hasError,
-          vacio: 'Todavía no hay solicitudes de soporte.',
-          onAbrir: (ticket) => mostrarDialogoCristal<void>(
-            context: context,
-            builder: (_) =>
-                _DetalleSolicitud(ticket: ticket, administrar: true),
-          ),
-          pie: datos != null && datos.docs.length >= _limite
-              ? OutlinedButton.icon(
-                  onPressed: snapshot.connectionState == ConnectionState.waiting
-                      ? null
-                      : () => setState(() {
-                          _limite += _tamanoPagina;
-                          _consultar();
-                        }),
-                  icon: const Icon(Icons.expand_more_rounded),
-                  label: const Text('Cargar más solicitudes'),
-                )
-              : null,
-          onReintentar: () => setState(_consultar),
-        );
-      },
-    );
-  }
+class _BandejaAdminState extends State<_BandejaAdmin> {
+  static const _tamanoPagina = 30;
+  int _limite = _tamanoPagina;
+  late var _mensajes = _consultar();
+
+  Stream<({List<SolicitudBuzon> mensajes, bool hayMas, bool soloGlobal})>
+  _consultar() =>
+      PqrsBandejaService.consultaAdministrativa(_limite, widget.usuario);
+
+  @override
+  Widget build(BuildContext context) => StreamBuilder(
+    stream: _mensajes,
+    builder: (context, snapshot) {
+      final datos = snapshot.data;
+      final cargando = snapshot.connectionState == ConnectionState.waiting;
+      return _ListaBuzon(
+        titulo: 'Mensajes de soporte',
+        subtitulo: datos?.soloGlobal == true
+            ? 'Puedes responder las solicitudes recientes. El historial aún no está disponible.'
+            : 'Consulta y responde las solicitudes enviadas desde Ayuda.',
+        mensajes: datos?.mensajes ?? const <SolicitudBuzon>[],
+        cargando: cargando,
+        error: snapshot.hasError,
+        vacio: 'Todavía no hay solicitudes de soporte.',
+        onAbrir: (ticket) => mostrarDialogoCristal<void>(
+          context: context,
+          builder: (_) => _DetalleSolicitud(ticket: ticket, administrar: true),
+        ),
+        pie: datos?.hayMas == true
+            ? OutlinedButton.icon(
+                onPressed: cargando
+                    ? null
+                    : () => setState(() {
+                        _limite += _tamanoPagina;
+                        _mensajes = _consultar();
+                      }),
+                icon: const Icon(Icons.expand_more_rounded),
+                label: const Text('Cargar más solicitudes'),
+              )
+            : null,
+        onReintentar: () => setState(() => _mensajes = _consultar()),
+      );
+    },
+  );
 }
 
 class MisMensajesSoporteScreen extends StatelessWidget {

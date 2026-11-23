@@ -14,10 +14,12 @@ class RegistroSupervision extends StatefulWidget {
     this.alGuardar,
     this.contrato,
     this.perfil,
+    this.reenviar = false,
   });
   final ExpedienteContratoPs? contrato;
   final Map<String, dynamic>? perfil;
   final bool esSupervisor;
+  final bool reenviar;
   final VoidCallback? alGuardar;
 
   @override
@@ -31,7 +33,6 @@ class _RegistroSupervisionState extends State<RegistroSupervision> {
   String? _error;
   DateTime? _fecha;
   bool _ocupado = false;
-  List<DestinoSupervision>? _resultados;
   DestinoSupervision? _destino;
 
   TextEditingController _campo(String id) =>
@@ -97,11 +98,13 @@ class _RegistroSupervisionState extends State<RegistroSupervision> {
   }
 
   Future<void> _buscar() async {
-    final nit = RegistroSupervisionService.nitEntidad(_valor('nit'));
-    if (nit == null) {
+    final codigo = RegistroSupervisionService.normalizarCodigo(
+      _valor('codigo'),
+    );
+    if (_ocupado) return;
+    if (codigo == null) {
       setState(
-        () => _error =
-            'Escribe el NIT de la entidad, con o sin dígito de verificación.',
+        () => _error = 'Ingresa el código SUP que te compartió tu supervisor.',
       );
       return;
     }
@@ -109,21 +112,24 @@ class _RegistroSupervisionState extends State<RegistroSupervision> {
       _ocupado = true;
       _error = null;
       _destino = null;
-      _resultados = null;
     });
     try {
-      final lista = await RegistroSupervisionService.buscar(nit);
-      if (mounted) {
-        setState(() {
-          _resultados = lista
-              .where((d) => d.uid != RegistroSupervisionService.uid)
-              .toList();
-        });
+      final destino = await RegistroSupervisionService.buscarPorCodigo(codigo);
+      if (!mounted) return;
+      if (RegistroSupervisionService.normalizarCodigo(_valor('codigo')) !=
+          codigo) {
+        return;
       }
+      setState(() {
+        _destino = destino;
+        if (destino == null) {
+          _error = 'No encontramos un supervisor con ese código.';
+        }
+      });
     } catch (_) {
       if (mounted) {
         setState(
-          () => _error = 'No se pudo consultar el directorio. Vuelve a buscar.',
+          () => _error = 'No se pudo consultar el código. Intenta de nuevo.',
         );
       }
     } finally {
@@ -138,7 +144,7 @@ class _RegistroSupervisionState extends State<RegistroSupervision> {
       setState(
         () => _error = _fecha == null
             ? 'Selecciona la fecha.'
-            : 'Busca la entidad y selecciona tu supervisor.',
+            : 'Confirma el código de tu supervisor.',
       );
       return;
     }
@@ -155,6 +161,7 @@ class _RegistroSupervisionState extends State<RegistroSupervision> {
             'objetoContrato': _valor('objeto'),
             'aprobacionSecop': fechaIsoCorta(_fecha!),
           },
+          reenviar: widget.reenviar,
         );
         if (mounted) Navigator.pop(context, actualizado);
         return;
@@ -221,16 +228,19 @@ class _RegistroSupervisionState extends State<RegistroSupervision> {
           LengthLimitingTextInputFormatter(id == 'valor' ? 18 : maximo),
           if (id == 'valor') const FormatoMilesCop(),
         ],
-        onChanged: id == 'nit'
+        onChanged: id == 'codigo'
             ? (_) => setState(() {
                 _destino = null;
-                _resultados = null;
                 _error = null;
               })
             : null,
         validator: (v) {
           final t = (v ?? '').trim();
           if (t.isEmpty) return 'Completa este campo.';
+          if (id == 'codigo' &&
+              RegistroSupervisionService.normalizarCodigo(t) == null) {
+            return 'Revisa el código de tu supervisor.';
+          }
           if (id == 'nit' && RegistroSupervisionService.nitEntidad(t) == null) {
             return 'Revisa el NIT y su dígito de verificación.';
           }
@@ -277,7 +287,9 @@ class _RegistroSupervisionState extends State<RegistroSupervision> {
     final nombramiento = _vinculacion == 'nombramiento';
     return TarjetaSupervision(
       titulo: widget.contrato != null
-          ? 'Corregir contrato ${widget.contrato!.numeroContrato}'
+          ? (widget.reenviar
+                ? 'Corregir solicitud de vinculación'
+                : 'Corregir contrato ${widget.contrato!.numeroContrato}')
           : widget.esSupervisor
           ? (widget.perfil == null
                 ? 'Configura tu supervisión'
@@ -290,9 +302,9 @@ class _RegistroSupervisionState extends State<RegistroSupervision> {
           ? widget.contrato!.entidadNombre
           : widget.esSupervisor
           ? (widget.perfil == null
-                ? 'Tus contratistas te encontrarán por entidad y dependencia.'
-                : 'La entidad, la dependencia y Jurídico se aplican a nuevas vinculaciones. Para cambiar quién revisa un contrato activo, edita su plan.')
-          : 'Busca la entidad por su NIT y selecciona a la persona que supervisa tu contrato.',
+                ? 'Comparte tu código único con los contratistas que supervisas.'
+                : 'Los cambios del perfil se aplican a las próximas vinculaciones. En los contratos activos puedes ajustar las etapas adicionales desde el plan.')
+          : 'Confirma quién supervisa tu contrato y envíale una solicitud de vinculación.',
       children: [
         Form(
           key: _form,
@@ -301,7 +313,7 @@ class _RegistroSupervisionState extends State<RegistroSupervision> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (widget.contrato == null)
+                if (widget.esSupervisor)
                   _texto(
                     'nit',
                     'NIT de la entidad',
@@ -366,37 +378,17 @@ class _RegistroSupervisionState extends State<RegistroSupervision> {
                   _texto('email', 'Correo de Jurídico'),
                 ] else ...[
                   if (widget.contrato == null) ...[
+                    _texto(
+                      'codigo',
+                      'Código único del supervisor',
+                      ayuda: 'Pide a tu supervisor el código que comienza por SUP.',
+                      maximo: 48,
+                    ),
                     OutlinedButton.icon(
                       onPressed: _buscar,
                       icon: const Icon(Icons.search),
-                      label: const Text('Buscar supervisores'),
+                      label: const Text('Confirmar supervisor'),
                     ),
-                    if (_resultados?.isEmpty == true)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 10),
-                        child: Text(
-                          'No encontramos un supervisor para este NIT. Confirma el número y que tu supervisor haya registrado su dependencia.',
-                        ),
-                      ),
-                    if (_resultados?.isNotEmpty == true)
-                      DropdownButtonFormField<DestinoSupervision>(
-                        key: ObjectKey(_resultados),
-                        isExpanded: true,
-                        decoration: decoracionCampo(
-                          'Entidad, dependencia y supervisor',
-                        ),
-                        items: [
-                          for (final d in _resultados!)
-                            DropdownMenuItem(
-                              value: d,
-                              child: Text(
-                                '${d.entidad} · ${d.dependencia} · ${d.supervisor}',
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                        ],
-                        onChanged: (v) => setState(() => _destino = v),
-                      ),
                     if (_destino != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
@@ -429,12 +421,14 @@ class _RegistroSupervisionState extends State<RegistroSupervision> {
                     _ocupado
                         ? 'Un momento…'
                         : widget.contrato != null
-                        ? 'Guardar corrección'
+                        ? (widget.reenviar
+                              ? 'Reenviar solicitud'
+                              : 'Guardar corrección')
                         : widget.esSupervisor
                         ? (widget.perfil == null
                               ? 'Crear supervisión y Jurídico'
                               : 'Guardar perfil')
-                        : 'Vincular contrato',
+                        : 'Enviar solicitud de vinculación',
                   ),
                 ),
               ],

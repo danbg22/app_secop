@@ -1898,7 +1898,8 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                         style: TextStyle(fontSize: 13.5, color: Cristal.texto),
                         decoration: InputDecoration(
                           isDense: true,
-                          hintText: 'Buscar por aspirante, cédula o número de contrato...',
+                          hintText:
+                              'Buscar por nombre, cédula o número de contrato…',
                           hintStyle: TextStyle(
                             color: Cristal.textoTenue,
                             fontSize: 13,
@@ -1936,19 +1937,20 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                       children: [
                         _buildFiltroChip(
                           id: 'todos',
-                          label: 'Todos (${_expedientes.length})',
+                          label:
+                              'Todos los expedientes (${_expedientes.length})',
                         ),
                         _buildFiltroChip(
                           id: 'revisar',
-                          label: 'Por revisar ($totalPorRevisar)',
+                          label: 'Pendientes de revisión ($totalPorRevisar)',
                         ),
                         _buildFiltroChip(
                           id: 'observados',
-                          label: 'Con observaciones ($totalConObs)',
+                          label: 'Pendientes de subsanación ($totalConObs)',
                         ),
                         _buildFiltroChip(
                           id: 'verificados',
-                          label: 'Verificados ($totalVerificados)',
+                          label: 'Verificación completada ($totalVerificados)',
                         ),
                       ],
                     ),

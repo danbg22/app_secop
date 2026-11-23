@@ -10,18 +10,19 @@ enum PerfilSupervision {
   final String rol;
 }
 
-/// Entrada del directorio: el NIT identifica a la entidad y el UID al
-/// supervisor, incluso si hay dos personas en una misma dependencia.
+/// Identidad pública de la supervisión a la que se dirige una solicitud.
 class DestinoSupervision {
   const DestinoSupervision(
     this.uid,
     this.nit,
     this.entidad,
     this.dependencia,
-    this.supervisor,
-  );
+    this.supervisor, {
+    this.codigo = '',
+  });
 
   final String uid, nit, entidad, dependencia, supervisor;
+  final String codigo;
 
   Map<String, dynamic> toMap() => {
     'entidadNit': nit,
@@ -30,14 +31,18 @@ class DestinoSupervision {
     'supervisorNombre': supervisor,
   };
 
-  factory DestinoSupervision.fromMap(String uid, Map<String, dynamic> datos) =>
-      DestinoSupervision(
-        uid,
-        datos['entidadNit'],
-        datos['entidadNombre'],
-        datos['dependencia'],
-        datos['supervisorNombre'],
-      );
+  factory DestinoSupervision.fromMap(
+    String uid,
+    Map<String, dynamic> datos,
+    String codigo,
+  ) => DestinoSupervision(
+    uid,
+    datos['entidadNit'],
+    datos['entidadNombre'],
+    datos['dependencia'],
+    datos['supervisorNombre'],
+    codigo: codigo,
+  );
 }
 
 class RegistroSupervisionService {
@@ -72,17 +77,49 @@ class RegistroSupervisionService {
           .doc(nit)
           .collection('supervisores');
 
-  static Future<List<DestinoSupervision>> buscar(String nit) async {
-    final q = await _directorio(nit)
-        .get(const GetOptions(source: Source.server));
-    return [for (final d in q.docs) DestinoSupervision.fromMap(d.id, d.data())]
-      ..sort(
-        (a, b) => '${a.dependencia} ${a.supervisor}'.compareTo(
-          '${b.dependencia} ${b.supervisor}',
-        ),
-      );
+  static DocumentReference<Map<String, dynamic>> _codigoRef(String codigo) =>
+      _db.collection('codigos_supervision').doc(codigo);
+
+  static String? normalizarCodigo(String valor) {
+    final compacto = valor.toUpperCase().replaceAll(RegExp(r'[\s-]+'), '');
+    return RegExp(r'^SUP[A-F0-9]{24}$').hasMatch(compacto)
+        ? 'SUP-${compacto.substring(3)}'
+        : null;
   }
 
+  static String _nuevoCodigo() {
+    final rng = Random.secure();
+    return 'SUP-${List.generate(12, (_) => rng.nextInt(256).toRadixString(16).padLeft(2, '0')).join().toUpperCase()}';
+  }
+
+  static Future<DestinoSupervision?> buscarPorCodigo(String valor) async {
+    final codigo = normalizarCodigo(valor);
+    if (codigo == null) return null;
+    const servidor = GetOptions(source: Source.server);
+    final indice = (await _codigoRef(codigo).get(servidor)).data();
+    if (indice == null || indice['supervisorUid'] == uid) return null;
+    final titular = indice['supervisorUid'] as String;
+    final entrada = (await _directorio(
+      indice['entidadNit'],
+    ).doc(titular).get(servidor)).data();
+    return entrada == null
+        ? null
+        : DestinoSupervision.fromMap(titular, entrada, codigo);
+  }
+
+  static Future<void> asignarCodigoExistente() => SupervisionService._guardar(
+    () => _db.runTransaction((tx) async {
+      final perfil = _perfil;
+      final datos = (await tx.get(perfil)).data();
+      if (datos == null || datos['codigoSupervisor'] != null) return;
+      final codigo = _nuevoCodigo();
+      tx.update(perfil, {'codigoSupervisor': codigo});
+      tx.set(_codigoRef(codigo), {
+        'supervisorUid': uid,
+        'entidadNit': datos['entidadNit'],
+      });
+    }),
+  );
   static Future<void> guardarPerfil({
     int? versionAnterior,
     required DestinoSupervision destino,
@@ -104,6 +141,7 @@ class RegistroSupervisionService {
           'El perfil cambió. Vuelve a abrirlo para editar la última versión.',
         );
       }
+      final codigo = (actual?['codigoSupervisor'] as String?) ?? _nuevoCodigo();
       final plantillaRef = SupervisionService._refPlantilla(uid);
       final previa = (await tx.get(plantillaRef)).data();
       final plantilla = previa == null
@@ -144,6 +182,7 @@ class RegistroSupervisionService {
       }
       tx.set(perfilRef, {
         'version': (versionAnterior ?? 0) + 1,
+        'codigoSupervisor': codigo,
         'juridicoEmail': juridicoEmail,
         'juridicoNombre': juridicoNombre,
         ...destino.toMap(),
@@ -152,6 +191,10 @@ class RegistroSupervisionService {
         'fecha': fecha,
         'cargoObjeto': cargoObjeto,
         if (vinculacion == 'contrato') ...datosContrato,
+      });
+      tx.set(_codigoRef(codigo), {
+        'supervisorUid': uid,
+        'entidadNit': destino.nit,
       });
       tx.set(_directorio(destino.nit).doc(uid), destino.toMap());
       tx.set(_db.collection('juridicos_supervision').doc(uid), {
@@ -193,6 +236,8 @@ class RegistroSupervisionService {
           'tokenInvitado': token,
           'contratistaUid': uid,
           'supervisorUid': destino.uid,
+          'codigoSupervisor': destino.codigo,
+          'estadoVinculacion': 'pendiente',
           'revisoresEmails': <String>[],
           'contratistaNombreEsperado': AuthService.getActiveUserDisplayName(),
           'contratistaCedulaEsperada': usuario['documento'] ?? '',
@@ -210,11 +255,53 @@ class RegistroSupervisionService {
     );
   }
 
+  static Future<void> decidirVinculacion(
+    ExpedienteContratoPs exp, {
+    String? observacion,
+  }) => SupervisionService._guardar(
+    () => _db.runTransaction((tx) async {
+      final ref = SupervisionService._expediente(exp.id);
+      final actual = (await tx.get(ref)).data();
+      if (actual?['supervisorUid'] != uid ||
+          actual?['estadoVinculacion'] != 'pendiente') {
+        throw const SupervisionException('La solicitud ya no está pendiente.');
+      }
+      if (observacion != null) {
+        final motivo = observacion.trim();
+        if (motivo.length < 10 || motivo.length > 1000) {
+          throw const SupervisionException(
+            'Describe el motivo en 10 a 1000 caracteres.',
+          );
+        }
+        tx.update(ref, {
+          'estadoVinculacion': 'devuelta',
+          'observacionVinculacion': motivo,
+        });
+        return;
+      }
+      final perfil = (await tx.get(_perfil)).data();
+      final correo = (perfil?['juridicoEmail'] ?? '').toString();
+      if (correo.isEmpty || correo == exp.contratistaCorreo) {
+        throw const SupervisionException(
+          'Designa en tu perfil un responsable jurídico distinto del contratista.',
+        );
+      }
+      tx.update(ref, {
+        'estadoVinculacion': 'aprobada',
+        'observacionVinculacion': FieldValue.delete(),
+        'juridicoRevisionEmail': correo,
+        'juridicoRevisionNombre': perfil!['juridicoNombre'],
+        'revisoresEmails': [correo],
+      });
+    }),
+  );
+
   static Future<ExpedienteContratoPs> corregirContrato(
     ExpedienteContratoPs exp,
-    Map<String, dynamic> cambios,
-  ) async {
-    if (!SupervisionService.esSupervisor(exp)) {
+    Map<String, dynamic> cambios, {
+    bool reenviar = false,
+  }) async {
+    if (!reenviar && !SupervisionService.esSupervisor(exp)) {
       throw const SupervisionException(
         'Solo el supervisor puede corregir los datos del contrato.',
       );
@@ -228,14 +315,24 @@ class RegistroSupervisionService {
             'El contrato ya no está disponible.',
           );
         }
+        if (reenviar &&
+            (actual['estadoVinculacion'] != 'devuelta' ||
+                actual['contratistaUid'] != uid)) {
+          throw const SupervisionException('La solicitud ya no está devuelta.');
+        }
         final anterior = exp.toMap();
         if (cambios.keys.any((campo) => actual[campo] != anterior[campo])) {
           throw const SupervisionException(
             'Los datos cambiaron. Vuelve a abrir el contrato para ver la última versión.',
           );
         }
-        tx.update(ref, cambios);
-        return ExpedienteContratoPs.fromMap({...actual, ...cambios});
+        final nuevos = {
+          ...cambios,
+          if (reenviar) 'estadoVinculacion': 'pendiente',
+          if (reenviar) 'observacionVinculacion': '',
+        };
+        tx.update(ref, nuevos);
+        return ExpedienteContratoPs.fromMap({...actual, ...nuevos});
       }),
     );
   }

@@ -48,11 +48,74 @@ abstract final class PqrsBandejaService {
   static CollectionReference<Map<String, dynamic>> get _global =>
       FirebaseFirestore.instance.collection(PqrsService.coleccionGlobalPqrs);
 
-  static Query<Map<String, dynamic>> consultaAdministrativa(int limite) =>
-      FirebaseFirestore.instance
-          .collectionGroup(PqrsService.coleccionGlobalPqrs)
-          .orderBy('fecha_creacion', descending: true)
-          .limit(limite);
+  static Stream<({List<SolicitudBuzon> mensajes, bool hayMas, bool soloGlobal})>
+  consultaAdministrativa(int limite, User admin) async* {
+    final grupo = FirebaseFirestore.instance.collectionGroup(
+      PqrsService.coleccionGlobalPqrs,
+    );
+    final ordenada = grupo.orderBy('fecha_creacion', descending: true);
+    try {
+      await for (final lote in _escucharAdmin(
+        ordenada.limit(limite + 1),
+        limite,
+      )) {
+        yield lote;
+      }
+      return;
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied' &&
+          FirebaseAuth.instance.currentUser?.uid == admin.uid) {
+        await admin.getIdToken(true).timeout(const Duration(seconds: 8));
+      } else if (e.code != 'failed-precondition') {
+        rethrow;
+      }
+    }
+    try {
+      // Incluye radicados históricos aunque el índice todavía se esté creando.
+      await for (final lote in _escucharAdmin(grupo, limite)) {
+        yield lote;
+      }
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied' && e.code != 'failed-precondition') {
+        rethrow;
+      }
+      yield* _escucharAdmin(
+        _global.orderBy('fecha_creacion', descending: true).limit(limite + 1),
+        limite,
+        soloGlobal: true,
+      );
+    }
+  }
+
+  static Stream<({List<SolicitudBuzon> mensajes, bool hayMas, bool soloGlobal})>
+  _escucharAdmin(
+    Query<Map<String, dynamic>> consulta,
+    int limite, {
+    bool soloGlobal = false,
+  }) async* {
+    // Una respuesta del caché no confirma permisos ni disponibilidad.
+    var confirmada = false;
+    final lecturas = consulta
+        .snapshots(includeMetadataChanges: true)
+        .where((datos) => !datos.metadata.isFromCache)
+        .timeout(
+          const Duration(seconds: 12),
+          onTimeout: (salida) {
+            if (confirmada) return;
+            salida.addError(TimeoutException('No se confirmó el buzón.'));
+            salida.close();
+          },
+        );
+    await for (final datos in lecturas) {
+      confirmada = true;
+      final mensajes = agrupar(datos.docs);
+      yield (
+        mensajes: mensajes.take(limite).toList(),
+        hayMas: datos.docs.length > limite,
+        soloGlobal: soloGlobal,
+      );
+    }
+  }
 
   static List<SolicitudBuzon> agrupar(
     Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs,

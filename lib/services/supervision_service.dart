@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -1702,8 +1703,7 @@ class SupervisionService {
   static AsignacionSupervision? asignacionDe(ExpedienteContratoPs e) =>
       _asignacionesConocidas[e.tokenInvitado.toLowerCase()];
 
-  /// Supervisor designado del contrato: configura los informes, decide
-  /// cualquier etapa y registra el pago. El equipo jurídico ya no supervisa.
+  /// Supervisor designado del contrato.
   static bool esSupervisor(ExpedienteContratoPs e) =>
       AuthService.hasActiveRole('supervisor_contratos') &&
       (asignacionDe(e)?.esSupervisor(emailActual) ?? false);
@@ -1712,9 +1712,10 @@ class SupervisionService {
   static bool esRevisor(ExpedienteContratoPs e) =>
       asignacionDe(e)?.esRevisor(emailActual) ?? false;
 
-  static bool puedeConfigurar(ExpedienteContratoPs e) => esSupervisor(e);
+  static bool puedeConfigurar(ExpedienteContratoPs e) =>
+      e.vinculacionAprobada && esSupervisor(e);
 
-  /// Decide la etapa en curso: su responsable o el supervisor designado.
+  /// El responsable verifica su etapa y el supervisor emite el aval final.
   static bool puedeDecidir(
     ExpedienteContratoPs e,
     PlanSupervision plan,
@@ -1723,10 +1724,25 @@ class SupervisionService {
     if (inf.estado != EstadoInforme.enRevision || plan.etapas.isEmpty) {
       return false;
     }
-    if (esSupervisor(e)) return true;
-    return plan.etapas[inf.etapaActual.clamp(0, plan.etapas.length - 1)]
-        .esResponsable(emailActual);
+    final supervisor = esSupervisor(e);
+    final etapa = inf.etapaActual.clamp(0, plan.etapas.length - 1);
+    if (etapa == plan.etapas.length - 1) {
+      return supervisor;
+    }
+    return (e.juridicoRevisionEmail.isEmpty && supervisor) ||
+        plan.etapas[etapa].esResponsable(emailActual);
   }
+
+  static bool puedeDevolver(
+    ExpedienteContratoPs exp,
+    PlanSupervision plan,
+    InformePeriodo inf,
+  ) =>
+      inf.estado == EstadoInforme.enRevision &&
+      plan.etapas.isNotEmpty &&
+      (esSupervisor(exp) ||
+          plan.etapas[inf.etapaActual.clamp(0, plan.etapas.length - 1)]
+              .esResponsable(emailActual));
 
   static bool puedeRegistrarPago(ExpedienteContratoPs e) => esSupervisor(e);
 
@@ -1900,12 +1916,42 @@ class SupervisionService {
 
   // ------------------------------------------------------------- Plan
 
+  static List<EtapaAprobacion> etapasDelContrato(
+    ExpedienteContratoPs exp,
+    List<EtapaAprobacion> etapas, {
+    required String supervisorNombre,
+    required String supervisorEmail,
+  }) {
+    if (exp.juridicoRevisionEmail.isEmpty) return etapas;
+    final porId = {for (final etapa in etapas) etapa.id: etapa};
+    return [
+      EtapaAprobacion(
+        id: 'juridico',
+        nombre: 'Verificación jurídica',
+        responsableNombre: exp.juridicoRevisionNombre,
+        responsableEmail: exp.juridicoRevisionEmail,
+        certificacion: porId['juridico']?.certificacion ?? '',
+      ),
+      for (final etapa in etapas)
+        if (etapa.id != 'juridico' && etapa.id != 'supervisor') etapa,
+      EtapaAprobacion(
+        id: 'supervisor',
+        nombre: 'Aprobación final de supervisión',
+        responsableNombre: supervisorNombre,
+        responsableEmail: supervisorEmail,
+        certificacion:
+            porId['supervisor']?.certificacion ??
+            PlantillaInforme.porDefecto('').etapas.single.certificacion,
+      ),
+    ];
+  }
+
   static Future<void> guardarPlan(
     ExpedienteContratoPs expediente,
     PlanSupervision plan,
   ) async {
     final asignacion = asignacionDe(expediente);
-    if (asignacion == null || !esSupervisor(expediente)) {
+    if (asignacion == null || !puedeConfigurar(expediente)) {
       throw const SupervisionException(
         'Solo el supervisor designado configura los informes de este contrato.',
       );
@@ -1920,13 +1966,27 @@ class SupervisionService {
         'Agrega al menos una obligación del contrato.',
       );
     }
+    final supervisor = plan.supervisorNombre.trim().isEmpty
+        ? asignacion.supervisorNombre
+        : plan.supervisorNombre.trim();
+    final etapas = etapasDelContrato(
+      expediente,
+      plan.etapas,
+      supervisorNombre: supervisor,
+      supervisorEmail: asignacion.supervisorEmail,
+    );
+    if (etapas.length > 5) {
+      throw const SupervisionException(
+        'Deja hasta tres etapas adicionales en la plantilla del contrato.',
+      );
+    }
     if (expediente.tokenInvitado.startsWith('sc_') &&
-        plan.etapas.any((e) => e.esResponsable(expediente.contratistaCorreo))) {
+        etapas.any((e) => e.esResponsable(expediente.contratistaCorreo))) {
       throw const SupervisionException(
         'Elige un revisor diferente del contratista que presenta el informe.',
       );
     }
-    final sinResponsable = plan.etapas.where(
+    final sinResponsable = etapas.where(
       (e) =>
           !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
               .hasMatch(e.responsableEmail.trim()),
@@ -1943,9 +2003,7 @@ class SupervisionService {
       );
     }
     final datos = PlanSupervision(
-      supervisorNombre: plan.supervisorNombre.trim().isEmpty
-          ? asignacion.supervisorNombre
-          : plan.supervisorNombre.trim(),
+      supervisorNombre: supervisor,
       supervisorEmail: asignacion.supervisorEmail,
       fechaInicio: plan.fechaInicio,
       fechaFin: plan.fechaFin,
@@ -1957,7 +2015,7 @@ class SupervisionService {
       cdp: plan.cdp,
       rp: plan.rp,
       obligaciones: plan.obligaciones,
-      plantilla: plan.plantilla,
+      plantilla: plan.plantilla.copyWith(etapas: etapas),
       actualizadoPor: _actor,
       actualizadoEnMs: DateTime.now().millisecondsSinceEpoch,
     ).toMap();
@@ -1965,7 +2023,7 @@ class SupervisionService {
     // Los responsables de cada etapa ven el contrato en su sección.
     final revisores = AsignacionSupervision.revisoresCon(
       asignacion.supervisorEmail,
-      plan.etapas.map((e) => e.responsableEmail),
+      etapas.map((e) => e.responsableEmail),
     );
     final ahora = DateTime.now().millisecondsSinceEpoch;
     if (asignacion.token.startsWith('sc_')) {
@@ -2234,7 +2292,7 @@ class SupervisionService {
     required String observacion,
     required List<String> items,
   }) async {
-    if (!puedeDecidir(exp, plan, inf)) {
+    if (!puedeDevolver(exp, plan, inf)) {
       throw const SupervisionException(
         'Esta etapa le corresponde a otro responsable.',
       );
@@ -2251,6 +2309,7 @@ class SupervisionService {
       inf,
       {
         'estado': EstadoInforme.devuelto.name,
+        if (exp.juridicoRevisionEmail.isNotEmpty) 'etapaActual': 0,
         'declaracion': false,
         'revisiones': [
           ...inf.revisiones.map((r) => r.toMap()),

@@ -416,9 +416,14 @@ class _RevisionSupervisorScreenState extends State<RevisionSupervisorScreen> {
   ) {
     switch (inf.estado) {
       case EstadoInforme.enRevision:
+        if (plan.etapas.isEmpty) {
+          return const Text(
+            'El contrato todavía no tiene un flujo de revisión.',
+          );
+        }
         final etapa =
             plan.etapas[inf.etapaActual.clamp(0, plan.etapas.length - 1)];
-        if (!SupervisionService.puedeDecidir(_exp, plan, inf)) {
+        if (!SupervisionService.puedeDevolver(_exp, plan, inf)) {
           return TarjetaSupervision(
             titulo: 'Le toca a ${etapa.nombre}',
             icono: Icons.hourglass_top_rounded,
@@ -517,6 +522,7 @@ class _RevisionSupervisorScreenState extends State<RevisionSupervisorScreen> {
   ) {
     final ultima = inf.etapaActual >= plan.etapas.length - 1;
     final siguiente = ultima ? null : plan.etapas[inf.etapaActual + 1];
+    final puedeAprobar = SupervisionService.puedeDecidir(_exp, plan, inf);
     final todosChecks = _checks.length == _checklist.length;
     final itemsPosibles = <(String, String)>[
       for (final (i, o) in plan.obligaciones.indexed)
@@ -533,77 +539,81 @@ class _RevisionSupervisorScreenState extends State<RevisionSupervisorScreen> {
     ];
     return TarjetaSupervision(
       titulo: 'Tu revisión · ${etapa.nombre}',
-      subtitulo: ultima
+      subtitulo: !puedeAprobar
+          ? 'El informe está en ${etapa.nombre}. Puedes devolverlo con observaciones.'
+          : ultima
           ? 'Eres la última etapa: al aprobar, el informe queda aprobado para pago.'
           : 'Al aprobar, el informe pasa a ${siguiente!.nombre}.',
       icono: Icons.fact_check_outlined,
       colorBorde: Cristal.acentoBorde,
       children: [
-        Material(
-          color: Colors.transparent,
-          child: Column(
-            children: [
-              for (final (i, t) in _checklist.indexed)
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  value: _checks.contains(i),
-                  onChanged: (v) => setState(
-                    () => v == true ? _checks.add(i) : _checks.remove(i),
+        if (puedeAprobar) ...[
+          Material(
+            color: Colors.transparent,
+            child: Column(
+              children: [
+                for (final (i, t) in _checklist.indexed)
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    value: _checks.contains(i),
+                    onChanged: (v) => setState(
+                      () => v == true ? _checks.add(i) : _checks.remove(i),
+                    ),
+                    title: Text(t, style: const TextStyle(fontSize: 13.2)),
                   ),
-                  title: Text(t, style: const TextStyle(fontSize: 13.2)),
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 6),
-        TextField(
-          controller: _concepto,
-          decoration: decoracionCampo(
-            'Concepto (opcional)',
-            ayuda: 'Ej.: Cumple. Va en la constancia del informe.',
-          ),
-        ),
-        const SizedBox(height: 12),
-        FilledButton.icon(
-          onPressed: _ocupado || !todosChecks
-              ? null
-              : () => _accion(
-                  () => SupervisionService.aprobarEtapa(
-                    _exp,
-                    plan,
-                    inf,
-                    concepto: _concepto.text,
-                  ),
-                  ultima
-                      ? 'Informe aprobado.'
-                      : 'Revisado y verificado. Pasa a ${siguiente!.nombre}.',
-                ),
-          style: EstiloContractual.botonPrincipal().copyWith(
-            backgroundColor: WidgetStatePropertyAll(
-              todosChecks ? const Color(0xFF15803D) : Cristal.vidrioIntenso,
+              ],
             ),
           ),
-          icon: const Icon(Icons.verified_rounded, size: 18),
-          label: Text(
-            ultima ? 'Aprobar informe' : 'Revisado y verificado',
-            style: EstiloContractual.etiquetaBoton,
-          ),
-        ),
-        if (!todosChecks)
-          Padding(
-            padding: EdgeInsets.only(top: 6),
-            child: Text(
-              'Marca los tres puntos para aprobar.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Cristal.textoSuave, fontSize: 12),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _concepto,
+            decoration: decoracionCampo(
+              'Concepto (opcional)',
+              ayuda: 'Ej.: Cumple. Va en la constancia del informe.',
             ),
           ),
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 18),
-          child: Divider(height: 1),
-        ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: _ocupado || !todosChecks
+                ? null
+                : () => _accion(
+                    () => SupervisionService.aprobarEtapa(
+                      _exp,
+                      plan,
+                      inf,
+                      concepto: _concepto.text,
+                    ),
+                    ultima
+                        ? 'Informe aprobado.'
+                        : 'Revisado y verificado. Pasa a ${siguiente!.nombre}.',
+                  ),
+            style: EstiloContractual.botonPrincipal().copyWith(
+              backgroundColor: WidgetStatePropertyAll(
+                todosChecks ? const Color(0xFF15803D) : Cristal.vidrioIntenso,
+              ),
+            ),
+            icon: const Icon(Icons.verified_rounded, size: 18),
+            label: Text(
+              ultima ? 'Aprobar informe' : 'Revisado y verificado',
+              style: EstiloContractual.etiquetaBoton,
+            ),
+          ),
+          if (!todosChecks)
+            Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: Text(
+                'Marca los tres puntos para aprobar.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Cristal.textoSuave, fontSize: 12),
+              ),
+            ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 18),
+            child: Divider(height: 1),
+          ),
+        ],
         Text(
           'Devolver con observaciones',
           style: TextStyle(

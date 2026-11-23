@@ -17,9 +17,11 @@ class BandejaSupervisionScreen extends StatefulWidget {
     super.key,
     required this.expedientes,
     this.incrustada = false,
+    this.solicitudes = const [],
   });
 
   final List<ExpedienteContratoPs> expedientes;
+  final List<Widget> solicitudes;
 
   /// Va dentro de la sección Supervisión de contratos, que ya muestra el
   /// título y la plantilla: sin botón de volver ni encabezado propio.
@@ -31,12 +33,12 @@ class BandejaSupervisionScreen extends StatefulWidget {
 }
 
 enum _Filtro {
-  meToca('Me toca'),
-  porRevisar('En revisión'),
-  porAprobar('Última etapa'),
-  devueltos('Devueltos'),
-  aprobados('Aprobados'),
-  pagados('Pagados');
+  meToca('Pendientes de mi gestión'),
+  porRevisar('Informes en revisión'),
+  porAprobar('Pendientes de aprobación final'),
+  devueltos('Informes por subsanar'),
+  aprobados('Informes aprobados'),
+  pagados('Pagos registrados');
 
   const _Filtro(this.etiqueta);
   final String etiqueta;
@@ -49,7 +51,7 @@ class _BandejaSupervisionScreenState extends State<BandejaSupervisionScreen> {
   String _buscar = '';
 
   bool _meToca(InformeEnBandeja i) => switch (i.informe.estado) {
-    EstadoInforme.enRevision => SupervisionService.puedeDecidir(
+    EstadoInforme.enRevision => SupervisionService.puedeDevolver(
       i.expediente,
       i.plan,
       i.informe,
@@ -106,6 +108,10 @@ class _BandejaSupervisionScreenState extends State<BandejaSupervisionScreen> {
         return PantallaContractual(
           anchoMaximo: 1120,
           children: [
+            for (final solicitud in widget.solicitudes) ...[
+              solicitud,
+              const SizedBox(height: 16),
+            ],
             if (!widget.incrustada) ...[
               Align(
                 alignment: Alignment.centerLeft,

@@ -179,6 +179,11 @@ service cloud.firestore {
           get(ruta).data.etapas[i].get('responsableEmail', '') == request.auth.token.email.lower();
     }
 
+    function ultimaEtapaExpediente(token, i) {
+      let etapas = get(/databases/$(database)/documents/expedientes_juridicos/$(token)/supervision/plan).data.etapas;
+      return etapas.size() > 0 && i >= etapas.size() - 1;
+    }
+
     // Lo que puede cambiar en el expediente quien solo tiene el enlace del
     // contratista (lib/services/juridico_contratacion_service.dart,
     // _escribirCambiosDelContratista): sus documentos, su ingreso y eventos
@@ -424,8 +429,11 @@ service cloud.firestore {
                request.resource.data.estado in ['enRevision', 'devuelto', 'aprobado'] &&
                request.resource.data.diff(resource.data).affectedKeys()
                    .hasOnly(camposEquipoInforme()) &&
-               (esSupervisorDeExpediente(token) ||
-                esResponsableEtapa(token, resource.data.get('etapaActual', 0)))) ||
+               ((esSupervisorDeExpediente(token) &&
+                 (request.resource.data.estado != 'aprobado' ||
+                  ultimaEtapaExpediente(token, resource.data.get('etapaActual', 0)))) ||
+                (request.resource.data.estado != 'aprobado' &&
+                 esResponsableEtapa(token, resource.data.get('etapaActual', 0))))) ||
               // Registro del pago de un informe aprobado.
               (resource.data.estado == 'aprobado' &&
                request.resource.data.estado == 'pagado' &&
@@ -504,10 +512,29 @@ service cloud.firestore {
       return /databases/$(database)/documents/perfiles_supervision/$(uid);
     }
 
+    function rutaCodigoSupervision(codigo) {
+      return /databases/$(database)/documents/codigos_supervision/$(codigo);
+    }
+
+    function codigoSupervisionValido(codigo) {
+      return codigo is string && codigo.matches('^SUP-[A-F0-9]{24}$');
+    }
+
+    function codigoDelPerfil(uid) {
+      let datos = request.resource.data;
+      let codigo = datos.get('codigoSupervisor', '');
+      return codigoSupervisionValido(codigo) &&
+          (!exists(perfilSupervisor(uid)) ||
+            get(perfilSupervisor(uid)).data.get('codigoSupervisor', codigo) == codigo) &&
+          getAfter(rutaCodigoSupervision(codigo)).data.supervisorUid == uid &&
+          getAfter(rutaCodigoSupervision(codigo)).data.entidadNit == datos.entidadNit;
+    }
+
     // La vinculación y el documento de nombramiento solo los consulta el titular.
     match /perfiles_supervision/{uid} {
       allow get: if titularSupervision(uid);
       allow create, update: if titularSupervision(uid) &&
+          codigoDelPerfil(uid) &&
           request.resource.data.vinculacion in ['nombramiento', 'contrato'] &&
           request.resource.data.entidadNit.matches('^[0-9]{9}$') &&
           isNonEmptyString(request.resource.data.entidadNombre, 160) &&
@@ -522,6 +549,20 @@ service cloud.firestore {
           request.resource.data.fecha.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
           getAfter(/databases/$(database)/documents/juridicos_supervision/$(uid)).data.email == request.resource.data.juridicoEmail &&
           getAfter(/databases/$(database)/documents/juridicos_supervision/$(uid)).data.nombre == request.resource.data.juridicoNombre;
+    }
+
+    match /codigos_supervision/{codigo} {
+      function coincideConTitular() {
+        let datos = request.resource.data;
+        let perfil = getAfter(perfilSupervisor(request.auth.uid)).data;
+        return codigoSupervisionValido(codigo) &&
+            datos.keys().hasOnly(['supervisorUid', 'entidadNit']) &&
+            datos.supervisorUid == request.auth.uid &&
+            perfil.codigoSupervisor == codigo && perfil.entidadNit == datos.entidadNit;
+      }
+      allow get: if tieneRol('contratista');
+      allow create: if titularSupervision(request.auth.uid) && coincideConTitular();
+      allow update: if titularSupervision(resource.data.supervisorUid) && coincideConTitular();
     }
 
     function coincideConPerfil(d, uid) {
@@ -565,8 +606,34 @@ service cloud.firestore {
       function destinoValido(d) {
         let ref = /databases/$(database)/documents/directorio_supervision/$(d.entidadNit)/supervisores/$(d.supervisorUid);
         let entrada = get(ref).data;
-        return entrada.entidadNombre == d.entidadNombre && entrada.dependencia == d.dependencia &&
+        let codigo = get(rutaCodigoSupervision(d.codigoSupervisor)).data;
+        return codigoSupervisionValido(d.codigoSupervisor) &&
+            codigo.supervisorUid == d.supervisorUid && codigo.entidadNit == d.entidadNit &&
+            entrada.entidadNombre == d.entidadNombre && entrada.dependencia == d.dependencia &&
             entrada.supervisorNombre == d.supervisorNombre;
+      }
+      function vinculacionAprobada(d) {
+        return d.get('estadoVinculacion', 'aprobada') == 'aprobada';
+      }
+      function resolverVinculacion() {
+        let antes = resource.data;
+        let d = request.resource.data;
+        let designacion = get(/databases/$(database)/documents/juridicos_supervision/$(antes.supervisorUid)).data;
+        let cambios = d.diff(antes).affectedKeys();
+        return antes.get('estadoVinculacion', '') == 'pendiente' &&
+            ((d.estadoVinculacion == 'aprobada' &&
+                cambios.hasOnly(['estadoVinculacion','observacionVinculacion','juridicoRevisionEmail',
+                  'juridicoRevisionNombre','revisoresEmails']) &&
+                d.get('observacionVinculacion', '') == '' &&
+                d.juridicoRevisionEmail == designacion.email && d.juridicoRevisionNombre == designacion.nombre &&
+                d.juridicoRevisionEmail != antes.contratistaCorreo &&
+                d.revisoresEmails == [d.juridicoRevisionEmail]) ||
+             (d.estadoVinculacion == 'devuelta' &&
+                cambios.hasOnly(['estadoVinculacion','observacionVinculacion']) &&
+                isNonEmptyString(d.observacionVinculacion, 1000) && d.observacionVinculacion.size() >= 10));
+      }
+      function camposEconomicosContrato() {
+        return ['objetoContrato','aprobacionSecop','valorContratoCop','plazoEjecucion','formaPago','rp','cdp'];
       }
       function datoContratoValido(d) {
         return isNonEmptyString(d.numeroContrato, 80) && isNonEmptyString(d.objetoContrato, 2000) &&
@@ -580,31 +647,56 @@ service cloud.firestore {
       allow read: if participa(resource.data);
       allow create: if contratista(request.resource.data) &&
           id.matches('^sc_[a-f0-9]{64}$') && request.resource.data.id == id &&
+          request.resource.data.estadoVinculacion == 'pendiente' &&
           request.resource.data.tokenInvitado == id && request.resource.data.revisoresEmails == [] &&
           request.resource.data.contratistaCorreo == request.auth.token.email.lower() &&
           request.resource.data.supervisorUid != request.auth.uid &&
           request.resource.data.keys().hasOnly(['id','tokenInvitado','supervisorUid','contratistaUid',
+            'codigoSupervisor','estadoVinculacion',
             'entidadNit','entidadNombre','dependencia','supervisorNombre','revisoresEmails',
             'contratistaNombreEsperado','contratistaCedulaEsperada','contratistaCorreo','numeroContrato',
             'objetoContrato','valorContratoCop','plazoEjecucion','formaPago','rp','cdp','aprobacionSecop']) &&
           destinoValido(request.resource.data) && datoContratoValido(request.resource.data);
       allow update: if titularSupervision(resource.data.supervisorUid) &&
+          resolverVinculacion();
+      allow update: if contratista(resource.data) &&
+          resource.data.get('estadoVinculacion', '') == 'devuelta' &&
+          request.resource.data.estadoVinculacion == 'pendiente' &&
+          request.resource.data.observacionVinculacion == '' &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+            camposEconomicosContrato().concat(['estadoVinculacion','observacionVinculacion'])) &&
+          datoContratoValido(request.resource.data);
+      allow update: if titularSupervision(resource.data.supervisorUid) &&
+          vinculacionAprobada(resource.data) &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revisoresEmails','supervisorEmail']) &&
           request.resource.data.supervisorEmail == request.auth.token.email.lower() &&
           request.resource.data.revisoresEmails is list && request.resource.data.revisoresEmails.size() <= 5 &&
+          (resource.data.get('juridicoRevisionEmail', '') == '' ||
+            resource.data.juridicoRevisionEmail in request.resource.data.revisoresEmails) &&
           !(resource.data.contratistaCorreo in request.resource.data.revisoresEmails);
 
       allow update: if titularSupervision(resource.data.supervisorUid) &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['objetoContrato','aprobacionSecop',
-            'valorContratoCop','plazoEjecucion','formaPago','rp','cdp']) && datoContratoValido(request.resource.data);
+          vinculacionAprobada(resource.data) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(camposEconomicosContrato()) &&
+          datoContratoValido(request.resource.data);
 
       match /supervision/{doc} {
+        function flujoDelContrato(d, etapas) {
+          return d.get('juridicoRevisionEmail', '') == '' ||
+              (etapas.size() >= 2 &&
+                etapas[0].id == 'juridico' && etapas[0].responsableEmail == d.juridicoRevisionEmail &&
+                etapas[etapas.size() - 1].id == 'supervisor' &&
+                etapas[etapas.size() - 1].responsableEmail == request.auth.token.email.lower());
+        }
         allow get: if participa(contrato());
         allow create, update: if doc == 'plan' && titularSupervision(contrato().supervisorUid) &&
+            vinculacionAprobada(contrato()) &&
             request.resource.data.etapas is list && request.resource.data.etapas.size() in [1,2,3,4,5] &&
+            flujoDelContrato(contrato(), request.resource.data.etapas) &&
             request.resource.data.obligaciones is list && request.resource.data.obligaciones.size() > 0 &&
             request.resource.data.obligaciones.size() <= 60;
         allow create, update: if doc == 'firma' && contratista(contrato()) &&
+            vinculacionAprobada(contrato()) &&
             request.resource.data.keys().hasOnly(['archivoBase64','partes','mime','actualizadoEnIso']) &&
             isNonEmptyString(request.resource.data.archivoBase64, 900000);
       }
@@ -616,19 +708,27 @@ service cloud.firestore {
           let actual = i < etapas.size() ? i : etapas.size() - 1;
           let estado = request.resource.data.estado;
           let nuevo = request.resource.data.get('etapaActual', 0);
+          let supervisor = titularSupervision(d.supervisorUid);
+          let responsable = juridico(d) && etapas[actual].responsableEmail == request.auth.token.email.lower();
+          let flujoJuridico = d.get('juridicoRevisionEmail', '') != '';
           return resource.data.estado == 'enRevision' &&
-              (titularSupervision(d.supervisorUid) || (juridico(d) &&
-               etapas[actual].responsableEmail == request.auth.token.email.lower())) &&
-              ((estado == 'devuelto' && nuevo == i) ||
-               (estado == 'enRevision' && actual + 1 < etapas.size() && nuevo == actual + 1) ||
-               (estado == 'aprobado' && actual + 1 == etapas.size() && nuevo == i));
+              !request.resource.data.diff(resource.data).affectedKeys().hasAny(['pagoReferencia','pagadoEnIso']) &&
+              (estado == 'aprobado' ||
+                request.resource.data.get('aprobadoEnIso', '') == resource.data.get('aprobadoEnIso', '')) &&
+              ((estado == 'devuelto' && (supervisor || responsable) && nuevo == (flujoJuridico ? 0 : i)) ||
+               (estado == 'enRevision' && (responsable || (supervisor &&
+                (!flujoJuridico || etapas[actual].responsableEmail == request.auth.token.email.lower()))) &&
+                actual + 1 < etapas.size() && nuevo == actual + 1) ||
+               (estado == 'aprobado' && supervisor && actual + 1 == etapas.size() && nuevo == i));
         }
         allow read: if participa(contrato());
         allow create: if contratista(contrato()) && periodo.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
+            vinculacionAprobada(contrato()) &&
             exists(/databases/$(database)/documents/contratos_supervision/$(id)/supervision/plan) &&
             request.resource.data.id == periodo && request.resource.data.estado in ['borrador','enRevision'] &&
             request.resource.data.keys().hasOnly(camposContratistaInforme());
         allow update: if request.resource.data.id == periodo &&
+            vinculacionAprobada(contrato()) &&
             ((contratista(contrato()) && resource.data.estado in ['borrador','devuelto'] &&
               (request.resource.data.estado == resource.data.estado || request.resource.data.estado == 'enRevision') &&
               request.resource.data.diff(resource.data).affectedKeys().hasOnly(camposContratistaInforme())) ||

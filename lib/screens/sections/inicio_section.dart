@@ -4,16 +4,19 @@ import '../../services/auth_service.dart';
 import '../../widgets/collapsible_side_menu.dart';
 import '../../widgets/dashboard_top_bar.dart';
 import '../../tema/cristal.dart';
+import 'fondo_inicio.dart';
 
 class InicioSection extends StatelessWidget {
   const InicioSection({
     super.key,
+    required this.activa,
     required this.searchController,
     required this.onSearchSubmitted,
     required this.onNavigateToSection,
     required this.onLogout,
   });
 
+  final bool activa;
   final TextEditingController searchController;
   final ValueChanged<String> onSearchSubmitted;
   final ValueChanged<int> onNavigateToSection;
@@ -187,23 +190,8 @@ class InicioSection extends StatelessWidget {
     return Expanded(
       child: Stack(
         children: [
-          // La foto de Valledupar, fundida con el fondo: es lo que se ve
-          // a través de las tarjetas de vidrio.
           Positioned.fill(
-            child: isMobile
-                ? const FotoAmbiente(
-                    opacidad: 0.7,
-                    inicio: 0,
-                    pleno: 0.9,
-                    fundidoSuperior: 0.34,
-                    fundidoInferior: 0.2,
-                  )
-                : const FotoAmbiente(
-                    opacidad: 0.8,
-                    inicio: 0.1,
-                    pleno: 0.8,
-                    fundidoInferior: 0.3,
-                  ),
+            child: FondoInicio(activo: activa, movil: isMobile),
           ),
           Positioned.fill(
             child: Column(

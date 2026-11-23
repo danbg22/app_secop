@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'cristal.dart';
 
-/// La foto de Valledupar como luz de ambiente del fondo: atenuada y
+/// Una foto como luz de ambiente del fondo: atenuada y
 /// fundida con el fondo de la aplicación hacia la izquierda (y, si se pide,
 /// hacia arriba y hacia abajo), para que se perciba a través de los paneles
 /// de vidrio sin competir con el texto.
@@ -18,6 +18,7 @@ import 'cristal.dart';
 class FotoAmbiente extends StatefulWidget {
   const FotoAmbiente({
     super.key,
+    this.imagen,
     this.alineacion = const Alignment(0.15, -0.25),
     this.opacidad = 0.62,
     this.inicio = 0.18,
@@ -37,7 +38,10 @@ class FotoAmbiente extends StatefulWidget {
     this.pleno = 0.8,
     this.fundidoInferior = 0.55,
     this.fundidoSuperior = 0,
-  }) : difusa = true;
+  }) : imagen = null,
+       difusa = true;
+
+  final AssetImage? imagen;
 
   /// Qué parte de la foto queda a la vista cuando se recorta al encajar.
   final Alignment alineacion;
@@ -70,7 +74,7 @@ class FotoAmbiente extends StatefulWidget {
     'assets/images/fondo_valledupar_difuso.jpg',
   );
 
-  ImageProvider get proveedor => difusa ? desenfocada : nitida;
+  ImageProvider get proveedor => imagen ?? (difusa ? desenfocada : nitida);
 
   @override
   State<FotoAmbiente> createState() => _FotoAmbienteState();
@@ -96,7 +100,7 @@ class _FotoAmbienteState extends State<FotoAmbiente> {
   @override
   void didUpdateWidget(FotoAmbiente oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.difusa != widget.difusa) _resolver();
+    if (oldWidget.proveedor != widget.proveedor) _resolver();
   }
 
   void _resolver() {

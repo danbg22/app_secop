@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../services/auth_service.dart';
 import '../../services/contratos_vinculados_service.dart';
@@ -173,28 +174,46 @@ class _RevisionState extends State<_Revision> {
     ),
   );
 
-  Widget _bandeja([List<ExpedienteContratoPs> anteriores = const []]) =>
-      StreamBuilder(
-        stream: _contratos,
-        builder: (context, snap) {
-          if (snap.hasError) {
-            return const Center(
-              child: Text(
-                'No fue posible cargar los contratos de supervisión.',
-              ),
-            );
-          }
-          if (!snap.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final todos = [...snap.data!, ...anteriores];
-          return BandejaSupervisionScreen(
-            key: ValueKey(todos.map((e) => e.id).join(',')),
-            expedientes: todos,
-            incrustada: true,
-          );
-        },
+  Widget _bandeja([
+    List<ExpedienteContratoPs> anteriores = const [],
+  ]) => StreamBuilder(
+    stream: _contratos,
+    builder: (context, snap) {
+      if (snap.hasError) {
+        return const Center(
+          child: Text('No fue posible cargar los contratos de supervisión.'),
+        );
+      }
+      if (!snap.hasData) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      final todos = [
+        ...snap.data!.where((e) => e.vinculacionAprobada),
+        ...anteriores,
+      ];
+      final pendientes = snap.data!.where(
+        (e) => e.estadoVinculacion == 'pendiente',
       );
+      return BandejaSupervisionScreen(
+        key: ValueKey(todos.map((e) => e.id).join(',')),
+        expedientes: todos,
+        incrustada: true,
+        solicitudes: [
+          if (widget.rol == PerfilSupervision.supervisor &&
+              pendientes.isNotEmpty)
+            TarjetaSupervision(
+              titulo: 'Solicitudes de vinculación',
+              subtitulo: 'Verifica los datos del contrato y confirma quién podrá enviarte informes.',
+              icono: Icons.group_add_outlined,
+              children: [
+                for (final exp in pendientes)
+                  _SolicitudVinculacion(key: ValueKey(exp.id), contrato: exp),
+              ],
+            ),
+        ],
+      );
+    },
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -245,6 +264,9 @@ class _RevisionState extends State<_Revision> {
                 children: [
                   Text(
                     '${datos['entidadNombre']} · NIT ${datos['entidadNit']} · ${datos['dependencia']}',
+                  ),
+                  _CodigoSupervisor(
+                    codigo: (datos['codigoSupervisor'] ?? '').toString(),
                   ),
                   TextButton.icon(
                     onPressed: () => Navigator.push(
@@ -351,10 +373,7 @@ class _ContratistaState extends State<_Contratista> {
               esSupervisor: false,
               alGuardar: () {
                 setState(() => _agregando = false);
-                mensajeSupervision(
-                  context,
-                  'Contrato vinculado a tu supervisor.',
-                );
+                mensajeSupervision(context, 'Solicitud enviada al supervisor.');
               },
             )
           else
@@ -376,11 +395,34 @@ class _ContratistaState extends State<_Contratista> {
                   Text(
                     '${exp.objetoContrato}\n${formatoCop(exp.valorContratoCop)} · ${exp.plazoEjecucion} · ${exp.formaPago}\nAprobación SECOP ${exp.aprobacionSecop} · RP ${exp.rp} · CDP ${exp.cdp}',
                   ),
-                  InformesContratistaView(
-                    key: ValueKey(exp.id),
-                    expediente: exp,
-                    contratistaNombre: exp.contratistaNombreEsperado,
-                  ),
+                  if (exp.vinculacionAprobada)
+                    InformesContratistaView(
+                      key: ValueKey(exp.id),
+                      expediente: exp,
+                      contratistaNombre: exp.contratistaNombreEsperado,
+                    )
+                  else if (exp.estadoVinculacion == 'devuelta') ...[
+                    Text('Solicitud devuelta. ${exp.observacionVinculacion}'),
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute<ExpedienteContratoPs>(
+                          builder: (_) => PantallaContractual(
+                            children: [
+                              RegistroSupervision(
+                                esSupervisor: false,
+                                contrato: exp,
+                                reenviar: true,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      icon: const Icon(Icons.edit_outlined),
+                      label: const Text('Corregir y reenviar'),
+                    ),
+                  ] else
+                    const Text('Pendiente de aprobación del supervisor.'),
                 ],
               ),
             ),
@@ -553,6 +595,156 @@ class _Lienzo extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _CodigoSupervisor extends StatefulWidget {
+  const _CodigoSupervisor({required this.codigo});
+
+  final String codigo;
+
+  @override
+  State<_CodigoSupervisor> createState() => _CodigoSupervisorState();
+}
+
+class _CodigoSupervisorState extends State<_CodigoSupervisor> {
+  Future<void>? _alta;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.codigo.isEmpty) {
+      _alta = RegistroSupervisionService.asignarCodigoExistente();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final codigo = widget.codigo;
+    if (codigo.isNotEmpty) {
+      return OutlinedButton.icon(
+        onPressed: () async {
+          await Clipboard.setData(ClipboardData(text: codigo));
+          if (context.mounted) mensajeSupervision(context, 'Código copiado.');
+        },
+        icon: const Icon(Icons.copy_outlined),
+        label: Text('Mi código: $codigo'),
+      );
+    }
+    return FutureBuilder<void>(
+      future: _alta,
+      builder: (context, snap) => TextButton(
+        onPressed: snap.connectionState == ConnectionState.waiting
+            ? null
+            : () => setState(() {
+                _alta = RegistroSupervisionService.asignarCodigoExistente();
+              }),
+        child: Text(
+          snap.connectionState == ConnectionState.waiting
+              ? 'Generando código…'
+              : 'Obtener código de supervisor',
+        ),
+      ),
+    );
+  }
+}
+
+class _SolicitudVinculacion extends StatefulWidget {
+  const _SolicitudVinculacion({super.key, required this.contrato});
+
+  final ExpedienteContratoPs contrato;
+
+  @override
+  State<_SolicitudVinculacion> createState() => _SolicitudVinculacionState();
+}
+
+class _SolicitudVinculacionState extends State<_SolicitudVinculacion> {
+  bool _ocupada = false;
+
+  Future<void> _decidir({String? observacion}) async {
+    setState(() => _ocupada = true);
+    try {
+      await RegistroSupervisionService.decidirVinculacion(
+        widget.contrato,
+        observacion: observacion,
+      );
+    } on SupervisionException catch (e) {
+      if (mounted) mensajeSupervision(context, e.message, error: true);
+    } finally {
+      if (mounted) setState(() => _ocupada = false);
+    }
+  }
+
+  Future<void> _devolver() async {
+    var motivo = '';
+    final resultado = await mostrarDialogoCristal<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, actualizar) => AlertDialog(
+          title: const Text('Devolver solicitud'),
+          content: TextField(
+            autofocus: true,
+            maxLength: 1000,
+            maxLines: 4,
+            decoration: decoracionCampo(
+              'Datos que debe corregir el contratista',
+            ),
+            onChanged: (texto) => actualizar(() => motivo = texto.trim()),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: motivo.length < 10
+                  ? null
+                  : () => Navigator.pop(ctx, motivo),
+              child: const Text('Devolver solicitud'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (mounted && resultado != null) await _decidir(observacion: resultado);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final exp = widget.contrato;
+    return ExpansionTile(
+      title: Text('Contrato ${exp.numeroContrato}'),
+      subtitle: Text(
+        '${exp.contratistaNombreEsperado} · ${exp.contratistaCorreo}',
+      ),
+      childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      expandedCrossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(exp.objetoContrato),
+        const SizedBox(height: 8),
+        Text(
+          '${exp.entidadNombre} · ${exp.dependencia}\n'
+          '${formatoCop(exp.valorContratoCop)} · ${exp.plazoEjecucion} · ${exp.formaPago}\n'
+          'Aprobación SECOP ${exp.aprobacionSecop} · RP ${exp.rp} · CDP ${exp.cdp}',
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          children: [
+            FilledButton.icon(
+              onPressed: _ocupada ? null : () => _decidir(),
+              icon: const Icon(Icons.check),
+              label: const Text('Aprobar vinculación'),
+            ),
+            OutlinedButton(
+              onPressed: _ocupada ? null : _devolver,
+              child: const Text('Devolver solicitud'),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

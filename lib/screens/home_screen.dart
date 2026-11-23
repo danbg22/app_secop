@@ -103,10 +103,11 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Las demás conservan lo buscado y sus resultados (ver [SeccionesVivas]).
   static const Set<int> _seccionesQueSeRecrean = {7, 8};
 
-  Widget _buildCurrentView(int activeIndex) {
+  Widget _buildCurrentView(int activeIndex, int selectedIndex) {
     switch (activeIndex) {
       case 0:
         return InicioSection(
+          activa: selectedIndex == 0,
           searchController: _searchController,
           onSearchSubmitted: _handleUniversalSearch,
           onNavigateToSection: _onItemTapped,
@@ -262,7 +263,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _seccionActiva(int indice) => SeccionesVivas(
     activa: indice,
-    construir: _buildCurrentView,
+    construir: (seccion) => _buildCurrentView(seccion, indice),
     recrear: _seccionesQueSeRecrean,
   );
 

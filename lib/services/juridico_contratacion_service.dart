@@ -381,6 +381,10 @@ class ExpedienteContratoPs {
     this.rp = '',
     this.cdp = '',
     this.aprobacionSecop = '',
+    this.estadoVinculacion = '',
+    this.observacionVinculacion = '',
+    this.juridicoRevisionEmail = '',
+    this.juridicoRevisionNombre = '',
     this.creadoPorUid = '',
     this.equipoUid = '',
     this.actualizadoEnMs = 0,
@@ -404,6 +408,10 @@ class ExpedienteContratoPs {
   final int valorContratoCop;
   final String plazoEjecucion;
   final String formaPago, rp, cdp, aprobacionSecop;
+  final String estadoVinculacion, observacionVinculacion;
+  final String juridicoRevisionEmail, juridicoRevisionNombre;
+  bool get vinculacionAprobada =>
+      estadoVinculacion.isEmpty || estadoVinculacion == 'aprobada';
   final String contratistaNombreEsperado;
   final String contratistaCedulaEsperada;
   final String contratistaCorreo;
@@ -588,6 +596,10 @@ class ExpedienteContratoPs {
       rp: rp,
       cdp: cdp,
       aprobacionSecop: aprobacionSecop,
+      estadoVinculacion: estadoVinculacion,
+      observacionVinculacion: observacionVinculacion,
+      juridicoRevisionEmail: juridicoRevisionEmail,
+      juridicoRevisionNombre: juridicoRevisionNombre,
       id: id,
       tokenInvitado: tokenInvitado,
       entidadNombre: entidadNombre,
@@ -629,6 +641,13 @@ class ExpedienteContratoPs {
   Map<String, dynamic> toMap({bool omitLargeBinary = false}) {
     return <String, dynamic>{
       if (aprobacionSecop.isNotEmpty) 'aprobacionSecop': aprobacionSecop,
+      if (estadoVinculacion.isNotEmpty) 'estadoVinculacion': estadoVinculacion,
+      if (observacionVinculacion.isNotEmpty)
+        'observacionVinculacion': observacionVinculacion,
+      if (juridicoRevisionEmail.isNotEmpty)
+        'juridicoRevisionEmail': juridicoRevisionEmail,
+      if (juridicoRevisionNombre.isNotEmpty)
+        'juridicoRevisionNombre': juridicoRevisionNombre,
       if (formaPago.isNotEmpty) 'formaPago': formaPago,
       if (rp.isNotEmpty) 'rp': rp,
       if (cdp.isNotEmpty) 'cdp': cdp,
@@ -703,6 +722,10 @@ class ExpedienteContratoPs {
       rp: '${map['rp'] ?? ''}',
       cdp: '${map['cdp'] ?? ''}',
       aprobacionSecop: '${map['aprobacionSecop'] ?? ''}',
+      estadoVinculacion: '${map['estadoVinculacion'] ?? ''}',
+      observacionVinculacion: '${map['observacionVinculacion'] ?? ''}',
+      juridicoRevisionEmail: '${map['juridicoRevisionEmail'] ?? ''}',
+      juridicoRevisionNombre: '${map['juridicoRevisionNombre'] ?? ''}',
       id: (map['id'] ?? '').toString(),
       tokenInvitado: (map['tokenInvitado'] ?? '').toString().toLowerCase(),
       entidadNombre: (map['entidadNombre'] ?? '').toString(),
