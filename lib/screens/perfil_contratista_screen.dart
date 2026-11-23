@@ -1,14 +1,12 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../services/favorites_service.dart';
+import '../services/historial_contratista_service.dart';
 import '../services/auth_service.dart';
 import '../services/sigep_service.dart';
 import '../utils/anios_secop.dart';
 import '../utils/contract_financial_calculator.dart';
-import '../utils/secop_i.dart';
 import '../widgets/collapsible_side_menu.dart';
 import '../widgets/directorio_sigep.dart';
 import '../widgets/route_security_guard.dart';
@@ -21,10 +19,8 @@ import '../widgets/boton_seguir.dart';
 import '../utils/dependencia_contrato.dart';
 import '../utils/banderas_control.dart';
 import '../widgets/aviso_para_revisar.dart';
-import '../services/datos_abiertos.dart';
 import '../services/directorio_sigep_service.dart';
 import '../services/busqueda_personas.dart';
-import '../utils/nit.dart';
 
 class PerfilContratistaScreen extends StatefulWidget {
   final String? nombreContratista;
@@ -86,14 +82,6 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
   /// tarjetas de una vez bloqueaba el navegador.
   static const int _tamanoPaginaHistorial = 30;
   int _historialVisible = _tamanoPaginaHistorial;
-
-  static const String _camposHistorial =
-      'id_contrato,referencia_del_contrato,proceso_de_compra,nombre_entidad,'
-      'nit_entidad,orden,departamento,ciudad,sector,estado_contrato,'
-      'modalidad_de_contratacion,tipo_de_contrato,valor_del_contrato,'
-      'proveedor_adjudicado,tipodocproveedor,documento_proveedor,'
-      'fecha_de_firma,fecha_de_inicio_del_contrato,fecha_de_fin_del_contrato,'
-      'objeto_del_contrato,descripcion_del_proceso,urlproceso';
 
   static List<String> get _aniosHistorial => [
     for (final a in AniosSecop.disponibles) '$a',
@@ -586,150 +574,14 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
 
   Future<void> _cargarHistorialContratista() async {
     try {
-      final List<dynamic> allContracts = [];
-      final Set<String> seenContractIds = {};
-
-      // Un proceso de compra puede tener varios contratos con el mismo
-      // proveedor, por eso se deduplica por el identificador del contrato.
-      void addContractIfNew(dynamic c) {
-        if (c is! Map) return;
-        final id = FavoritesService.idContrato(c);
-        if (seenContractIds.add(id.isNotEmpty ? id : jsonEncode(c))) {
-          allContracts.add(c);
-        }
+      final historial = await HistorialContratistaService.consultar(
+        documento: widget.documentoProveedor ?? widget.nit ?? '',
+        nombre: _nombreAuditar,
+      );
+      final allContracts = historial.contratos;
+      if (allContracts.isEmpty && historial.parcial) {
+        throw StateError('Historial no disponible');
       }
-
-      Future<List<dynamic>> consultar(
-        String dataset,
-        Map<String, String> params,
-      ) async {
-        try {
-          final res = await DatosAbiertos.obtener(
-            DatosAbiertos.uri(dataset, params),
-            timeout: const Duration(seconds: 12),
-            cache: DatosAbiertos.ttlPorDefecto,
-          );
-          if (res.statusCode != 200) return const [];
-          final decoded = json.decode(utf8.decode(res.bodyBytes));
-          return decoded is List ? decoded : const [];
-        } catch (_) {
-          return const [];
-        }
-      }
-
-      final cleanDoc = (widget.documentoProveedor ?? widget.nit ?? '')
-          .replaceAll(RegExp(r'[^0-9]'), '')
-          .trim();
-
-      // Las consultas son independientes: SECOP II por documento (índice
-      // B-tree) y por nombre exacto, y SECOP I, en paralelo. Solo se piden
-      // las columnas que usa la vista (todas pesaban ~3 veces más: 16,7 MB
-      // para un contratista con 4.000 contratos) y la consulta por nombre
-      // excluye lo que ya trae la del documento.
-      // Un NIT de empresa (9 o 10 dígitos que empiezan por 8 o 9) puede
-      // estar guardado con o sin dígito de verificación; una cédula se busca
-      // tal cual (ampliarla confundiría personas).
-      final esNitEmpresa = RegExp(r'^[89]\d{8,9}$').hasMatch(cleanDoc);
-      final formasDoc = esNitEmpresa
-          ? Nit.formasNumericas(cleanDoc)
-          : <String>[cleanDoc];
-      final listaDoc = formasDoc.map((f) => "'$f'").join(',');
-      final consultasSecopII = <Future<List<dynamic>>>[
-        if (cleanDoc.length >= 5)
-          consultar('jbjy-vk9h', {
-            r'$select': _camposHistorial,
-            r'$where': 'documento_proveedor in ($listaDoc)',
-            r'$order': 'fecha_de_firma DESC',
-            r'$limit': '50000',
-          }),
-        if (_nombreAuditar.isNotEmpty)
-          consultar('jbjy-vk9h', {
-            r'$select': _camposHistorial,
-            'proveedor_adjudicado': _nombreAuditar,
-            if (cleanDoc.length >= 5)
-              r'$where': 'documento_proveedor not in ($listaDoc)',
-            r'$order': 'fecha_de_firma DESC',
-            r'$limit': '50000',
-          }),
-      ];
-      final consultaSecopI = cleanDoc.length >= 5
-          ? consultar(SecopI.dataset, {
-              'identificacion_del_contratista': cleanDoc,
-              r'$where': SecopI.filtroAnio(),
-              r'$order': 'fecha_de_firma_del_contrato DESC',
-              r'$limit': '2000',
-            })
-          : _nombreAuditar.isNotEmpty
-          ? consultar(SecopI.dataset, {
-              'nom_razon_social_contratista': _nombreAuditar,
-              r'$where': SecopI.filtroAnio(),
-              r'$order': 'fecha_de_firma_del_contrato DESC',
-              r'$limit': '2000',
-            })
-          : Future.value(const <dynamic>[]);
-
-      final resultados = await Future.wait([
-        ...consultasSecopII,
-        consultaSecopI,
-      ]);
-      for (final lista in resultados.take(consultasSecopII.length)) {
-        lista.forEach(addContractIfNew);
-      }
-
-      // Si SECOP II no encontró nada por documento ni por nombre exacto:
-      // todas las palabras del nombre, en cualquier orden y sin importar
-      // tildes, con el índice de texto completo (un LIKE por palabra sin
-      // índice tardaba segundos o se agotaba).
-      if (allContracts.isEmpty && _nombreAuditar.isNotEmpty) {
-        final palabras = BusquedaPersonas.tokens(_nombreAuditar);
-        final q = BusquedaPersonas.textoCompleto(palabras);
-        if (q.isNotEmpty) {
-          final porPalabras = await consultar('jbjy-vk9h', {
-            r'$select': _camposHistorial,
-            r'$q': q,
-            r'$where': BusquedaPersonas.whereTodasLasPalabras(
-              'proveedor_adjudicado',
-              palabras,
-            ),
-            r'$limit': '2000',
-          });
-          for (final c in porPalabras) {
-            if (c is Map &&
-                BusquedaPersonas.nombreCoincide(
-                  '${c['proveedor_adjudicado'] ?? ''}',
-                  palabras,
-                )) {
-              addContractIfNew(c);
-            }
-          }
-        }
-      }
-
-      for (final raw in resultados.last) {
-        if (raw is Map) {
-          addContractIfNew(SecopI.normalizar(raw));
-        }
-      }
-
-      // Ordenar contratos consolidados cronológicamente (más recientes primero)
-      allContracts.sort((a, b) {
-        final dateA =
-            (a is Map
-                    ? (a['fecha_de_firma'] ??
-                          a['fecha_de_inicio_del_contrato'] ??
-                          '')
-                    : '')
-                .toString();
-        final dateB =
-            (b is Map
-                    ? (b['fecha_de_firma'] ??
-                          b['fecha_de_inicio_del_contrato'] ??
-                          '')
-                    : '')
-                .toString();
-        return dateB.compareTo(dateA);
-      });
-
       final resumen = _calcularResumen(allContracts);
 
       if (!mounted) return;

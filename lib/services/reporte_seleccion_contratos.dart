@@ -5,7 +5,6 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../utils/banderas_control.dart';
 import '../utils/contract_financial_calculator.dart';
-import '../utils/dependencia_contrato.dart';
 import '../utils/secop_i.dart';
 import 'expediente_contrato_service.dart';
 import 'reporte_contratos_pdf_service.dart';
@@ -75,9 +74,14 @@ class ContratoDelReporte {
 }
 
 abstract final class ReporteSeleccionContratos {
-  static const _azul = PdfColor.fromInt(0xFF0E2646);
-  static const _dorado = PdfColor.fromInt(0xFFD89F22);
-  static const _gris = PdfColor.fromInt(0xFF506477);
+  static const _azul = PdfColor.fromInt(0xFF102645);
+  static const _dorado = PdfColor.fromInt(0xFFFFC53D);
+  static const _tinta = PdfColor.fromInt(0xFF213650);
+  static const _gris = PdfColor.fromInt(0xFF4B6179);
+  static const _fondo = PdfColor.fromInt(0xFFEDF2F8);
+  static const _borde = PdfColor.fromInt(0xFFCDDAE8);
+  static const _azulClaro = PdfColor.fromInt(0xFFE2EDF9);
+  static const _enlaceAzul = PdfColor.fromInt(0xFF144E97);
 
   static Future<Uint8List> generar(
     List<ContratoDelReporte> contratos, {
@@ -87,253 +91,360 @@ abstract final class ReporteSeleccionContratos {
       throw ArgumentError('Selecciona al menos un contrato.');
     }
     final tema = await ReporteContratosPdfService.cargarTemaPdf();
-    final colombia = ReporteContratosPdfService.horaColombia(ahora);
+    final fecha = ReporteContratosPdfService.horaColombia(ahora);
     final doc = pw.Document(
       title: 'Reporte de contratos seleccionados',
       author: 'Contrata Legal',
     );
-    final contenido = <pw.Widget>[
-      pw.SizedBox(height: 18),
-      pw.Container(width: 52, height: 4, color: _dorado),
-      pw.SizedBox(height: 16),
-      pw.Text(
-        'Reporte de contratos seleccionados',
-        style: pw.TextStyle(
-          fontSize: 28,
-          fontWeight: pw.FontWeight.bold,
-          color: _azul,
-        ),
-      ),
-      pw.SizedBox(height: 10),
-      _texto(ReporteContratosPdfService.fechaLarga(colombia)),
-      pw.SizedBox(height: 14),
-      _texto(
-        'Este reporte reúne ${contratos.length} ${contratos.length == 1 ? 'contrato seleccionado' : 'contratos seleccionados'} en Contrata Legal. '
-        'Cada ficha presenta el objeto, la información financiera, los campos oficiales disponibles y el listado de documentos consultados.',
-      ),
-      _titulo('Contratos incluidos'),
-      for (final (i, contrato) in contratos.indexed)
-        ..._campo(
-          '${i + 1}. ${contrato.referencia.isEmpty ? 'Contrato' : contrato.referencia}',
-          contrato.entidad.isEmpty ? 'Entidad sin informar' : contrato.entidad,
-        ),
-    ];
-    for (final (i, contrato) in contratos.indexed) {
-      contenido.addAll([
-        pw.NewPage(),
-        ..._ficha(i + 1, contratos.length, contrato),
-      ]);
-    }
     doc.addPage(
       pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.fromLTRB(44, 32, 44, 36),
-        theme: tema,
-        maxPages: contenido.length * 10,
-        header: (_) => pw.Container(
-          padding: const pw.EdgeInsets.only(bottom: 7),
+        pageTheme: pw.PageTheme(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.fromLTRB(34, 32, 34, 28),
+          theme: tema,
+          buildBackground: (_) => pw.FullPage(
+            ignoreMargins: true,
+            child: pw.Container(color: _fondo),
+          ),
+        ),
+        maxPages: (contratos.length + 1) ~/ 2 + 1,
+        header: (_) => pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 12),
+          child: pw.Row(
+            children: [
+              pw.Container(width: 12, height: 3, color: _dorado),
+              pw.SizedBox(width: 7),
+              _texto('Contrata Legal', tam: 10, negrita: true, color: _azul),
+              pw.Spacer(),
+              _texto('Consulta contractual', tam: 9, color: _gris),
+            ],
+          ),
+        ),
+        footer: (ctx) => pw.Container(
+          padding: const pw.EdgeInsets.only(top: 8),
           decoration: const pw.BoxDecoration(
-            border: pw.Border(
-              bottom: pw.BorderSide(color: _dorado, width: 0.7),
-            ),
+            border: pw.Border(top: pw.BorderSide(color: _borde)),
           ),
-          child: pw.Text(
-            'CONTRATA LEGAL  /  CONSULTA CONTRACTUAL',
-            style: pw.TextStyle(
-              color: _azul,
-              fontSize: 9,
-              fontWeight: pw.FontWeight.bold,
-            ),
-          ),
-        ),
-        footer: (ctx) => pw.Align(
-          alignment: pw.Alignment.centerRight,
-          child: pw.Text(
-            'Página ${ctx.pageNumber} de ${ctx.pagesCount}',
-            style: const pw.TextStyle(fontSize: 9, color: _gris),
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              _texto(
+                'Fuente · Datos Abiertos de Colombia y SECOP',
+                tam: 8,
+                color: _gris,
+              ),
+              _texto(
+                '${ctx.pageNumber} / ${ctx.pagesCount}',
+                tam: 8,
+                color: _gris,
+              ),
+            ],
           ),
         ),
-        build: (_) => contenido,
+        build: (_) => [
+          _portadaCompacta(contratos.length, fecha),
+          for (var i = 0; i < contratos.length; i += 2)
+            pw.Padding(
+              padding: const pw.EdgeInsets.only(bottom: 12),
+              child: pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Expanded(child: _ficha(i + 1, contratos[i])),
+                  pw.SizedBox(width: 12),
+                  pw.Expanded(
+                    child: i + 1 < contratos.length
+                        ? _ficha(i + 2, contratos[i + 1])
+                        : pw.SizedBox(),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
     return doc.save();
   }
 
-  static Iterable<pw.Widget> _ficha(
-    int numero,
-    int total,
-    ContratoDelReporte c,
-  ) sync* {
+  static pw.Widget _portadaCompacta(int cantidad, DateTime fecha) =>
+      pw.Container(
+        margin: const pw.EdgeInsets.only(bottom: 14),
+        padding: const pw.EdgeInsets.fromLTRB(17, 15, 16, 15),
+        decoration: pw.BoxDecoration(
+          color: _azul,
+          borderRadius: pw.BorderRadius.circular(9),
+        ),
+        child: pw.Row(
+          children: [
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  _texto(
+                    'RESUMEN DE LA SELECCIÓN',
+                    tam: 8,
+                    negrita: true,
+                    color: _dorado,
+                  ),
+                  pw.SizedBox(height: 4),
+                  _texto(
+                    'Reporte de contratos',
+                    tam: 23,
+                    negrita: true,
+                    color: PdfColors.white,
+                  ),
+                  pw.SizedBox(height: 6),
+                  _texto(
+                    ReporteContratosPdfService.fechaLarga(fecha),
+                    tam: 9,
+                    color: _azulClaro,
+                  ),
+                ],
+              ),
+            ),
+            pw.Container(
+              width: 78,
+              padding: const pw.EdgeInsets.symmetric(vertical: 7),
+              decoration: pw.BoxDecoration(
+                color: _dorado,
+                borderRadius: pw.BorderRadius.circular(7),
+              ),
+              child: pw.Column(
+                children: [
+                  _texto('$cantidad', tam: 20, negrita: true, color: _azul),
+                  _texto(
+                    cantidad == 1 ? 'Contrato' : 'Contratos',
+                    tam: 8,
+                    negrita: true,
+                    color: _azul,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+
+  static pw.Widget _ficha(int numero, ContratoDelReporte c) {
     final analisis = ContractFinancialAnalysis.fromContract(c.datos);
-    final secopI = ExpedienteContratoService.esSecopI(c.datos);
-    yield _titulo('Contrato $numero de $total');
-    if (c.referencia.isNotEmpty) yield _texto(c.referencia, fontSize: 19);
-    if (c.entidad.isNotEmpty) yield _texto(c.entidad);
-    final dependencia = DependenciaContrato.desde(c.datos);
-    if (dependencia != null) yield* _campo('Dependencia', dependencia);
-    if (!c.expedienteCompleto) {
-      yield* _campo(
-        'Disponibilidad de la fuente',
-        'El expediente completo no estuvo disponible al generar el reporte. Se incluyen los datos obtenidos en la búsqueda.',
-      );
-    }
-    if (c.objeto.isNotEmpty) {
-      yield _titulo('Objeto contractual');
-      yield _texto(c.objeto);
-    }
-    if (BanderasControl.enLeyDeGarantias(c.datos) case final periodo?) {
-      yield* _campo(
-        'Alerta para revisión',
-        'Se registró contratación directa durante el periodo de Ley de Garantías de ${periodo.eleccion} '
-            '(${fechaDiaMesAnio(periodo.desde)} a ${fechaDiaMesAnio(periodo.hasta)}). Consulta la justificación en el expediente oficial.',
-      );
-    }
-    yield _titulo('Análisis financiero y de plazo');
-    if (analisis.tieneDatosFinancieros) {
-      yield* _campo(
-        'Valor total',
-        ContractFinancialAnalysis.formatCop(analisis.valorTotal),
-      );
-    }
-    if (analisis.tienePlazo) {
-      yield* _campo('Plazo contractual', analisis.equivalenciaTexto);
-      if (analisis.fuentePlazo.isNotEmpty) {
-        yield* _campo('Fuente del plazo', analisis.fuentePlazo);
-      }
-      if (analisis.tieneDatosFinancieros) {
-        yield* _campo(
-          'Estimación por día',
-          ContractFinancialAnalysis.formatCop(analisis.valorDiario),
-        );
-        if (!analisis.esMenorAUnMes) {
-          yield* _campo(
-            'Estimación mensual (30 días)',
-            ContractFinancialAnalysis.formatCop(analisis.valorMensualEstimado),
-          );
-        }
-        yield _texto(
-          'Las estimaciones de valor por tiempo no representan pagos realizados.',
-        );
-      }
-    } else if (!analisis.tieneDatosFinancieros) {
-      yield _texto(
-        'Fuente sin valor o plazo disponible para calcular estimaciones.',
-      );
-    }
-    yield _titulo('Pagos reportados');
-    if (analisis.pagos.isEmpty) {
-      yield _texto(
-        'Los datos consultados no informan pagos con valor positivo.',
-      );
-    }
-    for (final entry in analisis.pagos.entries) {
-      yield* _campo(
-        entry.key,
-        ContractFinancialAnalysis.formatCop(entry.value),
-      );
-    }
-    if (analisis.fuentesRecursos.isNotEmpty) {
-      yield _titulo('Fuentes de financiación');
-      for (final entry in analisis.fuentesRecursos.entries) {
-        yield* _campo(
-          entry.key,
-          ContractFinancialAnalysis.formatCop(entry.value),
-        );
-      }
-    }
-    yield _titulo('Ficha técnica integral');
-    for (final seccion in ContractFieldCatalog.buildSections(c.datos)) {
-      yield _titulo(seccion.title, menor: true);
-      for (final campo in seccion.entries) {
-        yield* _campo(campo.label, campo.value);
-      }
-    }
-    yield _titulo('Documentos del expediente');
-    final documentos = c.documentos;
-    if (documentos == null) {
-      yield _texto(
-        'No fue posible obtener el listado de documentos de la fuente consultada.',
-      );
-    } else if (documentos.documents.isEmpty) {
-      yield _texto('La consulta no devolvió documentos para este expediente.');
-    } else {
-      for (final item in documentos.documents) {
-        yield* _campo(item.category, item.name);
-        final uri = SecurityService.validateOfficialGovUrl(item.downloadUrl);
-        if (uri != null) yield _enlace('Abrir documento en SECOP', uri);
-      }
-    }
+    final dias = analisis.diasCalendario;
+    final plazo = switch (dias) {
+      1 => '1 día calendario',
+      final int cantidad when cantidad > 0 => '$cantidad días calendario',
+      _ =>
+        analisis.tienePlazo ? analisis.mesesDesglosadosTexto : 'Sin informar',
+    };
+    final secop = ExpedienteContratoService.esSecopI(c.datos)
+        ? 'SECOP I'
+        : 'SECOP II';
+    final estado = ContratoDelReporte._campo(c.datos, ['estado_contrato']);
+    final contratista = ContratoDelReporte._campo(c.datos, [
+      'proveedor_adjudicado',
+    ]);
+    final modalidad = ContratoDelReporte._campo(c.datos, [
+      'modalidad_de_contratacion',
+      'tipo_de_proceso',
+    ]);
+    final firma = DateTime.tryParse(
+      ContratoDelReporte._campo(c.datos, ['fecha_de_firma']),
+    );
+    final pagado = analisis.pagos['Valor pagado'];
+    final alerta = BanderasControl.enLeyDeGarantias(c.datos);
+    final documentos = c.documentos?.documents;
     final rawUrl = c.datos['urlproceso'] ?? c.datos['ruta_proceso_en_secop_i'];
-    final oficial = SecurityService.validateOfficialGovUrl(
-      (rawUrl is Map ? rawUrl['url']?.toString() : rawUrl?.toString()) ??
-          documentos?.resolvedSecopUrl,
-    );
-    if (oficial != null) {
-      yield _enlace('Consultar expediente original', oficial);
-    }
-    yield pw.SizedBox(height: 10);
-    yield _texto(
-      'Fuente · Datos Abiertos de Colombia / ${secopI ? 'SECOP I' : 'SECOP II'}',
-      fontSize: 9,
-    );
-  }
-
-  static pw.Widget _titulo(String titulo, {bool menor = false}) => pw.Container(
-    margin: const pw.EdgeInsets.only(top: 13, bottom: 6),
-    padding: const pw.EdgeInsets.fromLTRB(8, 5, 6, 5),
-    color: menor
-        ? const PdfColor.fromInt(0xFFF0F3F8)
-        : const PdfColor.fromInt(0xFFE6EDF7),
-    child: pw.Text(
-      titulo,
-      style: pw.TextStyle(
-        fontSize: menor ? 11 : 14,
-        color: _azul,
-        fontWeight: pw.FontWeight.bold,
+    final oficial =
+        SecurityService.validateOfficialGovUrl(
+          rawUrl is Map ? rawUrl['url']?.toString() : rawUrl?.toString(),
+        ) ??
+        SecurityService.validateOfficialGovUrl(c.documentos?.resolvedSecopUrl);
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(12),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.white,
+        borderRadius: pw.BorderRadius.circular(8),
+        border: pw.Border.all(color: _borde, width: 0.75),
       ),
-    ),
-  );
-
-  static Iterable<pw.Widget> _campo(String etiqueta, String valor) sync* {
-    if (valor.isEmpty) return;
-    yield pw.SizedBox(height: 5);
-    yield pw.RichText(
-      overflow: pw.TextOverflow.span,
-      text: pw.TextSpan(
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.TextSpan(
-            text: '$etiqueta\n',
-            style: pw.TextStyle(
-              fontSize: 9,
-              height: 1.25,
-              color: _azul,
-              fontWeight: pw.FontWeight.bold,
+          pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              _etiqueta('$numero  /  $secop'),
+              if (estado.isNotEmpty) ...[
+                pw.SizedBox(width: 6),
+                pw.Expanded(
+                  child: _texto(estado, tam: 8, color: _gris, lineas: 2),
+                ),
+              ],
+            ],
+          ),
+          pw.SizedBox(height: 7),
+          _texto(
+            c.referencia.isEmpty ? 'Contrato $numero' : c.referencia,
+            tam: 14,
+            negrita: true,
+            color: _azul,
+            lineas: 2,
+          ),
+          _texto(
+            c.entidad.isEmpty ? 'Entidad sin informar' : c.entidad,
+            tam: 10,
+            color: _gris,
+            lineas: 2,
+          ),
+          pw.SizedBox(height: 8),
+          pw.Container(
+            padding: const pw.EdgeInsets.fromLTRB(8, 6, 8, 6),
+            decoration: pw.BoxDecoration(
+              color: _fondo,
+              borderRadius: pw.BorderRadius.circular(5),
+            ),
+            child: pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Expanded(
+                  child: _dato(
+                    'Valor del contrato',
+                    analisis.tieneDatosFinancieros
+                        ? ContractFinancialAnalysis.formatCop(
+                            analisis.valorTotal,
+                          )
+                        : 'Sin informar',
+                  ),
+                ),
+                pw.SizedBox(width: 8),
+                pw.Expanded(child: _dato('Plazo', plazo)),
+              ],
             ),
           ),
-          pw.TextSpan(
-            text: valor,
-            style: const pw.TextStyle(fontSize: 10, height: 1.28, color: _gris),
+          pw.SizedBox(height: 8),
+          _dato(
+            'Extracto del objeto',
+            c.objeto.isEmpty ? 'Sin informar' : _extracto(c.objeto),
+            lineas: 7,
           ),
+          if (contratista.isNotEmpty ||
+              modalidad.isNotEmpty ||
+              firma != null ||
+              pagado != null) ...[
+            pw.SizedBox(height: 8),
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Expanded(
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      if (contratista.isNotEmpty)
+                        _dato('Contratista', contratista),
+                      if (pagado != null)
+                        _dato(
+                          'Pago reportado',
+                          ContractFinancialAnalysis.formatCop(pagado),
+                        ),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(width: 8),
+                pw.Expanded(
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      if (modalidad.isNotEmpty) _dato('Modalidad', modalidad),
+                      if (firma != null)
+                        _dato('Firmado el', fechaDiaMesAnio(firma)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (alerta != null) ...[
+            pw.SizedBox(height: 6),
+            _texto(
+              'Revisar contratación directa en Ley de Garantías',
+              tam: 8,
+              color: _azul,
+              negrita: true,
+            ),
+          ],
+          if (!c.expedienteCompleto ||
+              documentos?.isNotEmpty == true ||
+              oficial != null) ...[
+            pw.SizedBox(height: 7),
+            pw.Divider(color: _borde, height: 6, thickness: 0.6),
+            if (!c.expedienteCompleto)
+              _texto(
+                'Fuente parcial · datos de la búsqueda',
+                tam: 8,
+                color: _gris,
+              ),
+            if (documentos != null && documentos.isNotEmpty)
+              _texto(
+                '${documentos.length} ${documentos.length == 1 ? 'documento consultado' : 'documentos consultados'}',
+                tam: 8,
+                color: _gris,
+              ),
+            if (oficial != null)
+              pw.UrlLink(
+                destination: oficial.toString(),
+                child: pw.Text(
+                  'Consultar expediente en SECOP',
+                  style: const pw.TextStyle(
+                    fontSize: 8.5,
+                    color: _enlaceAzul,
+                    decoration: pw.TextDecoration.underline,
+                  ),
+                ),
+              ),
+          ],
         ],
       ),
     );
   }
 
-  static pw.Widget _texto(String texto, {double fontSize = 11}) => pw.Text(
-    texto,
-    overflow: pw.TextOverflow.span,
-    style: pw.TextStyle(fontSize: fontSize, height: 1.28, color: _gris),
+  static String _extracto(String objeto) {
+    final limpio = objeto.replaceAll(RegExp(r'\s+'), ' ').trim();
+    const limite = 315;
+    if (limpio.length <= limite) return limpio;
+    final corte = limpio.lastIndexOf(' ', limite);
+    return '${limpio.substring(0, corte > 0 ? corte : limite).trimRight()}…';
+  }
+
+  static pw.Widget _etiqueta(String texto) => pw.Container(
+    padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+    decoration: pw.BoxDecoration(
+      color: _azulClaro,
+      borderRadius: pw.BorderRadius.circular(4),
+    ),
+    child: _texto(texto, tam: 8, negrita: true, color: _azul),
   );
 
-  static pw.Widget _enlace(String titulo, Uri url) => pw.UrlLink(
-    destination: url.toString(),
-    child: pw.Text(
-      titulo,
-      style: const pw.TextStyle(
-        fontSize: 9,
-        color: _azul,
-        decoration: pw.TextDecoration.underline,
-      ),
+  static pw.Widget _dato(String etiqueta, String valor, {int lineas = 2}) =>
+      pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          _texto(etiqueta, tam: 8, negrita: true, color: _azul),
+          _texto(valor, tam: 9.5, lineas: lineas),
+          pw.SizedBox(height: 2),
+        ],
+      );
+
+  static pw.Widget _texto(
+    String texto, {
+    double tam = 10,
+    PdfColor color = _tinta,
+    bool negrita = false,
+    int? lineas,
+  }) => pw.Text(
+    texto,
+    maxLines: lineas,
+    overflow: pw.TextOverflow.clip,
+    style: pw.TextStyle(
+      fontSize: tam,
+      color: color,
+      lineSpacing: 1,
+      fontWeight: negrita ? pw.FontWeight.bold : pw.FontWeight.normal,
     ),
   );
 }

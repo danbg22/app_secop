@@ -7,16 +7,13 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../data/colombia_secop_catalog.dart';
 import '../../services/consulta_natural_contratos.dart';
 import '../../services/favorites_service.dart';
-import '../../services/expediente_contrato_service.dart';
-import '../../services/reporte_contratos_pdf_service.dart';
-import '../../services/reporte_seleccion_contratos.dart';
 import '../../services/security_service.dart';
 import '../../utils/anios_secop.dart';
 import '../../utils/app_scroll_behavior.dart';
 import '../../utils/contract_financial_calculator.dart';
-import '../../utils/csv_exporter.dart';
 import '../../utils/dependencia_contrato.dart';
 import '../../utils/secop_i.dart';
+import '../../widgets/seleccion_contratos_reporte.dart';
 import '../../widgets/user_profile_header_action.dart';
 import '../detalle_screen.dart';
 import '../perfil_contratista_screen.dart';
@@ -144,9 +141,9 @@ class _ContratosSectionState extends State<ContratosSection> {
   List<ContractRecord> _secopContracts = [];
   Set<String> _favoriteIds = {};
 
-  final _contratosDelReporte = <String, ContractRecord>{};
-  bool _seleccionandoReporte = false;
-  int? _contratosPreparados;
+  final _seleccionReporte = SeleccionContratosReporte();
+
+  void _actualizarSeleccion() => setState(() {});
 
   static List<
     ({
@@ -570,6 +567,7 @@ class _ContratosSectionState extends State<ContratosSection> {
   @override
   void initState() {
     super.initState();
+    _seleccionReporte.addListener(_actualizarSeleccion);
     _secopContracts = _buildContractsFromRawList(_verifiedInitialSecopRaw);
     _loadFavorites();
     _fetchLiveSecopContracts(silent: true);
@@ -577,6 +575,7 @@ class _ContratosSectionState extends State<ContratosSection> {
 
   @override
   void dispose() {
+    _seleccionReporte.dispose();
     _searchDebounce?.cancel();
     _contractsSearchController.dispose();
     super.dispose();
@@ -2167,258 +2166,19 @@ class _ContratosSectionState extends State<ContratosSection> {
     _fetchLiveSecopContracts(silent: true);
   }
 
-  String _claveReporte(ContractRecord contrato) {
-    final raw = contrato.rawSecopJson;
-    final fuente = ExpedienteContratoService.esSecopI(raw) ? 'I' : 'II';
-    final id = (raw['id_contrato'] ?? '').toString().trim();
-    if (id.isNotEmpty && id.toLowerCase() != 'no definido') {
-      return '$fuente:$id';
-    }
-    return '$fuente:${jsonEncode([raw['nit_entidad'] ?? contrato.entity, raw['referencia_del_contrato'], raw['proceso_de_compra'], contrato.contractorId, _contractRawIsoDate(contrato), contrato.title])}';
-  }
-
-  void _alternarEnReporte(ContractRecord contrato) {
-    if (!_seleccionandoReporte || _contratosPreparados != null) return;
-    final clave = _claveReporte(contrato);
-    setState(() {
-      if (_contratosDelReporte.remove(clave) == null) {
-        _contratosDelReporte[clave] = contrato;
-      }
-    });
-  }
-
   void _activarContrato(ContractRecord contrato) {
-    if (_seleccionandoReporte) {
-      _alternarEnReporte(contrato);
+    if (_seleccionReporte.activa) {
+      _seleccionReporte.alternar(contrato.toSecopMap());
     } else {
       _openContractDetail(contrato);
     }
   }
 
-  Widget _casillaReporte(ContractRecord contrato) => Checkbox(
-    value: _contratosDelReporte.containsKey(_claveReporte(contrato)),
-    onChanged: _contratosPreparados == null
-        ? (_) => _alternarEnReporte(contrato)
-        : null,
-    semanticLabel: 'Seleccionar ${contrato.processCode} para el reporte',
-    activeColor: Cristal.doradoRelleno,
-    checkColor: Cristal.tinta,
+  Widget _casillaReporte(ContractRecord contrato) => CasillaContratoReporte(
+    seleccion: _seleccionReporte,
+    datos: contrato.toSecopMap(),
+    referencia: contrato.processCode,
   );
-
-  Future<void> _revisarSeleccionReporte() => mostrarDialogoCristal<void>(
-    context: context,
-    builder: (ctx) => StatefulBuilder(
-      builder: (ctx, actualizar) => AlertDialog(
-        title: Text('Contratos seleccionados (${_contratosDelReporte.length})'),
-        content: SizedBox(
-          width: 500,
-          child: _contratosDelReporte.isEmpty
-              ? const Text('Marca contratos en los resultados de búsqueda.')
-              : ListView(
-                  shrinkWrap: true,
-                  children: [
-                    for (final c in _contratosDelReporte.values)
-                      ListTile(
-                        title: Text(c.processCode),
-                        subtitle: Text(
-                          c.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        trailing: IconButton(
-                          tooltip: 'Quitar ${c.processCode} del reporte',
-                          icon: const Icon(Icons.remove_circle_outline_rounded),
-                          onPressed: () {
-                            _alternarEnReporte(c);
-                            actualizar(() {});
-                          },
-                        ),
-                      ),
-                  ],
-                ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Seguir seleccionando'),
-          ),
-        ],
-      ),
-    ),
-  );
-
-  Future<void> _descargarReporteSeleccion() async {
-    if (_contratosPreparados != null || _contratosDelReporte.isEmpty) return;
-    final seleccion = _contratosDelReporte.values.toList();
-    setState(() => _contratosPreparados = 0);
-    try {
-      final contratos = <ContratoDelReporte>[];
-      const lote = 3;
-      for (var i = 0; i < seleccion.length; i += lote) {
-        contratos.addAll(
-          await Future.wait(
-            seleccion
-                .skip(i)
-                .take(lote)
-                .map((c) => ContratoDelReporte.consultar(c.toSecopMap())),
-          ),
-        );
-        if (!mounted) return;
-        setState(() => _contratosPreparados = contratos.length);
-      }
-      final bytes = await ReporteSeleccionContratos.generar(contratos);
-      if (!mounted) return;
-      final nombre = ReporteContratosPdfService.nombreArchivo(
-        'seleccionados',
-        '',
-        ReporteContratosPdfService.horaColombia(),
-      );
-      if (!ReporteContratosPdfService.descargar(bytes, nombre)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Abre la plataforma en el navegador para descargar el PDF.',
-            ),
-          ),
-        );
-        return;
-      }
-      setState(() {
-        _contratosDelReporte.clear();
-        _seleccionandoReporte = false;
-      });
-      _resetAllFilters();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Reporte de contratos descargado.')),
-      );
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'No se pudo generar el PDF. Puedes volver a descargar la selección.',
-            ),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _contratosPreparados = null);
-    }
-  }
-
-  Widget _buildSeleccionReporte() {
-    final cantidad = _contratosDelReporte.length;
-    final progreso = _contratosPreparados;
-    return Wrap(
-      spacing: 12,
-      runSpacing: 8,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        FilledButton.icon(
-          style: FilledButton.styleFrom(
-            backgroundColor: Cristal.doradoRelleno,
-            foregroundColor: Cristal.tinta,
-          ),
-          onPressed: !_seleccionandoReporte
-              ? () => setState(() => _seleccionandoReporte = true)
-              : (cantidad == 0 || progreso != null
-                    ? null
-                    : _descargarReporteSeleccion),
-          icon: Icon(
-            _seleccionandoReporte
-                ? Icons.download_rounded
-                : Icons.checklist_rounded,
-          ),
-          label: Text(
-            !_seleccionandoReporte
-                ? 'Seleccionar contratos para el reporte'
-                : progreso == null
-                ? 'Descargar reporte PDF'
-                : (progreso == cantidad
-                      ? 'Generando el PDF…'
-                      : 'Preparando $progreso de $cantidad…'),
-          ),
-        ),
-        if (_seleccionandoReporte && progreso == null) ...[
-          if (cantidad == 0)
-            Text(
-              'Marca los contratos que quieras incluir. Puedes seguir buscando.',
-              style: TextStyle(color: Cristal.textoMedio),
-            )
-          else
-            OutlinedButton(
-              onPressed: _revisarSeleccionReporte,
-              child: Text(
-                '$cantidad ${cantidad == 1 ? 'seleccionado' : 'seleccionados'}',
-              ),
-            ),
-          TextButton(
-            onPressed: () => setState(() {
-              _seleccionandoReporte = false;
-              _contratosDelReporte.clear();
-            }),
-            child: const Text('Cancelar selección'),
-          ),
-        ],
-      ],
-    );
-  }
-
-  void _exportFilteredToCsv() {
-    final list = _filteredContracts;
-    final rows = <List<dynamic>>[
-      [
-        'Proceso',
-        'Orden',
-        'Ubicación',
-        'Entidad',
-        'Dependencia',
-        'Objeto del Contrato',
-        'Contratista',
-        'Identificación',
-        'Estado',
-        'Modalidad',
-        'Valor del Contrato',
-        'Plazo Días',
-        'Equivalencia Meses',
-        'Valor Mensual Estimado',
-        'Fecha de Inicio',
-        'Fecha de Fin',
-      ],
-      for (final contract in list)
-        () {
-          final an = ContractFinancialAnalysis.fromContract(
-            contract.rawSecopJson,
-          );
-          return [
-            contract.processCode,
-            contract.orden,
-            contract.location,
-            contract.entity,
-            contract.dependenciaVisible,
-            contract.title.replaceAll('\n', ' ').replaceAll(';', ','),
-            contract.contractor.replaceAll(';', ','),
-            contract.contractorId,
-            contract.status,
-            contract.modality,
-            contract.valueFormatted,
-            an.tienePlazo ? '${an.plazoDias}' : 'N/R',
-            an.tienePlazo ? an.mesesDecimalTexto : 'N/R',
-            an.tienePlazo && an.valorTotal > 0
-                ? ContractFinancialAnalysis.formatCop(an.valorMensualEstimado)
-                : 'N/R',
-            contract.startDate,
-            contract.endDate,
-          ];
-        }(),
-    ];
-
-    exportCsv(
-      context: context,
-      rows: rows,
-      fileName: 'Reporte_Contratos_SECOP.csv',
-    );
-  }
 
   void _openContractDetail(ContractRecord contract) {
     Navigator.push(
@@ -4608,140 +4368,112 @@ class _ContratosSectionState extends State<ContratosSection> {
         ? 'Consultando SECOP II en tiempo real...'
         : '$count contratos encontrados';
 
-    return Wrap(
-      alignment: WrapAlignment.spaceBetween,
+    final resumen = Wrap(
       crossAxisAlignment: WrapCrossAlignment.center,
       spacing: 10,
-      runSpacing: 8,
+      runSpacing: 6,
       children: [
-        Wrap(
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 10,
-          runSpacing: 6,
-          children: [
-            Text(
-              'Resultados de búsqueda',
-              style: TextStyle(
-                color: Cristal.texto,
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-              decoration: BoxDecoration(
-                color: Cristal.doradoVidrio,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Cristal.dorado.withValues(alpha: 0.65),
-                ),
-              ),
-              child: Text(
-                countText,
-                style: TextStyle(
-                  color: Cristal.texto,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
+        Text(
+          'Resultados de búsqueda',
+          style: TextStyle(
+            color: Cristal.texto,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
         ),
-        Wrap(
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 8,
-          runSpacing: 6,
-          children: [
-            Text(
-              'Ordenar por:',
-              style: TextStyle(
-                color: Cristal.textoMedio,
-                fontSize: 11.5,
-                fontWeight: FontWeight.w600,
-              ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+          decoration: BoxDecoration(
+            color: Cristal.doradoVidrio,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Cristal.dorado.withValues(alpha: 0.65)),
+          ),
+          child: Text(
+            countText,
+            style: TextStyle(
+              color: Cristal.texto,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
             ),
-            Container(
-              height: 32,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              decoration: BoxDecoration(
-                color: Cristal.vidrio,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Cristal.borde),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _sortBy,
-                  isDense: true,
-                  icon: Padding(
-                    padding: EdgeInsets.only(left: 8),
-                    child: Icon(
-                      Icons.keyboard_arrow_down,
-                      size: 16,
-                      color: Cristal.texto,
-                    ),
-                  ),
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    color: Cristal.texto,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'Más recientes',
-                      child: Text('Más recientes'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'Mayor valor',
-                      child: Text('Mayor valor'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'Menor valor',
-                      child: Text('Menor valor'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _sortBy = value;
-                        _currentPage = 1;
-                      });
-                    }
-                  },
-                ),
-              ),
-            ),
-            SizedBox(
-              height: 32,
-              child: OutlinedButton.icon(
-                onPressed: _exportFilteredToCsv,
-                icon: Icon(
-                  Icons.download_rounded,
-                  size: 15,
-                  color: Cristal.texto,
-                ),
-                label: Text(
-                  'Exportar',
-                  style: TextStyle(
-                    color: Cristal.texto,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                style: OutlinedButton.styleFrom(
-                  backgroundColor: Cristal.vidrio,
-                  foregroundColor: Cristal.texto,
-                  side: BorderSide(color: Cristal.borde),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ],
+    );
+    final ordenar = Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8,
+      runSpacing: 6,
+      children: [
+        Text(
+          'Ordenar por:',
+          style: TextStyle(
+            color: Cristal.textoMedio,
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        Container(
+          height: 32,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: Cristal.vidrio,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Cristal.borde),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _sortBy,
+              isDense: true,
+              icon: Padding(
+                padding: EdgeInsets.only(left: 8),
+                child: Icon(
+                  Icons.keyboard_arrow_down,
+                  size: 16,
+                  color: Cristal.texto,
+                ),
+              ),
+              style: TextStyle(
+                fontFamily: 'Inter',
+                color: Cristal.texto,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: 'Más recientes',
+                  child: Text('Más recientes'),
+                ),
+                DropdownMenuItem(
+                  value: 'Mayor valor',
+                  child: Text('Mayor valor'),
+                ),
+                DropdownMenuItem(
+                  value: 'Menor valor',
+                  child: Text('Menor valor'),
+                ),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _sortBy = value;
+                    _currentPage = 1;
+                  });
+                }
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+    return CabeceraSeleccionContratos(
+      resumen: resumen,
+      acciones: AccionesSeleccionContratos(
+        seleccion: _seleccionReporte,
+        alDescargar: _resetAllFilters,
+        ayuda:
+            'Marca los contratos que quieras incluir. Puedes seguir buscando.',
+      ),
+      ordenar: ordenar,
     );
   }
 
@@ -4760,7 +4492,7 @@ class _ContratosSectionState extends State<ContratosSection> {
       color: Cristal.vidrioSuave,
       child: Row(
         children: [
-          if (_seleccionandoReporte) const SizedBox(width: 48),
+          if (_seleccionReporte.activa) const SizedBox(width: 48),
           for (var index = 0; index < titles.length; index++)
             Expanded(
               flex: flexes[index],
@@ -4843,7 +4575,7 @@ class _ContratosSectionState extends State<ContratosSection> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (_seleccionandoReporte) _casillaReporte(contract),
+                if (_seleccionReporte.activa) _casillaReporte(contract),
                 Container(
                   width: 32,
                   height: 32,
@@ -5001,7 +4733,7 @@ class _ContratosSectionState extends State<ContratosSection> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        if (_seleccionandoReporte)
+        if (_seleccionReporte.activa)
           SizedBox(width: 48, child: _casillaReporte(contract)),
         cell(
           3,
@@ -5550,8 +5282,6 @@ class _ContratosSectionState extends State<ContratosSection> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       _buildHeaderSection(),
-                      const SizedBox(height: 14),
-                      _buildSeleccionReporte(),
                       const SizedBox(height: 14),
                       _buildFiltersPanel(),
                       const SizedBox(height: 16),

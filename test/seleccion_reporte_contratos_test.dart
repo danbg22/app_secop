@@ -3,6 +3,7 @@
 
 import 'dart:convert';
 
+import 'package:app_secop/screens/contratistas_screen.dart';
 import 'package:app_secop/screens/sections/contratos_section.dart';
 import 'package:app_secop/services/datos_abiertos.dart';
 import 'package:app_secop/tema/cristal.dart';
@@ -101,9 +102,31 @@ void main() {
       (w) => w is Checkbox && (w.semanticLabel?.contains(ref) ?? false),
     );
     expect(casilla(primera), findsNothing);
-    await tester.tap(find.text('Seleccionar contratos para el reporte'));
+    final botonReporte = find.text('Seleccionar contratos');
+    final ordenar = find.text('Ordenar por:');
+    await tester.ensureVisible(botonReporte);
+    expect(
+      tester.getCenter(botonReporte).dy,
+      closeTo(tester.getCenter(ordenar).dy, 5),
+    );
+    expect(
+      tester.getCenter(botonReporte).dx,
+      lessThan(tester.getCenter(ordenar).dx),
+    );
+    await tester.tap(botonReporte);
     await tester.pumpAndSettle();
     expect(casilla(primera), findsOneWidget);
+    expect(find.text('Exportar'), findsNothing);
+    final cancelar = find.text('Cancelar selección');
+    final descargar = find.text('Descargar reporte PDF');
+    expect(
+      tester.getCenter(cancelar).dy,
+      closeTo(tester.getCenter(descargar).dy, 1),
+    );
+    expect(
+      tester.getCenter(cancelar).dx,
+      greaterThan(tester.getCenter(descargar).dx),
+    );
     await tester.ensureVisible(casilla(primera));
     await tester.tap(casilla(primera));
     await tester.pumpAndSettle();
@@ -134,6 +157,92 @@ void main() {
       find.descendant(of: lista, matching: find.text('Proceso: $segunda')),
       findsOneWidget,
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Contratistas acumula contratos de diferentes historiales', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1200, 1500);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues({});
+
+    final referencias = <String>[];
+    DatosAbiertos.clientePruebas = MockClient((request) async {
+      final where = request.url.queryParameters[r'$where'] ?? '';
+      final documento = RegExp(r"documento_proveedor in \('([0-9]+)'")
+          .firstMatch(where)
+          ?.group(1);
+      if (!request.url.path.endsWith('/jbjy-vk9h.json') || documento == null) {
+        return http.Response('[]', 200);
+      }
+      final ref = 'CT-$documento';
+      referencias.add(ref);
+      return http.Response.bytes(
+        utf8.encode(
+          jsonEncode([
+            {
+              'id_contrato': 'CO1.PCCNTR.$documento',
+              'referencia_del_contrato': ref,
+              'objeto_del_contrato': 'Contrato de prueba',
+              'nombre_entidad': 'Alcaldía',
+              'fecha_de_firma': '2026-10-01',
+              'documento_proveedor': documento,
+            },
+          ]),
+        ),
+        200,
+      );
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: temaCristal(),
+        home: const ContratistasScreen(isEmbeddedInDashboard: false),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Exportar'), findsNothing);
+    expect(find.text('Ver contratos'), findsNothing);
+    await tester.tap(find.text('Seleccionar contratos'));
+    await tester.pumpAndSettle();
+
+    for (var fila = 0; fila < 2; fila++) {
+      final historial = find.text('Ver contratos').at(fila);
+      await tester.ensureVisible(historial);
+      await tester.tap(historial);
+      await tester.pumpAndSettle();
+
+      final modal = find.byType(AlertDialog);
+      final casilla = find.descendant(
+        of: modal,
+        matching: find.byType(Checkbox),
+      );
+      expect(casilla, findsOneWidget);
+      await tester.tap(casilla);
+      await tester.pumpAndSettle();
+      expect(find.text('${fila + 1} en el reporte'), findsOneWidget);
+      await tester.tap(find.text('Volver a contratistas'));
+      await tester.pumpAndSettle();
+    }
+
+    final revisar = find.text('2 seleccionados');
+    await tester.ensureVisible(revisar);
+    await tester.tap(revisar);
+    await tester.pumpAndSettle();
+    expect(referencias.toSet(), hasLength(2));
+    for (final ref in referencias) {
+      expect(find.text('Proceso: $ref'), findsOneWidget);
+    }
+    await tester.tap(find.text('Seguir seleccionando'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancelar selección'));
+    await tester.pumpAndSettle();
+    expect(find.text('Seleccionar contratos'), findsOneWidget);
+    expect(find.text('2 seleccionados'), findsNothing);
+    expect(find.text('Ver contratos'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

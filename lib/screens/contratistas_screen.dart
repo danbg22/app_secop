@@ -5,7 +5,8 @@ import 'package:flutter/material.dart';
 import '../services/busqueda_personas.dart';
 import '../services/entidades_publicas.dart';
 import '../widgets/directorio_sigep.dart';
-import '../utils/csv_exporter.dart';
+import '../widgets/seleccion_contratos_reporte.dart';
+import '../widgets/seleccionar_contratos_contratista.dart';
 import '../widgets/user_profile_header_action.dart';
 import 'perfil_contratista_screen.dart';
 import '../tema/cristal.dart';
@@ -129,6 +130,10 @@ class _ContratistasScreenState extends State<ContratistasScreen>
   static const int _maxBulkCombinations = 5;
 
   late final TextEditingController _searchController;
+  final _seleccionReporte = SeleccionContratosReporte();
+
+  void _actualizarSeleccion() => setState(() {});
+
   List<ContractorSummaryRecord> _contractors = [];
 
   /// NIT base de los resultados que son entidades públicas (aparecen como
@@ -349,6 +354,7 @@ class _ContratistasScreenState extends State<ContratistasScreen>
   @override
   void initState() {
     super.initState();
+    _seleccionReporte.addListener(_actualizarSeleccion);
     _searchController = TextEditingController(
       text: _ContratistasPersistenceStore.searchText,
     );
@@ -375,6 +381,7 @@ class _ContratistasScreenState extends State<ContratistasScreen>
   void dispose() {
     _ContratistasPersistenceStore.searchText = _searchController.text;
     _searchController.dispose();
+    _seleccionReporte.dispose();
     super.dispose();
   }
 
@@ -814,6 +821,21 @@ class _ContratistasScreenState extends State<ContratistasScreen>
 
   void _openContractorProfile(ContractorSummaryRecord contractor) {
     _syncStateToPersistenceStore();
+    if (_seleccionReporte.activa) {
+      if (_seleccionReporte.preparando) return;
+      mostrarDialogoCristal<void>(
+        context: context,
+        builder: (_) => SeleccionarContratosContratista(
+          nombre: contractor.name,
+          nombreBusqueda: contractor.rawSearchName,
+          documento: contractor.rawDocumentDigits.isNotEmpty
+              ? contractor.rawDocumentDigits
+              : contractor.nit,
+          seleccion: _seleccionReporte,
+        ),
+      );
+      return;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -829,43 +851,6 @@ class _ContratistasScreenState extends State<ContratistasScreen>
               contractor.sigepStatus == SigepRoleStatus.servidorPublico,
         ),
       ),
-    );
-  }
-
-  void _exportToCsv() {
-    final rows = <List<dynamic>>[
-      [
-        '#',
-        'Contratista / Razón social',
-        'NIT / Cédula',
-        'Tipo de persona',
-        'Clasificación SIGEP',
-        'Total de contratos',
-        'Valor contratado',
-        'Último contrato',
-      ],
-      for (var i = 0; i < _filteredAndSortedContractors.length; i++)
-        [
-          i + 1,
-          _filteredAndSortedContractors[i].name,
-          _filteredAndSortedContractors[i].nit,
-          _esEntidadPublica(_filteredAndSortedContractors[i])
-              ? 'Entidad pública'
-              : _filteredAndSortedContractors[i].personType,
-          _filteredAndSortedContractors[i].sigepStatus ==
-                  SigepRoleStatus.servidorPublico
-              ? 'Servidor Público'
-              : 'Contratista',
-          _filteredAndSortedContractors[i].totalContracts,
-          _formatCopCurrency(_filteredAndSortedContractors[i].totalValue),
-          _filteredAndSortedContractors[i].lastContractDate,
-        ],
-    ];
-
-    exportCsv(
-      context: context,
-      rows: rows,
-      fileName: 'Consulta_Contratistas_SECOP.csv',
     );
   }
 
@@ -1097,7 +1082,15 @@ class _ContratistasScreenState extends State<ContratistasScreen>
                         _syncStateToPersistenceStore();
                       },
                       onOpenProfile: _openContractorProfile,
-                      onExportPressed: _exportToCsv,
+                      seleccionandoContratos: _seleccionReporte.activa,
+                      accionesReporte: AccionesSeleccionContratos(
+                        seleccion: _seleccionReporte,
+                        alDescargar: () {
+                          _sortBy = 'Mayor valor contratado';
+                          _clearSearchManually();
+                        },
+                        ayuda: 'Abre los contratos de cada contratista y marca los que quieras incluir.',
+                      ),
                       formatCurrency: _formatCopCurrency,
                       aviso: _avisoBusqueda,
                       onRetry: _reintentarBusqueda,
@@ -1647,7 +1640,8 @@ class ContratistasResultsTable extends StatelessWidget {
     required this.onSortChanged,
     required this.onPageChanged,
     required this.onOpenProfile,
-    required this.onExportPressed,
+    required this.accionesReporte,
+    required this.seleccionandoContratos,
     required this.formatCurrency,
     this.aviso,
     this.onRetry,
@@ -1711,7 +1705,8 @@ class ContratistasResultsTable extends StatelessWidget {
   final ValueChanged<String> onSortChanged;
   final ValueChanged<int> onPageChanged;
   final ValueChanged<ContractorSummaryRecord> onOpenProfile;
-  final VoidCallback onExportPressed;
+  final Widget accionesReporte;
+  final bool seleccionandoContratos;
   final String Function(double) formatCurrency;
 
   /// Desde mil millones, en millones ("\$ 9.188.302 M"): la cifra completa
@@ -1794,134 +1789,95 @@ class ContratistasResultsTable extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Cabecera interna de la tabla ("Resultados de contratistas" + Ordenar + Exportar)
           Padding(
             padding: const EdgeInsets.fromLTRB(22, 18, 22, 14),
-            child: Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 12,
-              runSpacing: 10,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isDefaultView
-                          ? 'Contratistas representativos en SECOP II'
-                          : 'Resultados de contratistas',
-                      style: TextStyle(
-                        color: Cristal.texto,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                      ),
+            child: CabeceraSeleccionContratos(
+              resumen: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isDefaultView
+                        ? 'Contratistas representativos en SECOP II'
+                        : 'Resultados de contratistas',
+                    style: TextStyle(
+                      color: Cristal.texto,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      isLoading
-                          ? 'Consultando SECOP II en tiempo real...'
-                          : isDefaultView
-                          ? 'Ejemplos: $totalFoundCount empresas con muchos contratos en SECOP II. Busca cualquier contratista por nombre, NIT o cédula.'
-                          : '$totalFoundCount contratistas encontrados para la consulta',
-                      style: TextStyle(
-                        color: Cristal.textoSuave,
-                        fontSize: 12.5,
-                      ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isLoading
+                        ? 'Consultando SECOP II en tiempo real...'
+                        : isDefaultView
+                        ? 'Ejemplos: $totalFoundCount empresas con muchos contratos en SECOP II. Busca cualquier contratista por nombre, NIT o cédula.'
+                        : '$totalFoundCount contratistas encontrados para la consulta',
+                    style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
+                  ),
+                ],
+              ),
+              acciones: accionesReporte,
+              ordenar: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  Text(
+                    'Ordenar por:',
+                    style: TextStyle(
+                      color: Cristal.textoSuave,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
                     ),
-                  ],
-                ),
-                Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    Text(
-                      'Ordenar por:',
-                      style: TextStyle(
-                        color: Cristal.textoSuave,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w500,
-                      ),
+                  ),
+                  Container(
+                    height: 36,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Cristal.vidrioSuave,
+                      borderRadius: BorderRadius.circular(9),
+                      border: Border.all(color: Cristal.borde),
                     ),
-                    Container(
-                      height: 36,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: Cristal.vidrioSuave,
-                        borderRadius: BorderRadius.circular(9),
-                        border: Border.all(color: Cristal.borde),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: sortBy,
-                          isDense: true,
-                          icon: Padding(
-                            padding: EdgeInsets.only(left: 8),
-                            child: Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              size: 18,
-                              color: Cristal.texto,
-                            ),
-                          ),
-                          style: TextStyle(
-                            fontFamily: 'Inter',
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: sortBy,
+                        isDense: true,
+                        icon: Padding(
+                          padding: EdgeInsets.only(left: 8),
+                          child: Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 18,
                             color: Cristal.texto,
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
                           ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'Mayor valor contratado',
-                              child: Text('Mayor valor contratado'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'Mayor número de contratos',
-                              child: Text('Mayor número de contratos'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'Orden alfabético',
-                              child: Text('Orden alfabético'),
-                            ),
-                          ],
-                          onChanged: (v) {
-                            if (v != null) onSortChanged(v);
-                          },
                         ),
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          color: Cristal.texto,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'Mayor valor contratado',
+                            child: Text('Mayor valor contratado'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Mayor número de contratos',
+                            child: Text('Mayor número de contratos'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Orden alfabético',
+                            child: Text('Orden alfabético'),
+                          ),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) onSortChanged(v);
+                        },
                       ),
                     ),
-                    InkWell(
-                      hoverDuration: Cristal.micro,
-                      onTap: onExportPressed,
-                      borderRadius: BorderRadius.circular(8),
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 6,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.download_rounded,
-                              size: 17,
-                              color: Cristal.texto,
-                            ),
-                            SizedBox(width: 6),
-                            Text(
-                              'Exportar',
-                              style: TextStyle(
-                                color: Cristal.texto,
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
           if (isLoading)
@@ -2029,7 +1985,7 @@ class ContratistasResultsTable extends StatelessWidget {
                           ),
                         ),
                         SizedBox(
-                          width: 116,
+                          width: 132,
                           child: Text(
                             'Acciones',
                             textAlign: TextAlign.center,
@@ -2212,7 +2168,9 @@ class ContratistasResultsTable extends StatelessWidget {
                 ),
                 TextButton(
                   onPressed: () => onOpenProfile(record),
-                  child: const Text('Ver perfil'),
+                  child: Text(
+                    seleccionandoContratos ? 'Ver contratos' : 'Ver perfil',
+                  ),
                 ),
               ],
             ),
@@ -2341,14 +2299,16 @@ class ContratistasResultsTable extends StatelessWidget {
                           ),
                           const SizedBox(width: 5),
                         ],
-                        Text(
-                          esPublica ? 'Entidad pública' : record.personType,
-                          style: TextStyle(
-                            color: isJuridica
-                                ? Cristal.acentoClaro
-                                : Cristal.ambar,
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
+                        Flexible(
+                          child: Text(
+                            esPublica ? 'Entidad pública' : record.personType,
+                            style: TextStyle(
+                              color: isJuridica
+                                  ? Cristal.acentoClaro
+                                  : Cristal.ambar,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ],
@@ -2387,16 +2347,18 @@ class ContratistasResultsTable extends StatelessWidget {
                                 : Cristal.verde,
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            isServidorPublico
-                                ? 'Servidor Público'
-                                : 'Contratista',
-                            style: TextStyle(
-                              color: isServidorPublico
-                                  ? Cristal.rojo
-                                  : Cristal.verde,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
+                          Flexible(
+                            child: Text(
+                              isServidorPublico
+                                  ? 'Servidor Público'
+                                  : 'Contratista',
+                              style: TextStyle(
+                                color: isServidorPublico
+                                    ? Cristal.rojo
+                                    : Cristal.verde,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ],
@@ -2453,7 +2415,7 @@ class ContratistasResultsTable extends StatelessWidget {
           ),
           // 8. Acciones (Ver perfil ->)
           SizedBox(
-            width: 116,
+            width: 132,
             child: Align(
               alignment: Alignment.centerRight,
               child: InkWell(
@@ -2472,12 +2434,16 @@ class ContratistasResultsTable extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        'Ver perfil',
-                        style: TextStyle(
-                          color: Cristal.acentoClaro,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                      Flexible(
+                        child: Text(
+                          seleccionandoContratos
+                              ? 'Ver contratos'
+                              : 'Ver perfil',
+                          style: TextStyle(
+                            color: Cristal.acentoClaro,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                       SizedBox(width: 4),

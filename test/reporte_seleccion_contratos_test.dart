@@ -63,52 +63,62 @@ void main() {
     );
   });
 
-  test(
-    'el PDF dedica una ficha a cada contrato y pagina objetos largos',
-    () async {
-      final objetoLargo = List.generate(
-        460,
-        (i) =>
-            'Actividad ${i + 1} de mantenimiento y seguimiento en la entidad.',
-      ).join(' ');
-      final pdf = await ReporteSeleccionContratos.generar([
-        ContratoDelReporte(
-          datos: {
-            'id_contrato': 'CO1.PCCNTR.100',
-            'referencia_del_contrato': 'SALUD-2026-100',
-            'nombre_entidad': 'Hospital Regional',
-            'objeto_del_contrato': objetoLargo,
-            'valor_del_contrato': '156000000',
-            'fecha_de_inicio_del_contrato': '2026-04-01',
-            'fecha_de_fin_del_contrato': '2026-10-01',
-            'valor_pagado': '31000000',
-          },
-          expedienteCompleto: true,
-          documentos: const SecopExtractionResult(
-            status: SecopExtractionStatus.emptyOfficialList,
-            documents: [],
-            resolvedSecopUrl: 'https://community.secop.gov.co/',
-          ),
+  test('el PDF comparte hoja entre fichas y abrevia objetos largos', () async {
+    final objetoLargo = List.generate(
+      460,
+      (i) => 'Actividad ${i + 1} de mantenimiento y seguimiento en la entidad.',
+    ).join(' ');
+    final contratos = [
+      ContratoDelReporte(
+        datos: {
+          'id_contrato': 'CO1.PCCNTR.100',
+          'referencia_del_contrato': 'SALUD-2026-100',
+          'nombre_entidad': 'Hospital Regional',
+          'objeto_del_contrato': objetoLargo,
+          'valor_del_contrato': '156000000',
+          'fecha_de_inicio_del_contrato': '2026-04-01',
+          'fecha_de_fin_del_contrato': '2026-10-01',
+          'valor_pagado': '31000000',
+        },
+        expedienteCompleto: true,
+        documentos: const SecopExtractionResult(
+          status: SecopExtractionStatus.emptyOfficialList,
+          documents: [],
+          resolvedSecopUrl: 'https://community.secop.gov.co/',
         ),
-        const ContratoDelReporte(
-          datos: {
-            'id_contrato': 'CO1.PCCNTR.200',
-            'referencia_del_contrato': 'EDU-2026-200',
-            'nombre_entidad': 'Municipio',
-            'objeto_del_contrato': 'Contrato de educación',
-          },
-          expedienteCompleto: false,
-          documentos: null,
-        ),
-      ], ahora: DateTime.utc(2026, 11, 23));
+      ),
+      const ContratoDelReporte(
+        datos: {
+          'id_contrato': 'CO1.PCCNTR.200',
+          'referencia_del_contrato': 'EDU-2026-200',
+          'nombre_entidad': 'Municipio',
+          'objeto_del_contrato': 'Contrato de educación',
+        },
+        expedienteCompleto: false,
+        documentos: null,
+      ),
+    ];
+    final fecha = DateTime.utc(2026, 11, 23);
+    final pdf = await ReporteSeleccionContratos.generar(
+      contratos,
+      ahora: fecha,
+    );
 
-      final lectura = latin1.decode(pdf);
-      expect(lectura, startsWith('%PDF-'));
-      expect(
-        RegExp(r'/Type\s*/Page\b').allMatches(lectura).length,
-        greaterThan(3),
-      );
-      expect(lectura, contains('https://community.secop.gov.co/'));
-    },
-  );
+    final lectura = latin1.decode(pdf);
+    expect(lectura, startsWith('%PDF-'));
+    expect(RegExp(r'/Type\s*/Page\b').allMatches(lectura).length, 1);
+    expect(lectura, contains('https://community.secop.gov.co/'));
+
+    final masContratos = await ReporteSeleccionContratos.generar([
+      ...contratos,
+      ...contratos,
+      ...contratos,
+      ...contratos,
+      contratos.first,
+    ], ahora: fecha);
+    final paginas = RegExp(r'/Type\s*/Page\b')
+        .allMatches(latin1.decode(masContratos))
+        .length;
+    expect(paginas, inInclusiveRange(2, 3));
+  });
 }
