@@ -249,19 +249,21 @@ abstract final class AccesoPlanes {
     if (user == null || user.uid != _uid) return Future.value();
     final anterior = _enCurso;
     if (anterior != null) return anterior;
-    final trabajo = _obtenerEstado(user, _sesion);
+    final sesion = _sesion;
+    final trabajo = Future<void>.microtask(() => _obtenerEstado(user, sesion));
     _enCurso = trabajo;
     return trabajo;
   }
 
   static Future<void> _obtenerEstado(User user, int sesion) async {
+    if (_sesion != sesion) return;
     _timer?.cancel();
     _revisando = true;
     _notificar();
     try {
       final nuevo = pagosEnLineaDisponibles
           ? EstadoPlanes(await _consultar(user, {'accion': 'estado'}))
-          : await _obtenerEstadoFirestore(user, sesion);
+          : await _leerPlanesConReintento(user, sesion);
       if (_sesion != sesion) return;
       _estado = nuevo;
       _hayError = false;
@@ -281,6 +283,29 @@ abstract final class AccesoPlanes {
               );
         _timer = Timer(proxima, () => unawaited(refrescar()));
       }
+    }
+  }
+
+  static Future<EstadoPlanes> _leerPlanesConReintento(
+    User user,
+    int sesion,
+  ) async {
+    try {
+      return await _obtenerEstadoFirestore(user, sesion);
+    } catch (error) {
+      final transitorio =
+          error is TimeoutException ||
+          (error is FirebaseException &&
+              const {
+                'unavailable',
+                'deadline-exceeded',
+                'aborted',
+                'network-request-failed',
+              }.contains(error.code));
+      if (!transitorio || _sesion != sesion) rethrow;
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+      if (_sesion != sesion) rethrow;
+      return _obtenerEstadoFirestore(user, sesion);
     }
   }
 

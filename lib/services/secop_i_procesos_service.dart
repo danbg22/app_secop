@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import '../utils/secop_i.dart';
 import 'security_service.dart';
 import '../utils/nit.dart';
@@ -57,7 +55,10 @@ class SecopIProcesosService {
 
   static final Map<String, List<EntidadSecopI>> _cache = {};
 
-  static Future<List<dynamic>> _consultar(Map<String, String> params) async {
+  static Future<List<dynamic>> _consultar(
+    Map<String, String> params, {
+    bool reportarErrores = false,
+  }) async {
     try {
       // Con el cliente común: token, caché, reintentos y turno.
       final res = await DatosAbiertos.obtener(
@@ -65,10 +66,9 @@ class SecopIProcesosService {
         timeout: const Duration(seconds: 15),
         cache: DatosAbiertos.ttlPorDefecto,
       );
-      if (res.statusCode != 200) return const [];
-      final decoded = json.decode(utf8.decode(res.bodyBytes));
-      return decoded is List ? decoded : const [];
+      return DatosAbiertos.decodificar(res);
     } catch (_) {
+      if (reportarErrores) rethrow;
       return const [];
     }
   }
@@ -91,6 +91,7 @@ class SecopIProcesosService {
   static Future<List<EntidadSecopI>> buscarEntidades(
     String consulta, {
     List<String> nitsCatalogo = const [],
+    bool reportarErrores = false,
   }) async {
     final clave = '${_normalizar(consulta)}|${nitsCatalogo.join(',')}';
     final enCache = _cache[clave];
@@ -108,7 +109,7 @@ class SecopIProcesosService {
         r'$q': tokens.join(' '),
         r'$group': 'nombre_entidad',
         r'$limit': '200',
-      });
+      }, reportarErrores: reportarErrores);
       for (final c in candidatos.whereType<Map>()) {
         final nombre = (c['nombre_entidad'] ?? '').toString();
         final normal = _normalizar(nombre);
@@ -137,7 +138,7 @@ class SecopIProcesosService {
       r'$group': _group,
       r'$order': 'procesos DESC',
       r'$limit': '30',
-    });
+    }, reportarErrores: reportarErrores);
     final resultado = filas
         .whereType<Map>()
         .map(EntidadSecopI.fromMap)
