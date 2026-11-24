@@ -126,7 +126,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Universidad de Caldas',
-      nit: '890801053',
+      nit: '890801063',
       municipio: 'Manizales',
       departamento: 'Caldas',
       category: 'Universidad Pública',
@@ -166,7 +166,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Universidad de Nariño - Udenar',
-      nit: '800099513',
+      nit: '800118954',
       municipio: 'Pasto',
       departamento: 'Nariño',
       category: 'Universidad Pública',
@@ -206,7 +206,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Universidad de Sucre - Unisucre',
-      nit: '892201214',
+      nit: '892200323',
       municipio: 'Sincelejo',
       departamento: 'Sucre',
       category: 'Universidad Pública',
@@ -214,7 +214,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Universidad de La Guajira - Uniguajira',
-      nit: '892115006',
+      nit: '892115029',
       municipio: 'Riohacha',
       departamento: 'La Guajira',
       category: 'Universidad Pública',
@@ -238,7 +238,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Universidad de los Llanos - Unillanos',
-      nit: '892000658',
+      nit: '892000757',
       municipio: 'Villavicencio',
       departamento: 'Meta',
       category: 'Universidad Pública',
@@ -262,7 +262,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Unidades Tecnológicas de Santander - UTS',
-      nit: '890207399',
+      nit: '890208727',
       municipio: 'Bucaramanga',
       departamento: 'Santander',
       category: 'Institución Universitaria',
@@ -334,7 +334,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Alcaldía de Ibagué',
-      nit: '890700011',
+      nit: '800113389',
       municipio: 'Ibagué',
       departamento: 'Tolima',
       category: 'Orden Municipal',
@@ -390,7 +390,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Alcaldía de Montería',
-      nit: '800096738',
+      nit: '800096734',
       municipio: 'Montería',
       departamento: 'Córdoba',
       category: 'Orden Municipal',
@@ -398,7 +398,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Alcaldía de Sincelejo',
-      nit: '892200599',
+      nit: '800104062',
       municipio: 'Sincelejo',
       departamento: 'Sucre',
       category: 'Orden Municipal',
@@ -406,7 +406,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Alcaldía de Popayán',
-      nit: '891500761',
+      nit: '891580006',
       municipio: 'Popayán',
       departamento: 'Cauca',
       category: 'Orden Municipal',
@@ -430,15 +430,15 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Alcaldía Distrital de Riohacha',
-      nit: '892115006',
+      nit: '892115007',
       municipio: 'Riohacha',
       departamento: 'La Guajira',
       category: 'Orden Distrital',
       secopKeywords: ['ALCALDIA DE RIOHACHA', 'DISTRITO DE RIOHACHA', 'RIOHACHA LA GUAJIRA'],
     ),
     EntidadCatalogo(
-      name: 'Alcaldía de Florencia',
-      nit: '891190000',
+      name: 'Alcaldía de Florencia (Caquetá)',
+      nit: '800095728',
       municipio: 'Florencia',
       departamento: 'Caquetá',
       category: 'Orden Municipal',
@@ -454,7 +454,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Alcaldía de Yopal',
-      nit: '892099216',
+      nit: '891855017',
       municipio: 'Yopal',
       departamento: 'Casanare',
       category: 'Orden Municipal',
@@ -462,7 +462,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Alcaldía de Arauca',
-      nit: '800102838',
+      nit: '800102504',
       municipio: 'Arauca',
       departamento: 'Arauca',
       category: 'Orden Municipal',
@@ -470,7 +470,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Alcaldía de Soacha',
-      nit: '800094760',
+      nit: '800094755',
       municipio: 'Soacha',
       departamento: 'Cundinamarca',
       category: 'Orden Municipal',
@@ -478,7 +478,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Alcaldía de Bello',
-      nit: '890980126',
+      nit: '890980112',
       municipio: 'Bello',
       departamento: 'Antioquia',
       category: 'Orden Municipal',
@@ -494,7 +494,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Alcaldía de Envigado',
-      nit: '890980083',
+      nit: '890907106',
       municipio: 'Envigado',
       departamento: 'Antioquia',
       category: 'Orden Municipal',
@@ -502,7 +502,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Alcaldía de Sabaneta',
-      nit: '890980084',
+      nit: '890980331',
       municipio: 'Sabaneta',
       departamento: 'Antioquia',
       category: 'Orden Municipal',
@@ -518,7 +518,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Alcaldía de Barrancabermeja',
-      nit: '890201210',
+      nit: '890201900',
       municipio: 'Barrancabermeja',
       departamento: 'Santander',
       category: 'Orden Distrital',
@@ -526,7 +526,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Alcaldía de Palmira',
-      nit: '890399023',
+      nit: '891380007',
       municipio: 'Palmira',
       departamento: 'Valle del Cauca',
       category: 'Orden Municipal',
@@ -534,7 +534,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Alcaldía de Buenaventura',
-      nit: '890399008',
+      nit: '890399045',
       municipio: 'Buenaventura',
       departamento: 'Valle del Cauca',
       category: 'Orden Distrital',
@@ -542,7 +542,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Alcaldía de Soledad',
-      nit: '800096234',
+      nit: '890106291',
       municipio: 'Soledad',
       departamento: 'Atlántico',
       category: 'Orden Municipal',
@@ -590,7 +590,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Gobernación de Bolívar',
-      nit: '890480110',
+      nit: '890480059',
       municipio: 'Cartagena',
       departamento: 'Bolívar',
       category: 'Gobernación Departamental',
@@ -606,7 +606,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Gobernación de La Guajira',
-      nit: '892115006',
+      nit: '892115015',
       municipio: 'Riohacha',
       departamento: 'La Guajira',
       category: 'Gobernación Departamental',
@@ -614,7 +614,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Gobernación del Magdalena',
-      nit: '891780009',
+      nit: '800103920',
       municipio: 'Santa Marta',
       departamento: 'Magdalena',
       category: 'Gobernación Departamental',
@@ -622,7 +622,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Gobernación de Córdoba',
-      nit: '891080031',
+      nit: '800103935',
       municipio: 'Montería',
       departamento: 'Córdoba',
       category: 'Gobernación Departamental',
@@ -630,7 +630,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Gobernación de Sucre',
-      nit: '892280020',
+      nit: '892280021',
       municipio: 'Sincelejo',
       departamento: 'Sucre',
       category: 'Gobernación Departamental',
@@ -646,7 +646,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Gobernación de Caldas',
-      nit: '890801053',
+      nit: '890801052',
       municipio: 'Manizales',
       departamento: 'Caldas',
       category: 'Gobernación Departamental',
@@ -662,7 +662,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Gobernación del Quindío',
-      nit: '890000381',
+      nit: '890001639',
       municipio: 'Armenia',
       departamento: 'Quindío',
       category: 'Gobernación Departamental',
@@ -678,7 +678,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Gobernación del Huila',
-      nit: '891180000',
+      nit: '800103913',
       municipio: 'Neiva',
       departamento: 'Huila',
       category: 'Gobernación Departamental',
@@ -686,7 +686,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Gobernación del Meta',
-      nit: '892099380',
+      nit: '892000148',
       municipio: 'Villavicencio',
       departamento: 'Meta',
       category: 'Gobernación Departamental',
@@ -694,7 +694,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Gobernación de Norte de Santander',
-      nit: '890501434',
+      nit: '800103927',
       municipio: 'Cúcuta',
       departamento: 'Norte de Santander',
       category: 'Gobernación Departamental',
@@ -710,7 +710,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Gobernación del Cauca',
-      nit: '891500761',
+      nit: '891580016',
       municipio: 'Popayán',
       departamento: 'Cauca',
       category: 'Gobernación Departamental',
@@ -718,7 +718,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Gobernación del Chocó',
-      nit: '891680011',
+      nit: '891680010',
       municipio: 'Quibdó',
       departamento: 'Chocó',
       category: 'Gobernación Departamental',
@@ -742,7 +742,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Gobernación de Caquetá',
-      nit: '891190000',
+      nit: '800091594',
       municipio: 'Florencia',
       departamento: 'Caquetá',
       category: 'Gobernación Departamental',
@@ -758,7 +758,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Gobernación de Amazonas',
-      nit: '899999037',
+      nit: '899999336',
       municipio: 'Leticia',
       departamento: 'Amazonas',
       category: 'Gobernación Departamental',
@@ -766,7 +766,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Gobernación de Guainía',
-      nit: '892099217',
+      nit: '892099149',
       municipio: 'Inírida',
       departamento: 'Guainía',
       category: 'Gobernación Departamental',
@@ -774,7 +774,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Gobernación de Guaviare',
-      nit: '800103913',
+      nit: '800103196',
       municipio: 'San José del Guaviare',
       departamento: 'Guaviare',
       category: 'Gobernación Departamental',
@@ -782,7 +782,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Gobernación de Vaupés',
-      nit: '892099270',
+      nit: '845000021',
       municipio: 'Mitú',
       departamento: 'Vaupés',
       category: 'Gobernación Departamental',
@@ -790,7 +790,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Gobernación de Vichada',
-      nit: '892099269',
+      nit: '800094067',
       municipio: 'Puerto Carreño',
       departamento: 'Vichada',
       category: 'Gobernación Departamental',
@@ -798,7 +798,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Gobernación de San Andrés y Providencia',
-      nit: '892400030',
+      nit: '892400038',
       municipio: 'San Andrés',
       departamento: 'Archipiélago de San Andrés, Providencia y Santa Catalina',
       category: 'Gobernación Departamental',
@@ -982,7 +982,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Ministerio de Igualdad y Equidad',
-      nit: '901692298',
+      nit: '901733502',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Ministerio',
@@ -1110,7 +1110,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'USPEC - Unidad de Servicios Penitenciarios y Carcelarios',
-      nit: '900500018',
+      nit: '900523392',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Unidad Nacional',
@@ -1198,7 +1198,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Corporación Autónoma Regional de Cundinamarca - CAR',
-      nit: '899999089',
+      nit: '899999062',
       municipio: 'Bogotá',
       departamento: 'Cundinamarca',
       category: 'Corporación Autónoma',
@@ -1206,7 +1206,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Corporación Autónoma Regional del Valle del Cauca - CVC',
-      nit: '890399006',
+      nit: '890399002',
       municipio: 'Cali',
       departamento: 'Valle del Cauca',
       category: 'Corporación Autónoma',
@@ -1214,7 +1214,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Corporación Autónoma Regional del Centro de Antioquia - Corantioquia',
-      nit: '811000740',
+      nit: '811000231',
       municipio: 'Medellín',
       departamento: 'Antioquia',
       category: 'Corporación Autónoma',
@@ -1230,7 +1230,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Corporación Autónoma Regional de La Guajira - Corpoguajira',
-      nit: '892115008',
+      nit: '892115314',
       municipio: 'Riohacha',
       departamento: 'La Guajira',
       category: 'Corporación Autónoma',
@@ -1238,7 +1238,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Corporación Autónoma Regional de Santander - CAS',
-      nit: '804000300',
+      nit: '804000292',
       municipio: 'San Gil',
       departamento: 'Santander',
       category: 'Corporación Autónoma',
@@ -1246,7 +1246,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Corporación Autónoma Regional para la Defensa de la Meseta de Bucaramanga - CDMB',
-      nit: '890201216',
+      nit: '890201573',
       municipio: 'Bucaramanga',
       departamento: 'Santander',
       category: 'Corporación Autónoma',
@@ -1286,7 +1286,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'TRANSMILENIO S.A.',
-      nit: '830067272',
+      nit: '830063506',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Empresa de Transporte',
@@ -1302,7 +1302,7 @@ class ColombiaEntitiesDatabase {
     ),
     EntidadCatalogo(
       name: 'Empresa Metro de Bogotá S.A.',
-      nit: '901037882',
+      nit: '901038962',
       municipio: 'Bogotá',
       departamento: 'Distrito Capital de Bogotá',
       category: 'Empresa de Transporte',

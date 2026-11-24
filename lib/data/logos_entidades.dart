@@ -323,5 +323,408 @@ class LogosEntidades {
       nits: ['892301483'],
       nombres: ['CORPOCESAR'],
     ),
+    // Ciudades principales y sus departamentos (NIT confirmados en SECOP II).
+    LogoEntidad(
+      archivo: 'barranquilla.png',
+      nits: ['890102018'],
+      nombres: [
+        'DISTRITO ESPECIAL INDUSTRIAL Y PORTUARIO DE BARRANQUILLA',
+        'ALCALDIA DE BARRANQUILLA',
+        'ALCALDIA DISTRITAL DE BARRANQUILLA',
+      ],
+    ),
+    LogoEntidad(
+      archivo: 'atlantico.png',
+      nits: ['890102006'],
+      nombres: ['GOBERNACION DEL ATLANTICO', 'DEPARTAMENTO DEL ATLANTICO'],
+    ),
+    LogoEntidad(
+      archivo: 'bucaramanga.png',
+      nits: ['890201222'],
+      nombres: ['MUNICIPIO DE BUCARAMANGA', 'ALCALDIA DE BUCARAMANGA'],
+    ),
+    LogoEntidad(
+      archivo: 'santander.png',
+      nits: ['890201235'],
+      nombres: ['GOBERNACION DE SANTANDER', 'DEPARTAMENTO DE SANTANDER'],
+    ),
+    LogoEntidad(
+      archivo: 'antioquia.png',
+      nits: ['890900286'],
+      nombres: ['GOBERNACION DE ANTIOQUIA', 'DEPARTAMENTO DE ANTIOQUIA'],
+    ),
+    LogoEntidad(
+      archivo: 'cundinamarca.png',
+      nits: ['899999114'],
+      nombres: ['GOBERNACION DE CUNDINAMARCA', 'DEPARTAMENTO DE CUNDINAMARCA'],
+    ),
+    LogoEntidad(
+      archivo: 'transmilenio.png',
+      nits: ['830063506'],
+      nombres: ['TRANSMILENIO'],
+    ),
+    LogoEntidad(
+      archivo: 'metro_bogota.png',
+      nits: ['901038962'],
+      nombres: ['METRO DE BOGOTA'],
+    ),
+    LogoEntidad(
+      archivo: 'unal.png',
+      nits: ['899999063'],
+      nombres: ['UNIVERSIDAD NACIONAL DE COLOMBIA'],
+    ),
+    // Empresas, universidades y áreas metropolitanas (NIT confirmados en SECOP).
+    LogoEntidad(
+      archivo: 'idu.png',
+      nits: ['899999081'],
+      nombres: ['INSTITUTO DE DESARROLLO URBANO - IDU'],
+    ),
+    LogoEntidad(
+      archivo: 'epm.png',
+      nits: ['890904996'],
+      nombres: ['EMPRESAS PUBLICAS DE MEDELLIN'],
+    ),
+    LogoEntidad(
+      archivo: 'uis.png',
+      nits: ['890201213'],
+      nombres: ['UNIVERSIDAD INDUSTRIAL DE SANTANDER'],
+    ),
+    LogoEntidad(
+      archivo: 'upc.png',
+      nits: ['892300285'],
+      nombres: ['UNIVERSIDAD POPULAR DEL CESAR'],
+    ),
+    LogoEntidad(
+      archivo: 'emdupar.png',
+      nits: ['892300548'],
+      nombres: ['EMDUPAR'],
+    ),
+    LogoEntidad(
+      archivo: 'amb.png',
+      nits: ['890210581'],
+      nombres: ['AREA METROPOLITANA DE BUCARAMANGA'],
+    ),
+    LogoEntidad(
+      archivo: 'area_valle_aburra.png',
+      nits: ['890984423'],
+      nombres: ['AREA METROPOLITANA DEL VALLE DE ABURRA'],
+    ),
+    // Departamentos y capitales (escudos de Wikidata P94, NIT confirmados en SECOP).
+    LogoEntidad(
+      archivo: 'amazonas.png',
+      nits: ['899999336'],
+      nombres: [
+        'GOBERNACION DEL AMAZONAS',
+        'GOBERNACION DE AMAZONAS',
+        'DEPARTAMENTO DEL AMAZONAS',
+      ],
+    ),
+    LogoEntidad(
+      archivo: 'arauca.png',
+      nits: ['800102838'],
+      nombres: [
+        'DEPARTAMENTO DEL ARAUCA',
+        'GOBERNACION DE ARAUCA',
+        'GOBERNACION DEL ARAUCA',
+      ],
+    ),
+    LogoEntidad(
+      archivo: 'san_andres.png',
+      nits: ['892400038'],
+      nombres: [
+        'DEPARTAMENTO ARCHIPIELAGO DE SAN ANDRES',
+        'GOBERNACION DE SAN ANDRES',
+      ],
+    ),
+    LogoEntidad(
+      archivo: 'bolivar.png',
+      nits: ['890480059'],
+      nombres: ['GOBERNACION DE BOLIVAR', 'DEPARTAMENTO DE BOLIVAR'],
+    ),
+    LogoEntidad(
+      archivo: 'boyaca.png',
+      nits: ['891800498'],
+      nombres: ['GOBERNACION DE BOYACA', 'DEPARTAMENTO DE BOYACA'],
+    ),
+    LogoEntidad(
+      archivo: 'caldas.png',
+      nits: ['890801052'],
+      nombres: ['GOBERNACION DE CALDAS', 'DEPARTAMENTO DE CALDAS'],
+    ),
+    LogoEntidad(
+      archivo: 'caqueta.png',
+      nits: ['800091594'],
+      nombres: [
+        'GOBERNACION DEL CAQUETA',
+        'GOBERNACION DE CAQUETA',
+        'DEPARTAMENTO DEL CAQUETA',
+      ],
+    ),
+    LogoEntidad(
+      archivo: 'casanare.png',
+      nits: ['892099216'],
+      nombres: [
+        'GOBERNACION DEL CASANARE',
+        'GOBERNACION DE CASANARE',
+        'DEPARTAMENTO DEL CASANARE',
+      ],
+    ),
+    LogoEntidad(
+      archivo: 'cauca.png',
+      nits: ['891580016'],
+      nombres: ['GOBERNACION DEL CAUCA', 'DEPARTAMENTO DEL CAUCA'],
+    ),
+    LogoEntidad(
+      archivo: 'choco.png',
+      nits: ['891680010'],
+      nombres: ['GOBERNACION DEL CHOCO', 'DEPARTAMENTO DEL CHOCO'],
+    ),
+    LogoEntidad(
+      archivo: 'cordoba.png',
+      nits: ['800103935'],
+      nombres: ['GOBERNACION DE CORDOBA', 'DEPARTAMENTO DE CORDOBA'],
+    ),
+    LogoEntidad(
+      archivo: 'guainia.png',
+      nits: ['892099149'],
+      nombres: [
+        'GOBERNACION DEL GUAINIA',
+        'GOBERNACION DE GUAINIA',
+        'DEPARTAMENTO DEL GUAINIA',
+      ],
+    ),
+    LogoEntidad(
+      archivo: 'guaviare.png',
+      nits: ['800103196'],
+      nombres: [
+        'GOBERNACION DEL GUAVIARE',
+        'GOBERNACION DE GUAVIARE',
+        'DEPARTAMENTO DEL GUAVIARE',
+      ],
+    ),
+    LogoEntidad(
+      archivo: 'huila.png',
+      nits: ['800103913'],
+      nombres: ['GOBERNACION DEL HUILA', 'DEPARTAMENTO DEL HUILA'],
+    ),
+    LogoEntidad(
+      archivo: 'la_guajira.png',
+      nits: ['892115015'],
+      nombres: ['GOBERNACION DE LA GUAJIRA', 'DEPARTAMENTO DE LA GUAJIRA'],
+    ),
+    LogoEntidad(
+      archivo: 'magdalena.png',
+      nits: ['800103920'],
+      nombres: ['GOBERNACION DEL MAGDALENA', 'DEPARTAMENTO DEL MAGDALENA'],
+    ),
+    LogoEntidad(
+      archivo: 'meta.png',
+      nits: ['892000148'],
+      nombres: ['GOBERNACION DEL META', 'DEPARTAMENTO DEL META'],
+    ),
+    LogoEntidad(
+      archivo: 'narino.png',
+      nits: ['800103923'],
+      nombres: ['GOBERNACION DE NARIÑO', 'DEPARTAMENTO DE NARIÑO'],
+    ),
+    LogoEntidad(
+      archivo: 'norte_santander.png',
+      nits: ['800103927'],
+      nombres: [
+        'GOBERNACION NORTE DE SANTANDER',
+        'GOBERNACION DE NORTE DE SANTANDER',
+        'GOBERNACION DEL NORTE DE SANTANDER',
+        'DEPARTAMENTO NORTE DE SANTANDER',
+        'DEPARTAMENTO DE NORTE DE SANTANDER',
+      ],
+    ),
+    LogoEntidad(
+      archivo: 'putumayo.png',
+      nits: ['800094164'],
+      nombres: [
+        'GOBERNACION DEL PUTUMAYO',
+        'DEPARTAMENTO DEL PUTUMAYO',
+        'GOBERNACION DE PUTUMAYO',
+      ],
+    ),
+    LogoEntidad(
+      archivo: 'quindio.png',
+      nits: ['890001639'],
+      nombres: ['GOBERNACION DEL QUINDIO', 'DEPARTAMENTO DEL QUINDIO'],
+    ),
+    LogoEntidad(
+      archivo: 'risaralda.png',
+      nits: ['891480085'],
+      nombres: ['GOBERNACION DE RISARALDA', 'DEPARTAMENTO DE RISARALDA'],
+    ),
+    LogoEntidad(
+      archivo: 'sucre.png',
+      nits: ['892280021'],
+      nombres: ['GOBERNACION DE SUCRE', 'DEPARTAMENTO DE SUCRE'],
+    ),
+    LogoEntidad(
+      archivo: 'tolima.png',
+      nits: ['800113672'],
+      nombres: ['GOBERNACION DEL TOLIMA', 'DEPARTAMENTO DEL TOLIMA'],
+    ),
+    LogoEntidad(
+      archivo: 'valle_cauca.png',
+      nits: ['890399029'],
+      nombres: ['GOBERNACION DEL VALLE', 'DEPARTAMENTO DEL VALLE DEL CAUCA'],
+    ),
+    LogoEntidad(
+      archivo: 'vaupes.png',
+      nits: ['845000021'],
+      nombres: [
+        'GOBERNACION DEL VAUPES',
+        'GOBERNACION DE VAUPES',
+        'DEPARTAMENTO DEL VAUPES',
+      ],
+    ),
+    LogoEntidad(
+      archivo: 'vichada.png',
+      nits: ['800094067'],
+      nombres: [
+        'GOBERNACION DEL VICHADA',
+        'GOBERNACION DE VICHADA',
+        'DEPARTAMENTO DE VICHADA',
+        'DEPARTAMENTO DEL VICHADA',
+      ],
+    ),
+    LogoEntidad(
+      archivo: 'leticia.png',
+      nits: ['899999302'],
+      nombres: ['MUNICIPIO DE LETICIA', 'ALCALDIA DE LETICIA'],
+    ),
+    LogoEntidad(
+      archivo: 'arauca_municipio.png',
+      nits: ['800102504'],
+      nombres: ['ALCALDIA MUNICIPIO DE ARAUCA', 'ALCALDIA DE ARAUCA'],
+    ),
+    LogoEntidad(
+      archivo: 'cartagena.png',
+      nits: ['890480184'],
+      nombres: [
+        'DISTRITO TURISTICO Y CULTURAL DE CARTAGENA',
+        'ALCALDIA DE CARTAGENA',
+        'ALCALDIA MAYOR DE CARTAGENA',
+        'ALCALDIA DISTRITAL DE CARTAGENA',
+      ],
+    ),
+    LogoEntidad(
+      archivo: 'tunja.png',
+      nits: ['891800846'],
+      nombres: ['ALCALDIA DE TUNJA', 'ALCALDIA MAYOR DE TUNJA'],
+    ),
+    LogoEntidad(
+      archivo: 'manizales.png',
+      nits: ['890801053'],
+      nombres: ['ALCALDIA DE MANIZALES'],
+    ),
+    LogoEntidad(
+      archivo: 'florencia.png',
+      nits: ['800095728'],
+      nombres: ['ALCALDIA DE FLORENCIA (CAQUETA)', 'FLORENCIA CAQUETA'],
+    ),
+    LogoEntidad(
+      archivo: 'yopal.png',
+      nits: ['891855017'],
+      nombres: ['ALCALDIA DE YOPAL'],
+    ),
+    LogoEntidad(
+      archivo: 'popayan.png',
+      nits: ['891580006'],
+      nombres: ['ALCALDIA DE POPAYAN'],
+    ),
+    LogoEntidad(
+      archivo: 'quibdo.png',
+      nits: ['891680011'],
+      nombres: ['ALCALDIA MUNICIPIO DE QUIBDO', 'ALCALDIA DE QUIBDO'],
+    ),
+    LogoEntidad(
+      archivo: 'monteria.png',
+      nits: ['800096734'],
+      nombres: ['ALCALDIA DE MONTERIA'],
+    ),
+    LogoEntidad(
+      archivo: 'san_jose_guaviare.png',
+      nits: ['800103180'],
+      nombres: ['ALCALDIA MUNICIPAL DE SAN JOSE DEL GUAVIARE'],
+    ),
+    LogoEntidad(
+      archivo: 'neiva.png',
+      nits: ['891180009'],
+      nombres: ['ALCALDIA DE NEIVA'],
+    ),
+    LogoEntidad(
+      archivo: 'riohacha.png',
+      nits: ['892115007'],
+      nombres: [
+        'ALCALDIA DISTRITO DE RIOHACHA',
+        'ALCALDIA DISTRITAL DE RIOHACHA',
+        'ALCALDIA DE RIOHACHA',
+      ],
+    ),
+    LogoEntidad(
+      archivo: 'santa_marta.png',
+      nits: ['891780009'],
+      nombres: ['ALCALDIA DISTRITAL DE SANTA MARTA', 'ALCALDIA DE SANTA MARTA'],
+    ),
+    LogoEntidad(
+      archivo: 'villavicencio.png',
+      nits: ['892099324'],
+      nombres: [
+        'ALCALDIA MUNICIPIO DE VILLAVICENCIO',
+        'ALCALDIA DE VILLAVICENCIO',
+      ],
+    ),
+    LogoEntidad(
+      archivo: 'pasto.png',
+      nits: ['891280000'],
+      nombres: ['ALCALDIA DE PASTO'],
+    ),
+    LogoEntidad(
+      archivo: 'cucuta.png',
+      nits: ['890501434'],
+      nombres: ['MUNICIPIO DE SAN JOSE DE CUCUTA', 'ALCALDIA DE CUCUTA'],
+    ),
+    LogoEntidad(
+      archivo: 'mocoa.png',
+      nits: ['800102891'],
+      nombres: ['ALCALDIA DE MOCOA'],
+    ),
+    LogoEntidad(
+      archivo: 'armenia.png',
+      nits: ['890000464'],
+      nombres: [
+        'MUNICIPIO DE ARMENIA QUINDIO',
+        'ALCALDIA DE ARMENIA QUINDIO',
+        'ALCALDIA DE ARMENIA',
+      ],
+    ),
+    LogoEntidad(
+      archivo: 'pereira.png',
+      nits: ['891480030'],
+      nombres: ['MUNICIPIO DE PEREIRA', 'ALCALDIA DE PEREIRA'],
+    ),
+    LogoEntidad(
+      archivo: 'ibague.png',
+      nits: ['800113389'],
+      nombres: ['MUNICIPIO DE IBAGUE', 'ALCALDIA DE IBAGUE'],
+    ),
+    LogoEntidad(
+      archivo: 'cali.png',
+      nits: ['890399011'],
+      nombres: [
+        'SANTIAGO DE CALI DISTRITO ESPECIAL',
+        'ALCALDIA DE SANTIAGO DE CALI',
+        'ALCALDIA DE CALI',
+      ],
+    ),
+    LogoEntidad(
+      archivo: 'mitu.png',
+      nits: ['892099233'],
+      nombres: ['ALCALDIA DE MITU'],
+    ),
   ];
 }
