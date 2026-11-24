@@ -256,6 +256,9 @@ service cloud.firestore {
       allow create: if isOwner(uid) &&
           request.resource.data.uid == uid &&
           rolesInicialesValidos(request.resource.data) &&
+          request.resource.data.get('documento', '') == '' &&
+          request.resource.data.get('documentoNormalizado', '') == '' &&
+          !('cedulaVinculada' in request.resource.data) &&
           request.resource.data.get('pagoWompiActivo', false) == false &&
           request.resource.data.get('ultimoPagoWompi', null) == null;
 
@@ -265,12 +268,8 @@ service cloud.firestore {
           (!('email' in resource.data) ||
            resource.data.email == '' ||
            request.resource.data.email == resource.data.email) &&
-          (!('documento' in resource.data) ||
-           resource.data.documento == '' ||
-           request.resource.data.documento == resource.data.documento) &&
-          (!('documentoNormalizado' in resource.data) ||
-           resource.data.documentoNormalizado == '' ||
-           request.resource.data.documentoNormalizado == resource.data.documentoNormalizado) &&
+          !request.resource.data.diff(resource.data).affectedKeys()
+             .hasAny(['documento', 'documentoNormalizado', 'cedulaVinculada']) &&
           (!('aceptacion_datos' in resource.data) ||
            resource.data.aceptacion_datos != true ||
            request.resource.data.aceptacion_datos == true) &&
@@ -316,7 +315,7 @@ service cloud.firestore {
           !exists(/databases/$(database)/documents/indices_unicidad/$(hash)) &&
           request.resource.data.keys().hasOnly(['tipo', 'uid', 'creado_en']) &&
           request.resource.data.uid == request.auth.uid &&
-          request.resource.data.tipo in ['email', 'doc'];
+          request.resource.data.tipo == 'email';
       allow update, delete: if false;
     }
 

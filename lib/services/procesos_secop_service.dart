@@ -1,4 +1,5 @@
 import '../utils/nit.dart';
+import '../data/colombia_entities_database.dart';
 import 'datos_abiertos.dart';
 
 /// Estados por los que se puede filtrar un proceso de SECOP II.
@@ -259,6 +260,9 @@ class ProcesosSecopService {
     FiltroEstadoProceso estado = FiltroEstadoProceso.todos,
     PeriodoProcesos periodo = PeriodoProcesos.todo,
     CursorProcesos desde = const CursorProcesos(),
+    String nitEntidad = '',
+    String departamento = '',
+    String entidad = '',
   }) async {
     const fecha = 'fecha_de_publicacion_del';
     final consulta = texto.trim();
@@ -298,7 +302,12 @@ class ProcesosSecopService {
         'descripci_n_del_procedimiento',
       ],
     };
-    final nits = buscaNit && campo != CampoBusquedaProceso.referencia
+    final entidadCatalogo = campo == CampoBusquedaProceso.referencia
+        ? null
+        : ColombiaEntitiesDatabase.entidadExacta(consulta);
+    final nits = entidadCatalogo != null
+        ? Nit.formasNumericas(entidadCatalogo.nit)
+        : buscaNit && campo != CampoBusquedaProceso.referencia
         ? Nit.formasNumericas(nit)
         : const <String>[];
     final nitCond = nits.isNotEmpty
@@ -325,7 +334,8 @@ class ProcesosSecopService {
     final termino = [
       ?idCond,
       ?nitCond,
-      if (porPalabras.isNotEmpty &&
+      if (entidadCatalogo == null &&
+          porPalabras.isNotEmpty &&
           !(buscaNit && campo == CampoBusquedaProceso.entidad) &&
           idCond == null)
         '($porPalabras)',
@@ -342,7 +352,23 @@ class ProcesosSecopService {
       ahora.minute,
     );
     final condicion = estado.condicion;
+    final entidadBuscada = entidad.trim();
+    final nitBuscado =
+        ColombiaEntitiesDatabase.entidadExacta(entidadBuscada)?.nit ??
+        (RegExp(r'^\d[\d .-]{7,13}$').hasMatch(entidadBuscada)
+            ? entidadBuscada
+            : '');
+    final alcance = Nit.formasNumericas(
+      nitEntidad.isNotEmpty ? nitEntidad : nitBuscado,
+    );
     final where = [
+      if (alcance.isNotEmpty)
+        'nit_entidad in (${alcance.map(_literal).join(',')})',
+      if (alcance.isEmpty)
+        for (final palabra in palabras(entidadBuscada))
+          "upper(entidad) LIKE '%${_patron(palabra)}%'",
+      if (departamento.trim().isNotEmpty)
+        'departamento_entidad = ${_literal(departamento.trim())}',
       if (termino.isNotEmpty) '($termino)',
       if (condicion != null) '($condicion)',
       if (estado == FiltroEstadoProceso.abiertos)
@@ -400,7 +426,10 @@ class ProcesosSecopService {
         '',
       );
       if (nits.contains(nitFila)) return true;
-      if (buscaNit && campo == CampoBusquedaProceso.entidad) return false;
+      if (entidadCatalogo != null ||
+          (buscaNit && campo == CampoBusquedaProceso.entidad)) {
+        return false;
+      }
       if (referenciaCompleta) {
         final partes = _norm('${fila['referencia_del_proceso'] ?? ''}')
             .split(RegExp(r'[^a-z0-9ñ]+'));
@@ -548,86 +577,5 @@ class ProcesosSecopService {
       ),
     );
     return res;
-  }
-
-  /// Busca procesos. [texto] usa la búsqueda de texto completo de Datos
-  /// Abiertos (rápida) y luego se exige que estén todas las palabras.
-  /// [entidad] es un NIT o parte del nombre de la entidad.
-  static Future<List<ProcesoSecop>> buscar({
-    String texto = '',
-    String entidad = '',
-    FiltroEstadoProceso estado = FiltroEstadoProceso.todos,
-    PeriodoProcesos periodo = PeriodoProcesos.anio,
-    String nit = '',
-    String departamento = '',
-  }) async {
-    final where = <String>[];
-    // Desde el perfil de una entidad: su NIT y, si se eligió, su regional.
-    final nitLimpio = nit.replaceAll(RegExp(r'[^0-9]'), '');
-    if (nitLimpio.length >= 8) {
-      where.add(
-        "nit_entidad in (${Nit.formasNumericas(nitLimpio).map((f) => "'$f'").join(',')})",
-      );
-    }
-    if (departamento.trim().isNotEmpty) {
-      where.add(
-        "departamento_entidad = '${departamento.trim().replaceAll("'", "''")}'",
-      );
-    }
-    if (periodo.dias > 0) {
-      final desde = DateTime.now().subtract(Duration(days: periodo.dias));
-      where.add(
-        "fecha_de_publicacion_del >= '${desde.toIso8601String().split('T').first}T00:00:00.000'",
-      );
-    }
-    final cond = estado.condicion;
-    if (cond != null) where.add(cond);
-
-    final ent = entidad.trim();
-    final digitos = ent.replaceAll(RegExp(r'[^0-9]'), '');
-    final palabrasEntidad = <String>[];
-    if (digitos.length >= 8 &&
-        digitos.length == ent.replaceAll(RegExp(r'[\s.\-]'), '').length) {
-      where.add(
-        "nit_entidad in (${Nit.formasNumericas(digitos).map((f) => "'$f'").join(',')})",
-      );
-    } else if (ent.isNotEmpty) {
-      palabrasEntidad.addAll(palabras(ent));
-    }
-
-    final buscadas = palabras(texto);
-    final params = <String, String>{
-      r'$limit': '600',
-      if (where.isNotEmpty) r'$where': where.join(' AND '),
-    };
-    final q = [...buscadas, ...palabrasEntidad].join(' ');
-    if (q.isNotEmpty) {
-      params[r'$q'] = q;
-    } else {
-      // Sin texto, los más recientes primero.
-      params[r'$order'] = 'fecha_de_publicacion_del DESC';
-      params[r'$limit'] = '300';
-    }
-    final filas = await DatosAbiertos.filas(
-      _procesos,
-      params,
-      timeout: const Duration(seconds: 15),
-    );
-    final filtradas = [
-      for (final f in filas)
-        if (contiene(f, buscadas) &&
-            (palabrasEntidad.isEmpty ||
-                palabrasEntidad.every(_norm('${f['entidad'] ?? ''}').contains)))
-          f,
-    ];
-    final procesos = agrupar(filtradas);
-    // "Abiertos": solo los que de verdad siguen recibiendo (la fase más
-    // reciente abierta y con el plazo vigente).
-    if (estado == FiltroEstadoProceso.abiertos) {
-      return procesos
-          .where((p) => p.tipo == TipoEstadoProceso.abierto)
-          .toList();
-    }
-    return procesos;
   }
 }

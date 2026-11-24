@@ -15,6 +15,29 @@ void main() {
   tearDown(() => DatosAbiertos.clientePruebas = null);
 
   test(
+    'el PDF de contratistas agrupa fichas de personas en una hoja',
+    () async {
+      final pdf = await ReporteSeleccionContratistas.generar([
+        for (final nombre in ['Ana Pérez', 'Servicios de Ingeniería'])
+          (
+            nombre: nombre,
+            documento: '123456789',
+            tipo: 'Contratista',
+            contratos: 7,
+            valor: 2500000.0,
+            entidades: 2,
+            ultimaFirma: '20/11/2026',
+            alcance: 'Emdupar',
+          ),
+      ]);
+      final lectura = latin1.decode(pdf);
+      expect(lectura, startsWith('%PDF-'));
+      expect(lectura, contains('Reporte de contratistas seleccionados'));
+      expect(RegExp(r'/Type\s*/Page\b').allMatches(lectura), hasLength(1));
+    },
+  );
+
+  test(
     'la ficha completa conserva objetos largos y campos del expediente',
     () async {
       final objeto = List.filled(90, 'Objeto contractual íntegro').join(' ');

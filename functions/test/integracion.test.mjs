@@ -27,7 +27,7 @@ test('alta, vigencia de Firestore, corte, pago anticipado y confirmación idempo
       const { uid } = usuario;
       await db.collection('usuarios').doc(uid).set({
         uid, email, rolInicialRegistro: rol, rolSolicitadoRegistro: rol,
-        documentoNormalizado: documento, rolesActivos: ['contratista'],
+        documentoNormalizado: documento, cedulaVinculada: true, rolesActivos: ['contratista'],
       });
       const huella = sha256(`ContrataLegal::SECOP::AppSec::2026::v1::uniqueness::doc::${documento}`);
       await db.collection('indices_unicidad').doc(huella).set({ uid, tipo: 'doc' });

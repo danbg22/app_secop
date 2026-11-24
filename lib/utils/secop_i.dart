@@ -5,6 +5,10 @@ import 'anios_secop.dart';
 class SecopI {
   static const String dataset = 'f789-7hwg';
 
+  /// El mismo conjunto incluye convocatorias y contratos. Una firma
+  /// registrada identifica los contratos en las consultas de contratación.
+  static const filtroContratos = 'fecha_de_firma_del_contrato is not null';
+
   /// Filtro por año de firma. `anno_firma_contrato` es texto e incluye
   /// "Sin Firma" y años inválidos (2099...), por eso se usa un rango cerrado.
   static String filtroAnio([String? anio]) {
@@ -37,17 +41,34 @@ class SecopI {
 
     alias('id_contrato', ['uid', 'numero_de_constancia']);
     alias('proceso_de_compra', ['numero_de_proceso', 'numero_de_constancia']);
-    alias('referencia_del_contrato', ['numero_de_contrato', 'numero_de_proceso']);
+    alias('referencia_del_contrato', [
+      'numero_de_contrato',
+      'numero_de_proceso',
+    ]);
     alias('proveedor_adjudicado', ['nom_razon_social_contratista']);
     alias('documento_proveedor', ['identificacion_del_contratista']);
     alias('tipodocproveedor', ['tipo_identifi_del_contratista']);
     alias('valor_del_contrato', ['cuantia_contrato']);
-    alias('fecha_de_firma', ['fecha_de_firma_del_contrato', 'fecha_ini_ejec_contrato']);
-    alias('fecha_de_inicio_del_contrato', ['fecha_ini_ejec_contrato', 'fecha_de_firma_del_contrato']);
+    alias('fecha_de_firma', [
+      'fecha_de_firma_del_contrato',
+      'fecha_ini_ejec_contrato',
+    ]);
+    alias('fecha_de_inicio_del_contrato', [
+      'fecha_ini_ejec_contrato',
+      'fecha_de_firma_del_contrato',
+    ]);
     alias('fecha_de_fin_del_contrato', ['fecha_fin_ejec_contrato']);
     alias('nit_entidad', ['nit_de_la_entidad']);
-    alias('descripcion_del_proceso', ['detalle_del_objeto_a_contratar', 'objeto_a_contratar']);
-    alias('objeto_del_contrato', ['objeto_a_contratar', 'detalle_del_objeto_a_contratar']);
+    alias('dependencia', ['nombre_sub_unidad_ejecutora']);
+    alias('descripcion_del_proceso', [
+      'detalle_del_objeto_a_contratar',
+      'objeto_a_contratar',
+    ]);
+    alias('objeto_del_contrato', [
+      'objeto_del_contrato_a_la',
+      'detalle_del_objeto_a_contratar',
+      'objeto_a_contratar',
+    ]);
     alias('estado_contrato', ['estado_del_proceso']);
     alias('departamento', ['departamento_entidad']);
     alias('ciudad', ['municipio_entidad']);

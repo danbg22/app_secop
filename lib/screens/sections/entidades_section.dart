@@ -1,4 +1,7 @@
 import 'dart:async';
+
+import '../../widgets/archivo_entidad_secop_i.dart';
+
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -2131,6 +2134,20 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
             )
           else
             Divider(height: 1, color: Cristal.borde),
+          if (entities.isNotEmpty && !_isEmptySearch)
+            if (ColombiaEntitiesDatabase.entidadExacta(_searchController.text)
+                case final entidad?)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                child: ArchivoEntidadSecopI(
+                  key: ValueKey(entidad.nit),
+                  nit: entidad.nit,
+                  nombre: entidad.name,
+                ),
+              ),
           if (entities.any((e) => e.nivel != null)) _buildLeyendaNiveles(),
           if (entities.isEmpty &&
               !_isLoadingLive &&
@@ -2222,7 +2239,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
               ),
               SizedBox(height: 4),
               Text(
-                'Esta entidad no registra contratos en SECOP II. Estos son procesos que convocó en SECOP I: muestran la cuantía estimada, no el contratista ni el valor del contrato firmado.',
+                'SECOP I reúne convocatorias y registros históricos de contratos. Abre el archivo para consultar el estado y los campos disponibles.',
                 style: TextStyle(color: Cristal.ambar, fontSize: 12.5),
               ),
             ],

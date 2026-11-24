@@ -51,7 +51,36 @@ class ColombiaEntitiesDatabase {
     ];
   }
 
+  static EntidadCatalogo? entidadExacta(String termino) {
+    final texto = _normalizar(termino);
+    if (texto.length < 2) return null;
+    final esNit = RegExp(r'^\d{8,10}$').hasMatch(texto);
+    for (final entidad in allEntities) {
+      if ((esNit &&
+              (entidad.nit == texto ||
+                  (texto.length == 10 &&
+                      entidad.nit == texto.substring(0, 9)))) ||
+          _normalizar(entidad.name) == texto ||
+          entidad.secopKeywords.any((sigla) => _normalizar(sigla) == texto)) {
+        return entidad;
+      }
+    }
+    return null;
+  }
+
   static const List<EntidadCatalogo> allEntities = [
+    EntidadCatalogo(
+      name: 'Empresa de Servicios Públicos de Valledupar Emdupar S.A. E.S.P.',
+      nit: '892300548',
+      municipio: 'Valledupar',
+      departamento: 'Cesar',
+      category: 'Empresa de Servicios Públicos',
+      secopKeywords: [
+        'EMDUPAR',
+        'EMDUPAR S.A. E.S.P.',
+        'EMPRESA DE SERVICIOS PUBLICOS DE VALLEDUPAR',
+      ],
+    ),
     EntidadCatalogo(
       name: 'Universidad Industrial de Santander - UIS',
       nit: '890201213',

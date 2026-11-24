@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/colombia_secop_catalog.dart';
+import '../../data/colombia_entities_database.dart';
+import '../../utils/nit.dart';
 import '../../services/consulta_natural_contratos.dart';
 import '../../services/favorites_service.dart';
 import '../../services/security_service.dart';
@@ -666,12 +668,19 @@ class _ContratosSectionState extends State<ContratosSection> {
   ContractRecord? _parseSecopJsonToRecord(Map<String, dynamic> raw, int index) {
     final double val =
         double.tryParse(raw['valor_del_contrato']?.toString() ?? '0') ?? 0;
-    if (val <= 0) return null;
-
-    final rawContractor = (raw['proveedor_adjudicado'] ?? '').toString().trim();
-    if (rawContractor.isEmpty || rawContractor.toUpperCase() == 'NO DEFINIDO') {
+    if (val <= 0 &&
+        (raw['id_contrato'] ?? raw['referencia_del_contrato'] ?? '')
+            .toString()
+            .trim()
+            .isEmpty) {
       return null;
     }
+
+    final proveedor = (raw['proveedor_adjudicado'] ?? '').toString().trim();
+    final rawContractor =
+        proveedor.isEmpty || proveedor.toUpperCase() == 'NO DEFINIDO'
+        ? 'Contratista sin informar'
+        : proveedor;
 
     final rawDoc = (raw['documento_proveedor'] ?? '').toString().trim();
     final rawTipoDoc = (raw['tipodocproveedor'] ?? '').toString();
@@ -746,7 +755,7 @@ class _ContratosSectionState extends State<ContratosSection> {
     return ContractRecord(
       title: displayTitle,
       processCode: 'Proceso: $refCode',
-      valueFormatted: _formatCop(val),
+      valueFormatted: val > 0 ? _formatCop(val) : 'Sin valor reportado',
       numericValue: val,
       entity: displayEntity,
       department: inferredDepartment,
@@ -1126,6 +1135,10 @@ class _ContratosSectionState extends State<ContratosSection> {
     final clean = SecurityService.sanitizeSoqlToken(entidad, maxLength: 100);
     if (clean.isEmpty) return null;
 
+    final entidadCatalogo = ColombiaEntitiesDatabase.entidadExacta(clean);
+    if (entidadCatalogo != null) {
+      return 'nit_entidad in (${Nit.formasNumericas(entidadCatalogo.nit).join(',')})';
+    }
     final norm = _normalizar(clean);
     final words = norm
         .replaceAll('(', ' ')
@@ -1198,6 +1211,13 @@ class _ContratosSectionState extends State<ContratosSection> {
     for (final group in groups) {
       final digitsOnly = group.replaceAll(RegExp(r'[^0-9]'), '');
       final normGroup = _normalizar(group);
+      final entidad = ColombiaEntitiesDatabase.entidadExacta(group);
+      if (entidad != null) {
+        groupClauses.add(
+          'nit_entidad in (${Nit.formasNumericas(entidad.nit).join(',')})',
+        );
+        continue;
+      }
       final isNumericDoc =
           digitsOnly.length >= 3 &&
           RegExp(r'^[0-9.\-\s]+$').hasMatch(
@@ -1264,6 +1284,13 @@ class _ContratosSectionState extends State<ContratosSection> {
 
     final groupClauses = <String>[];
     for (final group in groups) {
+      final entidad = ColombiaEntitiesDatabase.entidadExacta(group);
+      if (entidad != null) {
+        groupClauses.add(
+          'nit_entidad in (${Nit.formasNumericas(entidad.nit).join(',')})',
+        );
+        continue;
+      }
       final tokens = _extractSearchTokens(group);
       if (tokens.isEmpty) continue;
 
@@ -1357,6 +1384,11 @@ class _ContratosSectionState extends State<ContratosSection> {
     );
 
     for (final group in groups) {
+      final entidad = ColombiaEntitiesDatabase.entidadExacta(group);
+      if (entidad != null &&
+          Nit.formasNumericas(entidad.nit).contains(rawEntityNitDigits)) {
+        return true;
+      }
       final tokens = _extractSearchTokens(group);
       if (tokens.isEmpty) continue;
       bool allGroupTokensMatch = true;
@@ -1478,15 +1510,21 @@ class _ContratosSectionState extends State<ContratosSection> {
           : _initialResultsLimit;
       _ultimoLimite = queryLimit;
 
+      final entidadHistorica = ColombiaEntitiesDatabase.entidadExacta(
+        _selectedEntidad.isNotEmpty ? _selectedEntidad : queryText,
+      );
+
       List<String> buildBaseWhereClauses({
         required bool applyYearFilter,
         required bool requireFechaFirma,
       }) {
         final whereClauses = <String>[
           if (requireFechaFirma) 'fecha_de_firma IS NOT NULL',
-          'valor_del_contrato > 0',
-          "proveedor_adjudicado != 'No Definido'",
-          "documento_proveedor != 'No Definido'",
+          if (entidadHistorica == null) ...[
+            'valor_del_contrato > 0',
+            "proveedor_adjudicado != 'No Definido'",
+            "documento_proveedor != 'No Definido'",
+          ],
         ];
 
         // Filtro por Orden (Nacional, Departamental, Municipal, Corporación Autónoma)
@@ -1566,7 +1604,7 @@ class _ContratosSectionState extends State<ContratosSection> {
             "((fecha_de_firma >= '$_selectedAnio-01-01T00:00:00.000' AND fecha_de_firma <= '$_selectedAnio-12-31T23:59:59.999') OR "
             "(fecha_de_firma IS NULL AND fecha_de_inicio_del_contrato >= '$_selectedAnio-01-01T00:00:00.000' AND fecha_de_inicio_del_contrato <= '$_selectedAnio-12-31T23:59:59.999'))",
           );
-        } else if (_selectedAnio.isEmpty) {
+        } else if (_selectedAnio.isEmpty && entidadHistorica == null) {
           // Cobertura histórica oficial desde 2015 en adelante
           whereClauses.add(
             "(fecha_de_firma >= '2015-01-01T00:00:00.000' OR fecha_de_inicio_del_contrato >= '2015-01-01T00:00:00.000')",
@@ -1846,10 +1884,18 @@ class _ContratosSectionState extends State<ContratosSection> {
         bool applyYearFilter = true,
       }) async {
         try {
-          final whereClauses = <String>[];
-          whereClauses.add(
-            SecopI.filtroAnio(applyYearFilter ? _selectedAnio : null),
-          );
+          final whereClauses = <String>[SecopI.filtroContratos];
+          if (entidadHistorica == null || _selectedAnio.isNotEmpty) {
+            whereClauses.add(
+              SecopI.filtroAnio(applyYearFilter ? _selectedAnio : null),
+            );
+          }
+          if (entidadHistorica != null) {
+            final nits = Nit.formas(entidadHistorica.nit)
+                .map((nit) => "'$nit'")
+                .join(',');
+            whereClauses.add('nit_de_la_entidad in ($nits)');
+          }
 
           if (_selectedDepartamento.isNotEmpty) {
             final safeDep = SecurityService.sanitizeSoqlToken(
@@ -1873,7 +1919,7 @@ class _ContratosSectionState extends State<ContratosSection> {
             }
           }
 
-          if (_selectedEntidad.isNotEmpty) {
+          if (_selectedEntidad.isNotEmpty && entidadHistorica == null) {
             final safeEnt = SecurityService.sanitizeSoqlToken(
               _selectedEntidad,
               maxLength: 60,
@@ -1889,7 +1935,8 @@ class _ContratosSectionState extends State<ContratosSection> {
           // y no terminaba ni en un minuto; con $q tampoco se ordena en el
           // servidor (también lo vuelve lento): se ordena aquí.
           String? textoCompleto;
-          if (queryText.isNotEmpty) {
+          if (queryText.isNotEmpty &&
+              ColombiaEntitiesDatabase.entidadExacta(queryText) == null) {
             final cleanQ = SecurityService.sanitizeSoqlToken(
               queryText,
               maxLength: 80,
@@ -1902,6 +1949,26 @@ class _ContratosSectionState extends State<ContratosSection> {
               );
             } else if (cleanQ.isNotEmpty) {
               textoCompleto = cleanQ;
+            }
+          }
+
+          if (_selectedModalidad.isNotEmpty) {
+            final texto = _normalizar(_selectedModalidad);
+            final clave = const [
+              'DIRECTA',
+              'MINIMA',
+              'SUBASTA',
+              'ABREVIADA',
+              'LICITACION',
+              'MERITOS',
+              'ESPECIAL',
+            ].firstWhere(texto.contains, orElse: () => '');
+            if (clave.isNotEmpty) {
+              final acento = _conTildeComun(clave);
+              whereClauses.add(
+                "(upper(modalidad_de_contratacion) LIKE '%$clave%' OR "
+                "upper(modalidad_de_contratacion) LIKE '%$acento%')",
+              );
             }
           }
 
@@ -1951,10 +2018,11 @@ class _ContratosSectionState extends State<ContratosSection> {
       // (antes se esperaba a SECOP II para empezar); si al final no se
       // necesita, su resultado se descarta.
       final puedeNecesitarSecop1 =
-          interpretacion == null &&
-          (esAnioHistoricoSecop1 ||
-              _selectedAnio.isNotEmpty ||
-              queryText.isNotEmpty);
+          entidadHistorica != null ||
+          (interpretacion == null &&
+              (esAnioHistoricoSecop1 ||
+                  _selectedAnio.isNotEmpty ||
+                  queryText.isNotEmpty));
       final secop1Futuro = puedeNecesitarSecop1 ? fetchSecopIContracts() : null;
 
       var results = await runSoqlQuery(applyYearFilter: true);
@@ -1962,7 +2030,8 @@ class _ContratosSectionState extends State<ContratosSection> {
 
       final necesitaSecop1 =
           puedeNecesitarSecop1 &&
-          (esAnioHistoricoSecop1 ||
+          (entidadHistorica != null ||
+              esAnioHistoricoSecop1 ||
               (_selectedAnio.isNotEmpty && results.length < 20) ||
               (_selectedAnio.isEmpty &&
                   results.length < 60 &&
@@ -2174,7 +2243,7 @@ class _ContratosSectionState extends State<ContratosSection> {
     }
   }
 
-  Widget _casillaReporte(ContractRecord contrato) => CasillaContratoReporte(
+  Widget _casillaReporte(ContractRecord contrato) => CasillaSeleccionReporte(
     seleccion: _seleccionReporte,
     datos: contrato.toSecopMap(),
     referencia: contrato.processCode,
@@ -2685,7 +2754,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Filtros Avanzados · SECOP II',
+                                'Filtros avanzados · SECOP',
                                 style: TextStyle(
                                   color: Cristal.texto,
                                   fontSize: 16,
@@ -2892,7 +2961,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                           sectionCard(
                             number: '2',
                             title: 'Entidad Pública, Sector y Dependencia',
-                            subtitle: 'Selecciona una entidad oficial de SECOP II o segmenta por sector',
+                            subtitle: 'Selecciona una entidad en SECOP o segmenta por sector',
                             icon: Icons.account_balance_outlined,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2931,7 +3000,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                                   children: [
                                     Expanded(
                                       child: Text(
-                                        'Entidad compradora en SECOP II',
+                                        'Entidad compradora',
                                         style: TextStyle(
                                           color: Cristal.texto,
                                           fontSize: 11.5,
@@ -3404,7 +3473,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                             color: Cristal.dorado,
                           ),
                           label: const Text(
-                            'Aplicar filtros y consultar SECOP II',
+                            'Aplicar filtros y consultar SECOP',
                             style: TextStyle(
                               fontSize: 12.5,
                               fontWeight: FontWeight.w700,
@@ -3524,7 +3593,7 @@ class _ContratosSectionState extends State<ContratosSection> {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Explora, filtra por sector y consulta procesos contractuales en tiempo real desde SECOP II.',
+              'Consulta contratos de SECOP y filtra por entidad, sector o modalidad.',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -4365,7 +4434,7 @@ class _ContratosSectionState extends State<ContratosSection> {
   Widget _buildTableHeader() {
     final count = _filteredContracts.length;
     final countText = _isLoadingSecop
-        ? 'Consultando SECOP II en tiempo real...'
+        ? 'Consultando contratos en SECOP…'
         : '$count contratos encontrados';
 
     final resumen = Wrap(
@@ -4465,9 +4534,9 @@ class _ContratosSectionState extends State<ContratosSection> {
         ),
       ],
     );
-    return CabeceraSeleccionContratos(
+    return CabeceraSeleccionReporte(
       resumen: resumen,
-      acciones: AccionesSeleccionContratos(
+      acciones: AccionesSeleccionReporte(
         seleccion: _seleccionReporte,
         alDescargar: _resetAllFilters,
         ayuda:
@@ -5083,7 +5152,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                           onPressed: _resetAllFilters,
                           icon: const Icon(Icons.refresh, size: 16),
                           label: const Text(
-                            'Limpiar filtros y consultar SECOP II',
+                            'Limpiar filtros y consultar SECOP',
                           ),
                         ),
                     ],

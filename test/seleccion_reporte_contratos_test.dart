@@ -160,7 +160,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Contratistas acumula contratos de diferentes historiales', (
+  testWidgets('Contratistas acumula personas de distintas páginas', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
@@ -169,34 +169,9 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     SharedPreferences.setMockInitialValues({});
 
-    final referencias = <String>[];
-    DatosAbiertos.clientePruebas = MockClient((request) async {
-      final where = request.url.queryParameters[r'$where'] ?? '';
-      final documento = RegExp(r"documento_proveedor in \('([0-9]+)'")
-          .firstMatch(where)
-          ?.group(1);
-      if (!request.url.path.endsWith('/jbjy-vk9h.json') || documento == null) {
-        return http.Response('[]', 200);
-      }
-      final ref = 'CT-$documento';
-      referencias.add(ref);
-      return http.Response.bytes(
-        utf8.encode(
-          jsonEncode([
-            {
-              'id_contrato': 'CO1.PCCNTR.$documento',
-              'referencia_del_contrato': ref,
-              'objeto_del_contrato': 'Contrato de prueba',
-              'nombre_entidad': 'Alcaldía',
-              'fecha_de_firma': '2026-10-01',
-              'documento_proveedor': documento,
-            },
-          ]),
-        ),
-        200,
-      );
-    });
-
+    DatosAbiertos.clientePruebas = MockClient(
+      (_) async => http.Response('[]', 200),
+    );
     await tester.pumpWidget(
       MaterialApp(
         theme: temaCristal(),
@@ -205,44 +180,47 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Exportar'), findsNothing);
-    expect(find.text('Ver contratos'), findsNothing);
-    await tester.tap(find.text('Seleccionar contratos'));
+    expect(find.byType(Checkbox), findsNothing);
+    await tester.tap(find.text('Seleccionar contratistas'));
     await tester.pumpAndSettle();
 
-    for (var fila = 0; fila < 2; fila++) {
-      final historial = find.text('Ver contratos').at(fila);
-      await tester.ensureVisible(historial);
-      await tester.tap(historial);
-      await tester.pumpAndSettle();
-
-      final modal = find.byType(AlertDialog);
-      final casilla = find.descendant(
-        of: modal,
-        matching: find.byType(Checkbox),
+    Future<String> seleccionarPrimero() async {
+      final tabla = tester.widget<ContratistasResultsTable>(
+        find.byType(ContratistasResultsTable),
       );
-      expect(casilla, findsOneWidget);
+      final casilla = find.byType(Checkbox).first;
+      await tester.ensureVisible(casilla);
       await tester.tap(casilla);
       await tester.pumpAndSettle();
-      expect(find.text('${fila + 1} en el reporte'), findsOneWidget);
-      await tester.tap(find.text('Volver a contratistas'));
-      await tester.pumpAndSettle();
+      return tabla.rows.first.name;
     }
+
+    final primero = await seleccionarPrimero();
+    final siguiente = find.byIcon(Icons.chevron_right_rounded);
+    await tester.ensureVisible(siguiente);
+    await tester.tap(siguiente);
+    await tester.pumpAndSettle();
+    final segundo = await seleccionarPrimero();
+    expect(primero, isNot(segundo));
 
     final revisar = find.text('2 seleccionados');
     await tester.ensureVisible(revisar);
     await tester.tap(revisar);
     await tester.pumpAndSettle();
-    expect(referencias.toSet(), hasLength(2));
-    for (final ref in referencias) {
-      expect(find.text('Proceso: $ref'), findsOneWidget);
+    final modal = find.byType(AlertDialog);
+    expect(find.text('Contratistas seleccionados (2)'), findsOneWidget);
+    for (final nombre in [primero, segundo]) {
+      expect(
+        find.descendant(of: modal, matching: find.text(nombre)),
+        findsOneWidget,
+      );
     }
     await tester.tap(find.text('Seguir seleccionando'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Cancelar selección'));
     await tester.pumpAndSettle();
-    expect(find.text('Seleccionar contratos'), findsOneWidget);
-    expect(find.text('2 seleccionados'), findsNothing);
-    expect(find.text('Ver contratos'), findsNothing);
+    expect(find.text('Seleccionar contratistas'), findsOneWidget);
+    expect(find.byType(Checkbox), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

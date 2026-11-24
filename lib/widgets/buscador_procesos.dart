@@ -34,13 +34,12 @@ class BuscadorProcesos extends StatefulWidget {
 class _BuscadorProcesosState extends State<BuscadorProcesos> {
   final _texto = TextEditingController();
   final _entidad = TextEditingController();
-  // En una entidad se ven todos sus procesos del último año; en general,
-  // los abiertos del último mes.
+  // Un perfil muestra el historial de la entidad y permite acotar por vigencia.
   late FiltroEstadoProceso _estado = widget.deEntidad
       ? FiltroEstadoProceso.todos
       : FiltroEstadoProceso.abiertos;
   late PeriodoProcesos _periodo = widget.deEntidad
-      ? PeriodoProcesos.anio
+      ? PeriodoProcesos.todo
       : PeriodoProcesos.mes;
 
   @override
@@ -53,7 +52,9 @@ class _BuscadorProcesosState extends State<BuscadorProcesos> {
   List<ProcesoSecop>? _resultados;
   bool _buscando = false;
   String? _error;
-  int _visibles = 20;
+  CursorProcesos? _siguiente;
+  String _textoActivo = '';
+  String _entidadActiva = '';
   int _consulta = 0;
 
   @override
@@ -63,25 +64,42 @@ class _BuscadorProcesosState extends State<BuscadorProcesos> {
     super.dispose();
   }
 
-  Future<void> _buscar() async {
+  Future<void> _buscar({bool mas = false}) async {
+    final cursor = mas ? _siguiente : const CursorProcesos();
+    if (cursor == null || (mas && _buscando)) return;
     final id = ++_consulta;
     setState(() {
       _buscando = true;
       _error = null;
-      _visibles = 20;
+      if (!mas) {
+        _textoActivo = _texto.text;
+        _entidadActiva = widget.deEntidad ? '' : _entidad.text;
+        _resultados = null;
+        _siguiente = null;
+      }
     });
     try {
-      final r = await ProcesosSecopService.buscar(
-        texto: _texto.text,
-        entidad: widget.deEntidad ? '' : _entidad.text,
+      final pagina = await ProcesosSecopService.buscarPagina(
+        texto: _textoActivo,
+        entidad: _entidadActiva,
         estado: _estado,
         periodo: _periodo,
-        nit: widget.nitEntidad,
+        desde: cursor,
+        nitEntidad: widget.nitEntidad,
         departamento: widget.departamento,
       );
       if (!mounted || id != _consulta) return;
+      final anteriores = _resultados ?? const <ProcesoSecop>[];
+      final ids = anteriores.map((proceso) => proceso.idCompartido).toSet();
       setState(() {
-        _resultados = r;
+        _resultados = [
+          ...anteriores,
+          ...pagina.procesos.where(
+            (proceso) =>
+                proceso.idCompartido.isEmpty || ids.add(proceso.idCompartido),
+          ),
+        ];
+        _siguiente = pagina.siguiente;
         _buscando = false;
       });
     } catch (_) {
@@ -251,30 +269,28 @@ class _BuscadorProcesosState extends State<BuscadorProcesos> {
           ),
         ),
         const SizedBox(height: 16),
-        if (_buscando)
+        if (_buscando && _resultados == null)
           const Padding(
             padding: EdgeInsets.all(30),
             child: Center(child: CircularProgressIndicator()),
           )
-        else if (_error != null)
-          _Aviso(texto: _error!, icono: Icons.cloud_off_rounded)
-        else if (_resultados == null)
+        else if (_resultados == null && _error == null)
           const _Aviso(
             texto:
                 'Escribe qué buscas (por ejemplo "juegos zonales") y presiona Enter. Puedes dejar el texto vacío y '
                 'escribir solo la entidad para ver todos sus procesos del estado elegido.',
             icono: Icons.info_outline_rounded,
           )
-        else if (_resultados!.isEmpty)
+        else if (_resultados?.isEmpty == true && _siguiente == null)
           const _Aviso(
             texto: 'No hay procesos con esos criterios. Prueba con otra palabra, otro estado o un periodo más largo.',
             icono: Icons.search_off_rounded,
           )
-        else ...[
+        else if (_resultados?.isNotEmpty == true) ...[
           Text(
             _resultados!.length == 1
                 ? '1 proceso'
-                : '${_resultados!.length} procesos',
+                : '${_resultados!.length} procesos mostrados',
             style: TextStyle(
               color: Cristal.texto,
               fontSize: 16,
@@ -287,20 +303,20 @@ class _BuscadorProcesosState extends State<BuscadorProcesos> {
             style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
           ),
           const SizedBox(height: 10),
-          for (final p in _resultados!.take(_visibles)) ...[
+          for (final p in _resultados!) ...[
             _TarjetaProceso(proceso: p),
             const SizedBox(height: 10),
           ],
-          if (_resultados!.length > _visibles)
-            Center(
-              child: OutlinedButton(
-                onPressed: () => setState(() => _visibles += 20),
-                child: Text(
-                  'Ver más (${_resultados!.length - _visibles} restantes)',
-                ),
-              ),
-            ),
         ],
+        if (_error != null)
+          _Aviso(texto: _error!, icono: Icons.cloud_off_rounded),
+        if (_siguiente != null)
+          Center(
+            child: OutlinedButton(
+              onPressed: _buscando ? null : () => _buscar(mas: true),
+              child: Text(_buscando ? 'Consultando…' : 'Cargar más procesos'),
+            ),
+          ),
       ],
     );
   }

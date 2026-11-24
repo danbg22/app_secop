@@ -90,10 +90,27 @@ abstract final class ReporteSeleccionContratos {
     if (contratos.isEmpty) {
       throw ArgumentError('Selecciona al menos un contrato.');
     }
+    return _generar(
+      cantidad: contratos.length,
+      singular: 'Contrato',
+      plural: 'Contratos',
+      ficha: (i) => _ficha(i + 1, contratos[i]),
+      ahora: ahora,
+    );
+  }
+
+  static Future<Uint8List> _generar({
+    required int cantidad,
+    required String singular,
+    required String plural,
+    required pw.Widget Function(int) ficha,
+    DateTime? ahora,
+  }) async {
+    final titulo = 'Reporte de ${plural.toLowerCase()}';
     final tema = await ReporteContratosPdfService.cargarTemaPdf();
     final fecha = ReporteContratosPdfService.horaColombia(ahora);
     final doc = pw.Document(
-      title: 'Reporte de contratos seleccionados',
+      title: '$titulo seleccionados',
       author: 'Contrata Legal',
     );
     doc.addPage(
@@ -107,7 +124,7 @@ abstract final class ReporteSeleccionContratos {
             child: pw.Container(color: _fondo),
           ),
         ),
-        maxPages: (contratos.length + 1) ~/ 2 + 1,
+        maxPages: (cantidad + 1) ~/ 2 + 1,
         header: (_) => pw.Padding(
           padding: const pw.EdgeInsets.only(bottom: 12),
           child: pw.Row(
@@ -142,19 +159,22 @@ abstract final class ReporteSeleccionContratos {
           ),
         ),
         build: (_) => [
-          _portadaCompacta(contratos.length, fecha),
-          for (var i = 0; i < contratos.length; i += 2)
+          _portadaCompacta(
+            titulo,
+            cantidad,
+            cantidad == 1 ? singular : plural,
+            fecha,
+          ),
+          for (var i = 0; i < cantidad; i += 2)
             pw.Padding(
               padding: const pw.EdgeInsets.only(bottom: 12),
               child: pw.Row(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Expanded(child: _ficha(i + 1, contratos[i])),
+                  pw.Expanded(child: ficha(i)),
                   pw.SizedBox(width: 12),
                   pw.Expanded(
-                    child: i + 1 < contratos.length
-                        ? _ficha(i + 2, contratos[i + 1])
-                        : pw.SizedBox(),
+                    child: i + 1 < cantidad ? ficha(i + 1) : pw.SizedBox(),
                   ),
                 ],
               ),
@@ -165,64 +185,58 @@ abstract final class ReporteSeleccionContratos {
     return doc.save();
   }
 
-  static pw.Widget _portadaCompacta(int cantidad, DateTime fecha) =>
-      pw.Container(
-        margin: const pw.EdgeInsets.only(bottom: 14),
-        padding: const pw.EdgeInsets.fromLTRB(17, 15, 16, 15),
-        decoration: pw.BoxDecoration(
-          color: _azul,
-          borderRadius: pw.BorderRadius.circular(9),
-        ),
-        child: pw.Row(
-          children: [
-            pw.Expanded(
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  _texto(
-                    'RESUMEN DE LA SELECCIÓN',
-                    tam: 8,
-                    negrita: true,
-                    color: _dorado,
-                  ),
-                  pw.SizedBox(height: 4),
-                  _texto(
-                    'Reporte de contratos',
-                    tam: 23,
-                    negrita: true,
-                    color: PdfColors.white,
-                  ),
-                  pw.SizedBox(height: 6),
-                  _texto(
-                    ReporteContratosPdfService.fechaLarga(fecha),
-                    tam: 9,
-                    color: _azulClaro,
-                  ),
-                ],
-              ),
-            ),
-            pw.Container(
-              width: 78,
-              padding: const pw.EdgeInsets.symmetric(vertical: 7),
-              decoration: pw.BoxDecoration(
+  static pw.Widget _portadaCompacta(
+    String titulo,
+    int cantidad,
+    String unidad,
+    DateTime fecha,
+  ) => pw.Container(
+    margin: const pw.EdgeInsets.only(bottom: 14),
+    padding: const pw.EdgeInsets.fromLTRB(17, 15, 16, 15),
+    decoration: pw.BoxDecoration(
+      color: _azul,
+      borderRadius: pw.BorderRadius.circular(9),
+    ),
+    child: pw.Row(
+      children: [
+        pw.Expanded(
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              _texto(
+                'RESUMEN DE LA SELECCIÓN',
+                tam: 8,
+                negrita: true,
                 color: _dorado,
-                borderRadius: pw.BorderRadius.circular(7),
               ),
-              child: pw.Column(
-                children: [
-                  _texto('$cantidad', tam: 20, negrita: true, color: _azul),
-                  _texto(
-                    cantidad == 1 ? 'Contrato' : 'Contratos',
-                    tam: 8,
-                    negrita: true,
-                    color: _azul,
-                  ),
-                ],
+              pw.SizedBox(height: 4),
+              _texto(titulo, tam: 23, negrita: true, color: PdfColors.white),
+              pw.SizedBox(height: 6),
+              _texto(
+                ReporteContratosPdfService.fechaLarga(fecha),
+                tam: 9,
+                color: _azulClaro,
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      );
+        pw.Container(
+          width: 78,
+          padding: const pw.EdgeInsets.symmetric(vertical: 7),
+          decoration: pw.BoxDecoration(
+            color: _dorado,
+            borderRadius: pw.BorderRadius.circular(7),
+          ),
+          child: pw.Column(
+            children: [
+              _texto('$cantidad', tam: 20, negrita: true, color: _azul),
+              _texto(unidad, tam: 8, negrita: true, color: _azul),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 
   static pw.Widget _ficha(int numero, ContratoDelReporte c) {
     final analisis = ContractFinancialAnalysis.fromContract(c.datos);
@@ -447,4 +461,85 @@ abstract final class ReporteSeleccionContratos {
       fontWeight: negrita ? pw.FontWeight.bold : pw.FontWeight.normal,
     ),
   );
+}
+
+typedef ContratistaDelReporte = ({
+  String nombre,
+  String documento,
+  String tipo,
+  int contratos,
+  double valor,
+  int entidades,
+  String ultimaFirma,
+  String? alcance,
+});
+
+abstract final class ReporteSeleccionContratistas {
+  static Future<Uint8List> generar(
+    List<ContratistaDelReporte> contratistas, {
+    DateTime? ahora,
+  }) {
+    if (contratistas.isEmpty) {
+      throw ArgumentError('Selecciona al menos un contratista.');
+    }
+    return ReporteSeleccionContratos._generar(
+      cantidad: contratistas.length,
+      singular: 'Contratista',
+      plural: 'Contratistas',
+      ficha: (i) => _ficha(contratistas[i]),
+      ahora: ahora,
+    );
+  }
+
+  static pw.Widget _ficha(ContratistaDelReporte c) {
+    final alcance = c.alcance;
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(12),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.white,
+        border: pw.Border.all(color: ReporteSeleccionContratos._borde),
+        borderRadius: pw.BorderRadius.circular(7),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          ReporteSeleccionContratos._etiqueta(c.tipo),
+          pw.SizedBox(height: 6),
+          ReporteSeleccionContratos._texto(
+            c.nombre,
+            tam: 12,
+            negrita: true,
+            lineas: 3,
+          ),
+          pw.SizedBox(height: 6),
+          ReporteSeleccionContratos._dato('Documento', c.documento),
+          if (alcance != null)
+            ReporteSeleccionContratos._dato('Entidad consultada', alcance),
+          pw.SizedBox(height: 5),
+          pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Expanded(
+                child: ReporteSeleccionContratos._dato(
+                  'Contratos',
+                  '${c.contratos}',
+                ),
+              ),
+              pw.Expanded(
+                child: ReporteSeleccionContratos._dato(
+                  'Entidades',
+                  '${c.entidades}',
+                ),
+              ),
+            ],
+          ),
+          ReporteSeleccionContratos._dato(
+            'Valor contratado',
+            ContractFinancialAnalysis.formatCop(c.valor),
+          ),
+          ReporteSeleccionContratos._dato('Última firma', c.ultimaFirma),
+        ],
+      ),
+    );
+  }
 }

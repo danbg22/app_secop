@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/acceso_planes.dart';
@@ -75,6 +76,44 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
     }
   });
 
+  String _fecha(DateTime fecha) =>
+      '${DateFormat('dd/MM/yyyy · HH:mm').format(fecha.subtract(const Duration(hours: 5)))} (Colombia)';
+
+  Future<void> _cancelar(RenovacionPlan renovacion) async {
+    final fecha = renovacion.fecha;
+    final decidido = await mostrarDialogoCristal<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancelar renovación automática'),
+        content: Text(
+          fecha == null
+              ? 'Si el pago en verificación se aprueba, conservarás el periodo pagado y no se programará otro cobro.'
+              : 'Conservas el tiempo pagado. Puedes evitar el siguiente cobro si cancelas hasta el ${_fecha(fecha.subtract(const Duration(days: 1)))}. Pasado ese plazo, la cancelación aplica después del cobro en curso.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Volver'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirmar cancelación'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || decidido != true) return;
+    await _realizar(() async {
+      final resultado = await AccesoPlanes.cancelarRenovacion(_plan.id);
+      if (!mounted) return;
+      setState(() {
+        _mensaje = resultado.cancelaDespues
+            ? 'Cancelación programada después del cobro en curso.'
+            : 'Renovación automática cancelada. Conservas el tiempo que ya pagaste.';
+      });
+    });
+  }
+
   Future<void> _verificar() => _realizar(() async {
     final id = _identificador.text.trim();
     if (id.isEmpty) {
@@ -109,6 +148,15 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
         final administrador = AuthService.isActiveUserAdmin;
         final aprobado =
             administrador || estado?.tieneSuscripcionVigente(_plan.id) == true;
+        final renovacion = estado?.renovaciones[_plan.id];
+        final disponible = estado?.renovacionDisponible == true;
+        final conMandato =
+            renovacion?.activa == true || renovacion?.pendiente == true;
+        final puedeVincular =
+            !administrador &&
+            disponible &&
+            estado?.tienePagoMensual(_plan.id) == true &&
+            !conMandato;
         return Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
@@ -174,14 +222,20 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                             style: Theme.of(context).textTheme.titleLarge,
                           ),
                           const SizedBox(height: 6),
-                          const Text(
-                            'Pagas en Wompi. La renovación es manual.',
+                          Text(
+                            disponible
+                                ? 'Autorizas una tarjeta en Wompi para pagar cada mes. Cancela al menos 24 horas antes del siguiente cobro.'
+                                : 'Pagas en Wompi. La renovación es manual.',
                           ),
                           const SizedBox(height: 16),
                           FilledButton.icon(
-                            onPressed: _ocupado ? null : _pagar,
+                            onPressed: _ocupado || conMandato ? null : _pagar,
                             icon: const Icon(Icons.open_in_new_rounded),
-                            label: const Text('Pagar en Wompi'),
+                            label: Text(
+                              disponible
+                                  ? 'Suscribirme con tarjeta'
+                                  : 'Pagar en Wompi',
+                            ),
                           ),
                           const SizedBox(height: 16),
                           TextField(
@@ -194,6 +248,42 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                           TextButton(
                             onPressed: _ocupado ? null : _verificar,
                             child: const Text('Verificar un pago'),
+                          ),
+                        ],
+                        if (conMandato && renovacion != null) ...[
+                          const SizedBox(height: 16),
+                          Text(
+                            renovacion.pendiente
+                                ? 'Wompi está verificando el cobro.'
+                                : 'Renovación automática activa',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          if (renovacion.fecha case final fecha?)
+                            Text('Próximo cobro: ${_fecha(fecha)}'),
+                          if (renovacion.cancelaDespues)
+                            const Text(
+                              'La renovación se desactiva después del cobro en curso.',
+                            )
+                          else
+                            TextButton(
+                              onPressed: _ocupado
+                                  ? null
+                                  : () => _cancelar(renovacion),
+                              child: const Text(
+                                'Cancelar renovación automática',
+                              ),
+                            ),
+                        ],
+                        if (renovacion?.estado == 'cancelada')
+                          const Text('Renovación automática cancelada.'),
+                        if (puedeVincular) ...[
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Puedes autorizar una tarjeta para el próximo periodo.',
+                          ),
+                          OutlinedButton(
+                            onPressed: _ocupado ? null : _pagar,
+                            child: const Text('Activar renovación automática'),
                           ),
                         ],
                         if (_ocupado) const LinearProgressIndicator(),

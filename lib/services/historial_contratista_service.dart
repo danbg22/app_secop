@@ -81,8 +81,8 @@ abstract final class HistorialContratistaService {
     ];
     final consultaSecopI = cleanDoc.length >= 5
         ? consultar(SecopI.dataset, {
-            'identificacion_del_contratista': cleanDoc,
-            r'$where': SecopI.filtroAnio(),
+            r'$where':
+                "${SecopI.filtroAnio()} AND identificacion_del_contratista in (${(esNitEmpresa ? Nit.formas(formasDoc.first) : formasDoc).map((n) => "'$n'").join(',')})",
             r'$order': 'fecha_de_firma_del_contrato DESC',
             r'$limit': '2000',
           })

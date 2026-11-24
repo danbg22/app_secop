@@ -5,6 +5,28 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+class RenovacionPlan {
+  const RenovacionPlan(this.estado, this.fecha, this.cancelaDespues);
+
+  final String estado;
+  final DateTime? fecha;
+  final bool cancelaDespues;
+  bool get activa => estado == 'activa';
+  bool get pendiente =>
+      {'registrando', 'verificando', 'revision'}.contains(estado);
+
+  factory RenovacionPlan.desdeMapa(Map datos) {
+    final ms = datos['renovacion'];
+    return RenovacionPlan(
+      datos['estado'] as String? ?? '',
+      ms is int && ms > 0
+          ? DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true)
+          : null,
+      datos['cancelaDespues'] == true,
+    );
+  }
+}
+
 class EstadoPlanes {
   EstadoPlanes(Map<String, dynamic> datos)
     : _ahoraServidor = datos['ahora'] as int,
@@ -16,6 +38,15 @@ class EstadoPlanes {
       _pruebaHasta = datos['pruebaHasta'] as int,
       _equipoHasta = datos['graciaEquipoHasta'] as int,
       preparando = datos['preparando'] == true,
+      renovacionDisponible = datos['renovacionDisponible'] == true,
+      renovaciones = {
+        if (datos['renovaciones'] case final Map mapa)
+          for (final entrada in mapa.entries)
+            if (entrada.value is Map)
+              entrada.key.toString(): RenovacionPlan.desdeMapa(
+                entrada.value as Map,
+              ),
+      },
       admin = datos['esAdmin'] == true {
     _reloj.start();
   }
@@ -31,6 +62,8 @@ class EstadoPlanes {
   final String? rolPrueba;
   final bool preparando;
   final bool admin;
+  final bool renovacionDisponible;
+  final Map<String, RenovacionPlan> renovaciones;
 
   int get _ahora => _ahoraServidor + _reloj.elapsedMilliseconds;
   int get _restantePrueba => _pruebaHasta - _ahora;
@@ -42,6 +75,8 @@ class EstadoPlanes {
 
   DateTime get fechaFinPrueba =>
       DateTime.fromMillisecondsSinceEpoch(_pruebaHasta, isUtc: true);
+
+  bool tienePagoMensual(String rol) => (_pagadosHasta[rol] ?? 0) > _ahora;
 
   bool tieneSuscripcionVigente(String rol) =>
       _historicos.contains(rol) || (_pagadosHasta[rol] ?? 0) > _ahora;
@@ -78,8 +113,12 @@ class EstadoPlanes {
 }
 
 class AccesoPlanesException implements Exception {
-  const AccesoPlanesException(this.mensaje);
+  const AccesoPlanesException(this.mensaje, {this.codigo});
   final String mensaje;
+  final String? codigo;
+
+  bool get servicioNoDisponible =>
+      codigo == 'SERVICE_UNAVAILABLE' || codigo == 'UNAVAILABLE';
 }
 
 abstract final class AccesoPlanes {
@@ -159,12 +198,13 @@ abstract final class AccesoPlanes {
 
   static Future<Map<String, dynamic>> _consultar(
     User user,
-    Map<String, String> datos,
-  ) async {
+    Map<String, String> datos, {
+    Uri? endpoint,
+  }) async {
     final token = await user.getIdToken().timeout(const Duration(seconds: 10));
     final respuesta = await http
         .post(
-          Uri.parse(_endpoint),
+          endpoint ?? Uri.parse(_endpoint),
           headers: {
             'Authorization': 'Bearer $token',
             'Content-Type': 'application/json',
@@ -172,18 +212,36 @@ abstract final class AccesoPlanes {
           body: jsonEncode({'data': datos}),
         )
         .timeout(const Duration(seconds: 45));
-    final mapa = jsonDecode(respuesta.body) as Map<String, dynamic>;
-    final resultado = mapa['result'];
+    final mapa = _respuestaJson(respuesta.body);
+    final resultado = mapa?['result'];
     if (respuesta.statusCode != 200 || resultado is! Map<String, dynamic>) {
-      final error = mapa['error'];
+      final error = mapa?['error'];
+      final codigo = error is Map ? error['status'] : null;
+      if (codigo is! String &&
+          const {404, 502, 503, 504}.contains(respuesta.statusCode)) {
+        throw const AccesoPlanesException(
+          'El servicio de verificación no está disponible. Intenta más tarde.',
+          codigo: 'SERVICE_UNAVAILABLE',
+        );
+      }
       final mensaje = error is Map ? error['message'] : null;
       throw AccesoPlanesException(
         mensaje is String && mensaje != 'INTERNAL'
             ? mensaje
-            : 'No pudimos verificar el plan. Intenta nuevamente.',
+            : 'No se pudo verificar la solicitud. Intenta nuevamente.',
+        codigo: codigo is String ? codigo : null,
       );
     }
     return resultado;
+  }
+
+  static Map<String, dynamic>? _respuestaJson(String cuerpo) {
+    try {
+      final datos = jsonDecode(cuerpo);
+      return datos is Map<String, dynamic> ? datos : null;
+    } on FormatException {
+      return null;
+    }
   }
 
   static User _usuario() {
@@ -194,20 +252,49 @@ abstract final class AccesoPlanes {
     return usuario;
   }
 
+  static Future<bool> vincularCedula([String? cedula]) async {
+    final base = Uri.parse(_endpoint);
+    final datos = await _consultar(
+      _usuario(),
+      {'cedula': ?cedula},
+      endpoint: base.replace(
+        pathSegments: [
+          ...base.pathSegments.take(base.pathSegments.length - 1),
+          'identidadCuenta',
+        ],
+      ),
+    );
+    return datos['vinculada'] == true;
+  }
+
   static Future<Uri> iniciarPago(String rol) async {
     final datos = await _consultar(_usuario(), {
       'accion': 'iniciarPago',
       'rol': rol,
     });
     final url = Uri.tryParse(datos['url'] as String? ?? '');
+    final hostFunciones = Uri.parse(_endpoint).host;
+    final esRenovacion =
+        datos['recurrente'] == true &&
+        url?.host == hostFunciones &&
+        url?.pathSegments.lastOrNull == 'checkoutRenovacion';
     if (url == null ||
         url.scheme != 'https' ||
-        url.host != 'checkout.wompi.co') {
+        (!esRenovacion && url.host != 'checkout.wompi.co')) {
       throw const AccesoPlanesException(
         'Wompi no devolvió un enlace de pago válido.',
       );
     }
     return url;
+  }
+
+  static Future<RenovacionPlan> cancelarRenovacion(String rol) async {
+    final datos = await _consultar(_usuario(), {
+      'accion': 'cancelarRenovacion',
+      'rol': rol,
+    });
+    await refrescar();
+    return RenovacionPlan.desdeMapa(datos);
   }
 
   static Future<String> confirmarPago(String id) async {

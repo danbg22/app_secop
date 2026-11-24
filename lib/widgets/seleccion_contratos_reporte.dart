@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
@@ -7,27 +8,25 @@ import '../services/reporte_contratos_pdf_service.dart';
 import '../services/reporte_seleccion_contratos.dart';
 import '../tema/cristal.dart';
 
-class SeleccionContratosReporte extends ChangeNotifier {
-  final _contratos = <String, Map<String, dynamic>>{};
+abstract class SeleccionReporte<T> extends ChangeNotifier {
+  final _elementos = <String, T>{};
   bool _activa = false;
   int? _preparados;
   bool _cerrada = false;
 
   bool get activa => _activa;
   bool get preparando => _preparados != null;
-  int get cantidad => _contratos.length;
+  int get cantidad => _elementos.length;
 
-  static String _clave(Map<String, dynamic> datos) {
-    final fuente = ExpedienteContratoService.esSecopI(datos) ? 'I' : 'II';
-    final id = (datos['id_contrato'] ?? '').toString().trim();
-    if (id.isNotEmpty && id.toLowerCase() != 'no definido') {
-      return '$fuente:$id';
-    }
-    return '$fuente:${jsonEncode([datos['nit_entidad'] ?? datos['nombre_entidad'], datos['referencia_del_contrato'], datos['proceso_de_compra'], datos['documento_proveedor'] ?? datos['proveedor_adjudicado'], datos['fecha_de_firma'] ?? datos['fecha_de_inicio_del_contrato'], datos['objeto_del_contrato'] ?? datos['descripcion_del_proceso']])}';
-  }
+  String get singular;
+  String get plural => '${singular}s';
+  String clave(T datos);
+  String titulo(T datos);
+  String detalle(T datos);
+  Future<Uint8List> generar(List<T> lista, ValueChanged<int> progreso);
+  String nombreArchivo(DateTime fecha);
 
-  bool incluye(Map<String, dynamic> datos) =>
-      _contratos.containsKey(_clave(datos));
+  bool incluye(T datos) => _elementos.containsKey(clave(datos));
 
   void iniciar() {
     _activa = true;
@@ -36,15 +35,15 @@ class SeleccionContratosReporte extends ChangeNotifier {
 
   void cancelar() {
     if (preparando) return;
-    _contratos.clear();
+    _elementos.clear();
     _activa = false;
     notifyListeners();
   }
 
-  void alternar(Map<String, dynamic> datos) {
+  void alternar(T datos) {
     if (!activa || preparando) return;
-    final id = _clave(datos);
-    if (_contratos.remove(id) == null) _contratos[id] = datos;
+    final id = clave(datos);
+    if (_elementos.remove(id) == null) _elementos[id] = datos;
     notifyListeners();
   }
 
@@ -53,30 +52,18 @@ class SeleccionContratosReporte extends ChangeNotifier {
     VoidCallback alDescargar,
   ) async {
     if (!activa || preparando || cantidad == 0) return;
-    final seleccion = _contratos.values.toList();
+    final seleccion = _elementos.values.toList();
     final mensajes = ScaffoldMessenger.of(context);
     _preparados = 0;
     notifyListeners();
     try {
-      final contratos = <ContratoDelReporte>[];
-      const lote = 3;
-      for (var i = 0; i < seleccion.length; i += lote) {
-        contratos.addAll(
-          await Future.wait(
-            seleccion.skip(i).take(lote).map(ContratoDelReporte.consultar),
-          ),
-        );
+      final bytes = await generar(seleccion, (cantidad) {
         if (_cerrada) return;
-        _preparados = contratos.length;
+        _preparados = cantidad;
         notifyListeners();
-      }
-      final bytes = await ReporteSeleccionContratos.generar(contratos);
+      });
       if (_cerrada) return;
-      final nombre = ReporteContratosPdfService.nombreArchivo(
-        'seleccionados',
-        '',
-        ReporteContratosPdfService.horaColombia(),
-      );
+      final nombre = nombreArchivo(ReporteContratosPdfService.horaColombia());
       if (!ReporteContratosPdfService.descargar(bytes, nombre)) {
         mensajes.showSnackBar(
           const SnackBar(
@@ -87,11 +74,11 @@ class SeleccionContratosReporte extends ChangeNotifier {
         );
         return;
       }
-      _contratos.clear();
+      _elementos.clear();
       _activa = false;
       alDescargar();
       mensajes.showSnackBar(
-        const SnackBar(content: Text('Reporte de contratos descargado.')),
+        SnackBar(content: Text('Reporte de $plural descargado.')),
       );
     } catch (_) {
       if (!_cerrada) {
@@ -116,32 +103,29 @@ class SeleccionContratosReporte extends ChangeNotifier {
     builder: (ctx) => ListenableBuilder(
       listenable: this,
       builder: (ctx, _) {
-        final contratos = _contratos.values.toList();
+        final elementos = _elementos.values.toList();
         return AlertDialog(
-          title: Text('Contratos seleccionados ($cantidad)'),
+          title: Text(
+            '${plural[0].toUpperCase()}${plural.substring(1)} seleccionados ($cantidad)',
+          ),
           content: SizedBox(
             width: 500,
             child: cantidad == 0
-                ? const Text('Marca contratos en los resultados de búsqueda.')
+                ? Text('Marca $plural en los resultados de búsqueda.')
                 : ListView.builder(
                     shrinkWrap: true,
                     itemCount: cantidad,
                     itemBuilder: (context, index) {
-                      final datos = contratos[index];
-                      final contrato = ContratoDelReporte(
-                        datos: datos,
-                        expedienteCompleto: false,
-                        documentos: null,
-                      );
+                      final datos = elementos[index];
                       return ListTile(
-                        title: Text('Proceso: ${contrato.referencia}'),
+                        title: Text(titulo(datos)),
                         subtitle: Text(
-                          contrato.objeto,
+                          detalle(datos),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                         trailing: IconButton(
-                          tooltip: 'Quitar ${contrato.referencia} del reporte',
+                          tooltip: 'Quitar ${titulo(datos)} del reporte',
                           icon: const Icon(Icons.remove_circle_outline_rounded),
                           onPressed: () => alternar(datos),
                         ),
@@ -167,15 +151,66 @@ class SeleccionContratosReporte extends ChangeNotifier {
   }
 }
 
-class AccionesSeleccionContratos extends StatelessWidget {
-  const AccionesSeleccionContratos({
+class SeleccionContratosReporte extends SeleccionReporte<Map<String, dynamic>> {
+  @override
+  String get singular => 'contrato';
+
+  @override
+  String clave(Map<String, dynamic> datos) {
+    final fuente = ExpedienteContratoService.esSecopI(datos) ? 'I' : 'II';
+    final id = (datos['id_contrato'] ?? '').toString().trim();
+    if (id.isNotEmpty && id.toLowerCase() != 'no definido') {
+      return '$fuente:$id';
+    }
+    return '$fuente:${jsonEncode([datos['nit_entidad'] ?? datos['nombre_entidad'], datos['referencia_del_contrato'], datos['proceso_de_compra'], datos['documento_proveedor'] ?? datos['proveedor_adjudicado'], datos['fecha_de_firma'] ?? datos['fecha_de_inicio_del_contrato'], datos['objeto_del_contrato'] ?? datos['descripcion_del_proceso']])}';
+  }
+
+  ContratoDelReporte _resumen(Map<String, dynamic> datos) => ContratoDelReporte(
+    datos: datos,
+    expedienteCompleto: false,
+    documentos: null,
+  );
+
+  @override
+  String titulo(Map<String, dynamic> datos) =>
+      'Proceso: ${_resumen(datos).referencia}';
+
+  @override
+  String detalle(Map<String, dynamic> datos) => _resumen(datos).objeto;
+
+  @override
+  String nombreArchivo(DateTime fecha) =>
+      ReporteContratosPdfService.nombreArchivo('seleccionados', '', fecha);
+
+  @override
+  Future<Uint8List> generar(
+    List<Map<String, dynamic>> lista,
+    ValueChanged<int> progreso,
+  ) async {
+    final contratos = <ContratoDelReporte>[];
+    const lote = 3;
+    for (var i = 0; i < lista.length; i += lote) {
+      contratos.addAll(
+        await Future.wait(
+          lista.skip(i).take(lote).map(ContratoDelReporte.consultar),
+        ),
+      );
+      if (_cerrada) return Uint8List(0);
+      progreso(contratos.length);
+    }
+    return ReporteSeleccionContratos.generar(contratos);
+  }
+}
+
+class AccionesSeleccionReporte<T> extends StatelessWidget {
+  const AccionesSeleccionReporte({
     super.key,
     required this.seleccion,
     required this.alDescargar,
     required this.ayuda,
   });
 
-  final SeleccionContratosReporte seleccion;
+  final SeleccionReporte<T> seleccion;
   final VoidCallback alDescargar;
   final String ayuda;
 
@@ -209,7 +244,7 @@ class AccionesSeleccionContratos extends StatelessWidget {
               ),
               label: Text(
                 !seleccion.activa
-                    ? 'Seleccionar contratos'
+                    ? 'Seleccionar ${seleccion.plural}'
                     : progreso == null
                     ? 'Descargar reporte PDF'
                     : progreso == cantidad
@@ -239,16 +274,16 @@ class AccionesSeleccionContratos extends StatelessWidget {
   }
 }
 
-class CasillaContratoReporte extends StatelessWidget {
-  const CasillaContratoReporte({
+class CasillaSeleccionReporte<T> extends StatelessWidget {
+  const CasillaSeleccionReporte({
     super.key,
     required this.seleccion,
     required this.datos,
     required this.referencia,
   });
 
-  final SeleccionContratosReporte seleccion;
-  final Map<String, dynamic> datos;
+  final SeleccionReporte<T> seleccion;
+  final T datos;
   final String referencia;
 
   @override
@@ -264,8 +299,8 @@ class CasillaContratoReporte extends StatelessWidget {
   );
 }
 
-class CabeceraSeleccionContratos extends StatelessWidget {
-  const CabeceraSeleccionContratos({
+class CabeceraSeleccionReporte extends StatelessWidget {
+  const CabeceraSeleccionReporte({
     super.key,
     required this.resumen,
     required this.acciones,

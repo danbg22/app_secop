@@ -644,6 +644,43 @@ class _EscogerRolScreenState extends State<EscogerRolScreen> {
                               height: 1.4,
                             ),
                           ),
+                          if (widget.modoAcumularRol &&
+                              !AuthService.isActiveUserAdmin)
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: [
+                                for (final rol in roles.expand(
+                                  (rol) => _esGrupo(rol)
+                                      ? PaymentService.subrolesDe(rol.id)
+                                      : [rol],
+                                ))
+                                  if (!rol.esGratuito &&
+                                      (AccesoPlanes.estado?.tienePagoMensual(
+                                                rol.id,
+                                              ) ==
+                                              true ||
+                                          AccesoPlanes.estado?.renovaciones
+                                                  .containsKey(rol.id) ==
+                                              true))
+                                    OutlinedButton.icon(
+                                      onPressed: () =>
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute<void>(
+                                              builder: (_) =>
+                                                  PasarelaPagoWompiScreen(
+                                                    rolId: rol.id,
+                                                    esFlujoRegistro: false,
+                                                  ),
+                                            ),
+                                          ),
+                                      icon: const Icon(Icons.payments_outlined),
+                                      label: Text(
+                                        'Suscripción · ${rol.nombre}',
+                                      ),
+                                    ),
+                              ],
+                            ),
                           SizedBox(height: isMobile ? 22 : 32),
 
                           // 4 Tarjetas de Rol idénticas a la foto con su ilustración original y su precio

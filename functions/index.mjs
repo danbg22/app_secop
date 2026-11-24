@@ -2,12 +2,16 @@ import { randomUUID } from 'node:crypto';
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { defineSecret, defineString } from 'firebase-functions/params';
+import { defineBoolean, defineSecret, defineString } from 'firebase-functions/params';
 import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 import {
   PRECIOS_CENTAVOS, ROLES_GRATUITOS, esPlanPago, sha256,
   vencimientoPrueba, sumarMesColombia, validarTransaccion, firmaEventoValida,
 } from './planes.mjs';
+
+import { huellaCedula, vincularCedula } from './identidad.mjs';
+import { renovaciones } from './renovaciones.mjs';
 
 initializeApp();
 const db = getFirestore();
@@ -38,6 +42,14 @@ function wompi() {
   const sandbox = llave.startsWith('pub_test_');
   return { llave, ambiente: sandbox ? 'test' : 'prod', host: sandbox ? 'sandbox' : 'production' };
 }
+
+const habilitarRenovacion = defineBoolean('WOMPI_RENOVACION_ACTIVA', { default: false });
+const cobros = renovaciones({
+  db, wompi, privada, integridad,
+  disponible: () => habilitarRenovacion.value(),
+  retorno: () => retorno.value().trim() || retornoPorDefecto,
+  endpoint: () => `https://us-central1-${process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || 'secop-ia'}.cloudfunctions.net/checkoutRenovacion`,
+});
 
 async function transaccionWompi(id) {
   if (typeof id !== 'string' || !/^[a-z0-9-]{6,100}$/i.test(id)) {
@@ -106,6 +118,7 @@ async function obtenerCuenta(uid, perfil) {
   if (adminCorreos.includes(correo)) {
     return usuario.emailVerified ? cuentaAdministradora(uid) : null;
   }
+  if (perfil.cedulaVinculada !== true) return null;
   const inicio = Date.parse(lanzamiento.value());
   if (!Number.isFinite(inicio)) {
     throw new HttpsError('failed-precondition', 'Falta configurar el inicio de las pruebas.');
@@ -124,14 +137,11 @@ async function obtenerCuenta(uid, perfil) {
   const reclamos = [];
   if (hasta && correo) {
     reclamos.push(db.collection('identidades_prueba').doc(sha256(`correo:${correo}`)));
-    if (!conProveedor || perfil.documentoNormalizado) {
-      const documento = perfil.documentoNormalizado ?? '';
-      if (!/^[a-z0-9]{5,40}$/.test(documento)) return null;
-      const huella = sha256(`ContrataLegal::SECOP::AppSec::2026::v1::uniqueness::doc::${documento}`);
-      const indice = await db.collection('indices_unicidad').doc(huella).get();
-      if (indice.data()?.uid !== uid || indice.data()?.tipo !== 'doc') return null;
-      reclamos.push(db.collection('identidades_prueba').doc(sha256(`documento:${documento}`)));
-    }
+    const documento = perfil.documentoNormalizado ?? '';
+    if (perfil.cedulaVinculada !== true || !/^\d{5,20}$/.test(documento)) return null;
+    const indice = await db.collection('indices_unicidad').doc(huellaCedula(documento)).get();
+    if (indice.data()?.uid !== uid || indice.data()?.tipo !== 'doc') return null;
+    reclamos.push(db.collection('identidades_prueba').doc(sha256(`documento:${documento}`)));
   }
 
   return db.runTransaction(async (tx) => {
@@ -272,7 +282,14 @@ async function confirmarPago(id, uid) {
     if (!intento || (uid && intento.uid !== uid) || intento.ambiente !== wompi().ambiente) {
       return { status: 'NOT_FOUND' };
     }
-    if (!validarTransaccion(pago, pago.reference, null, intento.centavos)) {
+    const susRef = typeof intento.suscripcion === 'string'
+      ? cobros.suscripciones.doc(intento.suscripcion) : null;
+    const sus = susRef ? (await tx.get(susRef)).data() : null;
+    if (susRef && (sus?.uid !== intento.uid || sus.fuente !== Number(pago.payment_source_id))) {
+      return { status: 'NOT_FOUND' };
+    }
+    if (!validarTransaccion(pago, pago.reference, intento.correo ?? null, intento.centavos)) {
+      if (pago.status !== 'APPROVED') cobros.liquidar(tx, susRef, sus, pago);
       return { status: pago.status === 'APPROVED' ? 'NOT_FOUND' : pago.status };
     }
     const cuentaRef = accesos.doc(intento.uid);
@@ -291,6 +308,7 @@ async function confirmarPago(id, uid) {
     const cambios = { [`pagadosHasta.${intento.rol}`]: hasta };
     if (cuenta.pruebaRol === intento.rol) cambios.pruebaRol = null;
     tx.update(cuentaRef, cambios);
+    cobros.liquidar(tx, susRef, sus, pago, hasta);
     tx.update(intentoRef, { transactionId: id });
     tx.create(pagoRef, {
       uid: intento.uid, transactionId: id, reference: pago.reference,
@@ -301,11 +319,17 @@ async function confirmarPago(id, uid) {
   });
 }
 
+export const identidadCuenta = onCall(opciones, async (request) => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Inicia sesión para continuar.');
+  const { uid, token } = request.auth;
+  return vincularCedula(db, uid, correoNormal(token.email), request.data?.cedula);
+});
+
 export const accesoPlan = onCall({ ...opciones, secrets: [integridad, privada] }, async (request) => {
   if (!request.auth) throw new HttpsError('unauthenticated', 'Inicia sesión para continuar.');
   const { uid, token } = request.auth;
   const { accion, rol, id } = request.data ?? {};
-  if (!['estado', 'iniciarPago', 'confirmarPago'].includes(accion)) {
+  if (!['estado', 'iniciarPago', 'confirmarPago', 'cancelarRenovacion'].includes(accion)) {
     throw new HttpsError('invalid-argument', 'La acción solicitada no existe.');
   }
   const correo = correoNormal(token.email);
@@ -326,18 +350,47 @@ export const accesoPlan = onCall({ ...opciones, secrets: [integridad, privada] }
     };
   }
   if (accion === 'confirmarPago') return confirmarPago(id, uid);
+  if (accion === 'cancelarRenovacion') return cobros.cancelar(uid, rol);
   const perfil = (await usuarios.doc(uid).get()).data() ?? {};
+  if (perfil.cedulaVinculada !== true) {
+    if (accion !== 'estado') {
+      throw new HttpsError('failed-precondition', 'Vincula tu cédula antes de contratar un plan.');
+    }
+    return {
+      ahora: Date.now(), roles: [], rolInicial: perfil.rolInicialRegistro ?? 'persona',
+      pruebaRol: null, pruebaHasta: 0, graciaEquipoHasta: 0, preparando: true,
+      pagadosHasta: {}, historicos: [], esAdmin: false,
+    };
+  }
   const cuenta = await obtenerCuenta(uid, perfil);
-  if (accion === 'estado') return estado(uid, token, perfil, cuenta);
+  if (accion === 'estado') return {
+    ...await estado(uid, token, perfil, cuenta),
+    renovacionDisponible: habilitarRenovacion.value(),
+    renovaciones: await cobros.estado(uid),
+  };
+  if (habilitarRenovacion.value()) return cobros.iniciar(uid, correo, rol, cuenta);
   return iniciarPago(uid, correo, rol, cuenta);
 });
+
+export const checkoutRenovacion = onRequest({ ...opciones, secrets: [integridad, privada] }, async (req, res) => {
+  try {
+    await cobros.prepararFuente(req, res);
+  } catch (error) {
+    console.error('Checkout de renovación no disponible', error.code ?? error.name);
+    res.status(503).send('No fue posible abrir el pago. Vuelve a Suscripción e inténtalo de nuevo.');
+  }
+});
+
+export const renovarPlanes = onSchedule({
+  ...opciones, schedule: 'every 15 minutes', secrets: [integridad, privada],
+}, () => cobros.ejecutar(confirmarPago));
 
 export const eventosWompi = onRequest({ ...opciones, secrets: [eventos, privada] }, async (req, res) => {
   if (req.method !== 'POST') return res.sendStatus(405);
   const evento = req.body;
   if (!firmaEventoValida(evento, eventos.value())) return res.sendStatus(401);
   const pago = evento.data?.transaction;
-  if (evento.event === 'transaction.updated' && pago?.status === 'APPROVED' && pago.id) {
+  if (evento.event === 'transaction.updated' && pago?.id && ['APPROVED', 'DECLINED', 'ERROR', 'VOIDED'].includes(pago.status)) {
     try {
       await confirmarPago(pago.id);
     } catch (error) {

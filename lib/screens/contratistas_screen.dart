@@ -1,12 +1,16 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../data/colombia_entities_database.dart';
 import '../services/busqueda_personas.dart';
+import '../services/contratistas_de_entidad.dart';
 import '../services/entidades_publicas.dart';
 import '../widgets/directorio_sigep.dart';
 import '../widgets/seleccion_contratos_reporte.dart';
-import '../widgets/seleccionar_contratos_contratista.dart';
+import '../services/reporte_contratos_pdf_service.dart';
+import '../services/reporte_seleccion_contratos.dart';
 import '../widgets/user_profile_header_action.dart';
 import 'perfil_contratista_screen.dart';
 import '../tema/cristal.dart';
@@ -77,6 +81,47 @@ class ContractorSummaryRecord {
   }
 }
 
+class _SeleccionContratistasReporte
+    extends SeleccionReporte<ContratistaDelReporte> {
+  @override
+  String get singular => 'contratista';
+
+  @override
+  String clave(ContratistaDelReporte datos) {
+    final documento = datos.documento
+        .split('-')
+        .first
+        .replaceAll(RegExp(r'[^0-9]'), '');
+    return documento.isNotEmpty
+        ? '${datos.tipo}:$documento'
+        : 'nombre:${BusquedaPersonas.normalizar(datos.nombre)}';
+  }
+
+  @override
+  String titulo(ContratistaDelReporte datos) => datos.nombre;
+
+  @override
+  String detalle(ContratistaDelReporte datos) => datos.documento;
+
+  @override
+  String nombreArchivo(DateTime fecha) =>
+      ReporteContratosPdfService.nombreArchivo(
+        'seleccionados',
+        '',
+        fecha,
+        tipoReporte: 'contratistas',
+      );
+
+  @override
+  Future<Uint8List> generar(
+    List<ContratistaDelReporte> lista,
+    ValueChanged<int> progreso,
+  ) {
+    progreso(lista.length);
+    return ReporteSeleccionContratistas.generar(lista);
+  }
+}
+
 /// Almacén en memoria para garantizar persistencia de estado y caché ultra-rápida
 /// por cada combinación de cédula/NIT buscada.
 class _ContratistasPersistenceStore {
@@ -130,7 +175,7 @@ class _ContratistasScreenState extends State<ContratistasScreen>
   static const int _maxBulkCombinations = 5;
 
   late final TextEditingController _searchController;
-  final _seleccionReporte = SeleccionContratosReporte();
+  final _seleccionReporte = _SeleccionContratistasReporte();
 
   void _actualizarSeleccion() => setState(() {});
 
@@ -563,13 +608,20 @@ class _ContratistasScreenState extends State<ContratistasScreen>
       termsToFetch.map((term) async {
         final key = _termCacheKey(term);
         try {
-          await for (final r in BusquedaPersonas.buscarProgresivo(term)) {
+          final entidad = ColombiaEntitiesDatabase.entidadExacta(term);
+          final resultados = entidad == null
+              ? BusquedaPersonas.buscarProgresivo(term)
+              : Stream.fromFuture(ContratistasDeEntidad.buscar(entidad.nit));
+          await for (final r in resultados) {
             if (!mounted || requestId != _latestRequestId) return;
-            final records = _selectBestMatchesForTerm(
-              r.personas.map(_recordFromPersona).toList(),
-              term,
-              alreadyFiltered: true,
-            );
+            final personas = r.personas.map(_recordFromPersona).toList();
+            final records = entidad == null
+                ? _selectBestMatchesForTerm(
+                    personas,
+                    term,
+                    alreadyFiltered: true,
+                  )
+                : personas;
             final store = _ContratistasPersistenceStore.termResultsCache;
             // Mientras faltan fuentes, no se pisa un resultado completo
             // anterior con uno parcial más corto.
@@ -819,21 +871,27 @@ class _ContratistasScreenState extends State<ContratistasScreen>
     return list;
   }
 
+  String? get _alcanceEntidad => _activeBulkTerms.length == 1
+      ? ColombiaEntitiesDatabase.entidadExacta(_activeBulkTerms.single)?.name
+      : null;
+
+  ContratistaDelReporte _fichaReporte(ContractorSummaryRecord perfil) => (
+    nombre: perfil.name,
+    documento: perfil.nit,
+    tipo: perfil.personType,
+    contratos: perfil.totalContracts,
+    valor: perfil.totalValue,
+    entidades: perfil.entitiesCount,
+    ultimaFirma: perfil.lastContractDate.isEmpty
+        ? 'Sin fecha'
+        : perfil.lastContractDate,
+    alcance: _alcanceEntidad,
+  );
+
   void _openContractorProfile(ContractorSummaryRecord contractor) {
     _syncStateToPersistenceStore();
     if (_seleccionReporte.activa) {
-      if (_seleccionReporte.preparando) return;
-      mostrarDialogoCristal<void>(
-        context: context,
-        builder: (_) => SeleccionarContratosContratista(
-          nombre: contractor.name,
-          nombreBusqueda: contractor.rawSearchName,
-          documento: contractor.rawDocumentDigits.isNotEmpty
-              ? contractor.rawDocumentDigits
-              : contractor.nit,
-          seleccion: _seleccionReporte,
-        ),
-      );
+      _seleccionReporte.alternar(_fichaReporte(contractor));
       return;
     }
     Navigator.push(
@@ -1082,16 +1140,23 @@ class _ContratistasScreenState extends State<ContratistasScreen>
                         _syncStateToPersistenceStore();
                       },
                       onOpenProfile: _openContractorProfile,
-                      seleccionandoContratos: _seleccionReporte.activa,
-                      accionesReporte: AccionesSeleccionContratos(
+                      casillaReporte: _seleccionReporte.activa
+                          ? (perfil) => CasillaSeleccionReporte(
+                              seleccion: _seleccionReporte,
+                              datos: _fichaReporte(perfil),
+                              referencia: perfil.name,
+                            )
+                          : null,
+                      accionesReporte: AccionesSeleccionReporte(
                         seleccion: _seleccionReporte,
                         alDescargar: () {
                           _sortBy = 'Mayor valor contratado';
                           _clearSearchManually();
                         },
-                        ayuda: 'Abre los contratos de cada contratista y marca los que quieras incluir.',
+                        ayuda: 'Marca los contratistas que quieras incluir. Puedes seguir buscando para agregar más.',
                       ),
                       formatCurrency: _formatCopCurrency,
+                      alcanceEntidad: _alcanceEntidad,
                       aviso: _avisoBusqueda,
                       onRetry: _reintentarBusqueda,
                       esEntidadPublica: _esEntidadPublica,
@@ -1641,9 +1706,10 @@ class ContratistasResultsTable extends StatelessWidget {
     required this.onPageChanged,
     required this.onOpenProfile,
     required this.accionesReporte,
-    required this.seleccionandoContratos,
+    this.casillaReporte,
     required this.formatCurrency,
     this.aviso,
+    this.alcanceEntidad,
     this.onRetry,
     this.terminoSigep,
     this.esEntidadPublica,
@@ -1706,7 +1772,7 @@ class ContratistasResultsTable extends StatelessWidget {
   final ValueChanged<int> onPageChanged;
   final ValueChanged<ContractorSummaryRecord> onOpenProfile;
   final Widget accionesReporte;
-  final bool seleccionandoContratos;
+  final Widget Function(ContractorSummaryRecord)? casillaReporte;
   final String Function(double) formatCurrency;
 
   /// Desde mil millones, en millones ("\$ 9.188.302 M"): la cifra completa
@@ -1722,6 +1788,7 @@ class ContratistasResultsTable extends StatelessWidget {
 
   /// Alguna fuente no respondió: se avisa en lugar de callar.
   final String? aviso;
+  final String? alcanceEntidad;
   final VoidCallback? onRetry;
 
   /// Nombre buscado (búsquedas por nombre): se ofrece buscarlo en el
@@ -1791,14 +1858,16 @@ class ContratistasResultsTable extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(22, 18, 22, 14),
-            child: CabeceraSeleccionContratos(
+            child: CabeceraSeleccionReporte(
               resumen: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     isDefaultView
                         ? 'Contratistas representativos en SECOP II'
-                        : 'Resultados de contratistas',
+                        : alcanceEntidad == null
+                        ? 'Resultados de contratistas'
+                        : 'Contratistas de $alcanceEntidad',
                     style: TextStyle(
                       color: Cristal.texto,
                       fontSize: 18,
@@ -2166,12 +2235,11 @@ class ContratistasResultsTable extends StatelessWidget {
                     ],
                   ),
                 ),
-                TextButton(
-                  onPressed: () => onOpenProfile(record),
-                  child: Text(
-                    seleccionandoContratos ? 'Ver contratos' : 'Ver perfil',
-                  ),
-                ),
+                casillaReporte?.call(record) ??
+                    TextButton(
+                      onPressed: () => onOpenProfile(record),
+                      child: const Text('Ver perfil'),
+                    ),
               ],
             ),
           ],
@@ -2418,44 +2486,44 @@ class ContratistasResultsTable extends StatelessWidget {
             width: 132,
             child: Align(
               alignment: Alignment.centerRight,
-              child: InkWell(
-                hoverDuration: Cristal.micro,
-                onTap: () => onOpenProfile(record),
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 13,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Cristal.vidrioSuave,
+              child:
+                  casillaReporte?.call(record) ??
+                  InkWell(
+                    hoverDuration: Cristal.micro,
+                    onTap: () => onOpenProfile(record),
                     borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          seleccionandoContratos
-                              ? 'Ver contratos'
-                              : 'Ver perfil',
-                          style: TextStyle(
-                            color: Cristal.acentoClaro,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 13,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Cristal.vidrioSuave,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              'Ver perfil',
+                              style: TextStyle(
+                                color: Cristal.acentoClaro,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
-                        ),
+                          SizedBox(width: 4),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 14,
+                            color: Cristal.acentoClaro,
+                          ),
+                        ],
                       ),
-                      SizedBox(width: 4),
-                      Icon(
-                        Icons.arrow_forward_rounded,
-                        size: 14,
-                        color: Cristal.acentoClaro,
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
             ),
           ),
         ],

@@ -2,6 +2,9 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+
+import '../widgets/archivo_entidad_secop_i.dart';
+
 import 'package:http/http.dart' as http;
 
 import '../services/presupuesto_dependencias_service.dart';
@@ -5062,6 +5065,11 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _buildCompactHeader(),
+            if (widget.entity.nit.isNotEmpty)
+              ArchivoEntidadSecopI(
+                nit: widget.entity.nit,
+                nombre: widget.entity.name,
+              ),
             _buildProfileTabsBar(),
             _buildBarraExploracion(),
             Expanded(

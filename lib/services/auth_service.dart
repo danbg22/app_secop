@@ -1324,37 +1324,6 @@ class AuthService {
         password: password,
       );
       final user = userCredential.user;
-      if (user != null && normDoc.length >= 5) {
-        // La cédula es única: si su índice ya existe (de otra cuenta), las
-        // reglas no permiten crearlo y la cuenta recién creada se elimina.
-        try {
-          await FirebaseFirestore.instance
-              .collection(coleccionIndicesUnicidad)
-              .doc(
-                SecurityService.hashCredentialUniquenessIndex(
-                  type: 'doc',
-                  normalizedValue: normDoc,
-                ),
-              )
-              .set({
-                'tipo': 'doc',
-                'uid': user.uid,
-                'creado_en': FieldValue.serverTimestamp(),
-              })
-              .timeout(const Duration(seconds: 8));
-        } on FirebaseException catch (e) {
-          if (e.code == 'permission-denied') {
-            try {
-              await user.delete();
-            } catch (_) {}
-            throw const AuthServiceException(
-              'Esa cédula ya está registrada en otra cuenta. Si es tuya, inicia sesión o recupera tu contraseña.',
-            );
-          }
-        } on AuthServiceException {
-          rethrow;
-        } catch (_) {}
-      }
       if (user != null) {
         try {
           await ConsentService.registrarAceptacionTratamientoDatos(
@@ -1364,11 +1333,6 @@ class AuthService {
           );
 
           final db = FirebaseFirestore.instance;
-          final emailIdxHash = SecurityService.hashCredentialUniquenessIndex(
-            type: 'email',
-            normalizedValue: cleanEmail,
-          );
-
           final batch = db.batch();
           batch.set(
             db.collection(ConsentService.coleccionUsuarios).doc(user.uid),
@@ -1380,8 +1344,6 @@ class AuthService {
               'displayName': displayName,
               'pais': (userData['pais'] ?? 'Colombia').toString().trim(),
               'telefono': (userData['telefono'] ?? '').toString().trim(),
-              'documento': cleanDocumento,
-              'documentoNormalizado': normDoc,
               'rolesActivos': initialRoles,
               'rolPrincipal': selectedRolId,
               'rolSolicitadoRegistro': selectedRolId,
@@ -1393,11 +1355,6 @@ class AuthService {
             },
             SetOptions(merge: true),
           );
-          batch.set(db.collection(coleccionIndicesUnicidad).doc(emailIdxHash), {
-            'tipo': 'email',
-            'uid': user.uid,
-            'creado_en': FieldValue.serverTimestamp(),
-          });
           await batch.commit().timeout(const Duration(seconds: 6));
         } catch (_) {
           debugPrint(
@@ -1405,6 +1362,32 @@ class AuthService {
           );
         }
 
+        try {
+          await AccesoPlanes.vincularCedula(normDoc);
+        } on AccesoPlanesException catch (e) {
+          if (e.codigo == 'ALREADY_EXISTS') {
+            try {
+              await user.delete();
+            } catch (_) {}
+          }
+          throw AuthServiceException(e.mensaje);
+        }
+
+        final emailIdxHash = SecurityService.hashCredentialUniquenessIndex(
+          type: 'email',
+          normalizedValue: cleanEmail,
+        );
+        try {
+          await FirebaseFirestore.instance
+              .collection(coleccionIndicesUnicidad)
+              .doc(emailIdxHash)
+              .set({
+                'tipo': 'email',
+                'uid': user.uid,
+                'creado_en': FieldValue.serverTimestamp(),
+              })
+              .timeout(const Duration(seconds: 6));
+        } catch (_) {}
         await user.updateDisplayName(displayName);
         await user.reload();
         unawaited(user.sendEmailVerification().catchError((_) {}));

@@ -4,7 +4,7 @@ import '../services/auth_service.dart';
 import '../services/seguimiento_service.dart';
 import 'custom_app_bar.dart';
 import 'boton_notificaciones_soporte.dart';
-import 'pqrs_help_dialog.dart';
+import 'ayuda_plataforma.dart';
 import '../tema/cristal.dart';
 
 class MenuOptionItem {
@@ -95,7 +95,7 @@ class CollapsibleSideMenu extends StatelessWidget {
   }
 
   void _showHelpDialog(BuildContext context) {
-    PqrsHelpDialog.show(context);
+    AyudaPlataforma.mostrar(context);
   }
 
   /// Renderiza únicamente el isotipo del mapa de Colombia con lupa (sin el texto "Contrata Legal")

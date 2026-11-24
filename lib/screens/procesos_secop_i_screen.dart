@@ -23,11 +23,19 @@ class _ProcesosSecopIScreenState extends State<ProcesosSecopIScreen> {
     decimalDigits: 0,
   );
   late Future<List<Map<String, dynamic>>> _procesos;
+  int _limite = 50;
 
   @override
   void initState() {
     super.initState();
-    _procesos = SecopIProcesosService.procesosDeEntidad(widget.entidad);
+    _consultar();
+  }
+
+  void _consultar() {
+    _procesos = SecopIProcesosService.procesosDeEntidad(
+      widget.entidad,
+      limite: _limite,
+    );
   }
 
   String _fecha(dynamic raw) {
@@ -58,7 +66,7 @@ class _ProcesosSecopIScreenState extends State<ProcesosSecopIScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         foregroundColor: Cristal.texto,
-        title: const Text('Procesos en SECOP I'),
+        title: const Text('Archivo de SECOP I'),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -108,10 +116,8 @@ class _ProcesosSecopIScreenState extends State<ProcesosSecopIScreen> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    'Esta entidad no publica en SECOP II (régimen especial). En SECOP I '
-                    'registró procesos convocados: muestran el objeto y la cuantía '
-                    'estimada, pero no el contratista ni el valor del contrato firmado. '
-                    'Su contratación más reciente puede estar en su propio portal.',
+                    'Archivo histórico de convocatorias y contratos de SECOP I. '
+                    'Cada registro muestra la información publicada en su expediente.',
                     style: TextStyle(color: Cristal.ambar, fontSize: 12.5),
                   ),
                 ),
@@ -129,13 +135,15 @@ class _ProcesosSecopIScreenState extends State<ProcesosSecopIScreen> {
                 );
               }
               final procesos = snapshot.data ?? const [];
+              if (snapshot.hasError) {
+                return TextButton(
+                  onPressed: () => setState(_consultar),
+                  child: const Text('No se pudo consultar SECOP I. Reintentar'),
+                );
+              }
               if (procesos.isEmpty) {
-                return const Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text(
-                    'No fue posible cargar los procesos. Inténtalo de nuevo.',
-                    textAlign: TextAlign.center,
-                  ),
+                return const Center(
+                  child: Text('El archivo no devolvió registros.'),
                 );
               }
               return Column(
@@ -166,6 +174,12 @@ class _ProcesosSecopIScreenState extends State<ProcesosSecopIScreen> {
                             [
                               (p['numero_de_proceso'] ?? '').toString(),
                               (p['modalidad_de_contratacion'] ?? '').toString(),
+                              (p['estado_del_proceso'] ?? '').toString(),
+                              if (p['fecha_de_firma_del_contrato'] != null) ...[
+                                'Contrato ${p['numero_de_contrato'] ?? ''}',
+                                (p['nom_razon_social_contratista'] ?? '')
+                                    .toString(),
+                              ],
                               _moneda.format(
                                 double.tryParse(
                                       (p['cuantia_proceso'] ?? '').toString(),
@@ -183,6 +197,15 @@ class _ProcesosSecopIScreenState extends State<ProcesosSecopIScreen> {
                           onPressed: () => _abrir(p['ruta_proceso_en_secop_i']),
                         ),
                       ),
+                    ),
+                  if (procesos.length == _limite &&
+                      procesos.length < e.procesos)
+                    OutlinedButton(
+                      onPressed: () => setState(() {
+                        _limite += 50;
+                        _consultar();
+                      }),
+                      child: const Text('Ver más registros'),
                     ),
                 ],
               );

@@ -40,15 +40,15 @@ class _BotonNotificacionesSoporteState
                 snapshot.data?.where((mensaje) => mensaje.sinLeer).length ?? 0;
             return IconButton(
               tooltip: nuevas == 0
-                  ? 'Notificaciones de soporte'
+                  ? 'Mensajes de soporte'
                   : 'Soporte · $nuevas sin leer',
               icon: Badge(
                 isLabelVisible: nuevas > 0,
                 label: Text(nuevas > 99 ? '99+' : '$nuevas'),
                 child: Icon(
                   nuevas == 0
-                      ? Icons.notifications_none_rounded
-                      : Icons.notifications_rounded,
+                      ? Icons.mark_email_read_outlined
+                      : Icons.mark_email_unread_rounded,
                   color: nuevas == 0 ? Cristal.texto : Cristal.dorado,
                 ),
               ),

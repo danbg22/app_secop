@@ -658,6 +658,7 @@ class ReporteContratosPdfService {
     String alcance,
     DateTime fecha, {
     String extension = 'pdf',
+    String tipoReporte = 'contratos',
   }) {
     String limpio(String t) => t
         .replaceAll(RegExp(r'[^A-Za-z0-9ÁÉÍÓÚÑáéíóúñ ]'), ' ')
@@ -665,7 +666,7 @@ class ReporteContratosPdfService {
         .replaceAll(RegExp(r'\s+'), '_');
     String dos(int n) => n.toString().padLeft(2, '0');
     final base = [
-      'Reporte_contratos',
+      'Reporte_$tipoReporte',
       limpio(entidad),
       if (alcance.isNotEmpty) limpio(alcance),
       '${fecha.year}${dos(fecha.month)}${dos(fecha.day)}',

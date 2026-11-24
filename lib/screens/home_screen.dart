@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/seguimiento_service.dart';
 import '../widgets/collapsible_side_menu.dart';
 import '../widgets/boton_notificaciones_soporte.dart';
+import '../widgets/ayuda_plataforma.dart';
 import '../widgets/user_profile_header_action.dart';
 import '../widgets/prueba_plan_banner.dart';
 import 'favoritos_screen.dart';
@@ -321,6 +322,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           actions: [
             const BotonNotificacionesSoporte(),
+            IconButton(
+              tooltip: "Ayuda",
+              icon: const Icon(Icons.help_outline_rounded),
+              onPressed: () => AyudaPlataforma.mostrar(context),
+            ),
             UserProfileHeaderAction(onLogout: _cerrarSesion),
             const SizedBox(width: 8),
           ],

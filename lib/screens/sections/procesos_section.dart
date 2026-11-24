@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../services/procesos_secop_service.dart';
+import '../../data/colombia_entities_database.dart';
+import '../../widgets/archivo_entidad_secop_i.dart';
 import '../../tema/cristal.dart';
 import '../../utils/banderas_control.dart';
 import '../../widgets/estado_proceso_chip.dart';
@@ -102,6 +104,9 @@ class _ProcesosSectionState extends State<ProcesosSection> {
 
   @override
   Widget build(BuildContext context) {
+    final entidad = _campo == CampoBusquedaProceso.referencia
+        ? null
+        : ColombiaEntitiesDatabase.entidadExacta(_texto);
     return LayoutBuilder(
       builder: (context, caja) {
         final margen = caja.maxWidth >= 700 ? 26.0 : 16.0;
@@ -119,6 +124,17 @@ class _ProcesosSectionState extends State<ProcesosSection> {
               padding: EdgeInsets.fromLTRB(ancho, 0, ancho, 16),
               sliver: SliverToBoxAdapter(child: _filtros()),
             ),
+            if (entidad != null)
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(ancho, 0, ancho, 12),
+                sliver: SliverToBoxAdapter(
+                  child: ArchivoEntidadSecopI(
+                    key: ValueKey(entidad.nit),
+                    nit: entidad.nit,
+                    nombre: entidad.name,
+                  ),
+                ),
+              ),
             SliverPadding(
               padding: EdgeInsets.fromLTRB(ancho, 0, ancho, 12),
               sliver: SliverToBoxAdapter(

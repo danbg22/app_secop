@@ -1,16 +1,13 @@
 import 'dart:convert';
 
-
 import '../utils/secop_i.dart';
 import 'security_service.dart';
 import '../utils/nit.dart';
 import 'datos_abiertos.dart';
 
 /// Entidad con procesos publicados en SECOP I. Las entidades de régimen
-/// especial (p. ej. universidades públicas, Ley 30 de 1992) no publican en
-/// SECOP II, pero muchas registraron sus convocatorias en SECOP I. Son
-/// procesos convocados, no contratos firmados: no traen contratista ni
-/// valor del contrato, solo la cuantía estimada del proceso.
+/// especial pueden publicar en ambas plataformas. Los registros históricos
+/// pueden incluir un proceso convocado o un contrato con datos de firma.
 class EntidadSecopI {
   const EntidadSecopI({
     required this.nombre,
@@ -124,7 +121,7 @@ class SecopIProcesosService {
     final nits = nitsCatalogo
         .map((n) => n.replaceAll(RegExp(r'[^0-9]'), ''))
         .where((n) => n.length >= 8)
-        .expand(Nit.formas)
+        .expand((nit) => Nit.formas(Nit.formasNumericas(nit).firstOrNull ?? ''))
         .toSet();
     if (nombres.isEmpty && nits.isEmpty) return const [];
 
@@ -146,8 +143,32 @@ class SecopIProcesosService {
         .map(EntidadSecopI.fromMap)
         .where((e) => e.nombre.isNotEmpty && e.procesos > 0)
         .toList();
-    _cache[clave] = resultado;
+    if (resultado.isNotEmpty) _cache[clave] = resultado;
     return resultado;
+  }
+
+  static Future<EntidadSecopI?> archivoPorNit(String nit, String nombre) async {
+    final filas = await buscarEntidades('', nitsCatalogo: [nit]);
+    if (filas.isEmpty) return null;
+    final primera = filas.first;
+    final desde = [
+      for (final e in filas)
+        if (e.desde.isNotEmpty) e.desde,
+    ]..sort();
+    final hasta = [
+      for (final e in filas)
+        if (e.hasta.isNotEmpty) e.hasta,
+    ]..sort();
+    return EntidadSecopI(
+      nombre: nombre,
+      nit: nit,
+      departamento: primera.departamento,
+      municipio: primera.municipio,
+      procesos: filas.fold(0, (total, e) => total + e.procesos),
+      valorEstimado: filas.fold(0, (total, e) => total + e.valorEstimado),
+      desde: desde.firstOrNull ?? '',
+      hasta: hasta.lastOrNull ?? '',
+    );
   }
 
   /// Procesos publicados por la entidad, del más reciente al más antiguo.
@@ -155,18 +176,21 @@ class SecopIProcesosService {
     EntidadSecopI entidad, {
     int limite = 200,
   }) async {
-    final filas = await _consultar({
+    final formas = Nit.formas(
+      Nit.formasNumericas(entidad.nit).firstOrNull ?? '',
+    );
+    final filas = await DatosAbiertos.filas(SecopI.dataset, {
       r'$select':
           'numero_de_proceso,detalle_del_objeto_a_contratar,modalidad_de_contratacion,'
           'estado_del_proceso,cuantia_proceso,fecha_de_cargue_en_el_secop,'
-          'ruta_proceso_en_secop_i',
-      r'$where': 'nombre_entidad = ${_literal(entidad.nombre)}',
-      r'$order': 'fecha_de_cargue_en_el_secop DESC',
+          'numero_de_contrato,nom_razon_social_contratista,cuantia_contrato,'
+          'fecha_de_firma_del_contrato,ruta_proceso_en_secop_i',
+      r'$where': formas.isEmpty
+          ? 'nombre_entidad = ${_literal(entidad.nombre)}'
+          : 'nit_de_la_entidad in (${formas.map(_literal).join(',')})',
+      r'$order': 'fecha_de_cargue_en_el_secop DESC, :id DESC',
       r'$limit': '$limite',
-    });
-    return filas
-        .whereType<Map>()
-        .map((m) => m.map((k, v) => MapEntry(k.toString(), v)))
-        .toList();
+    }, timeout: const Duration(seconds: 15));
+    return filas;
   }
 }
