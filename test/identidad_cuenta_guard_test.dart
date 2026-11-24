@@ -1,100 +1,92 @@
-// ignore_for_file: depend_on_referenced_packages
-
-import 'package:app_secop/services/admin_access.dart';
-import 'package:app_secop/widgets/identidad_cuenta_guard.dart';
-import 'package:firebase_auth_platform_interface/firebase_auth_platform_interface.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_core_platform_interface/test.dart';
-import 'package:flutter/material.dart';
+import 'package:app_secop/services/acceso_planes.dart';
+import 'package:app_secop/services/registro_cedula.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
-
-class _AuthPrueba extends FirebaseAuthPlatform {
-  late final _usuario = _UsuarioPrueba(this);
-
-  @override
-  UserPlatform get currentUser => _usuario;
-
-  @override
-  FirebaseAuthPlatform delegateFor({required FirebaseApp app}) => this;
-
-  @override
-  FirebaseAuthPlatform setInitialValues({
-    InternalUserDetails? currentUser,
-    String? languageCode,
-  }) => this;
-}
-
-class _SegundoFactorPrueba extends MultiFactorPlatform {
-  _SegundoFactorPrueba(super.auth);
-}
-
-class _UsuarioPrueba extends UserPlatform {
-  _UsuarioPrueba(FirebaseAuthPlatform auth)
-    : super(
-        auth,
-        _SegundoFactorPrueba(auth),
-        InternalUserDetails(
-          userInfo: InternalUserInfo(
-            uid: 'uid-admin-prueba',
-            email: AdminAccess.correosAdministradores.first,
-            isAnonymous: false,
-            isEmailVerified: true,
-          ),
-          providerData: [],
-        ),
-      );
-
-  @override
-  Future<String?> getIdToken(bool forceRefresh) async => 'token-prueba';
-}
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
+  final registro = DateTime.utc(2026, 11, 24, 19);
 
-  setUpAll(() async {
-    setupFirebaseCoreMocks();
-    FirebaseAuthPlatform.instance = _AuthPrueba();
-    await Firebase.initializeApp();
+  EstadoPlanes estado({
+    Map<String, dynamic> perfil = const {},
+    Map<String, dynamic>? acceso,
+    bool cuentaAnterior = false,
+    DateTime? ahora,
+  }) => EstadoPlanes.desdeFirestore(
+    perfil: perfil,
+    acceso: acceso,
+    cuentaAnterior: cuentaAnterior,
+    ahora: ahora ?? registro,
+  );
+
+  test('solo las cuentas nuevas incompletas deben ingresar cédula', () {
+    expect(estado().preparando, isTrue);
+    final anterior = estado(cuentaAnterior: true);
+    expect(anterior.preparando, isFalse);
+    expect(anterior.roles, contains('persona'));
+    expect(anterior.tieneSuscripcionVigente('persona'), isFalse);
   });
 
-  Future<void> abrir(WidgetTester tester, http.Response respuesta) {
-    return http.runWithClient(
-      () async {
-        await tester.pumpWidget(
-          const MaterialApp(
-            home: IdentidadCuentaGuard(child: Text('Acceso confirmado')),
-          ),
-        );
-        await tester.pumpAndSettle();
+  test(
+    'el registro normaliza la cédula y descarta identificadores inválidos',
+    () {
+      expect(RegistroCedula.normalizar(' 1.234.567 '), '1234567');
+      expect(RegistroCedula.normalizar('CC 1234567'), isEmpty);
+      expect(RegistroCedula.normalizar('1234'), isEmpty);
+    },
+  );
+
+  test('la prueba va del registro confirmado a los 30 días exactos', () {
+    final perfil = {
+      'registroCedulaEn': Timestamp.fromDate(registro),
+      'rolRegistroCedula': 'equipo_juridico',
+    };
+    final vigente = estado(perfil: perfil);
+    expect(vigente.roles, {'equipo_juridico'});
+    expect(vigente.diasPrueba, 30);
+    final fin = registro.add(const Duration(days: 30));
+    expect(
+      estado(
+        perfil: perfil,
+        ahora: fin.subtract(const Duration(seconds: 1)),
+      ).roles,
+      {'equipo_juridico'},
+    );
+    final vencido = estado(perfil: perfil, ahora: fin);
+    expect(vencido.roles, isEmpty);
+    expect(vencido.pruebaVencida, isTrue);
+    expect(vencido.preparando, isFalse);
+  });
+
+  test('un registro requiere cédula antes de activar su rol gratuito', () {
+    expect(
+      estado(
+        perfil: {
+          'rolesActivos': ['contratista'],
+        },
+      ).preparando,
+      isTrue,
+    );
+    final listo = estado(
+      perfil: {
+        'registroCedulaEn': Timestamp.fromDate(registro),
+        'rolRegistroCedula': 'contratista',
+        'rolesActivos': ['contratista'],
       },
-      () => MockClient((solicitud) async {
-        expect(solicitud.url.path, '/identidadCuenta');
-        return respuesta;
-      }),
     );
-  }
-
-  testWidgets('un administrador verificado conserva acceso ante un 404 HTML', (
-    tester,
-  ) async {
-    await abrir(tester, http.Response('<html>Not Found</html>', 404));
-    expect(find.text('Acceso confirmado'), findsOneWidget);
+    expect(listo.roles, {'contratista'});
+    expect(listo.enPrueba, isFalse);
   });
 
-  testWidgets('una cédula duplicada conserva el bloqueo y muestra el motivo', (
-    tester,
-  ) async {
-    await abrir(
-      tester,
-      http.Response(
-        '{"error":{"status":"ALREADY_EXISTS","message":"Cédula duplicada."}}',
-        409,
-        headers: {'content-type': 'application/json; charset=utf-8'},
-      ),
+  test('una vigencia anterior confirmada prevalece sobre la exención', () {
+    final vencido = estado(
+      cuentaAnterior: true,
+      acceso: {
+        'rolInicial': 'persona',
+        'pruebaRol': 'persona',
+        'pruebaHasta': Timestamp.fromDate(registro),
+      },
     );
-    expect(find.text('Acceso confirmado'), findsNothing);
-    expect(find.text('Cédula duplicada.'), findsOneWidget);
+    expect(vencido.roles, isEmpty);
+    expect(vencido.preparando, isFalse);
   });
 }

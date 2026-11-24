@@ -7,6 +7,7 @@ import '../services/acceso_planes.dart';
 import '../services/auth_service.dart';
 import '../services/payment_service.dart';
 import '../tema/cristal.dart';
+import '../widgets/ayuda_plataforma.dart';
 
 class PasarelaPagoWompiScreen extends StatefulWidget {
   const PasarelaPagoWompiScreen({
@@ -149,7 +150,8 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
         final aprobado =
             administrador || estado?.tieneSuscripcionVigente(_plan.id) == true;
         final renovacion = estado?.renovaciones[_plan.id];
-        final disponible = estado?.renovacionDisponible == true;
+        const cobroEnLinea = AccesoPlanes.pagosEnLineaDisponibles;
+        final disponible = cobroEnLinea && estado?.renovacionDisponible == true;
         final conMandato =
             renovacion?.activa == true || renovacion?.pendiente == true;
         final puedeVincular =
@@ -211,7 +213,8 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                             const Text(
                               'Tus 30 días de prueba terminaron. Suscríbete para volver a usar este plan.',
                             ),
-                          if (estado?.enPrueba == true &&
+                          if (cobroEnLinea &&
+                              estado?.enPrueba == true &&
                               estado?.rolPrueba == _plan.id)
                             const Text(
                               'Si pagas hoy, el periodo mensual comienza cuando Wompi confirme el pago.',
@@ -222,33 +225,44 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                             style: Theme.of(context).textTheme.titleLarge,
                           ),
                           const SizedBox(height: 6),
-                          Text(
-                            disponible
-                                ? 'Autorizas una tarjeta en Wompi para pagar cada mes. Cancela al menos 24 horas antes del siguiente cobro.'
-                                : 'Pagas en Wompi. La renovación es manual.',
-                          ),
-                          const SizedBox(height: 16),
-                          FilledButton.icon(
-                            onPressed: _ocupado || conMandato ? null : _pagar,
-                            icon: const Icon(Icons.open_in_new_rounded),
-                            label: Text(
+                          if (cobroEnLinea) ...[
+                            Text(
                               disponible
-                                  ? 'Suscribirme con tarjeta'
-                                  : 'Pagar en Wompi',
+                                  ? 'Autorizas una tarjeta en Wompi para pagar cada mes. Cancela al menos 24 horas antes del siguiente cobro.'
+                                  : 'Pagas en Wompi. La renovación es manual.',
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                          TextField(
-                            controller: _identificador,
-                            decoration: const InputDecoration(
-                              labelText: 'ID de la transacción (opcional)',
+                            const SizedBox(height: 16),
+                            FilledButton.icon(
+                              onPressed: _ocupado || conMandato ? null : _pagar,
+                              icon: const Icon(Icons.open_in_new_rounded),
+                              label: Text(
+                                disponible
+                                    ? 'Suscribirme con tarjeta'
+                                    : 'Pagar en Wompi',
+                              ),
                             ),
-                            onSubmitted: (_) => _verificar(),
-                          ),
-                          TextButton(
-                            onPressed: _ocupado ? null : _verificar,
-                            child: const Text('Verificar un pago'),
-                          ),
+                            const SizedBox(height: 16),
+                            TextField(
+                              controller: _identificador,
+                              decoration: const InputDecoration(
+                                labelText: 'ID de la transacción (opcional)',
+                              ),
+                              onSubmitted: (_) => _verificar(),
+                            ),
+                            TextButton(
+                              onPressed: _ocupado ? null : _verificar,
+                              child: const Text('Verificar un pago'),
+                            ),
+                          ] else ...[
+                            const Text(
+                              'Contacta a soporte para consultar la activación de tu plan.',
+                            ),
+                            const SizedBox(height: 16),
+                            FilledButton(
+                              onPressed: () => AyudaPlataforma.mostrar(context),
+                              child: const Text('Contactar a soporte'),
+                            ),
+                          ],
                         ],
                         if (conMandato && renovacion != null) ...[
                           const SizedBox(height: 16),

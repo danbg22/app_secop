@@ -23,6 +23,38 @@ service cloud.firestore {
           data.get('rolesActivos', []).hasOnly(['contratista', 'juridico_supervision']);
     }
 
+    function hashCedula(cedula) {
+      return hashing.sha256('ContrataLegal::SECOP::AppSec::2026::v1::uniqueness::doc::' +
+          cedula).toHexString().lower();
+    }
+
+    function esRegistroConCedula(uid, datos) {
+      let cedula = datos.get('documentoNormalizado', '');
+      let indice = /databases/$(database)/documents/indices_unicidad/$(hashCedula(cedula));
+      return cedula.matches('^[0-9]{5,20}$') && datos.documento == cedula &&
+          datos.cedulaVinculada == true && datos.registroCedulaEn == request.time &&
+          datos.rolRegistroCedula in ['persona', 'equipo_juridico', 'supervisor_contratos',
+                                      'contratista', 'juridico_supervision'] &&
+          !exists(indice) && getAfter(indice).data.uid == uid &&
+          getAfter(indice).data.tipo == 'doc';
+    }
+
+    function esPerfilSinCedula(datos) {
+      return datos.get('documento', '') == '' &&
+          datos.get('documentoNormalizado', '') == '' &&
+          !datos.keys().hasAny(['cedulaVinculada', 'registroCedulaEn', 'rolRegistroCedula']);
+    }
+
+    function accesoPorPerfil(uid, rol) {
+      let perfil = /databases/$(database)/documents/usuarios/$(uid);
+      return exists(perfil) && (
+          (get(perfil).data.get('pagoWompiActivo', false) == true &&
+           get(perfil).data.get('rolesActivos', []).hasAny([rol])) ||
+          (get(perfil).data.get('rolRegistroCedula', '') == rol &&
+           get(perfil).data.get('registroCedulaEn', null) is timestamp &&
+           request.time < get(perfil).data.registroCedulaEn + duration.value(30, 'd')));
+    }
+
     function fechaVigente(fecha) {
       return fecha is timestamp && fecha > request.time;
     }
@@ -36,17 +68,28 @@ service cloud.firestore {
 
     function planVigente(uid, rol) {
       let ruta = /databases/$(database)/documents/accesos_planes/$(uid);
-      return exists(ruta) && (vigenciaDe(get(ruta).data, rol) ||
-          (uid != request.auth.uid && get(ruta).data.get('admin', false) == true));
+      return (exists(ruta) && (vigenciaDe(get(ruta).data, rol) ||
+          (uid != request.auth.uid && get(ruta).data.get('admin', false) == true))) ||
+          (!exists(ruta) && accesoPorPerfil(uid, rol));
+    }
+
+    function exentoCedula(uid) {
+      let exencion = /databases/$(database)/documents/accesos_anteriores/$(uid);
+      return exists(exencion) && get(exencion).data.exentoCedula == true;
     }
 
     function rolesGratuitosHabilitados(uid) {
       let ruta = /databases/$(database)/documents/accesos_planes/$(uid);
-      return exists(ruta) &&
+      let perfil = /databases/$(database)/documents/usuarios/$(uid);
+      return exists(ruta) ?
           (get(ruta).data.rolInicial in ['contratista', 'juridico_supervision'] ||
            vigenciaDe(get(ruta).data, 'persona') ||
            vigenciaDe(get(ruta).data, 'equipo_juridico') ||
-           vigenciaDe(get(ruta).data, 'supervisor_contratos'));
+           vigenciaDe(get(ruta).data, 'supervisor_contratos')) :
+          (exists(perfil) && (
+             exentoCedula(uid) ||
+             get(perfil).data.rolRegistroCedula in ['contratista', 'juridico_supervision'] ||
+             accesoPorPerfil(uid, get(perfil).data.rolRegistroCedula)));
     }
 
     // El Contratista de Supervisión de contratos es gratuito: se puede sumar
@@ -233,7 +276,21 @@ service cloud.firestore {
 
     // Credenciales de vigencia, reclamos de prueba e intentos: solo Admin SDK.
     match /accesos_planes/{uid} {
-      allow read, write: if false;
+      allow get: if isOwner(uid);
+      allow list, write: if false;
+    }
+
+    match /accesos_anteriores/{uid} {
+      allow get: if isOwner(uid);
+      allow list, write: if false;
+    }
+
+    match /relojes_acceso/{uid} {
+      allow get: if isOwner(uid);
+      allow create, update: if isOwner(uid) &&
+          request.resource.data.keys().hasOnly(['ahora']) &&
+          request.resource.data.ahora == request.time;
+      allow list, delete: if false;
     }
 
     match /identidades_prueba/{huella} {
@@ -256,9 +313,8 @@ service cloud.firestore {
       allow create: if isOwner(uid) &&
           request.resource.data.uid == uid &&
           rolesInicialesValidos(request.resource.data) &&
-          request.resource.data.get('documento', '') == '' &&
-          request.resource.data.get('documentoNormalizado', '') == '' &&
-          !('cedulaVinculada' in request.resource.data) &&
+          (esPerfilSinCedula(request.resource.data) ||
+           esRegistroConCedula(uid, request.resource.data)) &&
           request.resource.data.get('pagoWompiActivo', false) == false &&
           request.resource.data.get('ultimoPagoWompi', null) == null;
 
@@ -268,8 +324,11 @@ service cloud.firestore {
           (!('email' in resource.data) ||
            resource.data.email == '' ||
            request.resource.data.email == resource.data.email) &&
-          !request.resource.data.diff(resource.data).affectedKeys()
-             .hasAny(['documento', 'documentoNormalizado', 'cedulaVinculada']) &&
+          (!request.resource.data.diff(resource.data).affectedKeys()
+             .hasAny(['documento', 'documentoNormalizado', 'cedulaVinculada',
+                      'registroCedulaEn', 'rolRegistroCedula']) ||
+           (esPerfilSinCedula(resource.data) &&
+            esRegistroConCedula(uid, request.resource.data))) &&
           (!('aceptacion_datos' in resource.data) ||
            resource.data.aceptacion_datos != true ||
            request.resource.data.aceptacion_datos == true) &&
@@ -304,6 +363,13 @@ service cloud.firestore {
     // =========================================================================
     // 2. ÍNDICES OPACOS DE UNICIDAD (`indices_unicidad/{sha256Hash}`)
     // =========================================================================
+    function registroRespaldaIndice(uid, hash) {
+      let perfil = /databases/$(database)/documents/usuarios/$(uid);
+      let datos = getAfter(perfil).data;
+      return datos.registroCedulaEn == request.time && datos.cedulaVinculada == true &&
+          hash == hashCedula(datos.documentoNormalizado);
+    }
+
     match /indices_unicidad/{hash} {
       // Solo el dueño lee su índice: nadie puede averiguar si una cédula o
       // un correo ajenos tienen cuenta. La unicidad la garantiza `create`.
@@ -315,7 +381,9 @@ service cloud.firestore {
           !exists(/databases/$(database)/documents/indices_unicidad/$(hash)) &&
           request.resource.data.keys().hasOnly(['tipo', 'uid', 'creado_en']) &&
           request.resource.data.uid == request.auth.uid &&
-          request.resource.data.tipo == 'email';
+          (request.resource.data.tipo == 'email' ||
+           (request.resource.data.tipo == 'doc' &&
+            registroRespaldaIndice(request.auth.uid, hash)));
       allow update, delete: if false;
     }
 

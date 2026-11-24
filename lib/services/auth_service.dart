@@ -13,6 +13,7 @@ import 'admin_access.dart';
 import 'equipo_juridico_service.dart';
 import 'consent_service.dart';
 import 'payment_service.dart';
+import 'registro_cedula.dart';
 import 'security_service.dart';
 import 'seguimiento_service.dart';
 
@@ -1270,8 +1271,8 @@ class AuthService {
         .toString()
         .replaceAll(RegExp(r'\s+'), '')
         .trim();
-    final normDoc = normalizeDocumentoDigits(cleanDocumento);
-    if (cleanDocumento.isEmpty || normDoc.length < 5 || normDoc.length > 20) {
+    final normDoc = RegistroCedula.normalizar(cleanDocumento);
+    if (normDoc.isEmpty) {
       throw const AuthServiceException(
         'El número de cédula o documento válido es obligatorio para crear la cuenta.',
       );
@@ -1326,18 +1327,11 @@ class AuthService {
       final user = userCredential.user;
       if (user != null) {
         try {
-          await ConsentService.registrarAceptacionTratamientoDatos(
+          await RegistroCedula.guardar(
             uid: user.uid,
-            email: cleanEmail,
-            canal: 'registro_email',
-          );
-
-          final db = FirebaseFirestore.instance;
-          final batch = db.batch();
-          batch.set(
-            db.collection(ConsentService.coleccionUsuarios).doc(user.uid),
-            {
-              'uid': user.uid,
+            cedula: normDoc,
+            rol: selectedRolId,
+            datos: {
               'email': cleanEmail,
               'nombres': nombres,
               'apellidos': apellidos,
@@ -1353,25 +1347,22 @@ class AuthService {
               'pagoWompiActivo': false,
               'actualizado_en': FieldValue.serverTimestamp(),
             },
-            SetOptions(merge: true),
           );
-          await batch.commit().timeout(const Duration(seconds: 6));
-        } catch (_) {
-          debugPrint(
-            'Aviso de auditoría: respaldo remoto diferido; evidencia preservada en bóveda local.',
-          );
+        } on RegistroCedulaException catch (error) {
+          try {
+            await user.delete();
+          } on FirebaseAuthException {
+            await _auth.signOut();
+          }
+          throw AuthServiceException(error.mensaje);
         }
 
-        try {
-          await AccesoPlanes.vincularCedula(normDoc);
-        } on AccesoPlanesException catch (e) {
-          if (e.codigo == 'ALREADY_EXISTS') {
-            try {
-              await user.delete();
-            } catch (_) {}
-          }
-          throw AuthServiceException(e.mensaje);
-        }
+        await ConsentService.registrarAceptacionTratamientoDatos(
+          uid: user.uid,
+          email: cleanEmail,
+          canal: 'registro_email',
+        );
+        await AccesoPlanes.actualizarTrasRegistro();
 
         final emailIdxHash = SecurityService.hashCredentialUniquenessIndex(
           type: 'email',

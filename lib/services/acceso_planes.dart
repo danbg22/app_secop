@@ -1,9 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+
+import 'admin_access.dart';
+import 'payment_service.dart';
+import 'registro_cedula.dart';
 
 class RenovacionPlan {
   const RenovacionPlan(this.estado, this.fecha, this.cancelaDespues);
@@ -32,6 +37,9 @@ class EstadoPlanes {
     : _ahoraServidor = datos['ahora'] as int,
       _roles = Set<String>.from(datos['roles'] as List),
       _historicos = Set<String>.from(datos['historicos'] as List),
+      _accesosAnteriores = Set<String>.from(
+        datos['accesosAnteriores'] as List? ?? const [],
+      ),
       _pagadosHasta = Map<String, int>.from(datos['pagadosHasta'] as Map),
       rolInicial = datos['rolInicial'] as String,
       rolPrueba = datos['pruebaRol'] as String?,
@@ -51,10 +59,74 @@ class EstadoPlanes {
     _reloj.start();
   }
 
+  factory EstadoPlanes.desdeFirestore({
+    required Map<String, dynamic> perfil,
+    required Map<String, dynamic>? acceso,
+    required bool cuentaAnterior,
+    required DateTime ahora,
+  }) {
+    int ms(Object? valor) =>
+        valor is Timestamp ? valor.millisecondsSinceEpoch : 0;
+    final rolInicial = PaymentService.normalizarRolId(
+      (acceso?['rolInicial'] ??
+              perfil['rolRegistroCedula'] ??
+              perfil['rolInicialRegistro'] ??
+              perfil['rolSolicitadoRegistro'])
+          ?.toString(),
+    );
+    final activos =
+        (perfil['rolesActivos'] as List?)?.whereType<String>() ??
+        const <String>[];
+    final historicos = <String>{
+      if (acceso != null)
+        ...(acceso['historicos'] as List? ?? const []).whereType<String>()
+      else if (perfil['pagoWompiActivo'] == true)
+        ...activos.where(_pagos.contains),
+    };
+    final conservaConsulta =
+        acceso == null && cuentaAnterior && perfil['registroCedulaEn'] == null;
+    final fechaRegistro = ms(perfil['registroCedulaEn']);
+    final finPrueba = acceso != null
+        ? ms(acceso['pruebaHasta'])
+        : (fechaRegistro > 0 && _pagos.contains(rolInicial)
+              ? fechaRegistro + const Duration(days: 30).inMilliseconds
+              : 0);
+    final rolPrueba = acceso != null
+        ? acceso['pruebaRol'] as String?
+        : (finPrueba > 0 ? rolInicial : null);
+    final pagados = {
+      for (final entrada
+          in (acceso?['pagadosHasta'] as Map? ?? const {}).entries)
+        entrada.key.toString(): ms(entrada.value),
+    };
+    return EstadoPlanes({
+      'ahora': ahora.millisecondsSinceEpoch,
+      'roles': {
+        if (conservaConsulta) 'persona',
+        ...historicos,
+        ...pagados.keys,
+        ...activos.where((rol) => !_pagos.contains(rol)),
+        ?rolPrueba,
+      }.toList(),
+      'historicos': historicos.toList(),
+      'accesosAnteriores': [if (conservaConsulta) 'persona'],
+      'pagadosHasta': pagados,
+      'rolInicial': rolInicial,
+      'pruebaRol': rolPrueba,
+      'pruebaHasta': finPrueba,
+      'graciaEquipoHasta': 0,
+      'preparando':
+          !cuentaAnterior &&
+          !RegistroCedula.completado(perfil) &&
+          acceso == null,
+    });
+  }
+
   final _reloj = Stopwatch();
   final int _ahoraServidor;
   final Set<String> _roles;
   final Set<String> _historicos;
+  final Set<String> _accesosAnteriores;
   final Map<String, int> _pagadosHasta;
   final int _pruebaHasta;
   final int _equipoHasta;
@@ -87,6 +159,7 @@ class EstadoPlanes {
     final ahora = _ahora;
     bool propio(String rol) =>
         admin ||
+        _accesosAnteriores.contains(rol) ||
         _historicos.contains(rol) ||
         (_pagadosHasta[rol] ?? 0) > ahora ||
         (rol == rolPrueba && _pruebaHasta > ahora);
@@ -97,9 +170,9 @@ class EstadoPlanes {
     }).toSet();
   }
 
-  Duration get proximaRevision {
+  Duration proximaRevision(Duration intervalo) {
     final ahora = _ahora;
-    var restante = const Duration(minutes: 1).inMilliseconds;
+    var restante = intervalo.inMilliseconds;
     for (final fin in [
       if (rolPrueba != null) _pruebaHasta,
       _equipoHasta,
@@ -116,9 +189,6 @@ class AccesoPlanesException implements Exception {
   const AccesoPlanesException(this.mensaje, {this.codigo});
   final String mensaje;
   final String? codigo;
-
-  bool get servicioNoDisponible =>
-      codigo == 'SERVICE_UNAVAILABLE' || codigo == 'UNAVAILABLE';
 }
 
 abstract final class AccesoPlanes {
@@ -127,6 +197,11 @@ abstract final class AccesoPlanes {
     'ACCESO_PLAN_URL',
     defaultValue: 'https://us-central1-secop-ia.cloudfunctions.net/accesoPlan',
   );
+  static const pagosEnLineaDisponibles = bool.fromEnvironment(
+    'PAGOS_WOMPI_EN_LINEA',
+  );
+  static DateTime? _horaServidor;
+  static final _relojServidor = Stopwatch();
   static String? _uid;
   static int _sesion = 0;
   static EstadoPlanes? _estado;
@@ -150,6 +225,10 @@ abstract final class AccesoPlanes {
         _uid = user?.uid;
         _sesion++;
         _estado = null;
+        _horaServidor = null;
+        _relojServidor
+          ..stop()
+          ..reset();
         _hayError = false;
         _revisando = false;
         _enCurso = null;
@@ -158,6 +237,11 @@ abstract final class AccesoPlanes {
       }
       if (user != null) unawaited(refrescar());
     });
+  }
+
+  static Future<void> actualizarTrasRegistro() async {
+    await refrescar();
+    if (estado?.preparando != false) await refrescar();
   }
 
   static Future<void> refrescar() {
@@ -175,9 +259,11 @@ abstract final class AccesoPlanes {
     _revisando = true;
     _notificar();
     try {
-      final datos = await _consultar(user, {'accion': 'estado'});
+      final nuevo = pagosEnLineaDisponibles
+          ? EstadoPlanes(await _consultar(user, {'accion': 'estado'}))
+          : await _obtenerEstadoFirestore(user, sesion);
       if (_sesion != sesion) return;
-      _estado = EstadoPlanes(datos);
+      _estado = nuevo;
       _hayError = false;
     } catch (_) {
       if (_sesion != sesion) return;
@@ -189,22 +275,80 @@ abstract final class AccesoPlanes {
         _notificar();
         final estado = _estado;
         final proxima = (estado == null || estado.preparando)
-            ? const Duration(seconds: 8)
-            : estado.proximaRevision;
+            ? const Duration(seconds: 20)
+            : estado.proximaRevision(
+                Duration(minutes: pagosEnLineaDisponibles ? 1 : 5),
+              );
         _timer = Timer(proxima, () => unawaited(refrescar()));
       }
     }
   }
 
+  static Future<EstadoPlanes> _obtenerEstadoFirestore(
+    User user,
+    int sesion,
+  ) async {
+    final db = FirebaseFirestore.instance;
+    const servidor = GetOptions(source: Source.server);
+    final uid = user.uid;
+
+    if (AdminAccess.esAdministradorVerificado(
+      user.email,
+      correoVerificado: user.emailVerified,
+    )) {
+      return EstadoPlanes({
+        'ahora': DateTime.now().millisecondsSinceEpoch,
+        'roles': AdminAccess.todosLosRoles,
+        'historicos': [],
+        'pagadosHasta': <String, int>{},
+        'rolInicial': 'persona',
+        'pruebaHasta': 0,
+        'graciaEquipoHasta': 0,
+        'esAdmin': true,
+      });
+    }
+
+    final registros = await Future.wait([
+      db.collection('usuarios').doc(uid).get(servidor),
+      db.collection('accesos_planes').doc(uid).get(servidor),
+      db.collection('accesos_anteriores').doc(uid).get(servidor),
+    ]).timeout(const Duration(seconds: 8));
+    final perfil = registros[0].data() ?? <String, dynamic>{};
+    final acceso = registros[1].data();
+    if (_sesion == sesion &&
+        (acceso != null || perfil['registroCedulaEn'] is Timestamp) &&
+        _horaServidor == null) {
+      final ref = db.collection('relojes_acceso').doc(uid);
+      await ref
+          .set({'ahora': FieldValue.serverTimestamp()})
+          .timeout(const Duration(seconds: 8));
+      final tiempo =
+          (await ref.get(servidor).timeout(const Duration(seconds: 8)))
+                  .data()?['ahora']
+              as Timestamp;
+      if (_sesion == sesion) {
+        _horaServidor = tiempo.toDate();
+        _relojServidor
+          ..reset()
+          ..start();
+      }
+    }
+    return EstadoPlanes.desdeFirestore(
+      perfil: perfil,
+      acceso: acceso,
+      cuentaAnterior: registros[2].data()?['exentoCedula'] == true,
+      ahora: _horaServidor?.add(_relojServidor.elapsed) ?? DateTime.now(),
+    );
+  }
+
   static Future<Map<String, dynamic>> _consultar(
     User user,
-    Map<String, String> datos, {
-    Uri? endpoint,
-  }) async {
+    Map<String, String> datos,
+  ) async {
     final token = await user.getIdToken().timeout(const Duration(seconds: 10));
     final respuesta = await http
         .post(
-          endpoint ?? Uri.parse(_endpoint),
+          Uri.parse(_endpoint),
           headers: {
             'Authorization': 'Bearer $token',
             'Content-Type': 'application/json',
@@ -252,22 +396,12 @@ abstract final class AccesoPlanes {
     return usuario;
   }
 
-  static Future<bool> vincularCedula([String? cedula]) async {
-    final base = Uri.parse(_endpoint);
-    final datos = await _consultar(
-      _usuario(),
-      {'cedula': ?cedula},
-      endpoint: base.replace(
-        pathSegments: [
-          ...base.pathSegments.take(base.pathSegments.length - 1),
-          'identidadCuenta',
-        ],
-      ),
-    );
-    return datos['vinculada'] == true;
-  }
-
   static Future<Uri> iniciarPago(String rol) async {
+    if (!pagosEnLineaDisponibles) {
+      throw const AccesoPlanesException(
+        'Contacta a soporte para activar tu plan.',
+      );
+    }
     final datos = await _consultar(_usuario(), {
       'accion': 'iniciarPago',
       'rol': rol,
