@@ -1,76 +1,139 @@
 1
-00:00:00,255 --> 00:00:01,885
+00:00:00,380 --> 00:00:02,234
 ¿Quién se queda con los contratos?
 
 2
-00:00:02,385 --> 00:00:04,935
-¿Cansado de buscar durante horas en SECOP II?
+00:00:03,040 --> 00:00:04,590
+Pestaña. Pestaña. Pestaña.
 
 3
-00:00:05,551 --> 00:00:08,612
-Contrata Legal reúne distintos roles en un solo lugar.
+00:00:04,610 --> 00:00:05,730
+Horas en SECOP II…
 
 4
-00:00:08,775 --> 00:00:11,564
-En Persona, escribe Gobernación del Cesar.
+00:00:05,860 --> 00:00:06,934
+¿y qué encontraste?
 
 5
-00:00:12,169 --> 00:00:15,093
-Ahí están sus contratos, montos y fechas.
-
-6
-00:00:15,687 --> 00:00:18,668
-Busca un contratista y mira cuánto ha contratado y con quién.
-
-7
-00:00:19,958 --> 00:00:21,235
-O compara entidades.
-
-8
-00:00:21,803 --> 00:00:25,262
-Contratos, montos y proveedores, lado a lado.
-
-9
-00:00:25,465 --> 00:00:27,300
-En Contrata Legal puedes ver procesos
-
-10
-00:00:27,306 --> 00:00:29,845
-adjudicados, abiertos o cancelados.
-
-11
-00:00:30,450 --> 00:00:32,431
-Elige un estado y revisa el plazo.
-
-12
-00:00:33,365 --> 00:00:36,335
-El Equipo Jurídico prepara contratos y envía un enlace.
-
-13
-00:00:36,963 --> 00:00:39,003
-El contratista adjunta sus documentos
-
-14
-00:00:39,009 --> 00:00:40,956
-y el equipo los recibe en tiempo real.
-
-15
-00:00:42,375 --> 00:00:45,222
-Con Supervisión de contratos, cualquier entidad
-
-16
-00:00:45,228 --> 00:00:48,743
-puede revisar los informes de sus contratistas
-de prestación de servicios.
-
-17
-00:00:50,405 --> 00:00:51,478
+00:00:08,060 --> 00:00:08,920
 Contrata Legal.
 
+6
+00:00:08,970 --> 00:00:09,920
+Encuentra la pista.
+
+7
+00:00:10,000 --> 00:00:10,830
+Un solo lugar.
+
+8
+00:00:10,940 --> 00:00:11,960
+Todos los roles.
+
+9
+00:00:12,120 --> 00:00:13,660
+Escribe una entidad.
+
+10
+00:00:14,290 --> 00:00:14,750
+Enter.
+
+11
+00:00:14,940 --> 00:00:17,410
+Y ya: contratos, montos y fechas.
+
+12
+00:00:17,530 --> 00:00:18,860
+Sin buscar horas.
+
+13
+00:00:19,110 --> 00:00:20,240
+¿Ese contratista?
+
+14
+00:00:20,370 --> 00:00:21,946
+Mira cuánto ha contratado…
+
+15
+00:00:22,640 --> 00:00:23,568
+y con quién.
+
+16
+00:00:24,170 --> 00:00:25,430
+¿Quién contrata más?
+
+17
+00:00:26,130 --> 00:00:27,396
+Ponlos cara a cara.
+
 18
-00:00:52,096 --> 00:00:54,635
-Encuentra la pista. Sigue el hilo.
+00:00:29,190 --> 00:00:29,850
+Abiertos.
 
 19
-00:00:55,765 --> 00:00:58,804
+00:00:30,420 --> 00:00:31,270
+Adjudicados.
+
+20
+00:00:31,680 --> 00:00:32,420
+Cancelados.
+
+21
+00:00:32,430 --> 00:00:33,140
+Tú eliges el proceso.
+
+22
+00:00:33,190 --> 00:00:33,990
+Tú sigues el hilo.
+
+23
+00:00:34,080 --> 00:00:34,990
+¿Equipo jurídico?
+
+24
+00:00:35,030 --> 00:00:35,940
+Crea el contrato.
+
+25
+00:00:36,060 --> 00:00:36,980
+Envía el link.
+
+26
+00:00:37,240 --> 00:00:39,570
+Tu contratista sube sus documentos en tiempo real.
+
+27
+00:00:39,730 --> 00:00:40,510
+Sin correos.
+
+28
+00:00:40,660 --> 00:00:41,920
+Sin perseguir PDFs.
+
+29
+00:00:42,070 --> 00:00:44,490
+¿Tu entidad tiene contratistas de prestación de servicios?
+
+30
+00:00:44,590 --> 00:00:47,101
+La app revisa cada informe y te marca lo que falta.
+
+31
+00:00:47,430 --> 00:00:48,940
+Cualquier entidad puede usarla.
+
+32
+00:00:49,210 --> 00:00:51,696
+Todo esto, en una sola app.
+
+33
+00:00:53,290 --> 00:00:54,530
+Encuentra la pista.
+
+34
+00:00:54,660 --> 00:00:55,577
+Sigue el hilo.
+
+35
+00:00:56,220 --> 00:00:59,650
 Regístrate ya y revisa la información actualizada.
