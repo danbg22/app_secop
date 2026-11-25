@@ -1,33 +1,63 @@
-# Contrata Legal · Encuentra la pista
+# Contrata Legal · Sigue el hilo
 
-**0–5.58 s · La pista**
+Anuncio de 60 segundos para presentar la consulta ciudadana y los flujos de gestión contractual.
 
-¿Quién se queda con los contratos? Empieza con una pista. Mantenimiento.
+## 00.00–02.25 s · Apertura
 
-**5.58–11.08 s · Entra a Persona**
+> ¿Quién se queda con los contratos?
 
-Entra al rol Persona. Una palabra, y ya tienes por dónde empezar.
+Pregunta en tipografía central, expansión y corte al golpe musical.
 
-**11.08–18.16 s · Contratos y reporte**
+## 02.25–08.55 s · La búsqueda y los roles
 
-Revisa los valores, selecciona los contratos que importan y llévate tu reporte en PDF.
+> ¿Cansado de buscar durante horas en SECOP II? Contrata Legal reúne distintos roles en un solo lugar.
 
-**18.16–26.18 s · Contratistas y acumulados**
+La pregunta sobre SECOP II pasa a los cuatro nombres de rol en animación tipográfica.
 
-Ahora busca al contratista. Mira con quién contrata, cuánto suma y de dónde viene ese total.
+## 08.55–15.37 s · Persona · Contratos
 
-**26.18–33.55 s · Busca y compara entidades**
+> En Persona, escribe Gobernación del Cesar. Ahí están sus contratos, montos y fechas.
 
-¿Y las entidades? Busca una, ponla al lado de otra y compara cifras del SECOP.
+Se escribe «Gobernación del Cesar» en el campo de Contratos. El clic revela los resultados y la cámara recorre sus valores y fechas.
 
-**33.55–44.37 s · Procesos por estado**
+## 15.37–19.60 s · Persona · Contratistas
 
-Abiertos. Cancelados. Adjudicados. Cambia el filtro, abre un proceso y revisa cuándo cierra.
+> Busca un contratista y mira cuánto ha contratado y con quién.
 
-**44.37–54.4 s · Gestión, Supervisión e informes**
+Búsqueda de Colombia Telecomunicaciones y acercamiento al historial y al total contratado.
 
-Cuando toca ejecutar, Jurídico organiza el expediente, Supervisión revisa y el Contratista presenta sus informes.
+## 19.60–25.22 s · Persona · Entidades
 
-**54.4–60 s · Cierre de marca**
+> O compara entidades. Contratos, montos y proveedores, lado a lado.
 
-Contrata Legal. Encuentra la pista. Sigue el hilo.
+Búsqueda de una entidad y paso al comparador. La cámara sigue sus barras de valores, contratos y contratistas.
+
+## 25.22–33.12 s · Persona · Procesos
+
+> En Contrata Legal puedes ver procesos adjudicados, abiertos o cancelados. Elige un estado y revisa el plazo.
+
+Filtros de adjudicados, abiertos y cancelados, con apertura del detalle y acercamiento al plazo.
+
+## 33.12–42.16 s · Equipo Jurídico y Contratista
+
+> El Equipo Jurídico prepara contratos y envía un enlace. El contratista adjunta sus documentos y el equipo los recibe en tiempo real.
+
+Creación del expediente, copia del enlace, documentos en el portal y revisión por el equipo. El expediente usa datos de demostración.
+
+## 42.16–50.00 s · Supervisión de contratos
+
+> Con Supervisión de contratos, cualquier entidad puede revisar los informes de sus contratistas de prestación de servicios.
+
+Plan para contratistas de prestación de servicios y vista de informes.
+
+## 50.00–55.68 s · Firma
+
+> Contrata Legal. Encuentra la pista. Sigue el hilo.
+
+Contrata Legal y aparición escalonada del lema.
+
+## 55.68–60.00 s · Llamado a la acción
+
+> Regístrate ya y revisa la información actualizada.
+
+Cierre con el registro y la consulta de información actualizada.
