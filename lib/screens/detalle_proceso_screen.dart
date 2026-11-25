@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../services/novedades_proceso_service.dart';
 import '../services/procesos_secop_service.dart';
 import '../services/secop_document_intelligence_service.dart';
 import '../services/security_service.dart';
@@ -30,6 +31,9 @@ class _DetalleProcesoScreenState extends State<DetalleProcesoScreen> {
   late final Future<List<ProcesoSecop>> _fases = ProcesosSecopService.fasesDe(
     p,
   );
+  late final Future<NovedadesProceso> _novedades = _fases
+      .then<List<ProcesoSecop>>((f) => f, onError: (_) => [p])
+      .then((fases) => NovedadesProcesoService.consultar(p, fases));
   late final Future<SecopExtractionResult?> _documentos =
       SecopDocumentIntelligenceService.obtenerDocumentosDatosAbiertos({
         'proceso_de_compra': p.portafolio,
@@ -288,6 +292,24 @@ class _DetalleProcesoScreenState extends State<DetalleProcesoScreen> {
                   ),
                   const SizedBox(height: 14),
                   _Panel(
+                    titulo: 'Observaciones y novedades',
+                    subtitulo: 'Lo que la entidad ha publicado durante el proceso: adendas, informes de evaluación, respuestas a observaciones, proponentes y adjudicación.',
+                    children: [
+                      _NovedadesProceso(
+                        futuro: _novedades,
+                        fechaHora: _fechaHora,
+                        abrir: _abrir,
+                      ),
+                      const SizedBox(height: 16),
+                      _AvisoMensajesSecop(
+                        onAbrir: enlaceSecop == null
+                            ? null
+                            : () => _abrir(enlaceSecop.toString()),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  _Panel(
                     titulo: 'Documentos publicados',
                     subtitulo: 'Estudios previos, pliegos, CDP, anexos y formatos que la entidad cargó en SECOP II.',
                     children: [
@@ -525,6 +547,234 @@ class _Panel extends StatelessWidget {
             const SizedBox(height: 14),
           ],
           ...children,
+        ],
+      ),
+    );
+  }
+}
+
+/// Novedades (documentos clave por fecha) y proponentes del proceso.
+class _NovedadesProceso extends StatelessWidget {
+  const _NovedadesProceso({
+    required this.futuro,
+    required this.fechaHora,
+    required this.abrir,
+  });
+
+  final Future<NovedadesProceso> futuro;
+  final String Function(DateTime?) fechaHora;
+  final void Function(String) abrir;
+
+  static IconData _icono(TipoNovedad t) => switch (t) {
+    TipoNovedad.desierto => Icons.block_rounded,
+    TipoNovedad.revocatoria => Icons.cancel_outlined,
+    TipoNovedad.suspension => Icons.pause_circle_outline_rounded,
+    TipoNovedad.adjudicacion => Icons.gavel_rounded,
+    TipoNovedad.evaluacion => Icons.fact_check_outlined,
+    TipoNovedad.observaciones => Icons.question_answer_outlined,
+    TipoNovedad.adenda => Icons.edit_note_rounded,
+    TipoNovedad.modificacion => Icons.event_repeat_rounded,
+    TipoNovedad.oferentes => Icons.groups_2_outlined,
+    TipoNovedad.apertura => Icons.flag_outlined,
+    TipoNovedad.convocatoria => Icons.campaign_outlined,
+  };
+
+  /// Las novedades que cambian el rumbo del proceso se resaltan.
+  static Color _color(TipoNovedad t) => switch (t) {
+    TipoNovedad.desierto ||
+    TipoNovedad.revocatoria ||
+    TipoNovedad.suspension => Cristal.rojo,
+    TipoNovedad.adjudicacion || TipoNovedad.evaluacion => Cristal.dorado,
+    TipoNovedad.adenda || TipoNovedad.modificacion => Cristal.acentoClaro,
+    _ => Cristal.textoMedio,
+  };
+
+  Widget _rotulo(String texto) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Text(
+      texto,
+      style: TextStyle(
+        color: Cristal.textoSuave,
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.4,
+      ),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<NovedadesProceso>(
+      future: futuro,
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snap.hasError) {
+          return Text(
+            'No pudimos consultar las novedades del proceso. Puedes revisarlas en SECOP II.',
+            style: TextStyle(color: Cristal.textoMedio),
+          );
+        }
+        final datos = snap.data!;
+        if (datos.vacio) {
+          return Text(
+            'Datos Abiertos todavía no tiene adendas, evaluaciones, respuestas a observaciones ni proponentes de este proceso.',
+            style: TextStyle(color: Cristal.textoMedio),
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (datos.novedades.isNotEmpty) ...[
+              _rotulo('PUBLICADO POR LA ENTIDAD'),
+              for (final n in datos.novedades)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: _color(n.tipo).withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(9),
+                        ),
+                        child: Icon(
+                          _icono(n.tipo),
+                          size: 18,
+                          color: _color(n.tipo),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              n.tipo.titulo,
+                              style: TextStyle(
+                                color: Cristal.texto,
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            Text(
+                              [
+                                if (n.fecha != null) fechaDiaMesAnio(n.fecha!),
+                                n.archivo,
+                              ].join(' · '),
+                              style: TextStyle(
+                                color: Cristal.textoSuave,
+                                fontSize: 12.3,
+                                height: 1.35,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (n.url != null)
+                        IconButton(
+                          tooltip: 'Descargar',
+                          onPressed: () => abrir(n.url!),
+                          icon: const Icon(Icons.download_rounded, size: 19),
+                        ),
+                    ],
+                  ),
+                ),
+            ],
+            if (datos.proponentes.isNotEmpty) ...[
+              if (datos.novedades.isNotEmpty) const SizedBox(height: 6),
+              _rotulo(
+                datos.proponentes.length == 1
+                    ? '1 PROPONENTE'
+                    : '${datos.proponentes.length} PROPONENTES',
+              ),
+              for (final o in datos.proponentes)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.storefront_outlined,
+                        size: 17,
+                        color: Cristal.textoMedio,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: SelectableText(
+                          o.nit.isEmpty
+                              ? o.nombre
+                              : '${o.nombre} · NIT ${o.nit}',
+                          style: TextStyle(
+                            color: Cristal.texto,
+                            fontSize: 13.3,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Los mensajes de SECOP II no se publican en Datos Abiertos: se explica y se
+/// lleva a la página del proceso, donde están completos.
+class _AvisoMensajesSecop extends StatelessWidget {
+  const _AvisoMensajesSecop({this.onAbrir});
+
+  final VoidCallback? onAbrir;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Cristal.vidrioSuave,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Cristal.borde),
+      ),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 10,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.forum_outlined, size: 20, color: Cristal.textoMedio),
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Text(
+                    'Los mensajes de los interesados, las observaciones y las notificaciones de la entidad solo se ven en la página del proceso en SECOP II; no se publican en Datos Abiertos.',
+                    style: TextStyle(
+                      color: Cristal.textoMedio,
+                      fontSize: 12.8,
+                      height: 1.45,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (onAbrir != null)
+            OutlinedButton.icon(
+              onPressed: onAbrir,
+              icon: const Icon(Icons.open_in_new_rounded, size: 17),
+              label: const Text('Ver mensajes en SECOP II'),
+            ),
         ],
       ),
     );
