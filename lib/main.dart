@@ -26,6 +26,7 @@ import 'utils/app_scroll_behavior.dart';
 import 'utils/enlace_proceso.dart';
 import 'widgets/collapsible_side_menu.dart';
 import 'widgets/route_security_guard.dart';
+import 'services/app_instalable_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -119,8 +120,13 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     _ciclo = AppLifecycleListener(
-      onResume: () => unawaited(AccesoPlanes.refrescar()),
+      onResume: () {
+        unawaited(AccesoPlanes.refrescar());
+        unawaited(AppInstalable.comprobarVersion());
+      },
     );
+    AppInstalable.iniciar();
+    AppInstalable.hayVersionNueva.addListener(_avisarVersionNueva);
     AccesoPlanes.cambios.addListener(_alCambiarAcceso);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _alCambiarAcceso();
@@ -129,9 +135,27 @@ class _MyAppState extends State<MyApp> {
 
   @override
   void dispose() {
+    AppInstalable.hayVersionNueva.removeListener(_avisarVersionNueva);
     AccesoPlanes.cambios.removeListener(_alCambiarAcceso);
     _ciclo.dispose();
     super.dispose();
+  }
+
+  /// Se publicó una versión nueva mientras la app estaba abierta: se ofrece
+  /// recargar sin interrumpir lo que el usuario esté haciendo.
+  void _avisarVersionNueva() {
+    if (!AppInstalable.hayVersionNueva.value) return;
+    _mensajes.currentState?.showSnackBar(
+      SnackBar(
+        content: const Text('Hay una nueva versión de Contrata Legal.'),
+        duration: const Duration(days: 1),
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'Actualizar',
+          onPressed: AppInstalable.recargar,
+        ),
+      ),
+    );
   }
 
   void _alCambiarAcceso() {

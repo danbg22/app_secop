@@ -4,6 +4,8 @@ import '../screens/perfil_usuario_screen.dart';
 import '../services/auth_service.dart';
 import 'user_profile_header_action.dart';
 import '../tema/cristal.dart';
+import '../services/app_instalable_service.dart';
+import 'boton_instalar_app.dart';
 
 /// Cabecera estandarizada de Contrata Legal para todas las pantallas del SaaS.
 /// Unifica buscador opcional, título/navegación opcional, una única campana de
@@ -234,6 +236,11 @@ class CustomUserHeaderActions extends StatelessWidget {
       return;
     }
 
+    if (value == 'instalar') {
+      await BotonInstalarApp.abrir(context);
+      return;
+    }
+
     if (value == 'accumulate_role') {
       Navigator.of(context).pushNamed('/planes');
       return;
@@ -333,6 +340,29 @@ class CustomUserHeaderActions extends StatelessWidget {
           ],
         ),
       ),
+      if (AppInstalable.disponible.value)
+        PopupMenuItem<String>(
+          value: 'instalar',
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Row(
+            children: [
+              Icon(
+                Icons.install_desktop_rounded,
+                size: 19,
+                color: Cristal.acentoClaro,
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'Instalar app',
+                style: TextStyle(
+                  color: Cristal.texto,
+                  fontSize: 13.3,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
       PopupMenuItem<String>(
         value: 'modo',
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),

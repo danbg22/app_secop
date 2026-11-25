@@ -23,7 +23,9 @@
     }
   },
   "emulators": {
-    "auth": { "port": 9099 }
+    "auth": {
+      "port": 9099
+    }
   },
   "functions": {
     "source": "functions",
@@ -73,6 +75,33 @@
           {
             "key": "Permissions-Policy",
             "value": "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(self), usb=()"
+          }
+        ]
+      },
+      {
+        "source": "**/*.@(html|js|json|webmanifest)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "/",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "**/*.@(png|jpg|jpeg|webp|ttf|otf|woff2|wasm)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=86400"
           }
         ]
       }

@@ -6,6 +6,8 @@ import 'custom_app_bar.dart';
 import 'boton_notificaciones_soporte.dart';
 import 'ayuda_plataforma.dart';
 import '../tema/cristal.dart';
+import '../services/app_instalable_service.dart';
+import 'boton_instalar_app.dart';
 
 class MenuOptionItem {
   const MenuOptionItem({required this.titulo, required this.icono});
@@ -1046,6 +1048,18 @@ class _TarjetaPerfil extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              ValueListenableBuilder<bool>(
+                valueListenable: AppInstalable.disponible,
+                builder: (context, disponible, _) => disponible
+                    ? Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: BotonInstalarApp(
+                          estilo: estiloBoton,
+                          textoEstilo: estiloTexto,
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
               OutlinedButton.icon(
                 onPressed: onPerfil,
                 style: estiloBoton,

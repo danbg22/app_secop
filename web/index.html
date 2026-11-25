@@ -26,7 +26,8 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Contrata Legal">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#07101F">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
@@ -43,6 +44,31 @@
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
+  <script>
+    // App instalable: el navegador avisa una sola vez, antes de que cargue
+    // Flutter, que se puede instalar; se guarda el aviso para el botón
+    // "Instalar app".
+    window.addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault();
+      window.contrataLegalInstalar = e;
+    });
+    window.addEventListener('appinstalled', function () {
+      window.contrataLegalInstalar = null;
+    });
+    // El service worker de Flutter (obsoleto) guardaba copias viejas de la
+    // app; se retira para que cada usuario cargue siempre la última versión.
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function (rs) {
+        rs.forEach(function (r) { r.unregister(); });
+      }).catch(function () {});
+    }
+    if (window.caches) {
+      caches.keys().then(function (ks) {
+        ks.filter(function (k) { return k.indexOf('flutter-') === 0; })
+          .forEach(function (k) { caches.delete(k); });
+      }).catch(function () {});
+    }
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

@@ -1,23 +1,28 @@
 {
-    "name": "app_secop",
-    "short_name": "app_secop",
-    "start_url": ".",
+    "id": "/",
+    "name": "Contrata Legal",
+    "short_name": "Contrata Legal",
+    "description": "Consulta, auditoría ciudadana e inteligencia contractual sobre SECOP II.",
+    "lang": "es-CO",
+    "start_url": "/",
+    "scope": "/",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#07101F",
+    "theme_color": "#07101F",
+    "categories": ["business", "government", "productivity"],
     "prefer_related_applications": false,
     "icons": [
         {
             "src": "icons/Icon-192.png",
             "sizes": "192x192",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any"
         },
         {
             "src": "icons/Icon-512.png",
             "sizes": "512x512",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any"
         },
         {
             "src": "icons/Icon-maskable-192.png",

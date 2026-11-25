@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'escoger_rol_screen.dart';
 import '../tema/cristal.dart';
+import '../services/app_instalable_service.dart';
+import '../widgets/boton_instalar_app.dart';
 
 /// Portada pública: mismo lenguaje visual que el flujo de registro
 /// (fondo crema sin fotografías, tarjetas limpias y botones tipo píldora).
@@ -251,6 +253,31 @@ class PortadaScreen extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+          // Acción terciaria: solo aparece si el navegador permite instalar.
+          ValueListenableBuilder<bool>(
+            valueListenable: AppInstalable.disponible,
+            builder: (context, disponible, _) => disponible
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 14),
+                    child: TextButton.icon(
+                      onPressed: () => BotonInstalarApp.abrir(context),
+                      icon: Icon(
+                        Icons.install_desktop_rounded,
+                        size: 18,
+                        color: Cristal.acentoClaro,
+                      ),
+                      label: Text(
+                        'Instalar Contrata Legal en este equipo',
+                        style: TextStyle(
+                          color: Cristal.acentoClaro,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  )
+                : const SizedBox.shrink(),
           ),
         ],
       ),
