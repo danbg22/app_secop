@@ -1,0 +1,132 @@
+body {
+  margin: 0;
+}
+
+#portada-publica {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 0 clamp(1.25rem, 5vw, 4rem) 2rem;
+  background: radial-gradient(ellipse at 6% 0%, #19366b 0%, transparent 55%),
+    radial-gradient(ellipse at 96% 100%, #302717 0%, transparent 42%), #07101f;
+  color: #f8fafc;
+  font: 1rem/1.6 system-ui, sans-serif;
+}
+
+#portada-publica header,
+#portada-publica .funciones,
+#portada-publica footer {
+  max-width: 68rem;
+  margin-inline: auto;
+}
+
+#portada-publica header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1.1rem 0;
+  border-bottom: 1px solid #ffffff24;
+}
+
+#portada-publica .marca {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: inherit;
+  font-size: 1.15rem;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+#portada-publica .introduccion {
+  max-width: 47rem;
+  margin: clamp(3.25rem, 9vw, 7rem) auto clamp(2.5rem, 6vw, 4.5rem);
+  text-align: center;
+}
+
+#portada-publica h1 {
+  margin: 0;
+  font-size: clamp(2.55rem, 7vw, 5rem);
+  font-weight: 800;
+  letter-spacing: -0.06em;
+  line-height: 1.03;
+  text-wrap: balance;
+}
+
+#portada-publica h1 span {
+  color: #ffc83d;
+}
+
+#portada-publica p {
+  margin: 0;
+  color: #c7d4e7;
+}
+
+#portada-publica .introduccion p {
+  max-width: 36rem;
+  margin: 1.25rem auto;
+  font-size: clamp(1rem, 2vw, 1.15rem);
+  text-wrap: pretty;
+}
+
+#portada-publica nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1.6rem;
+}
+
+#portada-publica .boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.58rem 1.2rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+#portada-publica .principal {
+  background: #ffc83d;
+  color: #111b2e;
+}
+
+#portada-publica .secundario {
+  border-color: #ffffff38;
+  background: #ffffff0d;
+  color: inherit;
+}
+
+#portada-publica a:focus-visible {
+  outline: 2px solid #91c4ff;
+  outline-offset: 4px;
+}
+
+#portada-publica .funciones {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: 0.9rem;
+}
+
+#portada-publica article {
+  padding: clamp(1.1rem, 2.5vw, 1.6rem);
+  border: 1px solid #ffffff26;
+  border-radius: 1.15rem;
+  background: #ffffff0b;
+}
+
+#portada-publica h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1.14rem;
+  line-height: 1.3;
+}
+
+#portada-publica footer {
+  margin-top: 1.75rem;
+  color: #c7d4e7;
+  font-size: 0.85rem;
+  text-align: center;
+}

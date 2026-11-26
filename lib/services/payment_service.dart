@@ -23,7 +23,7 @@ abstract final class AdminConfiguracionRolesYPagos {
       nombrePlan: 'Plan Persona',
       etiquetaDestacada: 'Más común',
       descripcionCorta: 'Consulta información de contratos, entidades, contratistas y más. Ideal para usuarios individuales.',
-      precioCop: 2500,
+      precioCop: 14850,
       habilitadoParaRegistro: true,
       colorPrimarioHex: 0xFFF5B82E,
       colorFondoIlustracionHex: 0xFFFFF3CC,

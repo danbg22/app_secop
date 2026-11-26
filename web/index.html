@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="es-CO">
 <head>
   <!--
     If you are serving your web app in a path other than the root, change the
@@ -17,8 +17,22 @@
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Contrata Legal — Plataforma segura de consulta, auditoría ciudadana e inteligencia contractual sobre SECOP II.">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Contrata Legal | Consulta de contratos y procesos SECOP en Colombia</title>
+  <meta name="description" content="Consulta contratos, contratistas, entidades y procesos de SECOP I y SECOP II en Colombia. Compara entidades y gestiona expedientes con Contrata Legal.">
+  <link rel="canonical" href="https://contratalegal.com/">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="es_CO">
+  <meta property="og:site_name" content="Contrata Legal">
+  <meta property="og:url" content="https://contratalegal.com/">
+  <meta property="og:title" content="Contrata Legal | Consulta de contratos y procesos SECOP en Colombia">
+  <meta property="og:description" content="Consulta contratos, contratistas, entidades y procesos de SECOP I y SECOP II en Colombia. Compara entidades y gestiona expedientes con Contrata Legal.">
+  <meta property="og:image" content="https://contratalegal.com/icons/Icon-512.png">
+  <meta property="og:image:alt" content="Logo de Contrata Legal, mapa de Colombia con una lupa">
+  <meta property="og:image:width" content="512">
+  <meta property="og:image:height" content="512">
+  <meta name="twitter:card" content="summary">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://www.gstatic.com https://apis.google.com https://accounts.google.com https://www.google.com https://www.recaptcha.net https://checkout.wompi.co blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com https://www.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://us-central1-secop-ia.cloudfunctions.net https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com https://www.gstatic.com https://fonts.gstatic.com https://fonts.googleapis.com https://www.datos.gov.co https://*.secop.gov.co https://*.colombiacompra.gov.co https://*.funcionpublica.gov.co https://*.wompi.co https://script.google.com https://script.googleusercontent.com https://www.google.com https://www.recaptcha.net; frame-src 'self' blob: https://*.firebaseapp.com https://accounts.google.com https://www.google.com https://www.recaptcha.net https://appleid.apple.com https://checkout.wompi.co https://*.secop.gov.co https://*.colombiacompra.gov.co; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self';">
 
@@ -30,20 +44,74 @@
   <meta name="theme-color" content="#07101F">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/Icon-192.png">
 
-  <title>Contrata Legal</title>
   <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="portada.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://contratalegal.com/#sitio",
+        "url": "https://contratalegal.com/",
+        "name": "Contrata Legal",
+        "inLanguage": "es-CO",
+        "publisher": { "@id": "https://contratalegal.com/#marca" }
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://contratalegal.com/#marca",
+        "url": "https://contratalegal.com/",
+        "name": "Contrata Legal",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://contratalegal.com/icons/Icon-512.png",
+          "width": 512,
+          "height": 512
+        }
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+  <main id="portada-publica">
+    <header>
+      <a class="marca" href="/" aria-label="Contrata Legal, inicio">
+        <img src="/icons/Icon-192.png" alt="" width="48" height="48">
+        Contrata Legal
+      </a>
+      <a class="boton secundario" href="/#/auth">Iniciar sesión</a>
+    </header>
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+    <section class="introduccion" aria-labelledby="titulo-portada">
+      <h1 id="titulo-portada">Contratación pública <span>más clara</span></h1>
+      <p>Busca contratos, contratistas, entidades y procesos de SECOP I y SECOP II en Colombia. Consulta montos y fechas, compara entidades y sigue cada proceso hasta su fuente oficial.</p>
+      <nav aria-label="Acceso a Contrata Legal">
+        <a class="boton principal" href="/#/registro">Crear cuenta</a>
+        <a class="boton secundario" href="/#/home">Abrir la plataforma</a>
+      </nav>
+      <noscript><p>Activa JavaScript en tu navegador para acceder a la plataforma.</p></noscript>
+    </section>
+
+    <section class="funciones" aria-label="Funciones de Contrata Legal">
+      <article>
+        <h2>Contratos y procesos SECOP</h2>
+        <p>Busca por entidad, contratista, número u objeto. Filtra procesos abiertos, adjudicados o cancelados y revisa sus detalles.</p>
+      </article>
+      <article>
+        <h2>Entidades y contratistas</h2>
+        <p>Revisa el historial y el valor de los contratos de cada proveedor. Compara la actividad contractual de las entidades públicas.</p>
+      </article>
+      <article>
+        <h2>Gestión y supervisión contractual</h2>
+        <p>Organiza expedientes, recibe documentos del contratista y revisa informes de prestación de servicios.</p>
+      </article>
+    </section>
+    <footer>Información de los datos abiertos de SECOP I y SECOP II.</footer>
+  </main>
   <script>
     // App instalable: el navegador avisa una sola vez, antes de que cargue
     // Flutter, que se puede instalar; se guarda el aviso para el botón
@@ -68,7 +136,39 @@
           .forEach(function (k) { caches.delete(k); });
       }).catch(function () {});
     }
+
+    // Los visitantes pueden leer la portada sin descargar Flutter. Los enlaces
+    // internos, sesiones y retornos de pago siguen entrando por el mismo dominio.
+    function abrirPlataforma() {
+      window.removeEventListener('hashchange', abrirDesdeRuta);
+      window.addEventListener('flutter-first-frame', function () {
+        document.getElementById('portada-publica')?.remove();
+      }, { once: true });
+      const bootstrap = document.createElement('script');
+      bootstrap.src = 'flutter_bootstrap.js';
+      bootstrap.async = true;
+      document.body.appendChild(bootstrap);
+    }
+
+    function abrirDesdeRuta() {
+      if (window.location.hash.startsWith('#/')) abrirPlataforma();
+    }
+
+    let sesionRecordada = false;
+    try {
+      sesionRecordada = localStorage.getItem('flutter.isLoggedIn') === 'true';
+    } catch (_) {
+      // El acceso sigue disponible mediante los enlaces de la portada.
+    }
+    const parametros = new URLSearchParams(window.location.search);
+    if (window.location.pathname !== '/' || window.location.hash.startsWith('#/') ||
+        parametros.has('retorno_wompi') || parametros.has('invitado_token') ||
+        sesionRecordada || window.matchMedia('(display-mode: standalone)').matches ||
+        window.navigator.standalone === true) {
+      abrirPlataforma();
+    } else {
+      window.addEventListener('hashchange', abrirDesdeRuta);
+    }
   </script>
-  <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
