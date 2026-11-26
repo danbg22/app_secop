@@ -29,7 +29,7 @@ test('solo una aprobación que coincide con la orden permite activar el plan', (
     status: 'APPROVED', reference: 'referencia-en-servidor', currency: 'COP',
     amount_in_cents: PRECIOS_CENTAVOS.persona, customer_email: 'Cliente@ejemplo.com',
   };
-  const validar = (tx) => validarTransaccion(tx, transaccion.reference, 'cliente@ejemplo.com', 10000);
+  const validar = (tx) => validarTransaccion(tx, transaccion.reference, 'cliente@ejemplo.com', PRECIOS_CENTAVOS.persona);
   assert.equal(validar(transaccion), true);
   assert.equal(validar({ ...transaccion, status: 'PENDING' }), false);
   assert.equal(validar({ ...transaccion, amount_in_cents: 1 }), false);

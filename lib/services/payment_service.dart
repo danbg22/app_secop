@@ -23,7 +23,7 @@ abstract final class AdminConfiguracionRolesYPagos {
       nombrePlan: 'Plan Persona',
       etiquetaDestacada: 'Más común',
       descripcionCorta: 'Consulta información de contratos, entidades, contratistas y más. Ideal para usuarios individuales.',
-      precioCop: 100, // <-- PRECIO TEMPORAL DE PRUEBA ($100 COP)
+      precioCop: 1000, // <-- PRECIO DE PRUEBA ($1.000 COP); se cambia después
       habilitadoParaRegistro: true,
       colorPrimarioHex: 0xFFF5B82E,
       colorFondoIlustracionHex: 0xFFFFF3CC,
@@ -68,7 +68,7 @@ abstract final class AdminConfiguracionRolesYPagos {
       nombrePlan: 'Plan Equipo Jurídico Entidad',
       etiquetaDestacada: 'Activo',
       descripcionCorta: 'Estructura contratos de prestación de servicios en línea, genera links de invitado para contratistas y valida documentos con trazabilidad.',
-      precioCop: 100, // <-- PRECIO TEMPORAL DE PRUEBA ($100 COP)
+      precioCop: 22500,
       habilitadoParaRegistro: true, // <-- HABILITADO Y 100% FUNCIONAL
       colorPrimarioHex: 0xFF28559A,
       colorFondoIlustracionHex: 0xFFE8F1FC,
@@ -106,7 +106,7 @@ abstract final class AdminConfiguracionRolesYPagos {
       nombrePlan: 'Plan Supervisor de Contratos',
       etiquetaDestacada: null,
       descripcionCorta: 'Registra tu entidad, designa a Jurídico y dirige la revisión de los informes de tus contratistas.',
-      precioCop: 100, // <-- PRECIO TEMPORAL DE PRUEBA ($100 COP); el real es una cuota módica
+      precioCop: 28500,
       habilitadoParaRegistro: true,
       colorPrimarioHex: 0xFF0F766E,
       colorFondoIlustracionHex: 0xFFE0F2EF,

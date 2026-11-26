@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { DIA, sha256, sumarMesColombia } from '../planes.mjs';
+import { DIA, PRECIOS_CENTAVOS, sha256, sumarMesColombia } from '../planes.mjs';
 
 const conEmuladores = !!(process.env.FIRESTORE_EMULATOR_HOST &&
   process.env.FIREBASE_AUTH_EMULATOR_HOST);
@@ -84,12 +84,12 @@ test('alta, vigencia de Firestore, corte, pago anticipado y confirmación idempo
     const checkout = new URL(inicioPago.url);
     const referencia = checkout.searchParams.get('reference');
     assert.equal(checkout.hostname, 'checkout.wompi.co');
-    assert.equal(checkout.searchParams.get('amount-in-cents'), '10000');
+    assert.equal(checkout.searchParams.get('amount-in-cents'), String(PRECIOS_CENTAVOS.persona));
     const aprobado = Date.now() - 1000;
     const txId = '1234-pruebas-1';
     const recibo = {
       id: txId, status: 'APPROVED', reference: referencia, currency: 'COP',
-      amount_in_cents: 10000, finalized_at: new Date(aprobado).toISOString(),
+      amount_in_cents: PRECIOS_CENTAVOS.persona, finalized_at: new Date(aprobado).toISOString(),
     };
     const fetchOriginal = globalThis.fetch;
     globalThis.fetch = async (url, options) => {

@@ -74,3 +74,6 @@ functions/.env*
 functions/.secret.local
 /firebase-debug.log
 /firestore-debug.log
+
+# Caché local de firebase deploy
+.firebase/

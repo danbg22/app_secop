@@ -2,9 +2,9 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 
 export const DIA = 24 * 60 * 60 * 1000;
 export const PRECIOS_CENTAVOS = Object.freeze({
-  persona: 10000,
-  equipo_juridico: 10000,
-  supervisor_contratos: 10000,
+  persona: 100000, // COP 1.000: precio de prueba, se cambia después
+  equipo_juridico: 2250000, // COP 22.500
+  supervisor_contratos: 2850000, // COP 28.500
 });
 export const ROLES_GRATUITOS = ['contratista', 'juridico_supervision'];
 export const esPlanPago = (rol) => Object.hasOwn(PRECIOS_CENTAVOS, rol);
