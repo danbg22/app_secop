@@ -96,7 +96,7 @@ export function renovaciones({ db, wompi, privada, integridad, retorno, endpoint
     const datos = comercio?.presigned_personal_data_auth;
     function valido(obj) {
       return typeof obj?.acceptance_token === 'string' &&
-        /^https:\/\/([a-z0-9-]+\.)*wompi\.co\//i.test(obj.permalink ?? '');
+        /^https:\/\/([a-z0-9-]+\.)*wompi\.(co|com)\//i.test(obj.permalink ?? '');
     }
     if (!valido(terminos) || !valido(datos)) {
       throw new HttpsError('unavailable', 'Wompi no devolvió sus autorizaciones.');

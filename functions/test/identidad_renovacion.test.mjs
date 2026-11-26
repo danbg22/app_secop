@@ -117,6 +117,7 @@ test('el alta de tarjeta reclama una sola autorización y redirige a la verifica
   const sesion = retorno.searchParams.get('sesion');
   let altas = 0;
   let cargos = 0;
+  let urlTerminos = 'https://wompi.com.ejemplo.test/terminos';
   const original = globalThis.fetch;
   t.mock.method(globalThis, 'fetch', async (url, init) => {
     if (!String(url).startsWith('https://sandbox.wompi.co/')) return original(url, init);
@@ -125,7 +126,7 @@ test('el alta de tarjeta reclama una sola autorización y redirige a la verifica
       assert.match(init.headers['x-merchant-public-key'], /^pub_test_/);
     }
     if (String(url).includes('/merchants/')) return Response.json({ data: {
-      presigned_acceptance: { permalink: 'https://wompi.co/terminos', acceptance_token: 'terminos' },
+      presigned_acceptance: { permalink: urlTerminos, acceptance_token: 'terminos' },
       presigned_personal_data_auth: { permalink: 'https://wompi.co/datos', acceptance_token: 'datos' },
     } });
     const cuerpo = JSON.parse(init.body);
@@ -139,9 +140,16 @@ test('el alta de tarjeta reclama una sola autorización y redirige a la verifica
     assert.equal(cuerpo.payment_source_id, 123);
     return Response.json({ data: { id: '987-prueba', reference: cuerpo.reference, status: 'PENDING' } });
   });
+  await assert.rejects(
+    cobros.prepararFuente({ method: 'GET', query: { sesion } }, respuesta()),
+    /Wompi no devolvió sus autorizaciones/,
+  );
+  urlTerminos = 'https://wompi.com/terminos';
   const pagina = respuesta();
   await cobros.prepararFuente({ method: 'GET', query: { sesion } }, pagina);
   assert.match(pagina.html, /data-widget-operation="tokenize"/);
+  assert.match(pagina.html, /https:\/\/wompi\.com\/terminos/);
+  assert.match(pagina.html, /https:\/\/wompi\.co\/datos/);
   const cuerpo = { payment_source_token: 'tok_test_tokenfixture', payment_source_type: 'CARD' };
   const rechazada = respuesta();
   await cobros.prepararFuente({ method: 'POST', query: { sesion }, body: cuerpo }, rechazada);
