@@ -93,7 +93,9 @@ async function rolesHistoricos(uid, correo, perfil) {
         !reference.startsWith(`CL-WOMPI-${rolId.toUpperCase()}-`)) return null;
     if (!/^[a-z0-9-]{6,100}$/i.test(id)) return null;
     const pago = await transaccionWompi(id);
-    return validarTransaccion(pago, reference, correo, PRECIOS_CENTAVOS[rolId]) ? rolId : null;
+    // Las referencias CL-WOMPI de Persona se emitieron con la tarifa anterior.
+    const centavos = rolId === 'persona' ? 100000 : PRECIOS_CENTAVOS[rolId];
+    return validarTransaccion(pago, reference, correo, centavos) ? rolId : null;
   }));
   return [...new Set(roles.filter(Boolean))];
 }

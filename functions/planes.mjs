@@ -2,7 +2,7 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 
 export const DIA = 24 * 60 * 60 * 1000;
 export const PRECIOS_CENTAVOS = Object.freeze({
-  persona: 100000, // COP 1.000: precio de prueba, se cambia después
+  persona: 250000, // COP 2.500
   equipo_juridico: 2250000, // COP 22.500
   supervisor_contratos: 2850000, // COP 28.500
 });

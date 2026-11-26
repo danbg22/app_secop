@@ -139,6 +139,17 @@ test('alta, vigencia de Firestore, corte, pago anticipado y confirmación idempo
       const renovado = await invocar(persona, 'estado');
       assert.equal(renovado.pagadosHasta.persona, sumarMesColombia(aprobado));
       assert.deepEqual(renovado.renovaciones, {});
+
+      const clienteAnterior = await alta('persona', '126800003');
+      Object.assign(recibo, {
+        id: '1234-pruebas-3', reference: 'CL-WOMPI-PERSONA-ANTERIOR',
+        amount_in_cents: 100000, customer_email: clienteAnterior.email,
+      });
+      await db.doc(`usuarios/${clienteAnterior.uid}`).update({
+        pagoWompiActivo: true,
+        ultimoPagoWompi: { transactionId: recibo.id, reference: recibo.reference, rolId: 'persona' },
+      });
+      assert.deepEqual((await invocar(clienteAnterior, 'estado')).historicos, ['persona']);
     } finally {
       globalThis.fetch = fetchOriginal;
     }

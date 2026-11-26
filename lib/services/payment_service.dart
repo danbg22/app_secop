@@ -15,7 +15,7 @@ abstract final class AdminConfiguracionRolesYPagos {
   // ---------------------------------------------------------------------------
   static const List<RolPaqueteConfig> catalogoRoles = <RolPaqueteConfig>[
     // -------------------------------------------------------------------------
-    // ROL 1: PERSONA (Antes llamado "Consulta ciudadana") - HABILITADO ($100 COP)
+    // ROL 1: PERSONA (Antes llamado "Consulta ciudadana")
     // -------------------------------------------------------------------------
     RolPaqueteConfig(
       id: 'persona',
@@ -23,7 +23,7 @@ abstract final class AdminConfiguracionRolesYPagos {
       nombrePlan: 'Plan Persona',
       etiquetaDestacada: 'Más común',
       descripcionCorta: 'Consulta información de contratos, entidades, contratistas y más. Ideal para usuarios individuales.',
-      precioCop: 1000, // <-- PRECIO DE PRUEBA ($1.000 COP); se cambia después
+      precioCop: 2500,
       habilitadoParaRegistro: true,
       colorPrimarioHex: 0xFFF5B82E,
       colorFondoIlustracionHex: 0xFFFFF3CC,
