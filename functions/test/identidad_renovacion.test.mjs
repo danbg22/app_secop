@@ -102,7 +102,7 @@ test('el alta de tarjeta reclama una sola autorización y redirige a la verifica
     integridad: { value: () => 'test_integrity_fixture' },
     disponible: () => true,
     endpoint: () => 'https://funciones.example.com/checkoutRenovacion',
-    retorno: () => 'https://contratalegal.co/',
+    retorno: () => 'https://contratalegal.com/',
   });
   const respuesta = () => ({
     set() {},
@@ -118,6 +118,10 @@ test('el alta de tarjeta reclama una sola autorización y redirige a la verifica
   const original = globalThis.fetch;
   t.mock.method(globalThis, 'fetch', async (url, init) => {
     if (!String(url).startsWith('https://sandbox.wompi.co/')) return original(url, init);
+    if (String(url).includes('/merchants/')) {
+      assert.ok(String(url).endsWith('/v1/merchants/info'));
+      assert.match(init.headers['x-merchant-public-key'], /^pub_test_/);
+    }
     if (String(url).includes('/merchants/')) return Response.json({ data: {
       presigned_acceptance: { permalink: 'https://wompi.co/terminos', acceptance_token: 'terminos' },
       presigned_personal_data_auth: { permalink: 'https://wompi.co/datos', acceptance_token: 'datos' },

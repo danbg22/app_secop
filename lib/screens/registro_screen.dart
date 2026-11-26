@@ -1047,7 +1047,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                     if (!rol.esGratuito) ...[
                       const SizedBox(height: 5),
                       Text(
-                        'Después, ${rol.precioMensualFormateado}. La renovación es manual.',
+                        'Después, ${rol.precioMensualFormateado} con renovación automática. Puedes cancelarla hasta 24 horas antes del cobro.',
                         style: TextStyle(
                           color: Cristal.textoCuerpo,
                           fontSize: 13,

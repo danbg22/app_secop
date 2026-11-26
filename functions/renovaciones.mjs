@@ -27,7 +27,11 @@ export function renovaciones({ db, wompi, privada, integridad, retorno, endpoint
     }
     const respuesta = await fetch(`https://${host}.wompi.co/v1/${ruta}`, {
       method: metodo,
-      headers: { Authorization: `Bearer ${credencial}`, 'Content-Type': 'application/json' },
+      // GET /merchants/info se identifica con la llave pública en su propio
+      // encabezado; el resto del API usa Authorization: Bearer.
+      headers: ruta === 'merchants/info'
+        ? { 'x-merchant-public-key': credencial }
+        : { Authorization: `Bearer ${credencial}`, 'Content-Type': 'application/json' },
       ...(datos ? { body: JSON.stringify(datos) } : {}),
       signal: AbortSignal.timeout(12000),
     });
@@ -86,8 +90,8 @@ export function renovaciones({ db, wompi, privada, integridad, retorno, endpoint
   }
 
   async function autorizaciones() {
-    const { llave } = wompi();
-    const comercio = await api(`merchants/${encodeURIComponent(llave)}`, { publica: true });
+    // GET /merchants/{llave} dejó de funcionar el 31 de octubre de 2026.
+    const comercio = await api('merchants/info', { publica: true });
     const terminos = comercio?.presigned_acceptance;
     const datos = comercio?.presigned_personal_data_auth;
     function valido(obj) {

@@ -14,5 +14,5 @@ Uri enlaceProcesoCompartido(String id) {
       fragment: fragmento,
     );
   }
-  return Uri.https('contratalegal.co', '/').replace(fragment: fragmento);
+  return Uri.https('contratalegal.com', '/').replace(fragment: fragmento);
 }

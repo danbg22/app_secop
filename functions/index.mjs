@@ -21,7 +21,7 @@ const privada = defineSecret('WOMPI_PRIVATE_KEY');
 const eventos = defineSecret('WOMPI_EVENTS_SECRET');
 const publica = defineString('WOMPI_PUBLIC_KEY');
 const lanzamiento = defineString('PLANES_INICIO_PRUEBA');
-const retornoPorDefecto = 'https://contratalegal.co/';
+const retornoPorDefecto = 'https://contratalegal.com/';
 const retorno = defineString('PLANES_RETORNO', { default: retornoPorDefecto });
 const opciones = { region: 'us-central1', timeoutSeconds: 60 };
 const adminCorreos = [
@@ -43,7 +43,9 @@ function wompi() {
   return { llave, ambiente: sandbox ? 'test' : 'prod', host: sandbox ? 'sandbox' : 'production' };
 }
 
-const habilitarRenovacion = defineBoolean('WOMPI_RENOVACION_ACTIVA', { default: false });
+// La renovación automática viene activada: quien no quiera seguir cancela al
+// menos 24 horas antes del siguiente cobro (ver cancelaAntesDelCorte).
+const habilitarRenovacion = defineBoolean('WOMPI_RENOVACION_ACTIVA', { default: true });
 const cobros = renovaciones({
   db, wompi, privada, integridad,
   disponible: () => habilitarRenovacion.value(),

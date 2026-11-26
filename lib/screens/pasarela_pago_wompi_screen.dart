@@ -228,7 +228,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                           if (cobroEnLinea) ...[
                             Text(
                               disponible
-                                  ? 'Autorizas una tarjeta en Wompi para pagar cada mes. Cancela al menos 24 horas antes del siguiente cobro.'
+                                  ? 'Tu suscripción se renueva automáticamente cada mes con la tarjeta que autorices en Wompi. Si no quieres continuar, cancélala al menos 24 horas antes del siguiente cobro.'
                                   : 'Pagas en Wompi. La renovación es manual.',
                             ),
                             const SizedBox(height: 16),

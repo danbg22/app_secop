@@ -333,7 +333,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(
           enlaceCopiado,
-          'https://contratalegal.co/#/proceso-compartido/$id',
+          'https://contratalegal.com/#/proceso-compartido/$id',
         );
       },
     );

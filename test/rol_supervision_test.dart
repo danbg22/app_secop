@@ -213,7 +213,7 @@ void main() {
     test('toma el contrato del enlace que envía la entidad', () {
       expect(
         ContratosVinculadosService.tokenDesdeTexto(
-          'https://contratalegal.co/?invitado_token=$token#/invitado-contrato?token=$token',
+          'https://contratalegal.com/?invitado_token=$token#/invitado-contrato?token=$token',
         ),
         token,
       );
@@ -230,7 +230,7 @@ void main() {
       expect(ContratosVinculadosService.tokenDesdeTexto(''), '');
       expect(ContratosVinculadosService.tokenDesdeTexto('CPS-001-2026'), '');
       expect(
-        ContratosVinculadosService.tokenDesdeTexto('https://contratalegal.co/'),
+        ContratosVinculadosService.tokenDesdeTexto('https://contratalegal.com/'),
         '',
       );
     });

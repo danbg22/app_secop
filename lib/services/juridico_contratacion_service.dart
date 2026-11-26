@@ -1302,7 +1302,7 @@ class JuridicoContratacionService {
       final path = base.path.isEmpty ? '/' : base.path;
       return '$origin$path?invitado_token=$cleanToken#/invitado-contrato?token=$cleanToken';
     }
-    return 'https://contratalegal.co/?invitado_token=$cleanToken#/invitado-contrato?token=$cleanToken';
+    return 'https://contratalegal.com/?invitado_token=$cleanToken#/invitado-contrato?token=$cleanToken';
   }
 
   /// Formatea una fecha ISO en formato legible en español (`jue 30 oct 2026, 14:38`).
