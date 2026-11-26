@@ -1047,7 +1047,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                     if (!rol.esGratuito) ...[
                       const SizedBox(height: 5),
                       Text(
-                        'Después, ${rol.precioMensualFormateado} con renovación automática. Puedes cancelarla hasta 24 horas antes del cobro.',
+                        'Después, ${rol.precioMensualFormateado}. Puedes pagar con el medio que prefieras en Wompi al terminar la prueba.',
                         style: TextStyle(
                           color: Cristal.textoCuerpo,
                           fontSize: 13,

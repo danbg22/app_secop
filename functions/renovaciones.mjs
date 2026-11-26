@@ -10,6 +10,7 @@ const referencia = () => `CL-PLAN-${randomUUID()}`;
 export const referenciaValida = (valor) => /^CL-PLAN-[a-f0-9-]{36}$/.test(valor ?? '');
 export const cancelaAntesDelCorte = (ahora, vence) => vence - ahora >= DIA;
 const terminales = new Set(['DECLINED', 'ERROR', 'VOIDED']);
+const estadosConMandato = ['activa', 'registrando', 'verificando', 'revision'];
 const escapar = (texto) => String(texto).replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
@@ -18,6 +19,13 @@ export function renovaciones({ db, wompi, privada, integridad, retorno, endpoint
   const intentos = db.collection('intentos_pago_planes');
   const accesos = db.collection('accesos_planes');
   const refPlan = (uid, rol) => suscripciones.doc(sha256(`${uid}:${rol}`));
+
+  async function verificarPagoManual(uid, rol) {
+    const mandato = (await refPlan(uid, rol).get()).data();
+    if (estadosConMandato.includes(mandato?.estado)) {
+      throw new HttpsError('already-exists', 'Ya tienes una renovación activa o un pago en verificación.');
+    }
+  }
 
   async function api(ruta, { metodo = 'GET', datos, publica = false } = {}) {
     const { host, llave, ambiente } = wompi();
@@ -43,10 +51,7 @@ export function renovaciones({ db, wompi, privada, integridad, retorno, endpoint
     if (!esPlanPago(rol) || !correo || !cuenta || cuenta.historicos?.includes(rol)) {
       throw new HttpsError('failed-precondition', 'Este plan no requiere una renovación nueva.');
     }
-    const actual = (await refPlan(uid, rol).get()).data();
-    if (['activa', 'registrando', 'verificando', 'revision'].includes(actual?.estado)) {
-      throw new HttpsError('already-exists', 'Ya existe una suscripción o un pago en verificación.');
-    }
+    await verificarPagoManual(uid, rol);
     const { ambiente } = wompi();
     const ref = referencia();
     const url = new URL(endpoint());
@@ -78,7 +83,7 @@ export function renovaciones({ db, wompi, privada, integridad, retorno, endpoint
     return db.runTransaction(async (tx) => {
       const doc = (await tx.get(ref)).data();
       if (!doc) throw new HttpsError('not-found', 'Tu plan no tiene renovación automática.');
-      if (!['activa', 'registrando', 'verificando', 'revision'].includes(doc.estado)) return datosPublicos(doc);
+      if (!estadosConMandato.includes(doc.estado)) return datosPublicos(doc);
       const alVencer = doc.estado === 'registrando' ||
         (doc.estado === 'activa' && cancelaAntesDelCorte(Date.now(), ms(doc.vencimiento)));
       const cambios = alVencer
@@ -199,7 +204,7 @@ export function renovaciones({ db, wompi, privada, integridad, retorno, endpoint
       const actual = sesion.data();
       if (actual?.tokenRecibido || ms(actual?.venceSesion) <= Date.now() ||
           !actual.terminosWompi || !actual.datosWompi ||
-          ['activa', 'verificando', 'revision', 'registrando'].includes(anterior.data()?.estado)) return null;
+          estadosConMandato.includes(anterior.data()?.estado)) return null;
       tx.update(ref, {
         tokenRecibido: true,
         terminosWompi: FieldValue.delete(),
@@ -352,7 +357,7 @@ export function renovaciones({ db, wompi, privada, integridad, retorno, endpoint
     }
   }
 
-  return { iniciar, estado, cancelar, prepararFuente, ejecutar, liquidar, suscripciones };
+  return { iniciar, estado, cancelar, prepararFuente, ejecutar, liquidar, suscripciones, verificarPagoManual };
 }
 
 function pagina(titulo, contenido) {

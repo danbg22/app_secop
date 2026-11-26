@@ -24,6 +24,7 @@ import 'services/juridico_contratacion_service.dart';
 import 'tema/cristal.dart';
 import 'utils/app_scroll_behavior.dart';
 import 'utils/enlace_proceso.dart';
+import 'utils/retorno_wompi.dart';
 import 'widgets/collapsible_side_menu.dart';
 import 'widgets/route_security_guard.dart';
 import 'services/app_instalable_service.dart';
@@ -187,6 +188,7 @@ class _MyAppState extends State<MyApp> {
     final id = params['id'];
     if (params['retorno_wompi'] == '1' && id != null) {
       _retornoProcesado = true;
+      limpiarRetornoWompi();
       unawaited(_confirmarRetorno(id, uid));
     }
   }

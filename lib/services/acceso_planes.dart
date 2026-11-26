@@ -46,7 +46,6 @@ class EstadoPlanes {
       _pruebaHasta = datos['pruebaHasta'] as int,
       _equipoHasta = datos['graciaEquipoHasta'] as int,
       preparando = datos['preparando'] == true,
-      renovacionDisponible = datos['renovacionDisponible'] == true,
       renovaciones = {
         if (datos['renovaciones'] case final Map mapa)
           for (final entrada in mapa.entries)
@@ -134,7 +133,6 @@ class EstadoPlanes {
   final String? rolPrueba;
   final bool preparando;
   final bool admin;
-  final bool renovacionDisponible;
   final Map<String, RenovacionPlan> renovaciones;
 
   int get _ahora => _ahoraServidor + _reloj.elapsedMilliseconds;
@@ -149,6 +147,31 @@ class EstadoPlanes {
       DateTime.fromMillisecondsSinceEpoch(_pruebaHasta, isUtc: true);
 
   bool tienePagoMensual(String rol) => (_pagadosHasta[rol] ?? 0) > _ahora;
+
+  DateTime? finPagoMensual(String rol) {
+    final ms = _pagadosHasta[rol] ?? 0;
+    return ms > 0 ? DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true) : null;
+  }
+
+  String? get planPorRenovar {
+    if (admin) return null;
+    final ahora = _ahora;
+    var limite = ahora + const Duration(days: 7).inMilliseconds;
+    String? plan;
+    for (final pago in _pagadosHasta.entries) {
+      final renovacion = renovaciones[pago.key];
+      if (pago.value <= ahora ||
+          pago.value > limite ||
+          _historicos.contains(pago.key) ||
+          renovacion?.activa == true ||
+          renovacion?.pendiente == true) {
+        continue;
+      }
+      plan = pago.key;
+      limite = pago.value;
+    }
+    return plan;
+  }
 
   bool tieneSuscripcionVigente(String rol) =>
       _historicos.contains(rol) || (_pagadosHasta[rol] ?? 0) > _ahora;
@@ -195,7 +218,7 @@ abstract final class AccesoPlanes {
   static final cambios = ValueNotifier<int>(0);
   static const _endpoint = String.fromEnvironment(
     'ACCESO_PLAN_URL',
-    defaultValue: 'https://us-central1-secop-ia.cloudfunctions.net/accesoPlan',
+    defaultValue: 'https://contratalegal.com/api/planes',
   );
   static const pagosEnLineaDisponibles = bool.fromEnvironment(
     'PAGOS_WOMPI_EN_LINEA',
@@ -432,14 +455,13 @@ abstract final class AccesoPlanes {
       'rol': rol,
     });
     final url = Uri.tryParse(datos['url'] as String? ?? '');
-    final hostFunciones = Uri.parse(_endpoint).host;
-    final esRenovacion =
-        datos['recurrente'] == true &&
-        url?.host == hostFunciones &&
-        url?.pathSegments.lastOrNull == 'checkoutRenovacion';
     if (url == null ||
         url.scheme != 'https' ||
-        (!esRenovacion && url.host != 'checkout.wompi.co')) {
+        url.host != 'checkout.wompi.co' ||
+        url.port != 443 ||
+        url.userInfo.isNotEmpty ||
+        url.path != '/p/' ||
+        url.hasFragment) {
       throw const AccesoPlanesException(
         'Wompi no devolvió un enlace de pago válido.',
       );

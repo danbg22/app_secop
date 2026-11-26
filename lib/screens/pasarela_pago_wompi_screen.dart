@@ -113,15 +113,10 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
         final aprobado =
             administrador || estado?.tieneSuscripcionVigente(_plan.id) == true;
         final renovacion = estado?.renovaciones[_plan.id];
+        final finPago = estado?.finPagoMensual(_plan.id);
         const cobroEnLinea = AccesoPlanes.pagosEnLineaDisponibles;
-        final disponible = cobroEnLinea && estado?.renovacionDisponible == true;
         final conMandato =
             renovacion?.activa == true || renovacion?.pendiente == true;
-        final puedeVincular =
-            !administrador &&
-            disponible &&
-            estado?.tienePagoMensual(_plan.id) == true &&
-            !conMandato;
         return Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
@@ -183,11 +178,27 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                           style: Theme.of(context).textTheme.headlineSmall,
                         ),
                         const SizedBox(height: 8),
+                        if (aprobado &&
+                            !administrador &&
+                            estado?.tienePagoMensual(_plan.id) == true &&
+                            finPago != null) ...[
+                          Text(
+                            'Tu plan está pagado hasta el ${_fecha(finPago)}.',
+                          ),
+                          if (!conMandato)
+                            const Text(
+                              'Cuando termine ese periodo, podrás renovar con el medio de pago que prefieras.',
+                            ),
+                        ],
                         if (!aprobado) ...[
                           if (estado?.pruebaVencida == true &&
                               estado?.rolPrueba == _plan.id)
                             const Text(
                               'Tus 30 días de prueba terminaron. Suscríbete para volver a usar este plan.',
+                            )
+                          else if (finPago != null && !conMandato)
+                            const Text(
+                              'Tu periodo pagado terminó. Renueva para continuar.',
                             ),
                           const SizedBox(height: 12),
                           Text(
@@ -197,9 +208,7 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                           const SizedBox(height: 6),
                           if (cobroEnLinea && !conMandato) ...[
                             Text(
-                              disponible
-                                  ? 'Renovación mensual automática. Puedes cancelarla hasta 24 horas antes del siguiente cobro.'
-                                  : 'Tu plan se activa cuando Wompi apruebe el pago.',
+                              'Paga un mes con Nequi, Bancolombia, tarjeta u otro medio disponible en Wompi. Tu plan se activa al aprobarse el pago.',
                               style: TextStyle(color: Cristal.textoMedio),
                             ),
                             const SizedBox(height: 20),
@@ -261,16 +270,6 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                         ],
                         if (renovacion?.estado == 'cancelada')
                           const Text('Renovación automática cancelada.'),
-                        if (puedeVincular) ...[
-                          const SizedBox(height: 12),
-                          const Text(
-                            'Puedes autorizar una tarjeta para el próximo periodo.',
-                          ),
-                          OutlinedButton(
-                            onPressed: _ocupado ? null : _pagar,
-                            child: const Text('Activar renovación automática'),
-                          ),
-                        ],
                         if (_ocupado) const LinearProgressIndicator(),
                         if (_mensaje case final mensaje?)
                           Padding(

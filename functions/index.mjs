@@ -52,8 +52,7 @@ function wompi() {
   return { llave, ambiente: sandbox ? 'test' : 'prod', host: sandbox ? 'sandbox' : 'production' };
 }
 
-// La renovación automática viene activada: quien no quiera seguir cancela al
-// menos 24 horas antes del siguiente cobro (ver cancelaAntesDelCorte).
+// Los mandatos autorizados anteriormente siguen su calendario de cobros.
 const habilitarRenovacion = defineBoolean('WOMPI_RENOVACION_ACTIVA', { default: true });
 const cobros = renovaciones({
   db, wompi, privada, integridad,
@@ -253,6 +252,7 @@ async function iniciarPago(uid, correo, rol, cuenta) {
   if (cuenta.historicos?.includes(rol) || milisegundos(cuenta.pagadosHasta?.[rol]) > Date.now()) {
     throw new HttpsError('already-exists', 'Ya tienes una suscripción vigente para este plan.');
   }
+  await cobros.verificarPagoManual(uid, rol);
   const { llave, ambiente } = wompi();
   const secreto = integridad.value();
   if (!secreto.startsWith(`${ambiente}_integrity_`)) {
@@ -278,7 +278,7 @@ async function iniciarPago(uid, correo, rol, cuenta) {
   url.search = new URLSearchParams({
     'public-key': llave, 'currency': 'COP', 'amount-in-cents': String(centavos),
     reference: referencia, 'signature:integrity': sha256(`${referencia}${centavos}COP${secreto}`),
-    'customer-data:email': correo, 'redirect-url': volver.href,
+    'redirect-url': volver.href,
   }).toString();
   return { url: url.href };
 }
@@ -379,20 +379,16 @@ export const accesoPlan = onCall({ ...opciones, secrets: [integridad, privada] }
   const cuenta = await obtenerCuenta(uid, perfil);
   if (accion === 'estado') return {
     ...await estado(uid, token, perfil, cuenta),
-    renovacionDisponible: habilitarRenovacion.value(),
     renovaciones: await cobros.estado(uid),
   };
-  if (habilitarRenovacion.value()) return cobros.iniciar(uid, correo, rol, cuenta);
   return iniciarPago(uid, correo, rol, cuenta);
 });
 
-export const checkoutRenovacion = onRequest({ ...opciones, secrets: [integridad, privada] }, async (req, res) => {
-  try {
-    await cobros.prepararFuente(req, res);
-  } catch (error) {
-    console.error('Checkout de renovación no disponible', error.code ?? error.name);
-    res.status(503).send('No fue posible abrir el pago. Vuelve a Suscripción e inténtalo de nuevo.');
-  }
+// Las versiones anteriores pueden conservar abierto un enlace de autorización.
+export const checkoutRenovacion = onRequest(opciones, (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.set('Referrer-Policy', 'no-referrer');
+  res.redirect(303, retornoPorDefecto);
 });
 
 export const renovarPlanes = onSchedule({

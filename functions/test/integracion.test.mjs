@@ -14,6 +14,8 @@ test('alta, vigencia de Firestore, corte, pago anticipado y confirmación idempo
     process.env.WOMPI_PUBLIC_KEY = 'pub_test_fixture';
     process.env.WOMPI_PRIVATE_KEY = 'prv_test_fixture';
     process.env.WOMPI_INTEGRITY_SECRET = 'test_integrity_fixture';
+    process.env.WOMPI_RENOVACION_ACTIVA = 'true';
+    process.env.PLANES_RETORNO = 'https://contratalegal.com/';
     const { accesoPlan } = await import('../index.mjs');
     const auth = getAuth();
     const db = getFirestore();
@@ -83,17 +85,24 @@ test('alta, vigencia de Firestore, corte, pago anticipado y confirmación idempo
     const inicioPago = await invocar(persona, 'iniciarPago', { rol: 'persona' });
     const checkout = new URL(inicioPago.url);
     const referencia = checkout.searchParams.get('reference');
-    assert.equal(checkout.hostname, 'checkout.wompi.co');
+    assert.equal(checkout.origin + checkout.pathname, 'https://checkout.wompi.co/p/');
     assert.equal(checkout.searchParams.get('amount-in-cents'), String(PRECIOS_CENTAVOS.persona));
+    assert.equal(checkout.searchParams.get('signature:integrity'),
+      sha256(`${referencia}${PRECIOS_CENTAVOS.persona}COPtest_integrity_fixture`));
+    assert.equal(checkout.searchParams.get('redirect-url'), 'https://contratalegal.com/?retorno_wompi=1');
+    assert.equal(checkout.searchParams.has('customer-data:email'), false);
+    assert.equal(checkout.searchParams.has('payment-method'), false);
     const aprobado = Date.now() - 1000;
     const txId = '1234-pruebas-1';
     const recibo = {
       id: txId, status: 'APPROVED', reference: referencia, currency: 'COP',
       amount_in_cents: PRECIOS_CENTAVOS.persona, finalized_at: new Date(aprobado).toISOString(),
+      payment_method_type: 'NEQUI',
     };
     const fetchOriginal = globalThis.fetch;
     globalThis.fetch = async (url, options) => {
       if (!String(url).startsWith('https://sandbox.wompi.co/')) return fetchOriginal(url, options);
+      assert.equal(new URL(url).pathname, `/v1/transactions/${recibo.id}`);
       assert.equal(options.headers.Authorization, 'Bearer prv_test_fixture');
       return Response.json({ data: recibo });
     };
@@ -111,6 +120,25 @@ test('alta, vigencia de Firestore, corte, pago anticipado y confirmación idempo
       const despues = await invocar(persona, 'estado');
       assert.equal(despues.pruebaRol, null);
       assert.equal(despues.pagadosHasta.persona, sumarMesColombia(aprobado));
+      assert.deepEqual(despues.renovaciones, {});
+      await assert.rejects(invocar(persona, 'iniciarPago', { rol: 'persona' }), { code: 'already-exists' });
+
+      await db.doc(`accesos_planes/${persona.uid}`).update({
+        'pagadosHasta.persona': Timestamp.fromMillis(aprobado - 1),
+      });
+      const mandato = db.doc(`suscripciones_planes/${sha256(`${persona.uid}:persona`)}`);
+      await mandato.set({ uid: persona.uid, rol: 'persona', estado: 'verificando' });
+      await assert.rejects(invocar(persona, 'iniciarPago', { rol: 'persona' }), { code: 'already-exists' });
+      await mandato.delete();
+
+      const renovacion = new URL((await invocar(persona, 'iniciarPago', { rol: 'persona' })).url);
+      const nuevaReferencia = renovacion.searchParams.get('reference');
+      assert.notEqual(nuevaReferencia, referencia);
+      Object.assign(recibo, { id: '1234-pruebas-2', reference: nuevaReferencia, payment_method_type: 'CARD' });
+      assert.equal((await invocar(persona, 'confirmarPago', { id: recibo.id })).status, 'APPROVED');
+      const renovado = await invocar(persona, 'estado');
+      assert.equal(renovado.pagadosHasta.persona, sumarMesColombia(aprobado));
+      assert.deepEqual(renovado.renovaciones, {});
     } finally {
       globalThis.fetch = fetchOriginal;
     }

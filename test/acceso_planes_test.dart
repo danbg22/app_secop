@@ -7,11 +7,13 @@ EstadoPlanes estado({
   String inicial = 'persona',
   List<String> roles = const ['persona', 'contratista'],
   Map<String, int> pagos = const {},
+  Map<String, Map<String, String>> renovaciones = const {},
 }) => EstadoPlanes({
   'ahora': 10000,
   'roles': roles,
   'historicos': [],
   'pagadosHasta': pagos,
+  'renovaciones': renovaciones,
   'rolInicial': inicial,
   'pruebaRol': prueba,
   'pruebaHasta': pruebaHasta,
@@ -38,6 +40,30 @@ void main() {
     expect(acceso.enPrueba, isFalse);
     expect(acceso.tieneSuscripcionVigente('persona'), isTrue);
     expect(acceso.roles, contains('persona'));
+  });
+
+  test('avisa por el plan de pago manual que vence más pronto', () {
+    final acceso = estado(
+      prueba: null,
+      pagos: {
+        'persona': 10000 + 5 * Duration.millisecondsPerDay,
+        'equipo_juridico': 10000 + Duration.millisecondsPerDay,
+        'supervisor_contratos': 10000,
+      },
+      renovaciones: {
+        'equipo_juridico': {'estado': 'activa'},
+      },
+    );
+    expect(acceso.planPorRenovar, 'persona');
+    expect(
+      acceso.finPagoMensual('persona')?.millisecondsSinceEpoch,
+      10000 + 5 * Duration.millisecondsPerDay,
+    );
+    expect(
+      estado(pagos: {'persona': 10000 + 8 * Duration.millisecondsPerDay})
+          .planPorRenovar,
+      isNull,
+    );
   });
 
   test('una cuenta que comenzó en un plan gratuito conserva ese acceso', () {

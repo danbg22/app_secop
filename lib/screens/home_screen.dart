@@ -6,7 +6,7 @@ import '../widgets/collapsible_side_menu.dart';
 import '../widgets/boton_notificaciones_soporte.dart';
 import '../widgets/ayuda_plataforma.dart';
 import '../widgets/user_profile_header_action.dart';
-import '../widgets/prueba_plan_banner.dart';
+import '../widgets/vigencia_plan_banner.dart';
 import 'favoritos_screen.dart';
 import 'soporte_buzon_screen.dart';
 import 'sections/contratistas_section.dart';
@@ -337,7 +337,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         body: Column(
           children: [
-            const PruebaPlanBanner(),
+            const VigenciaPlanBanner(),
             Expanded(child: _seccionActiva(activeIndex)),
           ],
         ),
@@ -388,7 +388,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Expanded(
               child: Column(
                 children: [
-                  const PruebaPlanBanner(),
+                  const VigenciaPlanBanner(),
                   Expanded(child: _seccionActiva(activeIndex)),
                 ],
               ),

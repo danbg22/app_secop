@@ -6,23 +6,33 @@ import '../services/acceso_planes.dart';
 import '../services/payment_service.dart';
 import '../tema/cristal.dart';
 
-class PruebaPlanBanner extends StatelessWidget {
-  const PruebaPlanBanner({super.key});
+class VigenciaPlanBanner extends StatelessWidget {
+  const VigenciaPlanBanner({super.key});
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: AccesoPlanes.cambios,
     builder: (context, _) {
       final estado = AccesoPlanes.estado;
-      final rol = estado?.rolPrueba;
-      if (estado == null || !estado.enPrueba || rol == null) {
+      if (estado == null) return const SizedBox.shrink();
+      final planPorRenovar = AccesoPlanes.pagosEnLineaDisponibles
+          ? estado.planPorRenovar
+          : null;
+      final rol = planPorRenovar ?? (estado.enPrueba ? estado.rolPrueba : null);
+      if (rol == null) {
         return const SizedBox.shrink();
       }
       final plan = PaymentService.obtenerConfiguracionRol(rol);
       final dias = estado.diasPrueba;
-      final finColombia = estado.fechaFinPrueba.subtract(
-        const Duration(hours: 5),
-      );
+      final fin = planPorRenovar == null
+          ? estado.fechaFinPrueba
+          : estado.finPagoMensual(planPorRenovar)!;
+      final finColombia = fin.subtract(const Duration(hours: 5));
+      final resumen = planPorRenovar != null
+          ? 'Tu periodo pagado vence pronto'
+          : dias == 1
+          ? 'Último día de prueba'
+          : '$dias días de prueba restantes';
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
@@ -39,7 +49,7 @@ class PruebaPlanBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${plan.nombrePlan} · ${dias == 1 ? 'Último día de prueba' : '$dias días de prueba restantes'}',
+                  '${plan.nombrePlan} · $resumen',
                   style: TextStyle(
                     color: Cristal.texto,
                     fontWeight: FontWeight.w700,
@@ -60,7 +70,11 @@ class PruebaPlanBanner extends StatelessWidget {
                   ),
                 ),
               ),
-              child: const Text('Suscribirme ahora'),
+              child: Text(
+                planPorRenovar == null
+                    ? 'Suscribirme ahora'
+                    : 'Ver suscripción',
+              ),
             ),
           ],
         ),
