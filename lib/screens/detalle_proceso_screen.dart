@@ -332,9 +332,31 @@ class _DetalleProcesoScreenState extends State<DetalleProcesoScreen> {
                               snap.data?.documents ??
                               const <SecopExtractedDocument>[];
                           if (docs.isEmpty) {
-                            return Text(
-                              'Datos Abiertos todavía no tiene documentos de este proceso. Ábrelo en SECOP II para verlos.',
-                              style: TextStyle(color: Cristal.textoMedio),
+                            // Datos Abiertos no exporta todos los archivos:
+                            // a veces faltan los de procesos recién
+                            // publicados o los de nuevas ventanas.
+                            return Wrap(
+                              spacing: 12,
+                              runSpacing: 10,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Text(
+                                  'Datos Abiertos no tiene los documentos de este proceso; SECOP II sí los muestra.',
+                                  style: TextStyle(color: Cristal.textoMedio),
+                                ),
+                                if (enlaceSecop != null)
+                                  OutlinedButton.icon(
+                                    onPressed: () =>
+                                        _abrir(enlaceSecop.toString()),
+                                    icon: const Icon(
+                                      Icons.open_in_new_rounded,
+                                      size: 17,
+                                    ),
+                                    label: const Text(
+                                      'Ver documentos en SECOP II',
+                                    ),
+                                  ),
+                              ],
                             );
                           }
                           return Column(
