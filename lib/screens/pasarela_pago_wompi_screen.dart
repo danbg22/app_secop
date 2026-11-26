@@ -25,19 +25,12 @@ class PasarelaPagoWompiScreen extends StatefulWidget {
 }
 
 class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
-  final _identificador = TextEditingController();
   bool _ocupado = false;
   String? _mensaje;
 
   RolPaqueteConfig get _plan => PaymentService.obtenerConfiguracionRol(
     widget.rolId ?? AuthService.getPendingRegistrationRoleId(),
   );
-
-  @override
-  void dispose() {
-    _identificador.dispose();
-    super.dispose();
-  }
 
   Future<void> _realizar(Future<void> Function() accion) async {
     if (_ocupado) return;
@@ -69,11 +62,6 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
       webOnlyWindowName: kIsWeb ? '_self' : null,
     )) {
       throw const AccesoPlanesException('No se pudo abrir el sitio de Wompi.');
-    }
-    if (mounted) {
-      setState(() {
-        _mensaje = 'Completa el pago en Wompi. Al volver, confirmaremos la transacción.';
-      });
     }
   });
 
@@ -114,31 +102,6 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
       });
     });
   }
-
-  Future<void> _verificar() => _realizar(() async {
-    final id = _identificador.text.trim();
-    if (id.isEmpty) {
-      await AccesoPlanes.refrescar();
-      if (mounted) {
-        setState(
-          () => _mensaje = 'Si el pago aún está pendiente en Wompi, espera unos minutos y vuelve a verificar.',
-        );
-      }
-      return;
-    }
-    final status = await AccesoPlanes.confirmarPago(id);
-    if (!mounted) return;
-    setState(() {
-      _mensaje = switch (status) {
-        'APPROVED' => 'Pago aprobado. Tu suscripción está activa.',
-        'PENDING' => 'Wompi aún está procesando el pago.',
-        'DECLINED' ||
-        'ERROR' ||
-        'VOIDED' => 'Wompi indicó que el pago no se completó.',
-        _ => 'No encontramos esta transacción para tu cuenta.',
-      };
-    });
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -190,14 +153,27 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Icon(
-                          aprobado
-                              ? Icons.verified_outlined
-                              : Icons.payments_outlined,
-                          color: Cristal.dorado,
-                          size: 34,
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: Cristal.doradoVidrio,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: Cristal.doradoBorde),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Icon(
+                                aprobado
+                                    ? Icons.verified_outlined
+                                    : Icons.payments_outlined,
+                                color: Cristal.dorado,
+                                size: 25,
+                              ),
+                            ),
+                          ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
                         Text(
                           administrador
                               ? 'Acceso de administrador activo'
@@ -213,47 +189,38 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                             const Text(
                               'Tus 30 días de prueba terminaron. Suscríbete para volver a usar este plan.',
                             ),
-                          if (cobroEnLinea &&
-                              estado?.enPrueba == true &&
-                              estado?.rolPrueba == _plan.id)
-                            const Text(
-                              'Si pagas hoy, el periodo mensual comienza cuando Wompi confirme el pago.',
-                            ),
                           const SizedBox(height: 12),
                           Text(
                             _plan.precioMensualFormateado,
                             style: Theme.of(context).textTheme.titleLarge,
                           ),
                           const SizedBox(height: 6),
-                          if (cobroEnLinea) ...[
+                          if (cobroEnLinea && !conMandato) ...[
                             Text(
                               disponible
-                                  ? 'Tu suscripción se renueva automáticamente cada mes con la tarjeta que autorices en Wompi. Si no quieres continuar, cancélala al menos 24 horas antes del siguiente cobro.'
-                                  : 'Pagas en Wompi. La renovación es manual.',
+                                  ? 'Renovación mensual automática. Puedes cancelarla hasta 24 horas antes del siguiente cobro.'
+                                  : 'Tu plan se activa cuando Wompi apruebe el pago.',
+                              style: TextStyle(color: Cristal.textoMedio),
                             ),
-                            const SizedBox(height: 16),
-                            FilledButton.icon(
-                              onPressed: _ocupado || conMandato ? null : _pagar,
-                              icon: const Icon(Icons.open_in_new_rounded),
-                              label: Text(
-                                disponible
-                                    ? 'Suscribirme con tarjeta'
-                                    : 'Pagar en Wompi',
+                            const SizedBox(height: 20),
+                            FilledButton(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: Cristal.doradoRelleno,
+                                foregroundColor: const Color(0xFF0A1424),
+                                minimumSize: const Size.fromHeight(50),
+                              ),
+                              onPressed: _ocupado ? null : _pagar,
+                              child: Text(
+                                _ocupado ? 'Abriendo Wompi…' : 'Suscribirme',
                               ),
                             ),
-                            const SizedBox(height: 16),
-                            TextField(
-                              controller: _identificador,
-                              decoration: const InputDecoration(
-                                labelText: 'ID de la transacción (opcional)',
-                              ),
-                              onSubmitted: (_) => _verificar(),
+                            const SizedBox(height: 10),
+                            Text(
+                              'Pago procesado por Wompi',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.bodySmall,
                             ),
-                            TextButton(
-                              onPressed: _ocupado ? null : _verificar,
-                              child: const Text('Verificar un pago'),
-                            ),
-                          ] else ...[
+                          ] else if (!cobroEnLinea) ...[
                             const Text(
                               'Contacta a soporte para consultar la activación de tu plan.',
                             ),
@@ -268,10 +235,14 @@ class _PasarelaPagoWompiScreenState extends State<PasarelaPagoWompiScreen> {
                           const SizedBox(height: 16),
                           Text(
                             renovacion.pendiente
-                                ? 'Wompi está verificando el cobro.'
+                                ? 'Tu pago está en proceso'
                                 : 'Renovación automática activa',
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
+                          if (renovacion.pendiente)
+                            const Text(
+                              'Tu suscripción se actualizará aquí cuando Wompi responda.',
+                            ),
                           if (renovacion.fecha case final fecha?)
                             Text('Próximo cobro: ${_fecha(fecha)}'),
                           if (renovacion.cancelaDespues)

@@ -206,7 +206,12 @@ class _MyAppState extends State<MyApp> {
             content: Text(
               estado == 'APPROVED'
                   ? 'Wompi confirmó el pago. Tu plan está activo.'
-                  : 'Wompi aún no confirma el pago. Puedes verificarlo en Suscripción.',
+                  : switch (estado) {
+                      'DECLINED' ||
+                      'ERROR' ||
+                      'VOIDED' => 'Wompi indicó que el pago no se completó.',
+                      _ => 'Estamos esperando la confirmación de Wompi. El estado se actualizará automáticamente.',
+                    },
             ),
           ),
         );
@@ -216,7 +221,7 @@ class _MyAppState extends State<MyApp> {
         _mensajes.currentState?.showSnackBar(
           const SnackBar(
             content: Text(
-              'No pudimos consultar el pago. Puedes verificarlo en Suscripción.',
+              'La confirmación de Wompi aún está pendiente. El estado se actualizará automáticamente.',
             ),
           ),
         );

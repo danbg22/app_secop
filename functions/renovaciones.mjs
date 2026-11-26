@@ -117,7 +117,13 @@ export function renovaciones({ db, wompi, privada, integridad, retorno, endpoint
     const original = (await ref.get()).data();
     const { llave, ambiente } = wompi();
     if (!original?.checkoutRecurrente || original.ambiente !== ambiente ||
-        ms(original.venceSesion) <= Date.now() || original.tokenRecibido) return res.sendStatus(410);
+        ms(original.venceSesion) <= Date.now() || original.tokenRecibido) {
+      if (req.method !== 'GET') return res.sendStatus(410);
+      const volver = await enlaceRetorno();
+      return res.status(410).type('html').send(pagina('Este enlace de pago ya no está disponible',
+        `<p>Desde Suscripción puedes consultar tu plan o abrir un nuevo pago.</p>
+        <a class="volver" href="${escapar(volver.href)}">Volver a Contrata Legal</a>`));
+    }
 
     if (req.method === 'GET') {
       const permisos = await autorizaciones();
@@ -127,29 +133,57 @@ export function renovaciones({ db, wompi, privada, integridad, retorno, endpoint
       });
       const precio = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 }).format(original.centavos / 100);
       const volver = await enlaceRetorno();
+      const destino = `?sesion=${encodeURIComponent(id)}`;
       return res.type('html').send(pagina('Suscripción mensual', `
-        <p class="precio">$${precio} COP al mes</p>
-        <p>Autoriza la tarjeta en Wompi para activar la renovación. Si ya pagaste este periodo, el cobro comienza al vencerlo.</p>
-        <p>Puedes cancelar en Suscripción hasta 24 horas antes del siguiente cobro.</p>
-        <form id="mandato" method="POST">
-          <label><input type="checkbox" name="autorizar" value="si" required>
-            Acepto los cobros mensuales y los <a target="_blank" rel="noopener" href="${escapar(permisos.terminos.permalink)}">términos de Wompi</a>.
-          </label>
-          <label><input type="checkbox" name="datos" value="si" required>
-            Acepto el <a target="_blank" rel="noopener" href="${escapar(permisos.datos.permalink)}">tratamiento de mis datos por Wompi</a>.
-          </label>
-          <script src="https://checkout.wompi.co/widget.js" data-render="button"
+        <div class="resumen">
+          <p class="precio">$${precio} <span>COP al mes</span></p>
+          <p>Renovación mensual. Si ya pagaste este periodo, el próximo cobro será al vencimiento.</p>
+          <p>Puedes cancelar desde Suscripción hasta 24 horas antes del siguiente cobro.</p>
+        </div>
+        <form id="mandato" method="POST" action="${escapar(destino)}">
+          <div class="autorizaciones">
+            <div><input id="autorizar" type="checkbox" name="autorizar" value="si" required>
+              <label for="autorizar">Acepto los cobros mensuales y los <a target="_blank" rel="noopener noreferrer" href="${escapar(permisos.terminos.permalink)}">términos de Wompi</a>.</label>
+            </div>
+            <div><input id="datos" type="checkbox" name="datos" value="si" required>
+              <label for="datos">Acepto el <a target="_blank" rel="noopener noreferrer" href="${escapar(permisos.datos.permalink)}">tratamiento de mis datos por Wompi</a>.</label>
+            </div>
+          </div>
+          <p id="estado-wompi" role="status">Cargando el pago…</p>
+          <noscript><p>Activa JavaScript en tu navegador para abrir Wompi.</p></noscript>
+          <script defer src="https://checkout.wompi.co/widget.js" data-render="button"
             data-widget-operation="tokenize" data-public-key="${escapar(llave)}"></script>
         </form>
-        <a href="${escapar(volver.href)}">Volver a Contrata Legal</a>
+        <p class="proveedor">Pago procesado por Wompi</p>
+        <a class="volver" href="${escapar(volver.href)}">Volver a Contrata Legal</a>
         <script>
           const formulario = document.getElementById('mandato');
+          const estado = document.getElementById('estado-wompi');
+          let boton;
           function actualizar() {
-            const boton = formulario.querySelector('button');
-            if (boton) boton.disabled = !formulario.elements.autorizar.checked || !formulario.elements.datos.checked;
+            const encontrado = formulario.querySelector('button.waybox-button');
+            if (!encontrado) return;
+            if (boton !== encontrado) {
+              boton = encontrado;
+              boton.classList.add('continuar');
+              boton.textContent = 'Continuar a Wompi';
+              estado.hidden = true;
+            }
+            boton.disabled = !formulario.elements.autorizar.checked || !formulario.elements.datos.checked;
           }
+          function mostrarError() {
+            if (boton) return;
+            estado.replaceChildren('No se pudo cargar Wompi. ');
+            const reintentar = document.createElement('button');
+            reintentar.type = 'button';
+            reintentar.textContent = 'Reintentar';
+            reintentar.addEventListener('click', () => location.reload());
+            estado.append(reintentar);
+          }
+          formulario.querySelector('script[src]').addEventListener('error', mostrarError);
           formulario.addEventListener('change', actualizar);
           new MutationObserver(actualizar).observe(formulario, {childList: true});
+          setTimeout(mostrarError, 10000);
           actualizar();
         </script>`));
     }
@@ -325,9 +359,30 @@ function pagina(titulo, contenido) {
   return `<!doctype html><html lang="es"><head><meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapar(titulo)} · Contrata Legal</title><style>
-  body{margin:0;background:#07101f;color:#f8fafc;font:16px system-ui}
-  main{max-width:480px;margin:8vh auto;padding:24px;background:#14243a;border-radius:16px}
-  a{color:#9acbff} label{display:block;margin:14px 0} form{margin-bottom:18px}
-  .precio{font-size:1.4rem;color:#ffc53d;font-weight:700} @media(max-width:560px){main{margin:24px 14px}}
-  </style></head><body><main><strong>Contrata Legal</strong><h1>${escapar(titulo)}</h1>${contenido}</main></body></html>`;
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;padding:clamp(18px,7vh,72px) 16px;background:
+    radial-gradient(ellipse at 8% 0%,#1c3c80 0%,transparent 52%),
+    radial-gradient(ellipse at 100% 100%,#3a2d17 0%,transparent 45%),#07101f;
+    color:#f8fafc;font:15px/1.5 system-ui,sans-serif;color-scheme:dark}
+  main{max-width:538px;margin:auto;padding:clamp(20px,5vw,32px);background:#111f35;
+    border:1px solid #ffffff20;border-radius:24px;box-shadow:0 24px 72px #03081266}
+  .marca{color:#ffc53d;font-weight:750}
+  h1{font-size:clamp(1.65rem,5vw,2rem);line-height:1.14;letter-spacing:-.025em;margin:8px 0 20px}
+  p{margin:0 0 10px;color:#c3d0e4} p:last-child{margin-bottom:0}
+  .resumen{padding:16px;border:1px solid #ffffff17;border-radius:16px;background:#ffffff08}
+  .precio{color:#fff;font-size:1.7rem;font-weight:800;letter-spacing:-.025em}
+  .precio span{font-size:.89rem;color:#ffc53d;letter-spacing:normal}
+  .autorizaciones{display:grid;gap:12px;margin:20px 0}
+  .autorizaciones div{display:grid;grid-template-columns:20px 1fr;gap:10px;align-items:start}
+  input[type=checkbox]{width:18px;height:18px;margin:2px 0 0;accent-color:#ffc53d}
+  a{color:#a9ccff;text-underline-offset:3px}
+  #mandato button.continuar{display:block;width:100%;min-height:50px;padding:12px 18px;
+    border:0;border-radius:999px;background:#ffc53d;color:#0a1424;font:inherit;font-weight:800;cursor:pointer}
+  #mandato button.continuar:not(:disabled):hover{background:#ffda74}
+  #mandato button.continuar:disabled{background:#ffc53d40;color:#ffedbc;cursor:default;opacity:1}
+  :focus-visible{outline:2px solid #93c5fd;outline-offset:4px}
+  #estado-wompi button{background:none;border:0;color:#a9ccff;text-decoration:underline;font:inherit;cursor:pointer}
+  .proveedor{text-align:center;font-size:.81rem;color:#aebed5;margin:10px 0 16px}
+  .volver{display:inline-block;margin-top:8px;font-size:.89rem}
+  </style></head><body><main><span class="marca">Contrata Legal</span><h1>${escapar(titulo)}</h1>${contenido}</main></body></html>`;
 }

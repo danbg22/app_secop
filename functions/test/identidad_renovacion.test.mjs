@@ -147,7 +147,9 @@ test('el alta de tarjeta reclama una sola autorización y redirige a la verifica
   urlTerminos = 'https://wompi.com/terminos';
   const pagina = respuesta();
   await cobros.prepararFuente({ method: 'GET', query: { sesion } }, pagina);
+  assert.match(pagina.html, new RegExp(`method="POST" action="\\?sesion=${sesion}"`));
   assert.match(pagina.html, /data-widget-operation="tokenize"/);
+  assert.match(pagina.html, /Continuar a Wompi/);
   assert.match(pagina.html, /https:\/\/wompi\.com\/terminos/);
   assert.match(pagina.html, /https:\/\/wompi\.co\/datos/);
   const cuerpo = { payment_source_token: 'tok_test_tokenfixture', payment_source_type: 'CARD' };
