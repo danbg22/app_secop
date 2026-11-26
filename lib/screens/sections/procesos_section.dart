@@ -24,6 +24,7 @@ class _ProcesosSectionState extends State<ProcesosSection> {
   CampoBusquedaProceso _campo = CampoBusquedaProceso.general;
   FiltroEstadoProceso _estado = FiltroEstadoProceso.todos;
   PeriodoProcesos _periodo = PeriodoProcesos.todo;
+  ModalidadProceso _modalidad = ModalidadProceso.todas;
   int _consulta = 0;
   CursorProcesos? _siguiente;
   bool _cargando = true;
@@ -51,6 +52,7 @@ class _ProcesosSectionState extends State<ProcesosSection> {
     _campo = CampoBusquedaProceso.general;
     _estado = FiltroEstadoProceso.todos;
     _periodo = PeriodoProcesos.todo;
+    _modalidad = ModalidadProceso.todas;
     _aplicar();
   }
 
@@ -73,6 +75,7 @@ class _ProcesosSectionState extends State<ProcesosSection> {
         campo: _campo,
         estado: _estado,
         periodo: _periodo,
+        modalidad: _modalidad,
         desde: desde,
       );
       if (!mounted || consulta != _consulta) return;
@@ -352,6 +355,18 @@ class _ProcesosSectionState extends State<ProcesosSection> {
               },
             ),
             _menuFiltro(
+              valor: _modalidad,
+              opciones: ModalidadProceso.values,
+              etiqueta: (m) => m.etiqueta,
+              ayuda: 'Filtrar por tipo de proceso',
+              icono: Icons.category_outlined,
+              alCambiar: (m) {
+                if (_modalidad == m) return;
+                _modalidad = m;
+                _aplicar();
+              },
+            ),
+            _menuFiltro(
               valor: _periodo,
               opciones: PeriodoProcesos.values,
               etiqueta: (periodo) => periodo.etiqueta,
@@ -374,6 +389,7 @@ class _ProcesosSectionState extends State<ProcesosSection> {
               ),
             if (_estado != FiltroEstadoProceso.todos ||
                 _periodo != PeriodoProcesos.todo ||
+                _modalidad != ModalidadProceso.todas ||
                 _texto.isNotEmpty)
               TextButton(
                 onPressed: _limpiar,
@@ -534,7 +550,34 @@ class _TarjetaProceso extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              EstadoProcesoChip(p),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  EstadoProcesoChip(p),
+                  if (p.modalidad.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Cristal.vidrioSuave,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Cristal.borde),
+                      ),
+                      child: Text(
+                        p.modalidad,
+                        style: TextStyle(
+                          color: Cristal.textoMedio,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
               const SizedBox(height: 12),
               if (p.referencia.isNotEmpty)
                 Text(

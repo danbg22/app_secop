@@ -30,6 +30,59 @@ enum FiltroEstadoProceso {
   };
 }
 
+/// Tipo de proceso (modalidad de contratación). Agrupa las variantes con
+/// que SECOP II escribe cada modalidad en p6dx-8zbt.
+enum ModalidadProceso {
+  todas('Todos los tipos', []),
+  licitacion('Licitación pública', [
+    'Licitación pública',
+    'Licitación pública Obra Publica',
+    'Licitación Pública Acuerdo Marco de Precios',
+  ]),
+  seleccionAbreviada('Selección abreviada', [
+    'Selección Abreviada de Menor Cuantía',
+    'Selección abreviada subasta inversa',
+    'Seleccion Abreviada Menor Cuantia Sin Manifestacion Interes',
+  ]),
+  minimaCuantia('Mínima cuantía', ['Mínima cuantía']),
+  concursoMeritos('Concurso de méritos', [
+    'Concurso de méritos abierto',
+    'Concurso de méritos con precalificación',
+  ]),
+  contratacionDirecta('Contratación directa', [
+    'Contratación directa',
+    'Contratación Directa (con ofertas)',
+  ]),
+  regimenEspecial('Régimen especial', [
+    'Contratación régimen especial',
+    'Contratación régimen especial (con ofertas)',
+  ]),
+  otras('Otras modalidades', [
+    'Solicitud de información a los Proveedores',
+    'Enajenación de bienes con subasta',
+    'Enajenación de bienes con sobre cerrado',
+  ]);
+
+  const ModalidadProceso(this.etiqueta, this.valores);
+  final String etiqueta;
+
+  /// Valores de `modalidad_de_contratacion` que incluye.
+  final List<String> valores;
+
+  String? get condicion => valores.isEmpty
+      ? null
+      : 'modalidad_de_contratacion in (${valores.map((v) => "'${v.replaceAll("'", "''")}'").join(',')})';
+
+  /// Grupo al que pertenece un valor de SECOP II (null si no se reconoce).
+  static ModalidadProceso? de(String valor) {
+    final v = valor.trim().toLowerCase();
+    for (final m in values) {
+      if (m.valores.any((x) => x.toLowerCase() == v)) return m;
+    }
+    return null;
+  }
+}
+
 enum PeriodoProcesos {
   mes('Último mes', 31),
   trimestre('3 meses', 92),
@@ -259,6 +312,7 @@ class ProcesosSecopService {
     CampoBusquedaProceso campo = CampoBusquedaProceso.general,
     FiltroEstadoProceso estado = FiltroEstadoProceso.todos,
     PeriodoProcesos periodo = PeriodoProcesos.todo,
+    ModalidadProceso modalidad = ModalidadProceso.todas,
     CursorProcesos desde = const CursorProcesos(),
     String nitEntidad = '',
     String departamento = '',
@@ -371,6 +425,7 @@ class ProcesosSecopService {
         'departamento_entidad = ${_literal(departamento.trim())}',
       if (termino.isNotEmpty) '($termino)',
       if (condicion != null) '($condicion)',
+      ?modalidad.condicion,
       if (estado == FiltroEstadoProceso.abiertos)
         "(fecha_de_recepcion_de >= '${_sinZona(minuto)}' OR "
             "fecha_de_recepcion_de is null OR upper(fase) LIKE '%OBSERVACI%')",
