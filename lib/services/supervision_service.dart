@@ -2141,7 +2141,11 @@ class SupervisionService {
       final bytes = await bytesArchivo(token, informeId, a);
       if (bytes == null) return false;
       if (a.esPdf || a.mime.startsWith('image/')) {
-        return openBinaryInNewTab(bytes: bytes, mimeType: a.mime);
+        return openBinaryInNewTab(
+          bytes: bytes,
+          mimeType: a.mime,
+          fileName: a.nombre,
+        );
       }
       return downloadBinaryBytes(
         bytes: bytes,

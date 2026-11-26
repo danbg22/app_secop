@@ -396,6 +396,7 @@ class ExpedienteContratoPs {
     this.checksVerificacion = const <bool>[false, false, false, false, false],
     this.conceptoJuridico = '',
     this.decisiones,
+    this.enlaceDesactivado = false,
   });
 
   final String id;
@@ -443,6 +444,10 @@ class ExpedienteContratoPs {
   /// anteriores a este campo, que se protegen con la primera escritura del
   /// equipo ([conDecisionesDelEquipo]).
   final Map<String, Map<String, dynamic>>? decisiones;
+
+  /// El equipo desactivó el enlace del contratista: las reglas de Firestore
+  /// ya no le dejan abrir ni modificar el expediente con él.
+  final bool enlaceDesactivado;
 
   /// Estados que solo decide el equipo.
   static bool esDecisionDelEquipo(EstadoDocumentoJuridico e) =>
@@ -590,6 +595,7 @@ class ExpedienteContratoPs {
     int? actualizadoEnMs,
     String? equipoUid,
     Map<String, Map<String, dynamic>>? decisiones,
+    bool? enlaceDesactivado,
   }) {
     return ExpedienteContratoPs(
       formaPago: formaPago,
@@ -635,6 +641,7 @@ class ExpedienteContratoPs {
       checksVerificacion: checksVerificacion ?? this.checksVerificacion,
       conceptoJuridico: conceptoJuridico ?? this.conceptoJuridico,
       decisiones: decisiones ?? this.decisiones,
+      enlaceDesactivado: enlaceDesactivado ?? this.enlaceDesactivado,
     );
   }
 
@@ -684,6 +691,7 @@ class ExpedienteContratoPs {
       'checksVerificacion': checksVerificacion,
       'conceptoJuridico': conceptoJuridico,
       'decisiones': ?decisiones,
+      if (enlaceDesactivado) 'enlaceDesactivado': true,
     };
   }
 
@@ -788,6 +796,7 @@ class ExpedienteContratoPs {
           map['ultimoContratistaValidadoCedula']?.toString(),
       checksVerificacion: parsedChecks.take(5).toList(),
       conceptoJuridico: (map['conceptoJuridico'] ?? '').toString(),
+      enlaceDesactivado: map['enlaceDesactivado'] == true,
     );
   }
 }
@@ -1974,6 +1983,25 @@ class JuridicoContratacionService {
     return actualizado;
   }
 
+  /// Desactiva o reactiva el enlace del contratista. Desactivado, las
+  /// reglas de Firestore le impiden abrir o modificar el expediente; el
+  /// equipo y los revisores de la supervisión siguen con acceso.
+  static Future<ExpedienteContratoPs> cambiarEnlaceContratista({
+    required String tokenInvitado,
+    required bool desactivar,
+  }) async {
+    final exp = await obtenerExpedientePorTokenInvitado(tokenInvitado);
+    if (exp == null) {
+      throw StateError('No se encontró el expediente contractual.');
+    }
+    final actualizado = exp.copyWith(
+      enlaceDesactivado: desactivar,
+      actualizadoEnMs: DateTime.now().millisecondsSinceEpoch,
+    );
+    await _guardarExpedienteInmediato(actualizado);
+    return actualizado;
+  }
+
   /// Actualiza el estado de las casillas de verificación jurídica en tiempo real.
   static Future<ExpedienteContratoPs> guardarEstadoChecklist({
     required String tokenInvitado,
@@ -2438,7 +2466,11 @@ class JuridicoContratacionService {
       apartado: apartado,
     );
     if (data == null) return false;
-    return openBinaryInNewTab(bytes: data.bytes, mimeType: data.mimeType);
+    return openBinaryInNewTab(
+      bytes: data.bytes,
+      mimeType: data.mimeType,
+      fileName: data.fileName,
+    );
   }
 
   /// Descarga individualmente el archivo subido por el contratista.

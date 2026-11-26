@@ -94,6 +94,7 @@ class PqrsService {
     'Petición',
     'Queja o reclamo',
     'Sugerencia',
+    'Supresión de datos personales',
   };
 
   /// URL opcional de Web App de Google Apps Script para guardar cada fila

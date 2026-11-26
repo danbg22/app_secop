@@ -2,6 +2,7 @@
 import 'dart:html' as html;
 
 import '../services/security_service.dart';
+import 'tipo_archivo_seguro.dart';
 
 bool downloadCsvBytes({
   required List<int> utf8Bytes,
@@ -20,7 +21,7 @@ bool downloadBinaryBytes({
   String mimeType = 'application/octet-stream',
 }) {
   final safeName = SecurityService.sanitizeFileName(fileName);
-  final blob = html.Blob(<dynamic>[bytes], mimeType);
+  final blob = html.Blob(<dynamic>[bytes], tipoDescargaSeguro(mimeType));
   final url = html.Url.createObjectUrlFromBlob(blob);
   final enlace = html.AnchorElement(href: url)
     ..setAttribute('download', safeName)
@@ -35,11 +36,23 @@ bool downloadBinaryBytes({
   return true;
 }
 
+/// Abre un PDF o una imagen en una pestaña. El tipo sale del contenido real,
+/// no del que se declaró al subir el archivo; si no es un PDF ni una imagen
+/// común, se descarga (ver tipo_archivo_seguro.dart).
 bool openBinaryInNewTab({
   required List<int> bytes,
   String mimeType = 'application/pdf',
+  String fileName = 'documento',
 }) {
-  final blob = html.Blob(<dynamic>[bytes], mimeType);
+  final tipo = tipoVisualizablePorContenido(bytes);
+  if (tipo == null) {
+    return downloadBinaryBytes(
+      bytes: bytes,
+      fileName: fileName,
+      mimeType: 'application/octet-stream',
+    );
+  }
+  final blob = html.Blob(<dynamic>[bytes], tipo);
   final url = html.Url.createObjectUrlFromBlob(blob);
   html.window.open(url, '_blank');
   Future<void>.delayed(const Duration(minutes: 2), () {

@@ -16,7 +16,7 @@ bool downloadBinaryBytes({
 bool openBinaryInNewTab({
   required List<int> bytes,
   String mimeType = 'application/pdf',
+  String fileName = 'documento',
 }) {
   return false;
 }
-

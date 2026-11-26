@@ -10,7 +10,7 @@ import {
   vencimientoPrueba, sumarMesColombia, validarTransaccion, firmaEventoValida,
 } from './planes.mjs';
 
-import { huellaCedula, vincularCedula } from './identidad.mjs';
+import { huellaCedula, registrarIntentoCedula, vincularCedula } from './identidad.mjs';
 import { renovaciones } from './renovaciones.mjs';
 
 initializeApp();
@@ -24,6 +24,15 @@ const lanzamiento = defineString('PLANES_INICIO_PRUEBA');
 const retornoPorDefecto = 'https://contratalegal.com/';
 const retorno = defineString('PLANES_RETORNO', { default: retornoPorDefecto });
 const opciones = { region: 'us-central1', timeoutSeconds: 60 };
+// App Check: se enciende con EXIGIR_APP_CHECK=true en functions/.env.secop-ia
+// solo después de exigirlo en la consola y registrar el dominio en
+// reCAPTCHA; antes, rechazaría a todos los usuarios.
+const exigirAppCheck = defineBoolean('EXIGIR_APP_CHECK', { default: false });
+function verificarApp(request) {
+  if (exigirAppCheck.value() && !request.app) {
+    throw new HttpsError('failed-precondition', 'Actualiza la página e inténtalo de nuevo.');
+  }
+}
 const adminCorreos = [
   'danielbg2231@gmail.com', 'ivanbolano19@gmail.com', 'ibolano@sena.edu.co',
 ];
@@ -322,12 +331,15 @@ async function confirmarPago(id, uid) {
 }
 
 export const identidadCuenta = onCall(opciones, async (request) => {
+  verificarApp(request);
   if (!request.auth) throw new HttpsError('unauthenticated', 'Inicia sesión para continuar.');
   const { uid, token } = request.auth;
+  if (request.data?.cedula != null) await registrarIntentoCedula(db, uid);
   return vincularCedula(db, uid, correoNormal(token.email), request.data?.cedula);
 });
 
 export const accesoPlan = onCall({ ...opciones, secrets: [integridad, privada] }, async (request) => {
+  verificarApp(request);
   if (!request.auth) throw new HttpsError('unauthenticated', 'Inicia sesión para continuar.');
   const { uid, token } = request.auth;
   const { accion, rol, id } = request.data ?? {};

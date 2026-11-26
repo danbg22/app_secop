@@ -337,7 +337,7 @@ class _PortalContratistaInvitadoScreenState
               ),
               const SizedBox(height: 8),
               Text(
-                'Verifica que hayas copiado completo el enlace enviado por el equipo jurídico de la entidad contratante.',
+                'Verifica que hayas copiado completo el enlace enviado por el equipo jurídico de la entidad contratante. Si el equipo desactivó el enlace, pídele que lo active de nuevo.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Cristal.textoSuave,

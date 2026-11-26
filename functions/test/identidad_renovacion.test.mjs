@@ -3,7 +3,9 @@ import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { cedulaCanonica, vincularCedula } from '../identidad.mjs';
+import {
+  MAX_INTENTOS_CEDULA, VENTANA_INTENTOS_MS, cedulaCanonica, siguienteIntento, vincularCedula,
+} from '../identidad.mjs';
 import { cancelaAntesDelCorte, renovaciones } from '../renovaciones.mjs';
 import { DIA, sha256, sumarMesColombia } from '../planes.mjs';
 
@@ -155,3 +157,16 @@ test('el alta de tarjeta reclama una sola autorización y redirige a la verifica
   const persistida = (await db.doc(`intentos_pago_planes/${sesion}`).get()).data();
   assert.ok(!JSON.stringify(persistida).includes(cuerpo.payment_source_token));
 });
+
+test('la vinculación de cédula admite pocos intentos por hora', () => {
+  let registro;
+  const ahora = 1_000_000;
+  for (let i = 0; i < MAX_INTENTOS_CEDULA; i++) {
+    registro = siguienteIntento(registro, ahora + i);
+    assert.ok(registro, `intento ${i + 1}`);
+  }
+  assert.equal(siguienteIntento(registro, ahora + 10), null);
+  const nuevaHora = siguienteIntento(registro, ahora + VENTANA_INTENTOS_MS + 1);
+  assert.deepEqual(nuevaHora, { inicio: ahora + VENTANA_INTENTOS_MS + 1, intentos: 1 });
+});
+

@@ -632,9 +632,51 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                   ),
                 ),
                 const SizedBox(height: 18),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                if (expediente.enlaceDesactivado) ...[
+                  Text(
+                    'Este enlace está desactivado: el contratista no puede abrir ni modificar el contrato hasta que lo reactives.',
+                    style: TextStyle(color: Cristal.rojo, fontSize: 12.5),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
+                    TextButton.icon(
+                      onPressed: () async {
+                        final desactivar = !expediente.enlaceDesactivado;
+                        Navigator.of(ctx).pop();
+                        try {
+                          await JuridicoContratacionService.cambiarEnlaceContratista(
+                            tokenInvitado: expediente.tokenInvitado,
+                            desactivar: desactivar,
+                          );
+                          _mostrarMensaje(
+                            desactivar
+                                ? 'Enlace desactivado. El contratista ya no puede abrir este contrato.'
+                                : 'Enlace reactivado.',
+                          );
+                        } catch (_) {
+                          _mostrarMensaje(
+                            'No fue posible cambiar el enlace. Inténtalo de nuevo.',
+                            esError: true,
+                          );
+                        }
+                      },
+                      icon: Icon(
+                        expediente.enlaceDesactivado
+                            ? Icons.link_rounded
+                            : Icons.link_off_rounded,
+                        size: 16,
+                      ),
+                      label: Text(
+                        expediente.enlaceDesactivado
+                            ? 'Reactivar enlace'
+                            : 'Desactivar enlace',
+                      ),
+                    ),
                     TextButton(
                       onPressed: () => Navigator.of(ctx).pop(),
                       child: Text(

@@ -57,3 +57,29 @@ export async function vincularCedula(db, uid, correo, entrada) {
     return { vinculada: true };
   });
 }
+
+// Límite de intentos de vincular una cédula: sin él, se podría probar una
+// lista de cédulas para averiguar cuáles ya tienen cuenta.
+export const MAX_INTENTOS_CEDULA = 5;
+export const VENTANA_INTENTOS_MS = 60 * 60 * 1000;
+
+export function siguienteIntento(registro, ahora) {
+  const inicio = registro?.inicio ?? 0;
+  const enVentana = ahora - inicio < VENTANA_INTENTOS_MS;
+  const usados = enVentana ? registro?.intentos ?? 0 : 0;
+  if (usados >= MAX_INTENTOS_CEDULA) return null;
+  return { inicio: enVentana ? inicio : ahora, intentos: usados + 1 };
+}
+
+export async function registrarIntentoCedula(db, uid, ahora = Date.now()) {
+  const ref = db.collection('limites_cedula').doc(uid);
+  await db.runTransaction(async (tx) => {
+    const siguiente = siguienteIntento((await tx.get(ref)).data(), ahora);
+    if (!siguiente) {
+      throw new HttpsError('resource-exhausted',
+        'Hiciste demasiados intentos con la cédula. Espera una hora e inténtalo de nuevo.');
+    }
+    tx.set(ref, siguiente);
+  });
+}
+

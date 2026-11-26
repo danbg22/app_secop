@@ -166,6 +166,23 @@ service cloud.firestore {
           expedienteDe(token).get('eliminado', false) != true;
     }
 
+    // El equipo puede desactivar el enlace del contratista; sin ese campo
+    // (expedientes anteriores) el enlace sigue vigente.
+    function enlaceVigente(datos) {
+      return datos.get('enlaceDesactivado', false) != true;
+    }
+
+    function enlaceVigenteDe(token) {
+      return enlaceVigente(expedienteDe(token));
+    }
+
+    // Un documento que el equipo ya aprobó no se reemplaza desde el enlace:
+    // la aprobación quedaría valiendo sobre otro archivo.
+    function documentoAprobado(token, apartadoId) {
+      return expedienteDe(token).get('decisiones', {})
+          .get(apartadoId, {}).get('estado', '') == 'APROBADO';
+    }
+
     // Equipo dueño de un expediente (el creador en expedientes antiguos).
     function equipoDeExpediente(token) {
       let d = expedienteDe(token);
@@ -211,6 +228,13 @@ service cloud.firestore {
       return revisorSupervision() &&
           exists(rutaAsignacion(token)) &&
           get(rutaAsignacion(token)).data.get('revisoresEmails', []).hasAny([request.auth.token.email.lower()]);
+    }
+
+    // Lectura de lo que cuelga de un expediente: con el enlace vigente, o
+    // siendo del equipo o revisor de la supervisión.
+    function lecturaPorEnlace(token) {
+      return enlaceVigenteDe(token) || esEquipoDeExpediente(token) ||
+          esRevisorDeExpediente(token);
     }
 
     // Responsable de la etapa `i` de la cadena de aprobación del contrato.
@@ -404,7 +428,11 @@ service cloud.firestore {
     // - Cualquier actor que posea el enlace con el token criptográfico exacto puede
     //   suscribirse en tiempo real (`get`) y sincronizar cargas, revisiones y trazabilidad.
     match /expedientes_juridicos/{token} {
-      allow get: if token.matches('^[a-f0-9]{32,64}$');
+      // Quien tiene el enlace lo lee mientras el equipo no lo desactive;
+      // el equipo y los revisores de la supervisión, siempre.
+      allow get: if token.matches('^[a-f0-9]{32,64}$') &&
+          (resource == null || enlaceVigente(resource.data) ||
+           esEquipoDeExpediente(token) || esRevisorDeExpediente(token));
       // Listan el creador, el Master del equipo y sus abogados vigentes.
       allow list: if isSignedIn() &&
           ((isMasterJuridico() && (resource.data.creadoPorUid == request.auth.uid ||
@@ -442,18 +470,21 @@ service cloud.firestore {
               request.resource.data.get('equipoUid', '') == resource.data.equipoUid) &&
           // El equipo cambia todo; quien solo tiene el enlace, lo suyo.
           (esEquipoDeExpediente(token) ||
-           cambioDelContratista(resource.data, request.resource.data));
+           (enlaceVigente(resource.data) &&
+            !request.resource.data.diff(resource.data).affectedKeys()
+                .hasAny(['enlaceDesactivado']) &&
+            cambioDelContratista(resource.data, request.resource.data)));
       allow delete: if puedeEliminarExpediente(resource.data);
 
       // Supervisión mensual: plan del contrato (lo configura el supervisor
       // designado) e informes del contratista, que aprueba la cadena de
       // revisores del supervisor.
       match /supervision/{doc} {
-        allow get: if token.matches('^[a-f0-9]{32,64}$');
+        allow get: if token.matches('^[a-f0-9]{32,64}$') && lecturaPorEnlace(token);
         // Firma registrada del contratista (la escribe desde su enlace).
         allow create, update: if token.matches('^[a-f0-9]{32,64}$') &&
             doc == 'firma' &&
-            expedienteActivo(token) &&
+            expedienteActivo(token) && enlaceVigenteDe(token) &&
             request.resource.data.keys().hasOnly(['archivoBase64', 'partes', 'mime', 'actualizadoEnIso']) &&
             isNonEmptyString(request.resource.data.archivoBase64, 900000);
         // El plan lo configura el supervisor designado (no el equipo jurídico).
@@ -470,11 +501,11 @@ service cloud.firestore {
       }
 
       match /informes/{periodo} {
-        allow get, list: if token.matches('^[a-f0-9]{32,64}$');
+        allow get, list: if token.matches('^[a-f0-9]{32,64}$') && lecturaPorEnlace(token);
         // El contratista crea su informe (id = fecha de inicio del periodo).
         allow create: if token.matches('^[a-f0-9]{32,64}$') &&
             periodo.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
-            expedienteActivo(token) &&
+            expedienteActivo(token) && enlaceVigenteDe(token) &&
             request.resource.data.id == periodo &&
             request.resource.data.estado in ['borrador', 'enRevision'] &&
             request.resource.data.keys().hasOnly(camposContratistaInforme());
@@ -483,7 +514,8 @@ service cloud.firestore {
             request.resource.data.id == periodo &&
             (
               // Contratista: solo sus campos y mientras el informe es editable.
-              (resource.data.estado in ['borrador', 'devuelto'] &&
+              (enlaceVigenteDe(token) &&
+               resource.data.estado in ['borrador', 'devuelto'] &&
                request.resource.data.estado in ['borrador', 'devuelto', 'enRevision'] &&
                (request.resource.data.estado != 'devuelto' ||
                 resource.data.estado == 'devuelto') &&
@@ -511,21 +543,23 @@ service cloud.firestore {
         allow delete: if puedeEliminarExpediente(expedienteDe(token));
 
         match /archivos/{tipo} {
-          allow get, list: if token.matches('^[a-f0-9]{32,64}$');
+          allow get, list: if token.matches('^[a-f0-9]{32,64}$') && lecturaPorEnlace(token);
           // Los soportes de un informe se cambian mientras el contratista lo
           // edita; enviado, aprobado o pagado, solo sus revisores.
           allow create, update: if token.matches('^[a-f0-9]{32,64}$') &&
               expedienteActivo(token) &&
               archivoValido(request.resource.data) &&
-              (informeEditable(token, periodo) || esRevisorDeExpediente(token));
+              ((enlaceVigenteDe(token) && informeEditable(token, periodo)) ||
+               esRevisorDeExpediente(token));
           allow delete: if puedeEliminarExpediente(expedienteDe(token));
 
           match /partes/{parte} {
-            allow get, list: if token.matches('^[a-f0-9]{32,64}$');
+            allow get, list: if token.matches('^[a-f0-9]{32,64}$') && lecturaPorEnlace(token);
             allow create, update: if token.matches('^[a-f0-9]{32,64}$') &&
                 expedienteActivo(token) &&
                 isNonEmptyString(request.resource.data.datos, 950000) &&
-                (informeEditable(token, periodo) || esRevisorDeExpediente(token));
+                ((enlaceVigenteDe(token) && informeEditable(token, periodo)) ||
+                 esRevisorDeExpediente(token));
             allow delete: if puedeEliminarExpediente(expedienteDe(token));
           }
         }
@@ -534,17 +568,21 @@ service cloud.firestore {
       // Subcolección de binarios individuales para sincronización entre dispositivos.
       // Los archivos de más de ~500 KB se dividen en `partes` (hasta 25 MB).
       match /archivos/{apartadoId} {
-        allow get, list: if token.matches('^[a-f0-9]{32,64}$');
+        allow get, list: if token.matches('^[a-f0-9]{32,64}$') && lecturaPorEnlace(token);
         allow create, update: if token.matches('^[a-f0-9]{32,64}$') &&
             archivoValido(request.resource.data) &&
-            expedienteActivo(token);
+            expedienteActivo(token) &&
+            (esEquipoDeExpediente(token) ||
+             (enlaceVigenteDe(token) && !documentoAprobado(token, apartadoId)));
         allow delete: if puedeEliminarExpediente(expedienteDe(token));
 
         match /partes/{parte} {
-          allow get, list: if token.matches('^[a-f0-9]{32,64}$');
+          allow get, list: if token.matches('^[a-f0-9]{32,64}$') && lecturaPorEnlace(token);
           allow create, update: if token.matches('^[a-f0-9]{32,64}$') &&
               isNonEmptyString(request.resource.data.datos, 950000) &&
-              expedienteActivo(token);
+              expedienteActivo(token) &&
+              (esEquipoDeExpediente(token) ||
+               (enlaceVigenteDe(token) && !documentoAprobado(token, apartadoId)));
           allow delete: if puedeEliminarExpediente(expedienteDe(token));
         }
       }
@@ -824,7 +862,7 @@ service cloud.firestore {
     // documento se identifica con el correo del abogado; él puede leer el suyo.
     match /miembros_equipo/{email} {
       allow get: if isSignedIn() &&
-          (request.auth.token.email == email ||
+          ((correoVerificado() && request.auth.token.email == email) ||
            resource.data.masterUid == request.auth.uid);
       allow list: if isSignedIn() && resource.data.masterUid == request.auth.uid;
 
@@ -939,7 +977,8 @@ service cloud.firestore {
                                 'usuario_documento', 'usuario_telefono', 'uid', 'estado',
                                 'canal', 'plataforma', 'fecha_creacion', 'fecha_cliente_iso']) &&
           isNonEmptyString(datos.radicado, 48) && datos.radicado == radicado &&
-          datos.tipo_solicitud in ['Soporte técnico', 'Petición', 'Queja o reclamo', 'Sugerencia'] &&
+          datos.tipo_solicitud in ['Soporte técnico', 'Petición', 'Queja o reclamo', 'Sugerencia',
+                                 'Supresión de datos personales'] &&
           isNonEmptyString(datos.asunto, 160) &&
           isNonEmptyString(datos.mensaje, 3000) &&
           datos.uid == request.auth.uid && datos.estado == 'Radicado' &&

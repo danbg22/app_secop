@@ -70,6 +70,7 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
     'Petición',
     'Queja o reclamo',
     'Sugerencia',
+    'Supresión de datos personales',
   ];
 
   final _formKey = GlobalKey<FormState>();
@@ -656,6 +657,21 @@ class _PqrsHelpDialogState extends State<PqrsHelpDialog> {
                 ),
             ],
           ),
+          if (_tipoSolicitud == 'Supresión de datos personales') ...[
+            const SizedBox(height: 12),
+            Text(
+              'Pides eliminar tu cuenta y tus datos personales de Contrata Legal '
+              '(Ley 1581 de 2012). Soporte confirmará tu identidad con el correo '
+              'de tu cuenta antes de eliminarlos y te avisará cuando termine. '
+              'Se conservan solo los registros que la ley obliga a guardar, '
+              'como los soportes de pago.',
+              style: TextStyle(
+                color: Cristal.textoMedio,
+                fontSize: 12.5,
+                height: 1.4,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           TextFormField(
             controller: _correoController,
