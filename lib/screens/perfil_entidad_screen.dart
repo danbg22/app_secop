@@ -22,7 +22,6 @@ import '../data/colombia_entities_database.dart';
 import '../widgets/presupuesto_dependencias_panel.dart';
 import '../widgets/boton_seguir.dart';
 import '../widgets/seleccion_contratos_reporte.dart';
-import '../widgets/transparencia_entidad.dart';
 import 'detalle_screen.dart';
 import 'perfil_contratista_screen.dart';
 import 'sections/entidades_section.dart';
@@ -31,9 +30,14 @@ import '../tema/cristal.dart';
 import '../services/datos_abiertos.dart';
 
 class PerfilEntidadScreen extends StatefulWidget {
-  const PerfilEntidadScreen({super.key, required this.entity});
+  const PerfilEntidadScreen({
+    super.key,
+    required this.entity,
+    this.restaurarVista = false,
+  });
 
   final EntitySummaryRecord entity;
+  final bool restaurarVista;
 
   static void abrir(BuildContext context, EntitySummaryRecord entidad) {
     if (!kIsWeb) {
@@ -373,7 +377,6 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
 
   // Selector de Regional / Seccional Territorial (null = Consolidado Nacional / Total Entidad)
   String? _selectedRegionalDept;
-  String? _regionalInicial;
   List<_RegionalBreakdownItem> _regionalStats = [];
 
   // Métricas dinámicas anualizadas (Vigencia 2026) actualizadas en cada consulta
@@ -441,9 +444,11 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   String get _claveVista =>
       'perfil-entidad:${widget.entity.nit}:${widget.entity.name}:${widget.entity.departamento}';
 
+  String get _nombreEntidad => widget.entity.raiz ?? widget.entity.name;
+
   void _guardarVista() => EstadoVista.guardar(_claveVista, {
     'tab': _selectedTabIndex,
-    'regional': _selectedRegionalDept,
+    'regionalElegida': _selectedRegionalDept,
     'vigencia': _selectedContratosYear,
     'busqueda': _busqueda,
     'unidad': _selectedUnidad,
@@ -457,18 +462,16 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   void initState() {
     super.initState();
     _initBaselineMetrics();
-    _detectInitialRegionalFromEntityCard();
-    _regionalInicial = _selectedRegionalDept;
-    final vista = EstadoVista.leer(_claveVista);
-    if (vista['tab'] case final int tab when tab >= 0 && tab <= 5) {
+    final vista = widget.restaurarVista
+        ? EstadoVista.leer(_claveVista)
+        : const {};
+    if (vista['tab'] case final int tab when tab >= 0 && tab <= 4) {
       _selectedTabIndex = tab;
       String? campo(String clave) => switch (vista[clave]) {
         final String valor => valor,
         _ => null,
       };
-      if (vista.containsKey('regional')) {
-        _selectedRegionalDept = campo('regional');
-      }
+      _selectedRegionalDept = campo('regionalElegida');
       if (vista.containsKey('vigencia')) {
         final vigencia = vista['vigencia'];
         if (vigencia == null ||
@@ -517,7 +520,10 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   }
 
   void _initBaselineMetrics() {
-    final baseContractedCop = widget.entity.amountMillions * 1000000;
+    final esRegional = widget.entity.esRegional;
+    final baseContractedCop = esRegional
+        ? 0.0
+        : widget.entity.amountMillions * 1000000;
     final safeContracted = baseContractedCop > 0 ? baseContractedCop : 0.0;
     _presupuestoTotalCop = safeContracted;
     _ejecutadoCop = 0;
@@ -525,9 +531,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     _porcentajeEjecutado = 0;
     _pagosRegistradosPct = null;
 
-    _totalContratos = widget.entity.contractsCount;
+    _totalContratos = esRegional ? 0 : widget.entity.contractsCount;
     _valorTotalContratadoCop = safeContracted;
-    _contratistasUnicos = widget.entity.uniqueContractors;
+    _contratistasUnicos = esRegional ? 0 : widget.entity.uniqueContractors;
     _nitEntidad =
         widget.entity.nit.isNotEmpty && widget.entity.nit != 'No Definido'
         ? widget.entity.nit
@@ -537,49 +543,6 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
             _isNationalMultiRegionalEntity()
         ? 'Nacional'
         : 'Territorial';
-  }
-
-  /// Si el usuario entró desde una tarjeta de Regional específica (ej. "SENA - Regional Atlántico"),
-  /// preseleccionamos esa regional pero cargamos todas las regionales para que pueda cambiar entre ellas.
-  void _detectInitialRegionalFromEntityCard() {
-    final locNorm = _normalizar(
-      '${widget.entity.name} ${widget.entity.location}',
-    );
-    if (!locNorm.contains('REGIONAL') &&
-        !locNorm.contains('SECCIONAL') &&
-        !locNorm.contains('TERRITORIAL')) {
-      return;
-    }
-    const knownDepts = <String, String>{
-      'ATLANTICO': 'Atlántico',
-      'CESAR': 'Cesar',
-      'GUAJIRA': 'La Guajira',
-      'MAGDALENA': 'Magdalena',
-      'BOLIVAR': 'Bolívar',
-      'ANTIOQUIA': 'Antioquia',
-      'VALLE': 'Valle del Cauca',
-      'SANTANDER': 'Santander',
-      'BOGOTA': 'Distrito Capital de Bogotá',
-      'CUNDINAMARCA': 'Cundinamarca',
-      'CORDOBA': 'Córdoba',
-      'SUCRE': 'Sucre',
-      'NORTE DE SANTANDER': 'Norte de Santander',
-      'TOLIMA': 'Tolima',
-      'HUILA': 'Huila',
-      'META': 'Meta',
-      'BOYACA': 'Boyacá',
-      'CALDAS': 'Caldas',
-      'RISARALDA': 'Risaralda',
-      'QUINDIO': 'Quindío',
-      'CAUCA': 'Cauca',
-      'NARINO': 'Nariño',
-    };
-    for (final entry in knownDepts.entries) {
-      if (locNorm.contains(entry.key)) {
-        _selectedRegionalDept = entry.value;
-        break;
-      }
-    }
   }
 
   bool _isNationalMultiRegionalEntity() {
@@ -1647,13 +1610,12 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   }
 
   void _limpiarFiltros({bool despuesDelReporte = false}) {
-    final regional = despuesDelReporte ? _regionalInicial : null;
     final recargarTodo =
-        _selectedRegionalDept != regional ||
+        _selectedRegionalDept != null ||
         (despuesDelReporte && _selectedContratosYear != AniosSecop.actual);
     setState(() {
       _cancelarBusqueda();
-      _selectedRegionalDept = regional;
+      _selectedRegionalDept = null;
       _selectedUnidad = null;
       _selectedDependencia = null;
       _selectedModality = 'Todas';
@@ -1789,7 +1751,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  widget.entity.name,
+                  _nombreEntidad,
                   maxLines: mobile ? 2 : 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -2378,7 +2340,6 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       'Dependencias',
       'Contratistas',
       'Procesos',
-      'Transparencia',
     ];
 
     final tabsRow = Row(
@@ -5083,22 +5044,57 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     );
   }
 
+  Widget _avisoRegimenContractual() {
+    return Container(
+      margin: EdgeInsets.fromLTRB(
+        _isMobile ? 12 : 32,
+        10,
+        _isMobile ? 12 : 32,
+        4,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Cristal.ambarVidrio,
+        border: Border.all(color: Cristal.ambarBorde),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline_rounded, color: Cristal.ambar, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Esta empresa está exceptuada del régimen general de contratación estatal '
+              'por la Ley 142 de 1994 de servicios públicos domiciliarios. '
+              'Parte de su historial se publica en su propio portal, por lo que '
+              'la información disponible en esta ficha puede ser limitada.',
+              style: TextStyle(
+                color: Cristal.ambar,
+                fontSize: 13,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final enProcesos = _selectedTabIndex == 4;
-    final enTransparencia = _selectedTabIndex == 5;
     final nitProcesos = widget.entity.nit.replaceAll(RegExp(r'[^0-9]'), '');
     final contenido = switch (_selectedTabIndex) {
       4 => ProcesosSection(
         key: ValueKey('procesos-$nitProcesos-$_selectedRegionalDept'),
         nitEntidad: nitProcesos.length >= 8 ? nitProcesos : '',
         departamento: _selectedRegionalDept ?? '',
-        nombreEntidad: widget.entity.name,
+        nombreEntidad: _nombreEntidad,
       ),
       1 => _buildContratosTab(),
       2 => _buildDependenciasTab(),
       3 => _buildContratistasTab(),
-      5 => TransparenciaEntidad(nit: widget.entity.nit),
       _ => _buildResumenTab(),
     };
 
@@ -5111,13 +5107,15 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _buildCompactHeader(),
+            if (Nit.formasNumericas(nitProcesos).contains('892300548'))
+              _avisoRegimenContractual(),
             if (widget.entity.nit.isNotEmpty)
               ArchivoEntidadSecopI(
                 nit: widget.entity.nit,
-                nombre: widget.entity.name,
+                nombre: _nombreEntidad,
               ),
             _buildProfileTabsBar(),
-            if (!enProcesos && !enTransparencia && _selectedTabIndex != 3)
+            if (!enProcesos && _selectedTabIndex != 3)
               _buildBarraExploracion()
             else if (enProcesos && _tieneRegionales)
               Align(

@@ -115,7 +115,9 @@ void main() {
     await abrir(tester);
     expect(find.text('Acceso directo a entidades'), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'Instituto Candil');
-    await tester.testTextInput.receiveAction(TextInputAction.search);
+    final botonBuscar = find.widgetWithText(FilledButton, 'Buscar').first;
+    expect(tester.widget<FilledButton>(botonBuscar).onPressed, isNotNull);
+    await tester.tap(botonBuscar);
     await tester.pump();
     await tester.pump();
 
@@ -124,6 +126,38 @@ void main() {
     ranking.complete(entidad('INSTITUTO DEL RANKING'));
     await tester.pumpAndSettle();
     expect(find.text('Instituto Candil', findRichText: true), findsWidgets);
+  });
+
+  testWidgets('el error del ranking no reemplaza una búsqueda en curso', (
+    tester,
+  ) async {
+    final ranking = Completer<http.Response>();
+    final busqueda = Completer<http.Response>();
+    DatosAbiertos.clientePruebas = MockClient((request) async {
+      final params = request.url.queryParameters;
+      if ((params[r'$where'] ?? '').contains('NOT LIKE')) return ranking.future;
+      if (params.containsKey(r'$q')) return busqueda.future;
+      return http.Response('[]', 200);
+    });
+
+    await abrir(tester);
+    await tester.enterText(find.byType(TextField), 'Instituto Campana');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pump();
+    ranking.complete(http.Response('[]', 400));
+    await tester.pump();
+    await tester.pump();
+    expect(
+      find.text('No pudimos cargar el ranking de SECOP II.'),
+      findsNothing,
+    );
+    expect(
+      find.textContaining('Consultando entidades verificadas'),
+      findsOneWidget,
+    );
+    busqueda.complete(entidad('INSTITUTO CAMPANA'));
+    await tester.pumpAndSettle();
+    expect(find.text('Instituto Campana', findRichText: true), findsWidgets);
   });
 
   testWidgets('una falla de SECOP permite reintentar desde la misma vista', (
@@ -304,6 +338,94 @@ void main() {
       expect(
         busquedas.single.queryParameters[r'$where'],
         contains('fecha_de_firma <'),
+      );
+    },
+  );
+
+  testWidgets(
+    'una ficha regional busca en toda la entidad hasta elegir un filtro',
+    (tester) async {
+      final consultas = <String>[];
+      DatosAbiertos.clientePruebas = MockClient((request) async {
+        final params = request.url.queryParameters;
+        if (request.url.path.endsWith('jbjy-vk9h.json')) {
+          consultas.add(params[r'$where'] ?? '');
+        }
+        final filas = switch (params[r'$group']) {
+          'departamento' => [
+            {
+              'departamento': 'Cesar',
+              'contratos': '1',
+              'total_valor': '2000000',
+            },
+            {
+              'departamento': 'Atlántico',
+              'contratos': '2',
+              'total_valor': '3000000',
+            },
+          ],
+          'estado_contrato' => [
+            {
+              'estado_contrato': 'En ejecución',
+              'contratos': '3',
+              'total_valor': '5000000',
+            },
+          ],
+          _ => const <Map<String, String>>[],
+        };
+        return http.Response.bytes(utf8.encode(jsonEncode(filas)), 200);
+      });
+
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1440, 1100);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: temaCristal(),
+          home: const PerfilEntidadScreen(
+            entity: EntitySummaryRecord(
+              name: 'Servicio Nacional de Aprendizaje - SENA (Regional Cesar)',
+              nit: '899999034',
+              location: 'Valledupar, Cesar',
+              municipio: 'Valledupar',
+              departamento: 'Cesar',
+              category: 'Orden nacional',
+              emblemType: EntityEmblemType.educacionShield,
+              contractsCount: 1,
+              contractsFormatted: '1',
+              amountMillions: 2,
+              amountFormatted: '2',
+              dependenciesCount: 0,
+              uniqueContractors: 0,
+              secopKeywords: ['SENA'],
+              nivel: NivelEntidad.regional,
+              raiz: 'Servicio Nacional de Aprendizaje - SENA',
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final selector = find.byWidgetPredicate(
+        (w) =>
+            w is DropdownButton<String?> &&
+            (w.items?.any((i) => i.value == 'Cesar') ?? false),
+      );
+      expect(tester.widget<DropdownButton<String?>>(selector).value, isNull);
+      expect(find.text('Transparencia'), findsNothing);
+      expect(
+        consultas.any((where) => where.contains("departamento = 'Cesar'")),
+        isFalse,
+      );
+
+      await tester.tap(selector);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Regional Cesar · 1').last);
+      await tester.pumpAndSettle();
+      expect(tester.widget<DropdownButton<String?>>(selector).value, 'Cesar');
+      expect(
+        consultas.any((where) => where.contains("departamento = 'Cesar'")),
+        isTrue,
       );
     },
   );

@@ -4,7 +4,6 @@ import 'package:app_secop/data/colombia_entities_database.dart';
 import 'package:app_secop/services/contratistas_de_entidad.dart';
 import 'package:app_secop/services/datos_abiertos.dart';
 import 'package:app_secop/services/procesos_secop_service.dart';
-import 'package:app_secop/services/transparencia_entidad_service.dart';
 import 'package:app_secop/utils/secop_i.dart';
 import 'package:app_secop/utils/nit.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -97,38 +96,4 @@ void main() {
       expect(proveedor.fuentes.length, 2);
     },
   );
-
-  test('el archivo de contratación pagina por NIT y SIGEP conserva el mes más reciente', () async {
-    DatosAbiertos.clientePruebas = MockClient((solicitud) async {
-      final params = solicitud.url.queryParameters;
-      expect(params[r'$where'], contains("'892300548'"));
-      if (solicitud.url.path.contains(TransparenciaEntidadService.sigep)) {
-        expect(params[r'$order'], startsWith('a_o DESC,mes DESC'));
-        return filas([
-          {'a_o': '2026', 'mes': '9', 'tipo_de_vinculaci_n': 'VINCULADAS'},
-          {'a_o': '2026', 'mes': '9', 'tipo_de_vinculaci_n': 'CONTRATISTAS'},
-          {'a_o': '2026', 'mes': '8', 'tipo_de_vinculaci_n': 'VINCULADAS'},
-        ]);
-      }
-      expect(params[r'$q'], 'Acueducto');
-      expect(params[r'$offset'], '${TransparenciaEntidadService.porPagina}');
-      expect(params[r'$order'], endsWith(':id DESC'));
-      return filas(
-        List.generate(
-          TransparenciaEntidadService.porPagina + 1,
-          (i) => {'numero_del_contrato': 'Contrato $i'},
-        ),
-      );
-    });
-    final contratos = await TransparenciaEntidadService.contratos(
-      '892300548',
-      pagina: 1,
-      texto: 'Acueducto',
-    );
-    expect(contratos.hayMas, isTrue);
-    expect(contratos.filas.length, TransparenciaEntidadService.porPagina);
-    final personal = await TransparenciaEntidadService.personal('892300548');
-    expect(personal.length, 2);
-    expect(personal.every((fila) => fila['mes'] == '9'), isTrue);
-  });
 }

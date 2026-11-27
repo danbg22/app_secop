@@ -210,7 +210,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
   // Todas las cifras salen de consultas agregadas a SECOP II. El catálogo
   // `ColombiaEntitiesDatabase` solo se usa como índice de nombres, siglas y
   // NIT para la búsqueda: sus cifras no corresponden a SECOP y no se muestran.
-  bool _isLoadingLive = true;
+  bool _buscandoEntidades = false;
   bool _cargandoRanking = true;
   List<EntitySummaryRecord> _activeEntities = const [];
   List<EntitySummaryRecord> _topContractingEntities = const [];
@@ -220,6 +220,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
   double _kpiTotalAmountMillions = 0;
   int? _kpiUniqueContractors;
   String? _errorConsulta;
+  String? _errorRanking;
   int _versionBusqueda = 0;
   Future<void>? _rankingEnCurso;
   int? _contratistasRanking;
@@ -255,7 +256,9 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     super.dispose();
   }
 
-  bool get _isEmptySearch => _searchController.text.trim().isEmpty;
+  bool get _enRanking => _consultaActiva.isEmpty;
+  bool get _isLoadingLive => _enRanking ? _cargandoRanking : _buscandoEntidades;
+  String? get _errorVisible => _enRanking ? _errorRanking : _errorConsulta;
 
   void _recalculateKpisFromList(
     List<EntitySummaryRecord> list, {
@@ -716,7 +719,12 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       _cargarRanking().whenComplete(() => _rankingEnCurso = null);
 
   Future<void> _cargarRanking() async {
-    if (!_cargandoRanking) setState(() => _cargandoRanking = true);
+    if (!_cargandoRanking) {
+      setState(() {
+        _cargandoRanking = true;
+        _errorRanking = null;
+      });
+    }
     try {
       final rawList = await _consultarAgregadoEntidades(
         "upper(nombre_entidad) NOT LIKE '%SECRETAR%'",
@@ -729,7 +737,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       setState(() {
         _cargandoRanking = false;
         _topContractingEntities = ranking;
-        if (_isEmptySearch) _aplicarRanking();
+        if (_enRanking) _aplicarRanking();
       });
 
       final (porNit, unicos) = await _contarContratistas(
@@ -745,21 +753,20 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
               porNit[entidad.nit.replaceAll(RegExp(r'[^0-9]'), '')],
             ),
         ];
-        if (_isEmptySearch) _aplicarRanking();
+        if (_enRanking) _aplicarRanking();
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _cargandoRanking = false;
-        if (!_isEmptySearch) return;
-        _isLoadingLive = false;
-        _errorConsulta = 'No pudimos cargar el ranking de SECOP II.';
+        if (_topContractingEntities.isEmpty) {
+          _errorRanking = 'No pudimos cargar el ranking de SECOP II.';
+        }
       });
     }
   }
 
   void _aplicarRanking() {
-    _errorConsulta = null;
     _entidadesSecopI = const [];
     _activeEntities = _topContractingEntities.take(10).toList();
     _recalculateKpisFromList(
@@ -767,7 +774,6 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       contratistasUnicos: _contratistasRanking,
     );
     _kpiPeriodo = 'Vigencia ${AniosSecop.actual}';
-    _isLoadingLive = false;
   }
 
   // El directorio está disponible desde el primer fotograma y sigue siendo
@@ -883,17 +889,10 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
   }
 
   void _onSearchChanged(String value) {
-    _versionBusqueda++;
     if (value.trim().isEmpty) {
       _mostrarRankingNacional();
-      return;
-    }
-
-    if (_isLoadingLive || _errorConsulta != null) {
-      setState(() {
-        _isLoadingLive = false;
-        _errorConsulta = null;
-      });
+    } else {
+      setState(() {});
     }
   }
 
@@ -901,18 +900,11 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     _versionBusqueda++;
     _consultaActiva = '';
     _guardarVista();
-    if (_topContractingEntities.isNotEmpty) {
-      setState(_aplicarRanking);
-      return;
-    }
     setState(() {
-      _errorConsulta = null;
-      _activeEntities = const [];
-      _entidadesSecopI = const [];
-      _recalculateKpisFromList(const []);
-      _isLoadingLive = true;
+      _buscandoEntidades = false;
+      _aplicarRanking();
     });
-    _fetchLiveTopEntitiesAcrossColombia();
+    if (_topContractingEntities.isEmpty) _fetchLiveTopEntitiesAcrossColombia();
   }
 
   void _aplicarBusqueda(_CachedEntitiesBundle bundle) {
@@ -923,7 +915,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     _kpiTotalAmountMillions = bundle.totalAmountMillions;
     _kpiUniqueContractors = bundle.totalUniqueContractors;
     _kpiPeriodo = bundle.periodo;
-    _isLoadingLive = false;
+    _buscandoEntidades = false;
     _errorConsulta = null;
   }
 
@@ -932,10 +924,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     if (queryText.isEmpty) return;
 
     final version = ++_versionBusqueda;
-    bool vigente() =>
-        mounted &&
-        version == _versionBusqueda &&
-        _searchController.text.trim() == queryText;
+    bool vigente() => mounted && version == _versionBusqueda;
     final cambioConsulta = _consultaActiva != queryText;
     _consultaActiva = queryText;
     _guardarVista();
@@ -948,7 +937,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     }
 
     setState(() {
-      _isLoadingLive = true;
+      _buscandoEntidades = true;
       _errorConsulta = null;
       if (cambioConsulta) {
         _activeEntities = const [];
@@ -997,7 +986,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       _activeEntities = const [];
       _entidadesSecopI = secopI;
       _recalculateKpisFromList(const []);
-      _isLoadingLive = false;
+      _buscandoEntidades = false;
       _errorConsulta = secopI.isNotEmpty || !(falloSecopII || falloSecopI)
           ? null
           : conDirectorio
@@ -1634,7 +1623,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                     color: CampoBusqueda.tinta,
                     size: 20,
                   ),
-                  suffixIcon: _isLoadingLive
+                  suffixIcon: _buscandoEntidades && !_enRanking
                       ? Padding(
                           padding: EdgeInsets.all(11),
                           child: SizedBox(
@@ -1691,7 +1680,9 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
           SizedBox(
             height: 48,
             child: FilledButton.icon(
-              onPressed: _isLoadingLive && !_isEmptySearch
+              onPressed:
+                  _buscandoEntidades &&
+                      _consultaActiva == _searchController.text.trim()
                   ? null
                   : _buscarEntidades,
               icon: const Icon(Icons.search_rounded, size: 18),
@@ -1821,7 +1812,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
 
     // Mientras llega la primera respuesta no se muestran ceros como dato.
     final sinDatos =
-        (_isLoadingLive || _errorConsulta != null) &&
+        (_isLoadingLive || _errorVisible != null) &&
         _kpiTotalEntities == 0 &&
         _kpiTotalContracts == 0;
     final card1 = kpiCard(
@@ -1838,7 +1829,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       subtitleUnderTitle: 'mostradas · $_kpiPeriodo',
       mainValue: sinDatos ? '—' : '$_kpiTotalEntities',
       trendPercent: 'SECOP II',
-      trendComparison: _errorConsulta != null
+      trendComparison: _errorVisible != null
           ? 'Sin respuesta de SECOP'
           : sinDatos
           ? 'consultando…'
@@ -2344,8 +2335,8 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
             )
           else
             Divider(height: 1, color: Cristal.borde),
-          if (entities.isNotEmpty && !_isEmptySearch)
-            if (ColombiaEntitiesDatabase.entidadExacta(_searchController.text)
+          if (entities.isNotEmpty && !_enRanking)
+            if (ColombiaEntitiesDatabase.entidadExacta(_consultaActiva)
                 case final entidad?)
               Padding(
                 padding: const EdgeInsets.symmetric(
@@ -2380,7 +2371,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                   Text(
                     _isLoadingLive
                         ? 'Consultando entidades verificadas en SECOP II...'
-                        : (_errorConsulta ??
+                        : (_errorVisible ??
                               (_buscarEnCatalogo(_consultaActiva).isNotEmpty
                                   ? 'Puedes abrir la entidad desde el directorio.'
                                   : 'No se encontraron entidades en SECOP II ni en SECOP I con ese criterio.')),
@@ -2391,8 +2382,8 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                     ),
                   ),
                   if (!_isLoadingLive &&
-                      !_isEmptySearch &&
-                      _errorConsulta == null) ...[
+                      !_enRanking &&
+                      _errorVisible == null) ...[
                     const SizedBox(height: 6),
                     Text(
                       'Si es una entidad de régimen especial (por ejemplo, una universidad pública), puede publicar su contratación en su propio portal.',
@@ -2407,8 +2398,12 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                   if (!_isLoadingLive)
                     TextButton.icon(
                       onPressed: () {
-                        if (_errorConsulta != null) {
-                          _buscarEntidades();
+                        if (_errorVisible != null) {
+                          if (_enRanking) {
+                            _mostrarRankingNacional();
+                          } else {
+                            _buscarEntidades();
+                          }
                           return;
                         }
                         _searchController.clear();
@@ -2416,7 +2411,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                       },
                       icon: const Icon(Icons.refresh, size: 16),
                       label: Text(
-                        _errorConsulta == null
+                        _errorVisible == null
                             ? 'Restaurar vista de entidades'
                             : 'Volver a consultar',
                       ),

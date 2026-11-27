@@ -320,7 +320,10 @@ class _MyAppState extends State<MyApp> {
                         );
                   return entidad == null
                       ? const MainDashboard()
-                      : PerfilEntidadScreen(entity: entidad);
+                      : PerfilEntidadScreen(
+                          entity: entidad,
+                          restaurarVista: argumento is! EntitySummaryRecord,
+                        );
                 },
               ),
             ),

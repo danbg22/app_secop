@@ -28,9 +28,9 @@ class CollapsibleSideMenu extends StatelessWidget {
   final ValueChanged<int> onItemSelected;
   final VoidCallback onLogout;
 
-  static final _contraido = ValueNotifier<bool>(true);
+  static final _contraido = ValueNotifier<bool>(false);
 
-  static void reiniciarParaSesion() => _contraido.value = true;
+  static void reiniciarParaSesion() => _contraido.value = false;
 
   static void _cambiarTamanio() => _contraido.value = !_contraido.value;
 
