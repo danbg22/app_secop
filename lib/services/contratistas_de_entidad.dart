@@ -70,7 +70,7 @@ abstract final class ContratistasDeEntidad {
       }
     }
 
-    final nitI = Nit.formas(nit).map((n) => "'$n'").join(',');
+    final nitI = Nit.formas(formas.first).map((n) => "'$n'").join(',');
     await Future.wait([
       consultar(
         fuente: FuentePersona.secopII,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 import '../services/seguimiento_service.dart';
+import '../utils/estado_vista.dart';
 import '../widgets/collapsible_side_menu.dart';
 import '../widgets/boton_notificaciones_soporte.dart';
 import '../widgets/ayuda_plataforma.dart';
@@ -71,6 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _selectedIndex = widget.initialIndex;
+    EstadoVista.guardar('panel', {'seccion': _effectiveSelectedIndex()});
   }
 
   @override
@@ -81,6 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onItemTapped(int index) {
     setState(() => _selectedIndex = index);
+    EstadoVista.guardar('panel', {'seccion': _effectiveSelectedIndex()});
     if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
       Navigator.of(context).pop();
     }

@@ -477,7 +477,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
 
               final fieldPassword = _textField(
                 controller: _passwordController,
-                hint: 'Contraseña (mín. 8, mayús. y número) *',
+                hint: 'Nueva contraseña *',
                 icon: Icons.lock_outline_rounded,
                 obscureText: !_passwordVisible,
                 validator: (value) =>
@@ -662,18 +662,6 @@ class _RegistroScreenState extends State<RegistroScreen> {
                                               Expanded(child: fieldTelefono),
                                             ],
                                           ),
-                                          const SizedBox(height: 11),
-                                          Row(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Expanded(child: fieldPassword),
-                                              const SizedBox(width: 12),
-                                              Expanded(
-                                                child: fieldConfirmPassword,
-                                              ),
-                                            ],
-                                          ),
                                         ] else ...[
                                           fieldNombres,
                                           const SizedBox(height: 11),
@@ -686,7 +674,39 @@ class _RegistroScreenState extends State<RegistroScreen> {
                                           fieldPais,
                                           const SizedBox(height: 11),
                                           fieldTelefono,
-                                          const SizedBox(height: 11),
+                                        ],
+                                        const SizedBox(height: 19),
+                                        Divider(color: Cristal.bordeFuerte),
+                                        const SizedBox(height: 10),
+                                        Text(
+                                          'Crea una nueva contraseña',
+                                          style: TextStyle(
+                                            color: Cristal.texto,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Usa al menos 8 caracteres, con mayúsculas, minúsculas y un número.',
+                                          style: TextStyle(
+                                            color: Cristal.textoMedio,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        if (isTwoCols)
+                                          Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Expanded(child: fieldPassword),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: fieldConfirmPassword,
+                                              ),
+                                            ],
+                                          )
+                                        else ...[
                                           fieldPassword,
                                           const SizedBox(height: 11),
                                           fieldConfirmPassword,

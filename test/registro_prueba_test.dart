@@ -16,6 +16,7 @@ void main() {
 
     expect(find.text('Inicia tu prueba gratuita'), findsOneWidget);
     expect(find.text('30 días gratis'), findsOneWidget);
+    expect(find.text('Crea una nueva contraseña'), findsOneWidget);
     expect(
       find.textContaining(persona.precioMensualFormateado),
       findsOneWidget,

@@ -16,6 +16,9 @@ import 'screens/soporte_buzon_screen.dart';
 import 'screens/portal_contratista_invitado_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/portada_screen.dart';
+import 'screens/main_dashboard.dart';
+import 'screens/perfil_entidad_screen.dart';
+import 'screens/sections/entidades_section.dart' show EntitySummaryRecord;
 import 'screens/registro_screen.dart';
 import 'services/acceso_planes.dart';
 import 'services/auth_service.dart';
@@ -294,6 +297,33 @@ class _MyAppState extends State<MyApp> {
           return MaterialPageRoute<void>(
             settings: settings,
             builder: (_) => _procesoCompartido(id),
+          );
+        }
+        if (uri != null &&
+            uri.pathSegments.length == 2 &&
+            uri.pathSegments.first == 'entidad' &&
+            RegExp(r'^(?:\d{1,14}|ficha)$').hasMatch(uri.pathSegments.last)) {
+          return MaterialPageRoute<void>(
+            settings: settings,
+            builder: (_) => AuthGate(
+              autenticado: Builder(
+                builder: (_) {
+                  if (!AuthService.hasActiveRole('persona')) {
+                    return const MainDashboard();
+                  }
+                  final argumento = settings.arguments;
+                  final entidad = argumento is EntitySummaryRecord
+                      ? argumento
+                      : PerfilEntidadScreen.restaurar(
+                          rawName,
+                          uri.pathSegments.last,
+                        );
+                  return entidad == null
+                      ? const MainDashboard()
+                      : PerfilEntidadScreen(entity: entidad);
+                },
+              ),
+            ),
           );
         }
         if (rawName.startsWith('/invitado-contrato')) {

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../widgets/campo_busqueda.dart';
@@ -8,15 +9,20 @@ import '../widgets/archivo_entidad_secop_i.dart';
 
 import 'package:http/http.dart' as http;
 
+import '../services/busqueda_personas.dart';
+import '../services/contratistas_de_entidad.dart';
 import '../services/seguimiento_service.dart';
 import '../services/reporte_contratos_service.dart';
 import '../utils/anios_secop.dart';
 import '../utils/banderas_control.dart';
 import '../utils/dependencia_contrato.dart';
+import '../utils/estado_vista.dart';
 import '../utils/nit.dart';
+import '../data/colombia_entities_database.dart';
 import '../widgets/presupuesto_dependencias_panel.dart';
 import '../widgets/boton_seguir.dart';
 import '../widgets/seleccion_contratos_reporte.dart';
+import '../widgets/transparencia_entidad.dart';
 import 'detalle_screen.dart';
 import 'perfil_contratista_screen.dart';
 import 'sections/entidades_section.dart';
@@ -28,6 +34,69 @@ class PerfilEntidadScreen extends StatefulWidget {
   const PerfilEntidadScreen({super.key, required this.entity});
 
   final EntitySummaryRecord entity;
+
+  static void abrir(BuildContext context, EntitySummaryRecord entidad) {
+    if (!kIsWeb) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => PerfilEntidadScreen(entity: entidad),
+        ),
+      );
+      return;
+    }
+    final codigo = entidad.nit.replaceAll(RegExp(r'\D'), '');
+    final ruta = '/entidad/${codigo.isEmpty ? 'ficha' : codigo}';
+    EstadoVista.guardar(ruta, {
+      'nombre': entidad.name,
+      'nit': entidad.nit,
+      'ubicacion': entidad.location,
+      'municipio': entidad.municipio,
+      'departamento': entidad.departamento,
+      'categoria': entidad.category,
+      'emblema': entidad.emblemType.name,
+      'nivel': entidad.nivel?.name,
+      'raiz': entidad.raiz,
+    });
+    Navigator.of(context).pushNamed(ruta, arguments: entidad);
+  }
+
+  static EntitySummaryRecord? restaurar(String ruta, String codigo) {
+    final datos = EstadoVista.leer(ruta);
+    final nombre = datos['nombre'];
+    if (nombre is String && nombre.isNotEmpty) {
+      String campo(String clave) =>
+          datos[clave] is String ? datos[clave] as String : '';
+      return EntitySummaryRecord(
+        name: nombre,
+        nit: campo('nit'),
+        location: campo('ubicacion'),
+        municipio: campo('municipio'),
+        departamento: campo('departamento'),
+        category: campo('categoria'),
+        emblemType:
+            EntityEmblemType.values
+                .where((e) => e.name == datos['emblema'])
+                .firstOrNull ??
+            EntityEmblemType.haciendaSeal,
+        nivel: NivelEntidad.values
+            .where((e) => e.name == datos['nivel'])
+            .firstOrNull,
+        raiz: datos['raiz'] is String ? datos['raiz'] as String : null,
+        contractsCount: 0,
+        contractsFormatted: '—',
+        amountMillions: 0,
+        amountFormatted: '—',
+        dependenciesCount: 0,
+        uniqueContractors: 0,
+        contratistasConfirmados: false,
+        secopKeywords: const [],
+      );
+    }
+    final catalogo = ColombiaEntitiesDatabase.entidadExacta(codigo);
+    return catalogo == null
+        ? null
+        : EntitySummaryRecord.desdeCatalogo(catalogo);
+  }
 
   @override
   State<PerfilEntidadScreen> createState() => _PerfilEntidadScreenState();
@@ -293,6 +362,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   int _selectedTabIndex =
       0; // 0: Resumen, 1: Contratos, 2: Dependencias, 3: Contratistas
   bool _isLoadingLive = true;
+  bool _consultaResumenIniciada = false;
   bool _isLoadingContractsPage = false;
 
   // Vigencia anualizada (2026 por defecto; soporta 2015 a 2026 o historial completo)
@@ -332,6 +402,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   List<_ModalityStat> _modalityStats = [];
   List<_UnidadContratante> _unidades = [];
   List<_ContractorSummary> _contractorsList = [];
+  Future<ResultadoBusquedaPersonas>? _contratistasHistoricos;
 
   // Estado de navegación interna en las pestañas
   String _selectedModality = 'Todas';
@@ -367,14 +438,73 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   int _contractorsPage = 1;
   static const int _contractorsPageSize = 8;
 
+  String get _claveVista =>
+      'perfil-entidad:${widget.entity.nit}:${widget.entity.name}:${widget.entity.departamento}';
+
+  void _guardarVista() => EstadoVista.guardar(_claveVista, {
+    'tab': _selectedTabIndex,
+    'regional': _selectedRegionalDept,
+    'vigencia': _selectedContratosYear,
+    'busqueda': _busqueda,
+    'unidad': _selectedUnidad,
+    'dependencia': _selectedDependencia,
+    'modalidad': _selectedModality,
+    'pagina': _contractsPage,
+    'paginaContratistas': _contractorsPage,
+  });
+
   @override
   void initState() {
     super.initState();
     _initBaselineMetrics();
     _detectInitialRegionalFromEntityCard();
     _regionalInicial = _selectedRegionalDept;
+    final vista = EstadoVista.leer(_claveVista);
+    if (vista['tab'] case final int tab when tab >= 0 && tab <= 5) {
+      _selectedTabIndex = tab;
+      String? campo(String clave) => switch (vista[clave]) {
+        final String valor => valor,
+        _ => null,
+      };
+      if (vista.containsKey('regional')) {
+        _selectedRegionalDept = campo('regional');
+      }
+      if (vista.containsKey('vigencia')) {
+        final vigencia = vista['vigencia'];
+        if (vigencia == null ||
+            vigencia is int && _aniosDisponibles.contains(vigencia)) {
+          _selectedContratosYear = vigencia as int?;
+          _activeBudgetYear = _selectedContratosYear ?? AniosSecop.actual;
+          _onlyCurrentYear2026 = vigencia != null;
+        }
+      }
+      _busqueda = campo('busqueda') ?? '';
+      _busquedaController.text = _busqueda;
+      _selectedUnidad = campo('unidad');
+      _selectedDependencia = campo('dependencia');
+      _selectedModality = campo('modalidad') ?? 'Todas';
+      if (vista['pagina'] case final int pagina
+          when pagina > 0 && pagina <= 100000) {
+        _contractsPage = pagina;
+      }
+      if (vista['paginaContratistas'] case final int pagina when pagina > 0) {
+        _contractorsPage = pagina;
+      }
+    }
     _seleccionReporte.addListener(_actualizarSeleccion);
+    if (_selectedTabIndex <= 2) {
+      _iniciarDatosResumen();
+    } else {
+      _isLoadingLive = false;
+    }
+  }
+
+  void _iniciarDatosResumen() {
     _fetchLiveEntityProfileData();
+    if (_selectedTabIndex == 1 &&
+        (_hayFiltrosContratos || _contractsPage > 1)) {
+      _fetchContractsPageFromSecop(page: _contractsPage);
+    }
   }
 
   void _actualizarSeleccion() => setState(() {});
@@ -803,6 +933,8 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
 
   Future<void> _fetchLiveEntityProfileData() async {
     if (!mounted) return;
+    _consultaResumenIniciada = true;
+    _guardarVista();
     final perfilId = ++_perfilRequestId;
     final paginaId = ++_contratosRequestId;
     final anioInicial = _selectedContratosYear;
@@ -1241,6 +1373,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         }
         _isLoadingLive = false;
       });
+      _guardarVista();
       // La clasificación por dependencias es la consulta más pesada: va
       // aparte para no retrasar ni tumbar la carga principal.
       _fetchConteoDependencias(whereEntityYear);
@@ -1334,6 +1467,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
 
     // Búsqueda y filtros se suman: regional, vigencia, dependencia, unidad,
     // modalidad y el texto escrito.
+    _guardarVista();
     String where({bool conModalidad = true}) => _buildEntityWhereClause(
       onlyYear2026: _onlyCurrentYear2026,
       includeRegionalFilter: true,
@@ -2234,7 +2368,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   }
 
   // ===========================================================================
-  // BARRA DE PESTAÑAS DEL PERFIL (SOLO LAS 4 SOLICITADAS)
+  // BARRA DE PESTAÑAS DEL PERFIL
   // ===========================================================================
 
   Widget _buildProfileTabsBar() {
@@ -2244,14 +2378,20 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       'Dependencias',
       'Contratistas',
       'Procesos',
+      'Transparencia',
     ];
 
     final tabsRow = Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         for (var i = 0; i < tabs.length; i++)
           InkWell(
             hoverDuration: Cristal.micro,
-            onTap: () => setState(() => _selectedTabIndex = i),
+            onTap: () {
+              setState(() => _selectedTabIndex = i);
+              _guardarVista();
+              if (i <= 2 && !_consultaResumenIniciada) _iniciarDatosResumen();
+            },
             child: Padding(
               padding: const EdgeInsets.only(right: 28, top: 14),
               child: Column(
@@ -2283,8 +2423,8 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
               ),
             ),
           ),
-        if (_isMobile) const SizedBox(width: 12) else const Spacer(),
-        if (_isLoadingLive)
+        const SizedBox(width: 12),
+        if (_selectedTabIndex <= 2 && _isLoadingLive)
           Padding(
             padding: EdgeInsets.symmetric(vertical: 10),
             child: Row(
@@ -2310,7 +2450,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
               ],
             ),
           )
-        else
+        else if (_selectedTabIndex <= 2)
           TextButton.icon(
             onPressed: () {
               // "Actualizar" trae los datos de nuevo, sin la caché.
@@ -2332,12 +2472,10 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         color: Cristal.vidrio,
         border: Border(bottom: BorderSide(color: Cristal.borde)),
       ),
-      child: _isMobile
-          ? SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: tabsRow,
-            )
-          : tabsRow,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: tabsRow,
+      ),
     );
   }
 
@@ -4401,22 +4539,82 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   // ===========================================================================
 
   Widget _buildContratistasTab() {
-    final totalPages = _contractorsList.isEmpty
-        ? 1
-        : (_contractorsList.length / _contractorsPageSize).ceil();
+    final nit = Nit.formasNumericas(widget.entity.nit).firstOrNull;
+    if (nit == null) {
+      return _tablaContratistas(
+        _contractorsList,
+        descripcion: 'Muestra de los contratos recientes en SECOP II.',
+        cargando: _isLoadingLive,
+      );
+    }
+    return FutureBuilder<ResultadoBusquedaPersonas>(
+      future: _contratistasHistoricos ??= ContratistasDeEntidad.buscar(nit),
+      builder: (context, snapshot) {
+        final resultado = snapshot.data;
+        final cargando = snapshot.connectionState == ConnectionState.waiting;
+        final personas =
+            (resultado?.personas ?? const <PersonaEncontrada>[]).toList()
+              ..sort((a, b) {
+                final porValor = b.valor.compareTo(a.valor);
+                return porValor != 0 ? porValor : a.nombre.compareTo(b.nombre);
+              });
+        final detalle = _tablaContratistas(
+          [
+            for (final persona in personas)
+              _ContractorSummary(
+                name: persona.nombre,
+                document: persona.documento,
+                contractsCount: persona.contratos,
+                totalCop: persona.valor,
+                lastDate: persona.ultimaFecha,
+                mainModality: [
+                  if (persona.fuentes.contains(FuentePersona.secopI)) 'SECOP I',
+                  if (persona.fuentes.contains(FuentePersona.secopII))
+                    'SECOP II',
+                ].join(' y '),
+              ),
+          ],
+          descripcion: 'Historial de proveedores publicado en SECOP I y II para toda la entidad. Selecciona un proveedor para ver su perfil.',
+          cargando: cargando,
+          historico: true,
+          sinConfirmar: resultado?.parcial == true || snapshot.hasError,
+        );
+        if (cargando || (resultado?.parcial != true && !snapshot.hasError)) {
+          return detalle;
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextButton.icon(
+              onPressed: () => setState(() => _contratistasHistoricos = null),
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Reintentar fuentes de contratistas'),
+            ),
+            detalle,
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _tablaContratistas(
+    List<_ContractorSummary> contratistas, {
+    required String descripcion,
+    required bool cargando,
+    bool historico = false,
+    bool sinConfirmar = false,
+  }) {
+    final totalPages = math.max(
+      1,
+      (contratistas.length / _contractorsPageSize).ceil(),
+    );
     final safePage = _contractorsPage.clamp(1, totalPages);
-    final startIdx = _contractorsList.isEmpty
-        ? 0
-        : ((safePage - 1) * _contractorsPageSize).clamp(
-            0,
-            _contractorsList.length - 1,
-          );
-    final endIdx = _contractorsList.isEmpty
-        ? 0
-        : (startIdx + _contractorsPageSize).clamp(0, _contractorsList.length);
-    final pageItems = _contractorsList.isEmpty
-        ? <_ContractorSummary>[]
-        : _contractorsList.sublist(startIdx, endIdx);
+    final startIdx = (safePage - 1) * _contractorsPageSize;
+    final endIdx = math.min(
+      startIdx + _contractorsPageSize,
+      contratistas.length,
+    );
+    final pageItems = contratistas.sublist(startIdx, endIdx);
 
     return Container(
       decoration: BoxDecoration(
@@ -4445,9 +4643,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                       ),
                       SizedBox(height: 3),
                       Text(
-                        _isLoadingLive && _contractorsList.isEmpty
-                            ? 'Consultando SECOP II…'
-                            : 'Contratistas de los ${_formatIntWithDots(_entityContracts.length)} contratos más recientes de la entidad en SECOP II${_contratistasUnicos > 0 ? ' (en total, ${_formatIntWithDots(_contratistasUnicos)} contratistas distintos)' : ''}. Toca cualquiera para ver su perfil.',
+                        sinConfirmar
+                            ? 'La consulta de contratistas quedó incompleta. Resultados de las fuentes disponibles.'
+                            : descripcion,
                         style: TextStyle(
                           color: Cristal.textoSuave,
                           fontSize: 12.5,
@@ -4458,7 +4656,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                 ),
                 if (!_isMobile)
                   Text(
-                    '${_formatIntWithDots(_contractorsList.length)} en esta muestra',
+                    '${_formatIntWithDots(contratistas.length)} contratistas',
                     style: TextStyle(
                       color: Cristal.acentoClaro,
                       fontSize: 12.5,
@@ -4525,7 +4723,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                     Expanded(
                       flex: 2,
                       child: Text(
-                        'Modalidad frecuente',
+                        historico ? 'Fuente' : 'Modalidad frecuente',
                         style: TextStyle(
                           color: Cristal.texto,
                           fontSize: 11.5,
@@ -4549,10 +4747,16 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                 ),
               ),
               if (pageItems.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(36),
+                Padding(
+                  padding: const EdgeInsets.all(36),
                   child: Center(
-                    child: Text('Consultando contratistas de la entidad...'),
+                    child: Text(
+                      cargando
+                          ? 'Consultando contratistas de la entidad…'
+                          : sinConfirmar
+                          ? 'No se pudo confirmar el listado de contratistas.'
+                          : 'Sin contratistas publicados para este NIT.',
+                    ),
                   ),
                 )
               else
@@ -4685,10 +4889,13 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           _buildFullHistoryPaginationFooter(
             currentPage: safePage,
             totalPages: totalPages,
-            totalRecords: _contractorsList.length,
+            totalRecords: contratistas.length,
             resumen:
-                '${_formatIntWithDots(_contractorsList.length)} contratistas en la muestra',
-            onPageChanged: (p) => setState(() => _contractorsPage = p),
+                '${_formatIntWithDots(contratistas.length)} contratistas encontrados',
+            onPageChanged: (p) {
+              setState(() => _contractorsPage = p);
+              _guardarVista();
+            },
           ),
         ],
       ),
@@ -4879,6 +5086,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   @override
   Widget build(BuildContext context) {
     final enProcesos = _selectedTabIndex == 4;
+    final enTransparencia = _selectedTabIndex == 5;
     final nitProcesos = widget.entity.nit.replaceAll(RegExp(r'[^0-9]'), '');
     final contenido = switch (_selectedTabIndex) {
       4 => ProcesosSection(
@@ -4890,6 +5098,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       1 => _buildContratosTab(),
       2 => _buildDependenciasTab(),
       3 => _buildContratistasTab(),
+      5 => TransparenciaEntidad(nit: widget.entity.nit),
       _ => _buildResumenTab(),
     };
 
@@ -4908,9 +5117,9 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                 nombre: widget.entity.name,
               ),
             _buildProfileTabsBar(),
-            if (!enProcesos)
+            if (!enProcesos && !enTransparencia && _selectedTabIndex != 3)
               _buildBarraExploracion()
-            else if (_tieneRegionales)
+            else if (enProcesos && _tieneRegionales)
               Align(
                 alignment: Alignment.centerLeft,
                 child: Padding(

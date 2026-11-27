@@ -148,6 +148,45 @@ void main() {
     expect(find.text('Instituto Recuperado'), findsWidgets);
   });
 
+  testWidgets('una búsqueda conserva el directorio y recupera SECOP I', (
+    tester,
+  ) async {
+    final archivo = Completer<http.Response>();
+    DatosAbiertos.clientePruebas = MockClient((request) async {
+      if (request.url.path.endsWith('f789-7hwg.json')) {
+        if (request.url.queryParameters.containsKey(r'$q')) {
+          return http.Response('[]', 200);
+        }
+        return archivo.future;
+      }
+      final where = request.url.queryParameters[r'$where'] ?? '';
+      if (where.contains('892300548')) return http.Response('[]', 400);
+      return entidad('INSTITUTO DEL RANKING');
+    });
+    await abrir(tester);
+    await tester.enterText(find.byType(TextField), 'Emdupar');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Coincidencias del directorio'), findsOneWidget);
+    expect(
+      find.text('No pudimos consultar las entidades en SECOP.'),
+      findsNothing,
+    );
+    archivo.complete(
+      http.Response(
+        '[{"nombre_entidad":"EMDUPAR ARCHIVO","nit_de_la_entidad":"892300548","procesos":"12"}]',
+        200,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('EMDUPAR ARCHIVO'), findsWidgets);
+    expect(
+      find.textContaining('Las cifras de SECOP no se pudieron confirmar'),
+      findsNothing,
+    );
+  });
+
   testWidgets(
     'la ficha deja seleccionar contratos antes de las cifras y conserva la selección al buscar',
     (tester) async {

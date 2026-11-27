@@ -270,7 +270,14 @@ class _TarjetaSeguidoState extends State<_TarjetaSeguido> {
             nit: _s.clave,
             documentoProveedor: _s.clave,
           );
-    Navigator.push(context, MaterialPageRoute<void>(builder: (_) => pantalla));
+    if (pantalla is PerfilEntidadScreen) {
+      PerfilEntidadScreen.abrir(context, pantalla.entity);
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute<void>(builder: (_) => pantalla),
+      );
+    }
   }
 
   @override

@@ -7,6 +7,8 @@ import '../../data/colombia_entities_database.dart';
 import '../../widgets/archivo_entidad_secop_i.dart';
 import '../../tema/cristal.dart';
 import '../../utils/banderas_control.dart';
+import '../../utils/enlace_proceso.dart';
+import '../../utils/estado_vista.dart';
 import '../../widgets/estado_proceso_chip.dart';
 import '../../widgets/linea_tiempo_proceso.dart';
 import '../detalle_proceso_screen.dart';
@@ -42,10 +44,35 @@ class _ProcesosSectionState extends State<ProcesosSection> {
   bool _error = false;
 
   bool get _enEntidad => widget.nombreEntidad != null;
+  String get _claveVista =>
+      'procesos:${widget.nitEntidad}:${widget.nombreEntidad}:${widget.departamento}';
 
   @override
   void initState() {
     super.initState();
+    final vista = EstadoVista.leer(_claveVista);
+    if (vista['texto'] case final String texto) _texto = texto;
+    _entrada.text = _texto;
+    _campo =
+        CampoBusquedaProceso.values
+            .where((v) => v.name == vista['campo'])
+            .firstOrNull ??
+        _campo;
+    _estado =
+        FiltroEstadoProceso.values
+            .where((v) => v.name == vista['estado'])
+            .firstOrNull ??
+        _estado;
+    _periodo =
+        PeriodoProcesos.values
+            .where((v) => v.name == vista['periodo'])
+            .firstOrNull ??
+        _periodo;
+    _modalidad =
+        ModalidadProceso.values
+            .where((v) => v.name == vista['modalidad'])
+            .firstOrNull ??
+        _modalidad;
     _cargar(reiniciar: true);
   }
 
@@ -57,6 +84,13 @@ class _ProcesosSectionState extends State<ProcesosSection> {
 
   void _aplicar() {
     _texto = _entrada.text.trim();
+    EstadoVista.guardar(_claveVista, {
+      'texto': _texto,
+      'campo': _campo.name,
+      'estado': _estado.name,
+      'periodo': _periodo.name,
+      'modalidad': _modalidad.name,
+    });
     _cargar(reiniciar: true);
   }
 
@@ -116,6 +150,9 @@ class _ProcesosSectionState extends State<ProcesosSection> {
   void _verDetalle(ProcesoSecop proceso) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
+        settings: proceso.idCompartido.isEmpty
+            ? null
+            : RouteSettings(name: rutaProcesoCompartido(proceso.idCompartido)),
         builder: (_) => DetalleProcesoScreen(proceso: proceso),
       ),
     );
