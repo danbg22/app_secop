@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../widgets/campo_busqueda.dart';
 import '../../data/modalidades_contratacion.dart';
 import '../../services/procesos_contratacion_service.dart';
 import '../../services/secop_importacion_service.dart';
@@ -148,7 +149,7 @@ class _ImportarProcesoScreenState extends State<ImportarProcesoScreen> {
                 children: [
                   Flexible(
                     flex: mobile ? 0 : 1,
-                    child: TextField(
+                    child: CampoBusqueda(
                       controller: _entrada,
                       onSubmitted: (_) => _buscar(),
                       decoration: InputDecoration(
@@ -156,7 +157,6 @@ class _ImportarProcesoScreenState extends State<ImportarProcesoScreen> {
                         hintText: 'CO1.REQ.1234567 · CO1.NTC.1234567 · https://community.secop.gov.co/…',
                         prefixIcon: const Icon(Icons.link_rounded),
                         filled: true,
-                        fillColor: Cristal.campo,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),

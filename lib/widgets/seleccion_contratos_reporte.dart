@@ -152,6 +152,10 @@ abstract class SeleccionReporte<T> extends ChangeNotifier {
 }
 
 class SeleccionContratosReporte extends SeleccionReporte<Map<String, dynamic>> {
+  SeleccionContratosReporte({this.entidad});
+
+  final String? entidad;
+
   @override
   String get singular => 'contrato';
 
@@ -180,7 +184,11 @@ class SeleccionContratosReporte extends SeleccionReporte<Map<String, dynamic>> {
 
   @override
   String nombreArchivo(DateTime fecha) =>
-      ReporteContratosPdfService.nombreArchivo('seleccionados', '', fecha);
+      ReporteContratosPdfService.nombreArchivo(
+        entidad ?? 'seleccionados',
+        '',
+        fecha,
+      );
 
   @override
   Future<Uint8List> generar(
@@ -198,7 +206,7 @@ class SeleccionContratosReporte extends SeleccionReporte<Map<String, dynamic>> {
       if (_cerrada) return Uint8List(0);
       progreso(contratos.length);
     }
-    return ReporteSeleccionContratos.generar(contratos);
+    return ReporteSeleccionContratos.generar(contratos, entidad: entidad);
   }
 }
 

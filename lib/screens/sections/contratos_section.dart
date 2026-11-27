@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../widgets/campo_busqueda.dart';
 import '../../data/colombia_secop_catalog.dart';
 import '../../data/colombia_entities_database.dart';
 import '../../utils/nit.dart';
@@ -3023,7 +3024,7 @@ class _ContratosSectionState extends State<ContratosSection> {
                                 Row(
                                   children: [
                                     Expanded(
-                                      child: TextField(
+                                      child: CampoBusqueda(
                                         controller: entitySearchCtrl,
                                         onChanged: (val) {
                                           setDialogState(
@@ -3036,21 +3037,20 @@ class _ContratosSectionState extends State<ContratosSection> {
                                             ),
                                         style: TextStyle(
                                           fontSize: 12,
-                                          color: Cristal.texto,
+                                          color: CampoBusqueda.tinta,
                                         ),
                                         decoration: InputDecoration(
                                           hintText: 'Escribe el nombre de la alcaldía, gobernación, hospital o ministerio...',
                                           hintStyle: TextStyle(
                                             fontSize: 11.5,
-                                            color: Cristal.textoTenue,
+                                            color: CampoBusqueda.tinta,
                                           ),
                                           isDense: true,
                                           filled: true,
-                                          fillColor: Cristal.campo,
                                           prefixIcon: Icon(
                                             Icons.search,
                                             size: 17,
-                                            color: Cristal.texto,
+                                            color: CampoBusqueda.tinta,
                                           ),
                                           suffixIcon:
                                               entitySearchCtrl.text.isNotEmpty
@@ -3862,26 +3862,22 @@ class _ContratosSectionState extends State<ContratosSection> {
             builder: (context, c) {
               final buscador = SizedBox(
                 height: altoControles,
-                child: TextField(
+                child: CampoBusqueda(
                   controller: _contractsSearchController,
                   // Se consulta al presionar Enter o "Buscar", no mientras
                   // se escribe: así no se busca con palabras a medias ni
                   // se traba la escritura.
                   onSubmitted: (_) => _executeContractSearch(silent: false),
                   textInputAction: TextInputAction.search,
-                  style: TextStyle(fontSize: 14, color: Cristal.texto),
+                  style: TextStyle(fontSize: 14),
                   decoration: InputDecoration(
                     hintText: 'Pregunta como hablas y presiona Enter: "alimentación en el Cesar", "obras de más de 500 millones en 2025"…',
-                    hintStyle: TextStyle(
-                      color: Cristal.textoSuave,
-                      fontSize: 13.5,
-                    ),
+                    hintStyle: TextStyle(fontSize: 13.5),
                     isDense: true,
                     filled: true,
-                    fillColor: Cristal.campo,
                     prefixIcon: Icon(
                       Icons.search,
-                      color: Cristal.texto,
+                      color: CampoBusqueda.tinta,
                       size: 20,
                     ),
                     suffixIcon: ValueListenableBuilder<TextEditingValue>(

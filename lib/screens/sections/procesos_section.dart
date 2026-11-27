@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../widgets/campo_busqueda.dart';
 import '../../services/procesos_secop_service.dart';
 import '../../data/colombia_entities_database.dart';
 import '../../widgets/archivo_entidad_secop_i.dart';
@@ -11,7 +12,16 @@ import '../../widgets/linea_tiempo_proceso.dart';
 import '../detalle_proceso_screen.dart';
 
 class ProcesosSection extends StatefulWidget {
-  const ProcesosSection({super.key});
+  const ProcesosSection({
+    super.key,
+    this.nombreEntidad,
+    this.nitEntidad = '',
+    this.departamento = '',
+  });
+
+  final String? nombreEntidad;
+  final String nitEntidad;
+  final String departamento;
 
   @override
   State<ProcesosSection> createState() => _ProcesosSectionState();
@@ -30,6 +40,8 @@ class _ProcesosSectionState extends State<ProcesosSection> {
   CursorProcesos? _siguiente;
   bool _cargando = true;
   bool _error = false;
+
+  bool get _enEntidad => widget.nombreEntidad != null;
 
   @override
   void initState() {
@@ -78,6 +90,9 @@ class _ProcesosSectionState extends State<ProcesosSection> {
         periodo: _periodo,
         modalidad: _modalidad,
         desde: desde,
+        nitEntidad: widget.nitEntidad,
+        departamento: widget.departamento,
+        entidad: widget.nitEntidad.isEmpty ? widget.nombreEntidad ?? '' : '',
       );
       if (!mounted || consulta != _consulta) return;
       setState(() {
@@ -108,7 +123,7 @@ class _ProcesosSectionState extends State<ProcesosSection> {
 
   @override
   Widget build(BuildContext context) {
-    final entidad = _campo == CampoBusquedaProceso.referencia
+    final entidad = _enEntidad || _campo == CampoBusquedaProceso.referencia
         ? null
         : ColombiaEntitiesDatabase.entidadExacta(_texto);
     return LayoutBuilder(
@@ -120,12 +135,18 @@ class _ProcesosSectionState extends State<ProcesosSection> {
 
         return CustomScrollView(
           slivers: [
+            if (!_enEntidad)
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(ancho, margen, ancho, 16),
+                sliver: SliverToBoxAdapter(child: _cabecera()),
+              ),
             SliverPadding(
-              padding: EdgeInsets.fromLTRB(ancho, margen, ancho, 16),
-              sliver: SliverToBoxAdapter(child: _cabecera()),
-            ),
-            SliverPadding(
-              padding: EdgeInsets.fromLTRB(ancho, 0, ancho, 16),
+              padding: EdgeInsets.fromLTRB(
+                ancho,
+                _enEntidad ? margen : 0,
+                ancho,
+                16,
+              ),
               sliver: SliverToBoxAdapter(child: _filtros()),
             ),
             if (entidad != null)
@@ -273,21 +294,22 @@ class _ProcesosSectionState extends State<ProcesosSection> {
           runSpacing: 6,
           children: [
             for (final campo in CampoBusquedaProceso.values)
-              ChoiceChip(
-                label: Text(campo.etiqueta),
-                selected: campo == _campo,
-                onSelected: (_) {
-                  if (campo == _campo) return;
-                  _campo = campo;
-                  _aplicar();
-                },
-              ),
+              if (!_enEntidad || campo != CampoBusquedaProceso.entidad)
+                ChoiceChip(
+                  label: Text(campo.etiqueta),
+                  selected: campo == _campo,
+                  onSelected: (_) {
+                    if (campo == _campo) return;
+                    _campo = campo;
+                    _aplicar();
+                  },
+                ),
           ],
         ),
         const SizedBox(height: 10),
         LayoutBuilder(
           builder: (context, caja) {
-            final entrada = TextField(
+            final entrada = CampoBusqueda(
               controller: _entrada,
               maxLength: 140,
               textInputAction: TextInputAction.search,
@@ -297,7 +319,9 @@ class _ProcesosSectionState extends State<ProcesosSection> {
                 counterText: '',
                 labelText: switch (_campo) {
                   CampoBusquedaProceso.general =>
-                    'Busca por objeto, entidad o número',
+                    _enEntidad
+                        ? 'Busca por objeto o número de proceso'
+                        : 'Busca por objeto, entidad o número',
                   CampoBusquedaProceso.referencia => 'Número o código SECOP',
                   CampoBusquedaProceso.entidad => 'Nombre de la entidad o NIT',
                 },

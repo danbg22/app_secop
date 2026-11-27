@@ -144,24 +144,7 @@ class _DialogoReporteState extends State<DialogoReporte> {
         return;
       }
       _columnas = f.columnas;
-      if (f == FormatoReporte.anexoDirectiva018) {
-        // Lo que pide el oficio: vigencias 2023–2026 con corte al 31 de
-        // octubre de 2026, en hoja de cálculo.
-        _soloPs = true;
-        _desde = 2023;
-        final corteOficio = DateTime(2026, 10, 31);
-        _corte = _hoy.isBefore(corteOficio) ? _hoy : corteOficio;
-        _xlsx = true;
-        _pdf = false;
-        // Para responder por toda la regional, el consolidado.
-        widget.unidades?.then((lista) {
-          if (!mounted || !_exacto) return;
-          final consolidado = lista.where((u) => u.esConsolidado);
-          if (consolidado.isNotEmpty) {
-            setState(() => _unidad = consolidado.first);
-          }
-        });
-      } else if (f == FormatoReporte.contratistasOps) {
+      if (f == FormatoReporte.contratistasOps) {
         // Los OPS de la vigencia en curso, en hoja de cálculo para
         // diligenciar el perfil; con el consolidado, una hoja por
         // dependencia.
@@ -385,7 +368,11 @@ class _DialogoReporteState extends State<DialogoReporte> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _seccion('Formato'),
-              for (final f in FormatoReporte.values)
+              for (final f in const [
+                FormatoReporte.contratistasOps,
+                FormatoReporte.general,
+                FormatoReporte.personalizado,
+              ])
                 _opcion(
                   _formato == f,
                   f.titulo,

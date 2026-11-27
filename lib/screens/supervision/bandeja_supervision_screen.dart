@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../widgets/campo_busqueda.dart';
 import '../../services/juridico_contratacion_service.dart';
 import '../../services/supervision_service.dart';
 import '../gestion_contractual/estilo_contractual.dart';
@@ -254,7 +255,7 @@ class _BandejaSupervisionScreenState extends State<BandejaSupervisionScreen> {
                       ),
                       SizedBox(
                         width: mobile ? double.infinity : 260,
-                        child: TextField(
+                        child: CampoBusqueda(
                           onChanged: (v) => setState(() => _buscar = v),
                           decoration:
                               decoracionCampo('Buscar contratista o contrato')

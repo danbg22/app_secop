@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../../widgets/campo_busqueda.dart';
 import '../../widgets/archivo_entidad_secop_i.dart';
 
 import 'dart:math' as math;
@@ -176,6 +177,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
   // `ColombiaEntitiesDatabase` solo se usa como índice de nombres, siglas y
   // NIT para la búsqueda: sus cifras no corresponden a SECOP y no se muestran.
   bool _isLoadingLive = true;
+  bool _cargandoRanking = true;
   List<EntitySummaryRecord> _activeEntities = const [];
   List<EntitySummaryRecord> _topContractingEntities = const [];
 
@@ -663,6 +665,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       _cargarRanking().whenComplete(() => _rankingEnCurso = null);
 
   Future<void> _cargarRanking() async {
+    if (!_cargandoRanking) setState(() => _cargandoRanking = true);
     try {
       final rawList = await _consultarAgregadoEntidades(
         "upper(nombre_entidad) NOT LIKE '%SECRETAR%'",
@@ -672,6 +675,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
         ..sort((a, b) => b.amountMillions.compareTo(a.amountMillions));
       if (!mounted) return;
       setState(() {
+        _cargandoRanking = false;
         _topContractingEntities = ranking;
         if (_isEmptySearch) _aplicarRanking();
       });
@@ -692,8 +696,10 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
         if (_isEmptySearch) _aplicarRanking();
       });
     } catch (_) {
-      if (!mounted || !_isEmptySearch) return;
+      if (!mounted) return;
       setState(() {
+        _cargandoRanking = false;
+        if (!_isEmptySearch) return;
         _isLoadingLive = false;
         _errorConsulta = 'No pudimos cargar el ranking de SECOP II.';
       });
@@ -710,6 +716,59 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
     );
     _kpiPeriodo = 'Vigencia ${AniosSecop.actual}';
     _isLoadingLive = false;
+  }
+
+  // El directorio local permite entrar por NIT durante la consulta del ranking.
+  Widget _accesosDirectosEntidades() {
+    final entidades = [
+      for (final sigla in ['SENA', 'ICBF', 'INVÍAS', 'EMDUPAR'])
+        if (ColombiaEntitiesDatabase.entidadExacta(sigla) case final entidad?)
+          (sigla, entidad),
+    ];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Acceso directo a entidades',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              for (final (sigla, entidad) in entidades)
+                ActionChip(
+                  avatar: const Icon(Icons.account_balance_outlined, size: 16),
+                  label: Text(sigla),
+                  tooltip: entidad.name,
+                  onPressed: () => _openEntityProfile(
+                    EntitySummaryRecord(
+                      name: entidad.name,
+                      nit: entidad.nit,
+                      location: '${entidad.municipio}, ${entidad.departamento}',
+                      municipio: entidad.municipio,
+                      departamento: entidad.departamento,
+                      category: entidad.category,
+                      emblemType: _classifyEmblem(entidad.name),
+                      contractsCount: 0,
+                      contractsFormatted: '—',
+                      amountMillions: 0,
+                      amountFormatted: '—',
+                      dependenciesCount: 0,
+                      uniqueContractors: 0,
+                      contratistasConfirmados: false,
+                      secopKeywords: entidad.secopKeywords,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   /// Busca en el catálogo de nombres y siglas para obtener los NIT candidatos.
@@ -1481,28 +1540,23 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
           Expanded(
             child: SizedBox(
               height: 48,
-              child: TextField(
+              child: CampoBusqueda(
                 controller: _searchController,
                 // Se consulta al presionar Enter o "Buscar", no mientras se
                 // escribe. Al borrar todo vuelve el ranking nacional.
                 onChanged: _onSearchChanged,
                 onSubmitted: (_) => _buscarEntidades(),
                 textInputAction: TextInputAction.search,
-                style: TextStyle(
-                  color: Cristal.texto,
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
                 decoration: InputDecoration(
                   hintText: 'Escribe la entidad y presiona Enter (ej. SENA, Alcaldía de Santa Marta, INVIAS, ICBF...)',
                   hintStyle: TextStyle(
-                    color: Cristal.textoTenue,
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
                   prefixIcon: Icon(
                     Icons.search_rounded,
-                    color: Cristal.textoSuave,
+                    color: CampoBusqueda.tinta,
                     size: 20,
                   ),
                   suffixIcon: _isLoadingLive
@@ -1530,12 +1584,11 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
                                   icon: Icon(
                                     Icons.close_rounded,
                                     size: 18,
-                                    color: Cristal.textoSuave,
+                                    color: CampoBusqueda.tinta,
                                   ),
                                 ),
                         ),
                   filled: true,
-                  fillColor: Cristal.campo,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 14,
                     vertical: 0,
@@ -1563,7 +1616,9 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
           SizedBox(
             height: 48,
             child: FilledButton.icon(
-              onPressed: _isLoadingLive ? null : _buscarEntidades,
+              onPressed: _isLoadingLive && !_isEmptySearch
+                  ? null
+                  : _buscarEntidades,
               icon: const Icon(Icons.search_rounded, size: 18),
               label: const Text('Buscar'),
             ),
@@ -1691,7 +1746,9 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
 
     // Mientras llega la primera respuesta no se muestran ceros como dato.
     final sinDatos =
-        _isLoadingLive && _kpiTotalEntities == 0 && _kpiTotalContracts == 0;
+        (_isLoadingLive || _errorConsulta != null) &&
+        _kpiTotalEntities == 0 &&
+        _kpiTotalContracts == 0;
     final card1 = kpiCard(
       iconCircle: doubleRingIcon(
         outerColor: Cristal.azulVidrio,
@@ -1706,7 +1763,11 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
       subtitleUnderTitle: 'mostradas · $_kpiPeriodo',
       mainValue: sinDatos ? '—' : '$_kpiTotalEntities',
       trendPercent: 'SECOP II',
-      trendComparison: sinDatos ? 'consultando…' : 'Datos Abiertos',
+      trendComparison: _errorConsulta != null
+          ? 'Sin respuesta de SECOP'
+          : sinDatos
+          ? 'consultando…'
+          : 'Datos Abiertos',
     );
     final card2 = kpiCard(
       iconCircle: doubleRingIcon(
@@ -2223,6 +2284,10 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
               ),
           if (entities.any((e) => e.nivel != null)) _buildLeyendaNiveles(),
           if (entities.isEmpty &&
+              _isEmptySearch &&
+              _topContractingEntities.isEmpty)
+            _accesosDirectosEntidades(),
+          if (entities.isEmpty &&
               !_isLoadingLive &&
               _entidadesSecopI.isNotEmpty)
             _buildEntidadesSecopI()
@@ -2435,7 +2500,7 @@ class _EntidadesSectionStatefulState extends State<_EntidadesSectionStateful> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Text(
-                  _isLoadingLive
+                  _cargandoRanking
                       ? 'Consultando el ranking en SECOP II...'
                       : 'No fue posible cargar el ranking de SECOP II.',
                   style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
@@ -3991,7 +4056,7 @@ class _CompareEntitiesUnfilteredDialogState
           const SizedBox(height: 9),
           SizedBox(
             height: 36,
-            child: TextField(
+            child: CampoBusqueda(
               controller: controller,
               // Se consulta al presionar Enter, no mientras se escribe.
               onChanged: (valor) {
@@ -3999,14 +4064,13 @@ class _CompareEntitiesUnfilteredDialogState
               },
               onSubmitted: onQueryChanged,
               textInputAction: TextInputAction.search,
-              style: TextStyle(
-                color: Cristal.texto,
-                fontSize: 12.2,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontSize: 12.2, fontWeight: FontWeight.w600),
               decoration: InputDecoration(
                 hintText: 'Escribe otra entidad y presiona Enter (ej. SENA, Santa Marta...)',
-                hintStyle: TextStyle(color: Cristal.textoTenue, fontSize: 11.5),
+                hintStyle: TextStyle(
+                  color: CampoBusqueda.tinta,
+                  fontSize: 11.5,
+                ),
                 prefixIcon: const Icon(Icons.search_rounded, size: 17),
                 suffixIcon: isLoading
                     ? const Padding(
@@ -4028,7 +4092,6 @@ class _CompareEntitiesUnfilteredDialogState
                             )
                           : null),
                 filled: true,
-                fillColor: Cristal.campo,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 10,
                   vertical: 0,

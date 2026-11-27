@@ -3,6 +3,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:app_secop/screens/perfil_entidad_screen.dart';
 import 'package:app_secop/screens/sections/entidades_section.dart';
 import 'package:app_secop/services/datos_abiertos.dart';
 import 'package:app_secop/tema/cristal.dart';
@@ -98,6 +99,33 @@ void main() {
     expect(find.text('13'), findsWidgets);
   });
 
+  testWidgets('se puede buscar mientras sigue pendiente el ranking nacional', (
+    tester,
+  ) async {
+    final ranking = Completer<http.Response>();
+    DatosAbiertos.clientePruebas = MockClient((request) async {
+      final params = request.url.queryParameters;
+      if ((params[r'$where'] ?? '').contains('NOT LIKE')) return ranking.future;
+      if ((params[r'$select'] ?? '').contains('count(distinct')) {
+        return http.Response('[]', 200);
+      }
+      return entidad('INSTITUTO CANDIL');
+    });
+
+    await abrir(tester);
+    expect(find.text('Acceso directo a entidades'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'Instituto Candil');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Instituto Candil', findRichText: true), findsWidgets);
+    expect(ranking.isCompleted, isFalse);
+    ranking.complete(entidad('INSTITUTO DEL RANKING'));
+    await tester.pumpAndSettle();
+    expect(find.text('Instituto Candil', findRichText: true), findsWidgets);
+  });
+
   testWidgets('una falla de SECOP permite reintentar desde la misma vista', (
     tester,
   ) async {
@@ -119,6 +147,94 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Instituto Recuperado'), findsWidgets);
   });
+
+  testWidgets(
+    'la ficha deja seleccionar contratos antes de las cifras y conserva la selección al buscar',
+    (tester) async {
+      final estados = Completer<http.Response>();
+      DatosAbiertos.clientePruebas = MockClient((request) async {
+        final params = request.url.queryParameters;
+        if (params[r'$group'] == 'estado_contrato') return estados.future;
+        if (request.url.path.endsWith('jbjy-vk9h.json') &&
+            params[r'$limit'] != null &&
+            params[r'$select'] == null) {
+          final buscando = (params[r'$where'] ?? '').contains('LINTERN');
+          return http.Response(
+            jsonEncode([
+              {
+                'id_contrato': buscando ? 'CO1.PCCNTR.2' : 'CO1.PCCNTR.1',
+                'referencia_del_contrato': buscando ? 'MC-2' : 'MC-1',
+                'nombre_entidad': 'INSTITUTO DE PRUEBA',
+                'nit_entidad': '800432123',
+                'objeto_del_contrato': buscando
+                    ? 'Compra de linternas'
+                    : 'Primer contrato',
+                'valor_del_contrato': '2500000',
+              },
+            ]),
+            200,
+          );
+        }
+        return http.Response('[]', 200);
+      });
+
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1440, 1400);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: temaCristal(),
+          home: const PerfilEntidadScreen(
+            entity: EntitySummaryRecord(
+              name: 'Instituto de Prueba',
+              nit: '800432123',
+              location: 'Cali',
+              municipio: 'Cali',
+              departamento: 'Valle del Cauca',
+              category: 'Territorial',
+              emblemType: EntityEmblemType.haciendaSeal,
+              contractsCount: 1,
+              contractsFormatted: '1',
+              amountMillions: 2.5,
+              amountFormatted: '2.5',
+              dependenciesCount: 0,
+              uniqueContractors: 0,
+              secopKeywords: [],
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.text('Contratos').first);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Primer contrato'), findsWidgets);
+      expect(estados.isCompleted, isFalse);
+
+      await tester.tap(find.text('Seleccionar contratos'));
+      await tester.pump();
+      await tester.tap(find.byType(Checkbox).first);
+      await tester.pump();
+      expect(find.text('1 seleccionado'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField).first, 'Linternas');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Compra de linternas'), findsOneWidget);
+      await tester.tap(find.byType(Checkbox).first);
+      await tester.pump();
+      expect(find.text('2 seleccionados'), findsOneWidget);
+
+      estados.complete(
+        http.Response('[{"contratos":1,"total_valor":2500000}]', 200),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Descargar reporte PDF'), findsOneWidget);
+      expect(find.text('2 seleccionados'), findsOneWidget);
+      expect(find.text('Compra de linternas'), findsOneWidget);
+    },
+  );
 
   testWidgets(
     'una búsqueda vigente publica resultados sin pedir el histórico',

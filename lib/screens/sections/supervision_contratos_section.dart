@@ -1,7 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
 import 'package:flutter/services.dart';
 
+import '../../widgets/campo_busqueda.dart';
 import '../../services/auth_service.dart';
 import '../../services/contratos_vinculados_service.dart';
 import '../../services/juridico_contratacion_service.dart';
@@ -453,7 +455,7 @@ class _ContratistaState extends State<_Contratista> {
           ExpansionTile(
             title: const Text('Abrir un contrato anterior con enlace'),
             children: [
-              TextField(
+              CampoBusqueda(
                 decoration: decoracionCampo('Pega el enlace y pulsa Intro'),
                 onSubmitted: (texto) {
                   final token = ContratosVinculadosService.tokenDesdeTexto(
