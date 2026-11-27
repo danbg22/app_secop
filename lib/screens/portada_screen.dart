@@ -209,7 +209,7 @@ class PortadaScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        'Crear cuenta',
+                        'Regístrate',
                         style: TextStyle(
                           color: Cristal.tinta,
                           fontSize: 15.2,
@@ -243,7 +243,7 @@ class PortadaScreen extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    'Ya tengo cuenta',
+                    'Ingresa',
                     style: TextStyle(
                       color: Cristal.texto,
                       fontSize: 15,

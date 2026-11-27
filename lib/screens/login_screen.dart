@@ -371,7 +371,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            'Iniciar sesión',
+                            'Ingresar',
                             style: TextStyle(
                               fontSize: 15.2,
                               fontWeight: FontWeight.w800,

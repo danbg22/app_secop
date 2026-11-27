@@ -147,7 +147,7 @@ class _VistaPreviaProceso extends StatelessWidget {
                         const Spacer(),
                         TextButton(
                           onPressed: () => onAutenticar('/auth'),
-                          child: const Text('Iniciar sesión'),
+                          child: const Text('Ingresa'),
                         ),
                       ],
                     ),
@@ -233,11 +233,11 @@ class _VistaPreviaProceso extends StatelessWidget {
                                     FilledButton(
                                       onPressed: () =>
                                           onAutenticar('/registro'),
-                                      child: const Text('Crear cuenta'),
+                                      child: const Text('Regístrate'),
                                     ),
                                     OutlinedButton(
                                       onPressed: () => onAutenticar('/auth'),
-                                      child: const Text('Iniciar sesión'),
+                                      child: const Text('Ingresa'),
                                     ),
                                   ],
                                 ),

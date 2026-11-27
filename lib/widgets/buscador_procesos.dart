@@ -5,6 +5,7 @@ import '../screens/detalle_proceso_screen.dart';
 import '../services/procesos_secop_service.dart';
 import '../tema/cristal.dart';
 import '../utils/banderas_control.dart';
+import 'linea_tiempo_proceso.dart';
 
 /// Procesos de contratación de SECOP II en cualquier estado: en borrador o
 /// aprobación, recibiendo observaciones u ofertas, en evaluación,
@@ -517,6 +518,8 @@ class _TarjetaProceso extends StatelessWidget {
               ].where((t) => t.isNotEmpty).join(' · '),
               style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
             ),
+            const SizedBox(height: 10),
+            LineaTiempoProceso(p, compacta: true),
             Wrap(
               alignment: WrapAlignment.spaceBetween,
               crossAxisAlignment: WrapCrossAlignment.center,

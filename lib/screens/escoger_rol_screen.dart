@@ -49,6 +49,18 @@ class OnboardingUnifiedBackground extends StatelessWidget {
             ),
           ),
 
+        // Luz lateral con los colores de la bandera, difuminada hacia el
+        // centro: le da color al inicio sin competir con el contenido.
+        Positioned(
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: MediaQuery.sizeOf(context).width < 640 ? 56 : 150,
+          child: const IgnorePointer(
+            child: CustomPaint(painter: _FranjaBanderaLateral()),
+          ),
+        ),
+
         // Cinta ondulada con la bandera de Colombia en la esquina inferior derecha
         const Positioned(
           right: 0,
@@ -1289,6 +1301,46 @@ class _ColombiaFlagCornerPainter extends CustomPainter {
       ..lineTo(w, h)
       ..close();
     canvas.drawPath(redPath, Paint()..color = const Color(0xFFD32027));
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Franja vertical amarillo, azul y rojo (proporciones de la bandera: 2-1-1)
+/// que se desvanece hacia la derecha y se funde entre colores.
+class _FranjaBanderaLateral extends CustomPainter {
+  const _FranjaBanderaLateral();
+
+  static const _bandas = [
+    (Color(0xFFFCD116), 0.0, 0.5),
+    (Color(0xFF003893), 0.5, 0.75),
+    (Color(0xFFCE1126), 0.75, 1.0),
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final (color, desde, hasta) in _bandas) {
+      final rect = Rect.fromLTRB(
+        -size.width * 0.2,
+        size.height * desde - 24,
+        size.width,
+        size.height * hasta + 24,
+      );
+      canvas.drawRect(
+        rect,
+        Paint()
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14)
+          ..shader = LinearGradient(
+            colors: [
+              color.withValues(alpha: 0.85),
+              color.withValues(alpha: 0.32),
+              color.withValues(alpha: 0),
+            ],
+            stops: const [0, 0.35, 1],
+          ).createShader(rect),
+      );
+    }
   }
 
   @override

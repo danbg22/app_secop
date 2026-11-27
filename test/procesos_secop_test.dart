@@ -271,8 +271,8 @@ void main() {
       expect(find.text('Documentos publicados'), findsNothing);
       expect(find.byType(SelectableText), findsNothing);
 
-      await tester.tap(find.text('Iniciar sesión').first);
-      await tester.tap(find.text('Crear cuenta'));
+      await tester.tap(find.text('Ingresa').first);
+      await tester.tap(find.text('Regístrate'));
       expect(rutas, ['/auth', '/registro']);
     });
 

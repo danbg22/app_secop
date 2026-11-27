@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../services/cronograma_proceso_service.dart';
 import '../services/novedades_proceso_service.dart';
 import '../services/procesos_secop_service.dart';
 import '../services/secop_document_intelligence_service.dart';
@@ -11,6 +12,8 @@ import '../utils/banderas_control.dart';
 import '../utils/compartir_enlace.dart';
 import '../utils/enlace_proceso.dart';
 import '../widgets/estado_proceso_chip.dart';
+import '../widgets/linea_tiempo_proceso.dart';
+import '../widgets/requisitos_ley_proceso.dart';
 
 /// Detalle de un proceso de SECOP II en cualquier estado (borrador, abierto,
 /// en evaluación, adjudicado o cancelado): sus datos, sus fases y los
@@ -40,6 +43,17 @@ class _DetalleProcesoScreenState extends State<DetalleProcesoScreen> {
         'fecha_de_firma': '${p.fila['fecha_de_publicacion_del'] ?? ''}',
         'urlproceso': p.fila['urlproceso'],
       });
+
+  /// Nombres de los archivos publicados, para comparar con la ley. Sin
+  /// archivos (Datos Abiertos a veces no los trae) no se compara.
+  late final Future<List<String>?> _archivos = _documentos.then((r) {
+    final nombres = <String>[
+      for (final d in r?.documents ?? const <SecopExtractedDocument>[]) d.name,
+    ];
+    return nombres.isEmpty ? null : nombres;
+  }, onError: (_) => null);
+  late final Future<List<FechaCronograma>> _cronograma =
+      CronogramaProcesoService.consultar(p.portafolio);
 
   Future<void> _compartir() async {
     final enlace = enlaceProcesoCompartido(p.idCompartido);
@@ -99,6 +113,12 @@ class _DetalleProcesoScreenState extends State<DetalleProcesoScreen> {
   @override
   Widget build(BuildContext context) {
     final angosto = MediaQuery.sizeOf(context).width < 700;
+    final dosColumnas = MediaQuery.sizeOf(context).width >= 1180;
+    final requisitos = RequisitosLeyProceso(
+      proceso: p,
+      archivos: _archivos,
+      plegable: !dosColumnas,
+    );
     final enlaceSecop = SecurityService.validateOfficialGovUrl(p.url);
     final sePuedeCompartir = ProcesosSecopService.idCompartible(p.idCompartido);
     final duracion = [
@@ -151,7 +171,7 @@ class _DetalleProcesoScreenState extends State<DetalleProcesoScreen> {
           ),
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1040),
+              constraints: BoxConstraints(maxWidth: dosColumnas ? 1320 : 1040),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -237,8 +257,10 @@ class _DetalleProcesoScreenState extends State<DetalleProcesoScreen> {
                           ),
                         ),
                       ],
+                      const SizedBox(height: 20),
+                      LineaTiempoProceso(p),
                       if (enlaceSecop != null) ...[
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 18),
                         Align(
                           alignment: Alignment.centerLeft,
                           child: FilledButton.icon(
@@ -254,267 +276,299 @@ class _DetalleProcesoScreenState extends State<DetalleProcesoScreen> {
                     ],
                   ),
                   const SizedBox(height: 14),
-                  _Panel(
-                    titulo: 'Datos del proceso',
-                    children: [
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        children: [
-                          for (final (clave, valor) in datos)
-                            SizedBox(
-                              width: angosto ? double.infinity : 300,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    clave,
-                                    style: TextStyle(
-                                      color: Cristal.textoSuave,
-                                      fontSize: 12.5,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  SelectableText(
-                                    valor,
-                                    style: TextStyle(
-                                      color: Cristal.texto,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  _Panel(
-                    titulo: 'Observaciones y novedades',
-                    subtitulo: 'Lo que la entidad ha publicado durante el proceso: adendas, informes de evaluación, respuestas a observaciones, proponentes y adjudicación.',
-                    children: [
-                      _NovedadesProceso(
-                        futuro: _novedades,
-                        fechaHora: _fechaHora,
-                        abrir: _abrir,
-                      ),
-                      const SizedBox(height: 16),
-                      _AvisoMensajesSecop(
-                        onAbrir: enlaceSecop == null
-                            ? null
-                            : () => _abrir(enlaceSecop.toString()),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  _Panel(
-                    titulo: 'Documentos publicados',
-                    subtitulo: 'Estudios previos, pliegos, CDP, anexos y formatos que la entidad cargó en SECOP II.',
-                    children: [
-                      FutureBuilder<SecopExtractionResult?>(
-                        future: _documentos,
-                        builder: (context, snap) {
-                          if (snap.connectionState != ConnectionState.done) {
-                            return const Padding(
-                              padding: EdgeInsets.all(16),
-                              child: Center(child: CircularProgressIndicator()),
-                            );
-                          }
-                          if (snap.hasError) {
-                            return Text(
-                              'No pudimos consultar los documentos. Puedes revisarlos en SECOP II.',
-                              style: TextStyle(color: Cristal.textoMedio),
-                            );
-                          }
-                          final docs =
-                              snap.data?.documents ??
-                              const <SecopExtractedDocument>[];
-                          if (docs.isEmpty) {
-                            // Datos Abiertos no exporta todos los archivos:
-                            // a veces faltan los de procesos recién
-                            // publicados o los de nuevas ventanas.
-                            return Wrap(
+                  if (!dosColumnas) ...[requisitos, const SizedBox(height: 14)],
+                  _ConLateral(
+                    lateral: dosColumnas ? requisitos : null,
+                    principal: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _Panel(
+                          titulo: 'Datos del proceso',
+                          children: [
+                            Wrap(
                               spacing: 12,
-                              runSpacing: 10,
-                              crossAxisAlignment: WrapCrossAlignment.center,
+                              runSpacing: 12,
                               children: [
-                                Text(
-                                  'Datos Abiertos no tiene los documentos de este proceso; SECOP II sí los muestra.',
-                                  style: TextStyle(color: Cristal.textoMedio),
-                                ),
-                                if (enlaceSecop != null)
-                                  OutlinedButton.icon(
-                                    onPressed: () =>
-                                        _abrir(enlaceSecop.toString()),
-                                    icon: const Icon(
-                                      Icons.open_in_new_rounded,
-                                      size: 17,
-                                    ),
-                                    label: const Text(
-                                      'Ver documentos en SECOP II',
+                                for (final (clave, valor) in datos)
+                                  SizedBox(
+                                    width: angosto ? double.infinity : 300,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          clave,
+                                          style: TextStyle(
+                                            color: Cristal.textoSuave,
+                                            fontSize: 12.5,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        SelectableText(
+                                          valor,
+                                          style: TextStyle(
+                                            color: Cristal.texto,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                               ],
-                            );
-                          }
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Text(
-                                docs.length == 1
-                                    ? '1 documento'
-                                    : '${docs.length} documentos',
-                                style: TextStyle(
-                                  color: Cristal.textoSuave,
-                                  fontSize: 12.5,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              for (final d in docs)
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 3,
-                                  ),
-                                  child: Row(
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        _Panel(
+                          titulo: 'Cronograma en SECOP II',
+                          subtitulo: 'Fechas que fijó la entidad en SECOP II, en hora de Colombia. Los plazos para observaciones van resaltados.',
+                          children: [_CronogramaProceso(futuro: _cronograma)],
+                        ),
+                        const SizedBox(height: 14),
+                        _Panel(
+                          titulo: 'Observaciones y novedades',
+                          subtitulo: 'Lo que la entidad ha publicado durante el proceso: adendas, informes de evaluación, respuestas a observaciones, proponentes y adjudicación.',
+                          children: [
+                            _NovedadesProceso(
+                              futuro: _novedades,
+                              fechaHora: _fechaHora,
+                              abrir: _abrir,
+                            ),
+                            const SizedBox(height: 16),
+                            _AvisoMensajesSecop(
+                              onAbrir: enlaceSecop == null
+                                  ? null
+                                  : () => _abrir(enlaceSecop.toString()),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        _Panel(
+                          titulo: 'Documentos publicados',
+                          subtitulo: 'Estudios previos, pliegos, CDP, anexos y formatos que la entidad cargó en SECOP II.',
+                          children: [
+                            FutureBuilder<SecopExtractionResult?>(
+                              future: _documentos,
+                              builder: (context, snap) {
+                                if (snap.connectionState !=
+                                    ConnectionState.done) {
+                                  return const Padding(
+                                    padding: EdgeInsets.all(16),
+                                    child: Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  );
+                                }
+                                if (snap.hasError) {
+                                  return Text(
+                                    'No pudimos consultar los documentos. Puedes revisarlos en SECOP II.',
+                                    style: TextStyle(color: Cristal.textoMedio),
+                                  );
+                                }
+                                final docs =
+                                    snap.data?.documents ??
+                                    const <SecopExtractedDocument>[];
+                                if (docs.isEmpty) {
+                                  // Datos Abiertos no exporta todos los archivos:
+                                  // a veces faltan los de procesos recién
+                                  // publicados o los de nuevas ventanas.
+                                  return Wrap(
+                                    spacing: 12,
+                                    runSpacing: 10,
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
                                     children: [
-                                      Icon(
-                                        Icons.description_outlined,
-                                        size: 18,
-                                        color: Cristal.textoMedio,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              d.name,
-                                              style: TextStyle(
-                                                color: Cristal.texto,
-                                                fontSize: 13.5,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            Text(
-                                              d.category,
-                                              style: TextStyle(
-                                                color: Cristal.textoSuave,
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ],
+                                      Text(
+                                        'Datos Abiertos no tiene los documentos de este proceso; SECOP II sí los muestra.',
+                                        style: TextStyle(
+                                          color: Cristal.textoMedio,
                                         ),
                                       ),
-                                      if (d.downloadUrl != null)
-                                        TextButton.icon(
+                                      if (enlaceSecop != null)
+                                        OutlinedButton.icon(
                                           onPressed: () =>
-                                              _abrir(d.downloadUrl!),
+                                              _abrir(enlaceSecop.toString()),
                                           icon: const Icon(
-                                            Icons.download_rounded,
+                                            Icons.open_in_new_rounded,
                                             size: 17,
                                           ),
-                                          label: const Text('Descargar'),
+                                          label: const Text(
+                                            'Ver documentos en SECOP II',
+                                          ),
                                         ),
                                     ],
-                                  ),
-                                ),
-                            ],
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  _Panel(
-                    titulo: 'Fases del proceso',
-                    subtitulo: 'SECOP II publica cada fase por separado (observaciones, manifestación de interés, ofertas…).',
-                    children: [
-                      FutureBuilder<List<ProcesoSecop>>(
-                        future: _fases,
-                        builder: (context, snap) {
-                          if (snap.connectionState != ConnectionState.done) {
-                            return const Padding(
-                              padding: EdgeInsets.all(16),
-                              child: Center(child: CircularProgressIndicator()),
-                            );
-                          }
-                          if (snap.hasError) {
-                            return Text(
-                              'No pudimos consultar el historial de fases.',
-                              style: TextStyle(color: Cristal.textoMedio),
-                            );
-                          }
-                          final fases = snap.data ?? [p];
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              for (final (i, f) in fases.indexed)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 10),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Container(
-                                        width: 26,
-                                        height: 26,
-                                        alignment: Alignment.center,
-                                        decoration: BoxDecoration(
-                                          color: Cristal.vidrioSuave,
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: Cristal.borde,
-                                          ),
+                                  );
+                                }
+                                return Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Text(
+                                      docs.length == 1
+                                          ? '1 documento'
+                                          : '${docs.length} documentos',
+                                      style: TextStyle(
+                                        color: Cristal.textoSuave,
+                                        fontSize: 12.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    for (final d in docs)
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 3,
                                         ),
-                                        child: Text(
-                                          '${i + 1}',
-                                          style: TextStyle(
-                                            color: Cristal.texto,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w800,
-                                          ),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.description_outlined,
+                                              size: 18,
+                                              color: Cristal.textoMedio,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    d.name,
+                                                    style: TextStyle(
+                                                      color: Cristal.texto,
+                                                      fontSize: 13.5,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    d.category,
+                                                    style: TextStyle(
+                                                      color: Cristal.textoSuave,
+                                                      fontSize: 12,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            if (d.downloadUrl != null)
+                                              TextButton.icon(
+                                                onPressed: () =>
+                                                    _abrir(d.downloadUrl!),
+                                                icon: const Icon(
+                                                  Icons.download_rounded,
+                                                  size: 17,
+                                                ),
+                                                label: const Text('Descargar'),
+                                              ),
+                                          ],
                                         ),
                                       ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Column(
+                                  ],
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        _Panel(
+                          titulo: 'Fases del proceso',
+                          subtitulo: 'SECOP II publica cada fase por separado (observaciones, manifestación de interés, ofertas…).',
+                          children: [
+                            FutureBuilder<List<ProcesoSecop>>(
+                              future: _fases,
+                              builder: (context, snap) {
+                                if (snap.connectionState !=
+                                    ConnectionState.done) {
+                                  return const Padding(
+                                    padding: EdgeInsets.all(16),
+                                    child: Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  );
+                                }
+                                if (snap.hasError) {
+                                  return Text(
+                                    'No pudimos consultar el historial de fases.',
+                                    style: TextStyle(color: Cristal.textoMedio),
+                                  );
+                                }
+                                final fases = snap.data ?? [p];
+                                return Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    for (final (i, f) in fases.indexed)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 10,
+                                        ),
+                                        child: Row(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            Text(
-                                              '${f.fase.isEmpty ? 'Fase' : f.fase} · ${f.estado}',
-                                              style: TextStyle(
-                                                color: Cristal.texto,
-                                                fontSize: 13.5,
-                                                fontWeight: FontWeight.w700,
+                                            Container(
+                                              width: 26,
+                                              height: 26,
+                                              alignment: Alignment.center,
+                                              decoration: BoxDecoration(
+                                                color: Cristal.vidrioSuave,
+                                                shape: BoxShape.circle,
+                                                border: Border.all(
+                                                  color: Cristal.borde,
+                                                ),
+                                              ),
+                                              child: Text(
+                                                '${i + 1}',
+                                                style: TextStyle(
+                                                  color: Cristal.texto,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
                                               ),
                                             ),
-                                            Text(
-                                              [
-                                                if (f.publicado != null)
-                                                  'Publicada ${_fechaHora(f.publicado)}',
-                                                if (f.cierreOfertas != null)
-                                                  'cierre ${_fechaHora(f.cierreOfertas)}',
-                                              ].join(' · '),
-                                              style: TextStyle(
-                                                color: Cristal.textoSuave,
-                                                fontSize: 12.5,
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    '${f.fase.isEmpty ? 'Fase' : f.fase} · ${f.estado}',
+                                                    style: TextStyle(
+                                                      color: Cristal.texto,
+                                                      fontSize: 13.5,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    [
+                                                      if (f.publicado != null)
+                                                        'Publicada ${_fechaHora(f.publicado)}',
+                                                      if (f.cierreOfertas !=
+                                                          null)
+                                                        'cierre ${_fechaHora(f.cierreOfertas)}',
+                                                    ].join(' · '),
+                                                    style: TextStyle(
+                                                      color: Cristal.textoSuave,
+                                                      fontSize: 12.5,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ),
                                           ],
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                ),
-                            ],
-                          );
-                        },
-                      ),
-                    ],
+                                  ],
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 10),
                   Text(
@@ -796,6 +850,193 @@ class _AvisoMensajesSecop extends StatelessWidget {
               onPressed: onAbrir,
               icon: const Icon(Icons.open_in_new_rounded, size: 17),
               label: const Text('Ver mensajes en SECOP II'),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Contenido principal con la tarjeta de requisitos a la derecha (solo en
+/// pantallas anchas; en las angostas va arriba, plegada).
+class _ConLateral extends StatelessWidget {
+  const _ConLateral({required this.principal, this.lateral});
+
+  final Widget principal;
+  final Widget? lateral;
+
+  @override
+  Widget build(BuildContext context) {
+    if (lateral == null) return principal;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: principal),
+        const SizedBox(width: 16),
+        SizedBox(width: 380, child: lateral),
+      ],
+    );
+  }
+}
+
+/// Fechas del cronograma del proceso; lo que ya pasó, atenuado.
+class _CronogramaProceso extends StatelessWidget {
+  const _CronogramaProceso({required this.futuro});
+
+  final Future<List<FechaCronograma>> futuro;
+
+  static const _meses = [
+    'ene',
+    'feb',
+    'mar',
+    'abr',
+    'may',
+    'jun',
+    'jul',
+    'ago',
+    'sep',
+    'oct',
+    'nov',
+    'dic',
+  ];
+
+  static String _hora(DateTime f) {
+    final h = f.hour % 12 == 0 ? 12 : f.hour % 12;
+    final m = f.minute.toString().padLeft(2, '0');
+    if (f.hour == 12 && f.minute == 0) return '12:00 m.';
+    return '$h:$m ${f.hour < 12 ? 'a. m.' : 'p. m.'}';
+  }
+
+  /// Hora actual de Colombia, en el mismo formato que las fechas.
+  static DateTime get _ahora {
+    final u = DateTime.now().toUtc().subtract(const Duration(hours: 5));
+    return DateTime.utc(u.year, u.month, u.day, u.hour, u.minute);
+  }
+
+  static String _cuanto(DateTime f, DateTime ahora) {
+    final dias = DateTime.utc(
+      f.year,
+      f.month,
+      f.day,
+    ).difference(DateTime.utc(ahora.year, ahora.month, ahora.day)).inDays;
+    if (dias <= 0) return 'Hoy';
+    if (dias == 1) return 'Mañana';
+    return 'En $dias días';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<FechaCronograma>>(
+      future: futuro,
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final fechas = snap.data ?? const <FechaCronograma>[];
+        if (snap.hasError || fechas.isEmpty) {
+          return Text(
+            snap.hasError
+                ? 'No pudimos consultar el cronograma. Puedes revisarlo en SECOP II.'
+                : 'Datos Abiertos todavía no tiene el cronograma de este proceso.',
+            style: TextStyle(color: Cristal.textoMedio),
+          );
+        }
+        final ahora = _ahora;
+        final proxima = fechas.indexWhere((f) => !f.fecha.isBefore(ahora));
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final (i, f) in fechas.indexed)
+              _FilaCronograma(
+                fecha: f,
+                cuando:
+                    '${f.fecha.day} ${_meses[f.fecha.month - 1]} ${f.fecha.year} · ${_hora(f.fecha)}',
+                paso: f.fecha.isBefore(ahora),
+                proxima: i == proxima,
+                faltan: f.fecha.isBefore(ahora)
+                    ? null
+                    : _cuanto(f.fecha, ahora),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _FilaCronograma extends StatelessWidget {
+  const _FilaCronograma({
+    required this.fecha,
+    required this.cuando,
+    required this.paso,
+    required this.proxima,
+    this.faltan,
+  });
+
+  final FechaCronograma fecha;
+  final String cuando;
+  final bool paso;
+  final bool proxima;
+  final String? faltan;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = paso ? Cristal.textoSuave : Cristal.texto;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: proxima ? Cristal.doradoVidrio : null,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            fecha.observaciones
+                ? Icons.forum_outlined
+                : paso
+                ? Icons.check_rounded
+                : Icons.event_outlined,
+            size: 18,
+            color: fecha.observaciones && !paso
+                ? Cristal.acentoClaro
+                : paso
+                ? Cristal.textoSuave
+                : Cristal.textoMedio,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  fecha.nombre,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 13.5,
+                    fontWeight: fecha.observaciones || proxima
+                        ? FontWeight.w800
+                        : FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  cuando,
+                  style: TextStyle(color: Cristal.textoSuave, fontSize: 12.5),
+                ),
+              ],
+            ),
+          ),
+          if (faltan != null)
+            Text(
+              faltan!,
+              style: TextStyle(
+                color: proxima ? Cristal.texto : Cristal.textoMedio,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
             ),
         ],
       ),

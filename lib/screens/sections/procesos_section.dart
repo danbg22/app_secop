@@ -7,6 +7,7 @@ import '../../widgets/archivo_entidad_secop_i.dart';
 import '../../tema/cristal.dart';
 import '../../utils/banderas_control.dart';
 import '../../widgets/estado_proceso_chip.dart';
+import '../../widgets/linea_tiempo_proceso.dart';
 import '../detalle_proceso_screen.dart';
 
 class ProcesosSection extends StatefulWidget {
@@ -614,6 +615,8 @@ class _TarjetaProceso extends StatelessWidget {
                   style: TextStyle(color: Cristal.textoMedio, fontSize: 13),
                 ),
               ],
+              const SizedBox(height: 12),
+              LineaTiempoProceso(p, compacta: true),
               if (alineada) const Spacer(),
               const SizedBox(height: 12),
               Divider(height: 1, color: Cristal.borde),
