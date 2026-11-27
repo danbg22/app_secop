@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
@@ -1086,6 +1087,23 @@ class AuthService {
     }
   }
 
+  static Future<void>? _ventanaGoogle;
+
+  /// Antes de abrir la ventana de Google, Firebase espera un comprobante de
+  /// App Check y sus recursos de inicio de sesión. La primera vez eso tarda,
+  /// y el navegador del celular (sobre todo en iPhone) bloquea una ventana
+  /// que no se abre de inmediato tras el toque; las siguientes veces ya
+  /// están listos y funciona. Se preparan al abrir la pantalla de inicio de
+  /// sesión: el comprobante queda guardado y `getRedirectResult` carga los
+  /// recursos sin abrir nada si no hay un regreso pendiente.
+  static void precargarVentanaGoogle() {
+    if (!kIsWeb) return;
+    _ventanaGoogle ??= Future.wait([
+      FirebaseAppCheck.instance.getToken().then((_) {}, onError: (_) {}),
+      _auth.getRedirectResult().then((_) {}, onError: (_) {}),
+    ]);
+  }
+
   static Future<void> signInWithGoogle() async {
     final limit = SecurityService.checkRateLimit(
       actionKey: 'oauth_google',
@@ -1953,10 +1971,10 @@ class AuthService {
       case 'operation-not-allowed':
         return 'Este método de acceso no está habilitado actualmente.';
       case 'popup-blocked':
-        return 'El navegador bloqueó la ventana de Google. Permite ventanas emergentes (iPhone: Ajustes > Safari > Bloquear ventanas) y reintenta.';
+        return 'El navegador detuvo la ventana de Google. Toca de nuevo "Iniciar sesión con Google".';
       case 'popup-closed-by-user':
       case 'cancelled-popup-request':
-        return 'Se cerró la ventana de Google antes de terminar. Inténtalo de nuevo.';
+        return 'Se cerró la ventana de Google antes de terminar. Toca de nuevo para continuar.';
       case 'unauthorized-domain':
         return 'El enlace ${Uri.base.host} no está autorizado para Google. Agrégalo en Firebase > Authentication > Dominios autorizados.';
       case 'web-storage-unsupported':

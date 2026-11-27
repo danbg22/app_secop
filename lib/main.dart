@@ -70,6 +70,9 @@ Future<void> _activarAppCheck() async {
           ? ReCaptchaEnterpriseProvider(recaptchaSiteKey)
           : null,
     );
+    // El comprobante se renueva solo antes de vencer: así nunca hay que
+    // esperarlo al tocar un botón (la ventana de Google en iPhone).
+    await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
   } catch (e) {
     debugPrint('No fue posible activar App Check: $e');
   }

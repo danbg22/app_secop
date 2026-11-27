@@ -13,6 +13,14 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Evita que el navegador del celular bloquee la ventana de Google la
+    // primera vez que se toca el botón.
+    AuthService.precargarVentanaGoogle();
+  }
+
   // Paleta compartida con el flujo de registro (EscogerRolScreen).
   static final _emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
 
@@ -97,7 +105,13 @@ class _LoginScreenState extends State<LoginScreen> {
         final msg = SecurityService.sanitizeErrorMessage(
           error.toString().replaceFirst('Exception: ', ''),
         );
-        _showMessage('Error con $provider: $msg', isError: true);
+        // Si el navegador detuvo o se cerró la ventana, basta con tocar de
+        // nuevo: no se presenta como un error.
+        final reintentar = msg.contains('Toca de nuevo');
+        _showMessage(
+          reintentar ? msg : 'Error con $provider: $msg',
+          isError: !reintentar,
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -437,36 +451,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 10),
-
-            // Apple button
-            SizedBox(
-              height: 48,
-              child: OutlinedButton(
-                onPressed: _isLoading
-                    ? null
-                    : () => _signInWithProvider(
-                        provider: 'Apple',
-                        signIn: AuthService.signInWithApple,
-                      ),
-                style: _socialButtonStyle(),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.apple, size: 22, color: Cristal.texto),
-                    SizedBox(width: 10),
-                    Text(
-                      'Iniciar sesión con Apple',
-                      style: TextStyle(
-                        color: Cristal.texto,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            // El inicio con Apple vuelve cuando la cuenta de desarrollador de
+            // Apple esté activa (AuthService.signInWithApple sigue listo).
           ],
         ),
       ),
