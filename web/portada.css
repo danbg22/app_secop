@@ -40,13 +40,18 @@ body {
   text-decoration: none;
 }
 
+#portada-publica .nombre-marca {
+  margin: 0;
+  font: inherit;
+}
+
 #portada-publica .introduccion {
   max-width: 47rem;
   margin: clamp(3.25rem, 9vw, 7rem) auto clamp(2.5rem, 6vw, 4.5rem);
   text-align: center;
 }
 
-#portada-publica h1 {
+#portada-publica .introduccion h2 {
   margin: 0;
   font-size: clamp(2.55rem, 7vw, 5rem);
   font-weight: 800;
@@ -55,7 +60,7 @@ body {
   text-wrap: balance;
 }
 
-#portada-publica h1 span {
+#portada-publica .introduccion h2 span {
   color: #ffc83d;
 }
 
