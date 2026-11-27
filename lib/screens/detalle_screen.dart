@@ -9,6 +9,7 @@ import 'package:firebase_ai/firebase_ai.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../widgets/aviso_ley_garantias.dart';
 import '../widgets/campo_busqueda.dart';
 import '../services/auth_service.dart';
 import '../services/expediente_contrato_service.dart';
@@ -18,8 +19,6 @@ import '../services/secop_document_intelligence_service.dart';
 import '../services/security_service.dart';
 import '../utils/dependencia_contrato.dart';
 import '../utils/contract_financial_calculator.dart';
-import '../utils/banderas_control.dart';
-import '../widgets/aviso_para_revisar.dart';
 import '../utils/secop_i.dart';
 import '../utils/secop_launcher.dart';
 import '../widgets/collapsible_side_menu.dart';
@@ -1420,19 +1419,7 @@ FORMATO (Markdown)
               ],
             ),
           ],
-          if (BanderasControl.enLeyDeGarantias(_contratoData)
-              case final periodo?) ...[
-            const SizedBox(height: 22),
-            AvisoParaRevisar(
-              titulo: 'Contratación directa en Ley de Garantías',
-              detalle:
-                  'Se firmó por contratación directa durante la Ley de Garantías de las elecciones '
-                  '${periodo.eleccion} (${fechaDiaMesAnio(periodo.desde)} a ${fechaDiaMesAnio(periodo.hasta)}). '
-                  'La Ley 996 de 2005 (art. 33) suspende la contratación directa en ese periodo, salvo '
-                  'defensa y seguridad, crédito público, emergencias, reconstrucción por desastres o '
-                  'atentados y las entidades de salud. Revisa en SECOP II la justificación del contrato.',
-            ),
-          ],
+          AvisoLeyGarantias(contrato: _contratoData),
           const SizedBox(height: 22),
           _buildAnalisisFinancieroCard(isMobile: isMobile),
           const SizedBox(height: 22),

@@ -1,3 +1,4 @@
+import '../utils/banderas_control.dart';
 import 'datos_abiertos.dart';
 
 /// Una fecha del cronograma de un proceso en SECOP II.
@@ -51,7 +52,6 @@ class CronogramaProcesoService {
     'publicaci_n_acto': 'Acto de adjudicación o declaratoria de desierto',
     'fecha_de_aceptaci_n_de_ofertas': 'Aceptación de la oferta',
     'fecha_de_firma_del_contrato': 'Firma del contrato',
-    'firma_del_contrato': 'Firma del contrato',
     'fecha_entrega_garant_a': 'Entrega de garantías',
     'fecha_aprobaci_n_garant_as': 'Aprobación de garantías',
   };
@@ -131,5 +131,59 @@ class CronogramaProcesoService {
       r'$limit': '20',
     }, timeout: const Duration(seconds: 15));
     return desdeFilas(filas);
+  }
+
+  /// Fecha (solo el día) de un valor del conjunto. Algunas columnas vienen
+  /// en hora de Colombia y otras en UTC; para comparar días basta el día.
+  static DateTime? _dia(Object? valor) {
+    final t = '${valor ?? ''}'.trim();
+    if (t.length < 10) return null;
+    return DateTime.tryParse(t.substring(0, 10));
+  }
+
+  static DateTime? _primera(Iterable<DateTime?> fechas) {
+    final validas = fechas.whereType<DateTime>().toList()..sort();
+    return validas.isEmpty ? null : validas.first;
+  }
+
+  /// Publicación y firma prevista de cada proceso (por `proceso_de_compra`),
+  /// para no confundir la fecha en que se completó la firma electrónica con
+  /// la fecha en que empezó la contratación.
+  static Future<Map<String, InicioProceso>> iniciosDeProcesos(
+    Iterable<String> portafolios,
+  ) async {
+    final ids = {
+      for (final p in portafolios)
+        if (RegExp(r'^CO1\.[A-Z]+\.\d+$').hasMatch(p)) p,
+    }.toList();
+    final res = <String, InicioProceso>{};
+    for (var i = 0; i < ids.length; i += 40) {
+      final lote = ids.skip(i).take(40);
+      final filas = await DatosAbiertos.filas(_dataset, {
+        r'$select':
+            'proceso_de_compra, fecha_de_publicaci_n, fecha_de_publicaci_n_del_2, '
+            'firma_del_contrato, fecha_de_firma_del_contrato',
+        r'$where':
+            'proceso_de_compra in (${lote.map((p) => "'$p'").join(',')})',
+        r'$limit': '500',
+      }, timeout: const Duration(seconds: 20));
+      for (final f in filas) {
+        final id = '${f['proceso_de_compra'] ?? ''}';
+        final previa = res[id];
+        res[id] = InicioProceso(
+          publicacion: _primera([
+            previa?.publicacion,
+            _dia(f['fecha_de_publicaci_n']),
+            _dia(f['fecha_de_publicaci_n_del_2']),
+          ]),
+          firmaPrevista: _primera([
+            previa?.firmaPrevista,
+            _dia(f['firma_del_contrato']),
+            _dia(f['fecha_de_firma_del_contrato']),
+          ]),
+        );
+      }
+    }
+    return res;
   }
 }

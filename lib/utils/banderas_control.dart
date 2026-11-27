@@ -24,6 +24,52 @@ class PeriodoGarantias {
   }
 }
 
+/// Cuándo empezó el proceso según su cronograma en SECOP II
+/// (`f3ev-294c`): publicación y firma prevista.
+class InicioProceso {
+  const InicioProceso({this.publicacion, this.firmaPrevista});
+
+  final DateTime? publicacion;
+  final DateTime? firmaPrevista;
+
+  /// La primera de las dos fechas (solo el día).
+  DateTime? get primera {
+    final fechas = [?publicacion, ?firmaPrevista];
+    if (fechas.isEmpty) return null;
+    fechas.sort();
+    final f = fechas.first;
+    return DateTime(f.year, f.month, f.day);
+  }
+}
+
+/// Resultado de cruzar la firma de un contrato directo con la Ley de
+/// Garantías.
+class EvaluacionGarantias {
+  const EvaluacionGarantias({
+    required this.periodo,
+    required this.firma,
+    this.inicio,
+  });
+
+  final PeriodoGarantias periodo;
+
+  /// Firma registrada en el contrato de SECOP II.
+  final DateTime firma;
+
+  /// Fechas del proceso; null si no se pudieron consultar.
+  final InicioProceso? inicio;
+
+  /// El proceso se publicó o preveía firmarse antes del periodo: la firma
+  /// registrada dentro puede ser solo la demora en completar la firma
+  /// electrónica en SECOP II. No se muestra como alerta.
+  bool get iniciadoAntes {
+    final primera = inicio?.primera;
+    return primera != null && primera.isBefore(periodo.desde);
+  }
+
+  bool get alerta => !iniciadoAntes;
+}
+
 class BanderasControl {
   BanderasControl._();
 
@@ -68,6 +114,18 @@ class BanderasControl {
       if (p.contiene(firma)) return p;
     }
     return null;
+  }
+
+  /// Cruza la firma con la Ley de Garantías y con el inicio del proceso.
+  /// null si el contrato no es directo o no se firmó en el periodo.
+  static EvaluacionGarantias? evaluarLeyDeGarantias(
+    Map<dynamic, dynamic> c, {
+    InicioProceso? inicio,
+  }) {
+    final periodo = enLeyDeGarantias(c);
+    final firma = fecha(c['fecha_de_firma']);
+    if (periodo == null || firma == null) return null;
+    return EvaluacionGarantias(periodo: periodo, firma: firma, inicio: inicio);
   }
 
   static bool esPrestacionDeServicios(Map<dynamic, dynamic> c) =>

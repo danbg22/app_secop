@@ -18,6 +18,7 @@ import '../services/seguimiento_service.dart';
 import '../widgets/boton_seguir.dart';
 import '../utils/dependencia_contrato.dart';
 import '../utils/banderas_control.dart';
+import '../services/cronograma_proceso_service.dart';
 import '../widgets/aviso_para_revisar.dart';
 import '../services/directorio_sigep_service.dart';
 import '../services/busqueda_personas.dart';
@@ -73,6 +74,10 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
   double valorTotalAcumulado = 0;
   int cantidadContratos = 0;
   List<dynamic> historialContratos = [];
+
+  /// Inicio (publicación y firma prevista) de los procesos de los contratos
+  /// directos firmados en Ley de Garantías; null mientras se consulta.
+  Map<String, InicioProceso>? _iniciosGarantias;
   String _filtroAnio = '';
 
   /// Conteo de contratos por año, calculado una vez al cargar el historial.
@@ -509,6 +514,26 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
   /// Banderas de control del historial: contratos de prestación de
   /// servicios que se cruzan en fechas y contratación directa firmada en
   /// Ley de Garantías.
+  /// La firma registrada en SECOP II puede ser posterior a lo previsto: se
+  /// consulta cuándo empezó cada proceso antes de mostrar la señal.
+  Future<void> _comprobarGarantias(List<dynamic> contratos) async {
+    final candidatos = [
+      for (final c in contratos)
+        if (c is Map && BanderasControl.enLeyDeGarantias(c) != null)
+          '${c['proceso_de_compra'] ?? ''}',
+    ];
+    Map<String, InicioProceso> inicios = const {};
+    if (candidatos.isNotEmpty) {
+      try {
+        inicios = await CronogramaProcesoService.iniciosDeProcesos(candidatos);
+      } catch (_) {
+        // Sin el cronograma se muestra la señal con su advertencia.
+      }
+    }
+    if (!mounted || !identical(contratos, historialContratos)) return;
+    setState(() => _iniciosGarantias = inicios);
+  }
+
   List<Widget> _banderas() {
     if (isLoading || historialContratos.isEmpty) return const [];
     final contratos = [
@@ -516,10 +541,18 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
         if (c is Map) c,
     ];
     final cruces = BanderasControl.cruces(contratos);
-    final garantias = [
-      for (final c in contratos)
-        if (BanderasControl.enLeyDeGarantias(c) != null) c,
-    ];
+    final inicios = _iniciosGarantias;
+    final garantias = inicios == null
+        ? const <Map<dynamic, dynamic>>[]
+        : [
+            for (final c in contratos)
+              if (BanderasControl.evaluarLeyDeGarantias(
+                    c,
+                    inicio: inicios['${c['proceso_de_compra'] ?? ''}'],
+                  )?.alerta ==
+                  true)
+                c,
+          ];
     String entidad(Map<dynamic, dynamic> c) => _toTitleCase(
       '${c['nombre_entidad'] ?? c['nombre_de_la_entidad'] ?? 'Entidad'}',
     );
@@ -548,9 +581,11 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
               ? 'Un contrato directo en Ley de Garantías'
               : '${garantias.length} contratos directos en Ley de Garantías',
           detalle:
-              'Firmados por contratación directa en un periodo en que la Ley 996 de 2005 (art. 33) la '
-              'suspende, salvo excepciones como defensa y seguridad, emergencias, crédito público y '
-              'entidades de salud. Revisa en SECOP II la justificación de cada uno.',
+              'SECOP II registra su firma por contratación directa en un periodo en que la Ley 996 de '
+              '2005 (art. 33) la suspende, salvo excepciones como defensa y seguridad, emergencias, '
+              'crédito público y entidades de salud. No se incluyen los procesos publicados antes del '
+              'periodo. Es una señal automática a partir de datos abiertos, no una conclusión: verifica '
+              'en SECOP II la fecha real de firma y la justificación de cada uno.',
           puntos: [
             for (final c in garantias.take(4))
               '${fechaDiaMesAnio(BanderasControl.fecha(c['fecha_de_firma'])!)}: ${entidad(c)}',
@@ -603,6 +638,7 @@ class _PerfilContratistaScreenState extends State<PerfilContratistaScreen> {
             : (widget.totalValueSeed ?? 0);
         isLoading = false;
       });
+      _comprobarGarantias(allContracts);
     } catch (_) {
       if (!mounted) return;
       setState(() {

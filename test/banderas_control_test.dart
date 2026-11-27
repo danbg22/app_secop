@@ -85,4 +85,52 @@ void main() {
       );
     });
   });
+
+  group('Ley de Garantías frente al inicio del proceso', () {
+    // Contrato 0891-SGR de 2022 de la Alcaldía de Valledupar: SECOP II
+    // registra la firma electrónica el 2 feb 2022, pero el proceso se
+    // publicó y preveía firmarse el 27 ene 2022, antes del periodo.
+    final contrato = {
+      'modalidad_de_contratacion': 'Contratación directa',
+      'fecha_de_firma': '2022-02-02T15:56:37.899',
+      'proceso_de_compra': 'CO1.BDOS.2755594',
+    };
+
+    test('un proceso que empezó antes del periodo no es alerta', () {
+      final e = BanderasControl.evaluarLeyDeGarantias(
+        contrato,
+        inicio: InicioProceso(
+          publicacion: DateTime(2022, 1, 27),
+          firmaPrevista: DateTime(2022, 1, 27),
+        ),
+      )!;
+      expect(e.iniciadoAntes, isTrue);
+      expect(e.alerta, isFalse);
+    });
+
+    test('si todo ocurrió dentro del periodo, sigue siendo alerta', () {
+      final e = BanderasControl.evaluarLeyDeGarantias(
+        contrato,
+        inicio: InicioProceso(
+          publicacion: DateTime(2022, 2, 1),
+          firmaPrevista: DateTime(2022, 2, 2),
+        ),
+      )!;
+      expect(e.alerta, isTrue);
+    });
+
+    test('sin el cronograma se conserva la señal', () {
+      expect(BanderasControl.evaluarLeyDeGarantias(contrato)!.alerta, isTrue);
+    });
+
+    test('un contrato firmado fuera del periodo no se evalúa', () {
+      expect(
+        BanderasControl.evaluarLeyDeGarantias({
+          ...contrato,
+          'fecha_de_firma': '2022-01-27T17:00:00.000',
+        }),
+        isNull,
+      );
+    });
+  });
 }

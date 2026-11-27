@@ -10,15 +10,21 @@ import 'expediente_contrato_service.dart';
 import 'reporte_contratos_pdf_service.dart';
 import 'secop_document_intelligence_service.dart';
 import 'security_service.dart';
+import 'cronograma_proceso_service.dart';
 
 class ContratoDelReporte {
   const ContratoDelReporte({
     required this.datos,
     required this.expedienteCompleto,
     required this.documentos,
+    this.inicioProceso,
   });
 
   final Map<String, dynamic> datos;
+
+  /// Publicación y firma prevista del proceso, para no marcar en Ley de
+  /// Garantías un contrato cuyo proceso empezó antes del periodo.
+  final InicioProceso? inicioProceso;
   final bool expedienteCompleto;
   final SecopExtractionResult? documentos;
 
@@ -65,10 +71,22 @@ class ContratoDelReporte {
     } catch (_) {
       // La ficha puede exportarse aunque no responda el listado de documentos.
     }
+    InicioProceso? inicio;
+    if (BanderasControl.enLeyDeGarantias(datos) != null) {
+      final portafolio = '${datos['proceso_de_compra'] ?? ''}';
+      try {
+        inicio = (await CronogramaProcesoService.iniciosDeProcesos([
+          portafolio,
+        ]))[portafolio];
+      } catch (_) {
+        // Sin el cronograma, la ficha conserva la señal.
+      }
+    }
     return ContratoDelReporte(
       datos: datos,
       expedienteCompleto: expediente != null,
       documentos: documentos,
+      inicioProceso: inicio,
     );
   }
 }
@@ -277,7 +295,14 @@ abstract final class ReporteSeleccionContratos {
       ContratoDelReporte._campo(c.datos, ['fecha_de_firma']),
     );
     final pagado = analisis.pagos['Valor pagado'];
-    final alerta = BanderasControl.enLeyDeGarantias(c.datos);
+    final alerta =
+        BanderasControl.evaluarLeyDeGarantias(
+              c.datos,
+              inicio: c.inicioProceso,
+            )?.alerta ==
+            true
+        ? true
+        : null;
     final documentos = c.documentos?.documents;
     final rawUrl = c.datos['urlproceso'] ?? c.datos['ruta_proceso_en_secop_i'];
     final oficial =
@@ -391,7 +416,7 @@ abstract final class ReporteSeleccionContratos {
           if (alerta != null) ...[
             pw.SizedBox(height: 6),
             _texto(
-              'Revisar contratación directa en Ley de Garantías',
+              'Revisar: SECOP II registra la firma por contratación directa en Ley de Garantías (señal automática, no una conclusión)',
               tam: 8,
               color: _azul,
               negrita: true,
