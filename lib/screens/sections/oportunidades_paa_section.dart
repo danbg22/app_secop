@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../widgets/campo_busqueda.dart';
 import '../../data/estructura_paa.dart';
 import '../../services/paa_service.dart';
 import '../gestion_contractual/estilo_contractual.dart';
@@ -122,7 +123,7 @@ class _OportunidadesPaaSectionState extends State<OportunidadesPaaSection> {
       DateTime.now().year,
       DateTime.now().year - 1,
     ];
-    final campo = TextField(
+    final campo = CampoBusqueda(
       controller: _busqueda,
       textInputAction: TextInputAction.search,
       onSubmitted: (_) => _buscar(),
@@ -130,7 +131,6 @@ class _OportunidadesPaaSectionState extends State<OportunidadesPaaSection> {
         hintText: 'Entidad (ej. SENA, Ministerio del Trabajo, Valledupar)',
         prefixIcon: const Icon(Icons.search_rounded),
         filled: true,
-        fillColor: Cristal.campo,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: Cristal.borde),

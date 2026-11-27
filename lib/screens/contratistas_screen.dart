@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../widgets/campo_busqueda.dart';
 import '../data/colombia_entities_database.dart';
 import '../services/busqueda_personas.dart';
 import '../services/contratistas_de_entidad.dart';
@@ -1381,32 +1382,28 @@ class ContratistasBulkSearchBar extends StatelessWidget {
           height: 50,
           padding: const EdgeInsets.only(left: 14, right: 6),
           decoration: BoxDecoration(
-            color: Cristal.vidrio,
+            color: CampoBusqueda.superficie,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: Cristal.borde),
           ),
           child: Row(
             children: [
-              Icon(Icons.search, color: Cristal.texto, size: 21),
+              Icon(Icons.search, color: CampoBusqueda.tinta, size: 21),
               const SizedBox(width: 10),
               Expanded(
                 child: ValueListenableBuilder<TextEditingValue>(
                   valueListenable: controller,
                   builder: (context, value, _) {
-                    return TextField(
+                    return CampoBusqueda(
                       controller: controller,
                       onSubmitted: (_) => onSearchTriggered(),
                       style: TextStyle(
-                        color: Cristal.texto,
                         fontSize: 13.5,
                         fontWeight: FontWeight.w500,
                       ),
                       decoration: InputDecoration(
                         hintText: 'Escribe nombre y apellido, NIT o cédula (ej: María Pérez, 900123456; hasta 5 separados por coma)…',
-                        hintStyle: TextStyle(
-                          color: Cristal.textoTenue,
-                          fontSize: 13,
-                        ),
+                        hintStyle: TextStyle(fontSize: 13),
                         filled: false,
                         border: InputBorder.none,
                         isDense: true,
@@ -1417,7 +1414,7 @@ class ContratistasBulkSearchBar extends StatelessWidget {
                                 icon: Icon(
                                   Icons.close_rounded,
                                   size: 18,
-                                  color: Cristal.textoSuave,
+                                  color: CampoBusqueda.tinta,
                                 ),
                               )
                             : null,

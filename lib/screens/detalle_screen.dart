@@ -9,6 +9,7 @@ import 'package:firebase_ai/firebase_ai.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../widgets/campo_busqueda.dart';
 import '../services/auth_service.dart';
 import '../services/expediente_contrato_service.dart';
 import '../services/favorites_service.dart';
@@ -2766,17 +2767,17 @@ FORMATO (Markdown)
 
         // Buscador rápido dentro de la lista cuando hay 6 o más anexos
         if (allDocs.length >= 6) ...[
-          TextField(
+          CampoBusqueda(
             controller: _docFilterController,
             onChanged: (v) => setState(() => _docSearchQuery = v),
-            style: TextStyle(fontSize: 13, color: Cristal.texto),
+            style: TextStyle(fontSize: 13),
             decoration: InputDecoration(
               hintText: 'Filtrar documentos por nombre o categoría (ej. Estudios previos, CDP, Adenda)...',
-              hintStyle: TextStyle(color: Cristal.textoTenue, fontSize: 13),
+              hintStyle: TextStyle(color: CampoBusqueda.tinta, fontSize: 13),
               prefixIcon: Icon(
                 Icons.search_rounded,
                 size: 19,
-                color: Cristal.textoSuave,
+                color: CampoBusqueda.tinta,
               ),
               suffixIcon: _docSearchQuery.isNotEmpty
                   ? IconButton(
@@ -2793,7 +2794,6 @@ FORMATO (Markdown)
                 vertical: 12,
               ),
               filled: true,
-              fillColor: Cristal.campo,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(11),
                 borderSide: BorderSide(color: Cristal.borde),

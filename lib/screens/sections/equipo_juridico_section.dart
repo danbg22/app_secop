@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
+import '../../widgets/campo_busqueda.dart';
 import '../../services/equipo_juridico_service.dart';
 import '../../services/juridico_contratacion_service.dart';
 import '../../widgets/user_profile_header_action.dart';
@@ -1934,22 +1935,19 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                   children: [
                     SizedBox(
                       width: isMobile ? double.infinity : 360,
-                      child: TextField(
+                      child: CampoBusqueda(
                         controller: _busquedaController,
                         onChanged: (_) => setState(() {}),
-                        style: TextStyle(fontSize: 13.5, color: Cristal.texto),
+                        style: TextStyle(fontSize: 13.5),
                         decoration: InputDecoration(
                           isDense: true,
                           hintText:
                               'Buscar por nombre, cédula o número de contrato…',
-                          hintStyle: TextStyle(
-                            color: Cristal.textoTenue,
-                            fontSize: 13,
-                          ),
+                          hintStyle: TextStyle(fontSize: 13),
                           prefixIcon: Icon(
                             Icons.search_rounded,
                             size: 19,
-                            color: Cristal.textoSuave,
+                            color: CampoBusqueda.tinta,
                           ),
                           suffixIcon: _busquedaController.text.isNotEmpty
                               ? IconButton(
@@ -1961,7 +1959,6 @@ class _EquipoJuridicoSectionState extends State<EquipoJuridicoSection> {
                                 )
                               : null,
                           filled: true,
-                          fillColor: Cristal.campo,
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12,
                             vertical: 10,

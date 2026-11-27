@@ -86,6 +86,7 @@ abstract final class ReporteSeleccionContratos {
   static Future<Uint8List> generar(
     List<ContratoDelReporte> contratos, {
     DateTime? ahora,
+    String? entidad,
   }) async {
     if (contratos.isEmpty) {
       throw ArgumentError('Selecciona al menos un contrato.');
@@ -96,6 +97,7 @@ abstract final class ReporteSeleccionContratos {
       plural: 'Contratos',
       ficha: (i) => _ficha(i + 1, contratos[i]),
       ahora: ahora,
+      entidad: entidad,
     );
   }
 
@@ -105,6 +107,7 @@ abstract final class ReporteSeleccionContratos {
     required String plural,
     required pw.Widget Function(int) ficha,
     DateTime? ahora,
+    String? entidad,
   }) async {
     final titulo = 'Reporte de ${plural.toLowerCase()}';
     final tema = await ReporteContratosPdfService.cargarTemaPdf();
@@ -164,6 +167,7 @@ abstract final class ReporteSeleccionContratos {
             cantidad,
             cantidad == 1 ? singular : plural,
             fecha,
+            entidad,
           ),
           for (var i = 0; i < cantidad; i += 2)
             pw.Padding(
@@ -190,6 +194,7 @@ abstract final class ReporteSeleccionContratos {
     int cantidad,
     String unidad,
     DateTime fecha,
+    String? entidad,
   ) => pw.Container(
     margin: const pw.EdgeInsets.only(bottom: 14),
     padding: const pw.EdgeInsets.fromLTRB(17, 15, 16, 15),
@@ -211,6 +216,16 @@ abstract final class ReporteSeleccionContratos {
               ),
               pw.SizedBox(height: 4),
               _texto(titulo, tam: 23, negrita: true, color: PdfColors.white),
+              if (entidad != null && entidad.isNotEmpty) ...[
+                pw.SizedBox(height: 4),
+                _texto(
+                  entidad,
+                  tam: 11,
+                  negrita: true,
+                  color: PdfColors.white,
+                  lineas: 2,
+                ),
+              ],
               pw.SizedBox(height: 6),
               _texto(
                 ReporteContratosPdfService.fechaLarga(fecha),

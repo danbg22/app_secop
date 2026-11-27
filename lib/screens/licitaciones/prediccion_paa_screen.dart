@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../widgets/campo_busqueda.dart';
 import '../../services/paa_service.dart';
 import '../../services/verificacion_paa_service.dart';
 import '../gestion_contractual/estilo_contractual.dart';
@@ -740,7 +742,7 @@ class _PrediccionPaaScreenState extends State<PrediccionPaaScreen> {
                 ),
                 SizedBox(
                   width: mobile ? double.infinity : 320,
-                  child: TextField(
+                  child: CampoBusqueda(
                     controller: _filtroTexto,
                     onChanged: (_) => setState(() => _mostrar = 30),
                     decoration: InputDecoration(

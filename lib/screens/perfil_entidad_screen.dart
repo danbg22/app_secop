@@ -3,13 +3,12 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../widgets/campo_busqueda.dart';
 import '../widgets/archivo_entidad_secop_i.dart';
 
 import 'package:http/http.dart' as http;
 
-import '../services/presupuesto_dependencias_service.dart';
 import '../services/seguimiento_service.dart';
-import '../services/reporte_contratos_modelo.dart';
 import '../services/reporte_contratos_service.dart';
 import '../utils/anios_secop.dart';
 import '../utils/banderas_control.dart';
@@ -17,11 +16,11 @@ import '../utils/dependencia_contrato.dart';
 import '../utils/nit.dart';
 import '../widgets/presupuesto_dependencias_panel.dart';
 import '../widgets/boton_seguir.dart';
-import '../widgets/buscador_procesos.dart';
-import '../widgets/reporte_contratos_flujo.dart';
+import '../widgets/seleccion_contratos_reporte.dart';
 import 'detalle_screen.dart';
 import 'perfil_contratista_screen.dart';
 import 'sections/entidades_section.dart';
+import 'sections/procesos_section.dart';
 import '../tema/cristal.dart';
 import '../services/datos_abiertos.dart';
 
@@ -304,6 +303,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
 
   // Selector de Regional / Seccional Territorial (null = Consolidado Nacional / Total Entidad)
   String? _selectedRegionalDept;
+  String? _regionalInicial;
   List<_RegionalBreakdownItem> _regionalStats = [];
 
   // Métricas dinámicas anualizadas (Vigencia 2026) actualizadas en cada consulta
@@ -354,7 +354,10 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   bool _filtrosExpandidos = false;
   String _filtroUnidades = '';
   int _contratosRequestId = 0;
-  bool _generandoReporte = false;
+  int _perfilRequestId = 0;
+  late final _seleccionReporte = SeleccionContratosReporte(
+    entidad: widget.entity.name,
+  );
 
   /// Contratos por modalidad con la búsqueda y los demás filtros activos
   /// (todos menos la modalidad). Null: sin búsqueda ni filtros, los chips
@@ -369,28 +372,16 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     super.initState();
     _initBaselineMetrics();
     _detectInitialRegionalFromEntityCard();
-    // El presupuesto por dependencia (y lo ejecutado de cada una) se empieza
-    // a consultar desde ya, en paralelo con el resumen: cuando se abra la
-    // pestaña Dependencias, ya está listo.
-    _precargarPresupuesto();
+    _regionalInicial = _selectedRegionalDept;
+    _seleccionReporte.addListener(_actualizarSeleccion);
     _fetchLiveEntityProfileData();
   }
 
-  /// Precarga el panel de presupuesto por dependencia con el alcance activo
-  /// (las consultas repetidas se comparten, no se duplican).
-  void _precargarPresupuesto() {
-    final nit = _nitEntidad.replaceAll(RegExp(r'[^0-9]'), '');
-    if (nit.length < 8) return;
-    PresupuestoDependenciasService.precargar(
-      nit: nit,
-      anio: _onlyCurrentYear2026 ? _activeBudgetYear : null,
-      departamento: _selectedRegionalDept,
-      cuentaSecop: _selectedUnidad,
-    );
-  }
+  void _actualizarSeleccion() => setState(() {});
 
   @override
   void dispose() {
+    _seleccionReporte.dispose();
     _busquedaController.dispose();
     super.dispose();
   }
@@ -562,7 +553,6 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     String? busqueda,
     int? forceYear,
     ({int desde, DateTime corte})? rango,
-    bool soloPrestacionServicios = false,
   }) {
     final clauses = <String>[
       'valor_del_contrato > 0',
@@ -575,9 +565,6 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       clauses.add(
         ReporteContratosService.filtroFechas(rango.desde, rango.corte),
       );
-      if (soloPrestacionServicios) {
-        clauses.add(ReporteContratosService.filtroPrestacionServicios);
-      }
     } else if (onlyYear2026 && targetYear != null) {
       clauses.add(
         "((fecha_de_firma >= '$targetYear-01-01T00:00:00.000' AND fecha_de_firma <= '$targetYear-12-31T23:59:59.999') OR "
@@ -816,8 +803,16 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
 
   Future<void> _fetchLiveEntityProfileData() async {
     if (!mounted) return;
+    final perfilId = ++_perfilRequestId;
+    final paginaId = ++_contratosRequestId;
+    final anioInicial = _selectedContratosYear;
+    _dependenciasRequestId++;
+    bool vigente() => mounted && perfilId == _perfilRequestId;
     setState(() {
       _isLoadingLive = true;
+      _isLoadingContractsPage = false;
+      _pagedContractsList = [];
+      _entityContracts = [];
       // Otra vigencia o regional: la comparación anterior ya no aplica.
       _compActual = null;
       _compAnterior = null;
@@ -897,17 +892,42 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           '&\$where=$wRegEnc',
         );
 
+        Future<http.Response> opcional(Uri uri) async {
+          try {
+            return await _getSecop(uri);
+          } catch (_) {
+            return http.Response('[]', 503);
+          }
+        }
+
+        final muestra = opcional(sampleContractsUrl).then((respuesta) {
+          if (!vigente() ||
+              paginaId != _contratosRequestId ||
+              _hayFiltrosContratos ||
+              respuesta.statusCode != 200) {
+            return respuesta;
+          }
+          final filas = DatosAbiertos.decodificar(respuesta)
+              .whereType<Map<String, dynamic>>()
+              .where((c) => _parseSafeContractCop(c) > 0)
+              .take(_contractsPageSize)
+              .toList();
+          if (filas.isNotEmpty) setState(() => _pagedContractsList = filas);
+          return respuesta;
+        });
+
         return Future.wait([
           _getSecop(stateAggUrl),
-          _getSecop(modalityAggUrl),
-          _getSecop(regionalAggUrl),
-          _getSecop(sampleContractsUrl),
-          _getSecop(uniqueContractorsUrl),
-          _getSecop(unidadesUrl),
+          opcional(modalityAggUrl),
+          opcional(regionalAggUrl),
+          muestra,
+          opcional(uniqueContractorsUrl),
+          opcional(unidadesUrl),
         ]);
       }
 
       var responses = await runQueries(whereEntityYear, whereNationalYear);
+      if (!vigente()) return;
 
       // Verificamos si en 2026 hay contratos; si una entidad pequeña aún no registra en 2026, probamos 2025
       int checkCount = 0;
@@ -934,6 +954,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           forceYear: yearToUse,
         );
         responses = await runQueries(whereEntityYear, whereNationalYear);
+        if (!vigente()) return;
 
         // Si tampoco hay en 2025, consultamos el consolidado histórico de SECOP II
         int checkCount2 = 0;
@@ -947,7 +968,6 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
           }
         }
         if (checkCount2 == 0) {
-          _onlyCurrentYear2026 = false;
           whereEntityYear = _buildEntityWhereClause(
             onlyYear2026: false,
             includeRegionalFilter: true,
@@ -957,6 +977,8 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
             includeRegionalFilter: false,
           );
           responses = await runQueries(whereEntityYear, whereNationalYear);
+          if (!vigente()) return;
+          _onlyCurrentYear2026 = false;
         }
       }
 
@@ -1175,14 +1197,17 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       final builtContractors = contractorMap.values.toList()
         ..sort((a, b) => b.totalCop.compareTo(a.totalCop));
 
-      if (!mounted) return;
+      if (!vigente()) return;
       setState(() {
         _activeBudgetYear = yearToUse;
         _regionalStats = builtRegionals;
         _entityContracts = fetchedContracts;
-        _pagedContractsList = fetchedContracts
-            .take(_contractsPageSize)
-            .toList();
+        if (paginaId == _contratosRequestId) {
+          _pagedContractsList = fetchedContracts
+              .take(_contractsPageSize)
+              .toList();
+          _contractsPage = 1;
+        }
         _modalityStats = builtModalities;
         _unidades = builtUnidades;
         if (_selectedUnidad != null &&
@@ -1195,8 +1220,10 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         if (aggTotalCop > 0 && aggTotalContracts > 0) {
           _valorTotalContratadoCop = aggTotalCop;
           _totalContratos = aggTotalContracts;
-          _totalMatchingContractsForTable = aggTotalContracts;
-          _totalMatchingCopForTable = aggTotalCop;
+          if (paginaId == _contratosRequestId) {
+            _totalMatchingContractsForTable = aggTotalContracts;
+            _totalMatchingCopForTable = aggTotalCop;
+          }
 
           _contratistasUnicos = uniqueContractors ?? builtContractors.length;
 
@@ -1212,21 +1239,20 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
               ? (cerradosPagadoCop / cerradosCop * 100).clamp(0, 100).toDouble()
               : null;
         }
-        _contractsPage = 1;
         _isLoadingLive = false;
       });
-      // Con la vigencia y el NIT ya confirmados en SECOP II.
-      _precargarPresupuesto();
       // La clasificación por dependencias es la consulta más pesada: va
       // aparte para no retrasar ni tumbar la carga principal.
       _fetchConteoDependencias(whereEntityYear);
       // La muestra inicial solo sirve sin filtros; con unidad o búsqueda
       // activas se consulta la página exacta.
-      if (_hayFiltrosContratos) {
+      if (_hayFiltrosContratos &&
+          (paginaId == _contratosRequestId ||
+              anioInicial != _selectedContratosYear)) {
         _fetchContractsPageFromSecop(page: 1);
       }
     } catch (_) {
-      if (mounted) {
+      if (vigente()) {
         setState(() => _isLoadingLive = false);
       }
     }
@@ -1480,23 +1506,33 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   void _seleccionarVigencia(int? anio) {
     setState(() {
       _selectedContratosYear = anio;
+      _activeBudgetYear = anio ?? AniosSecop.actual;
       _onlyCurrentYear2026 = anio != null;
     });
     _fetchLiveEntityProfileData();
   }
 
-  void _limpiarFiltros() {
-    final recargarTodo = _selectedRegionalDept != null;
+  void _limpiarFiltros({bool despuesDelReporte = false}) {
+    final regional = despuesDelReporte ? _regionalInicial : null;
+    final recargarTodo =
+        _selectedRegionalDept != regional ||
+        (despuesDelReporte && _selectedContratosYear != AniosSecop.actual);
     setState(() {
       _cancelarBusqueda();
-      _selectedRegionalDept = null;
+      _selectedRegionalDept = regional;
       _selectedUnidad = null;
       _selectedDependencia = null;
+      _selectedModality = 'Todas';
+      if (despuesDelReporte) {
+        _selectedContratosYear = AniosSecop.actual;
+        _activeBudgetYear = AniosSecop.actual;
+        _onlyCurrentYear2026 = true;
+      }
     });
     if (recargarTodo) {
       _fetchLiveEntityProfileData();
     } else {
-      _fetchContractsPageFromSecop(page: 1, modalityOverride: 'Todas');
+      _fetchContractsPageFromSecop(page: 1);
     }
   }
 
@@ -1693,18 +1729,18 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
         (_selectedModality != 'Todas' ? 1 : 0) +
         (mobile && _selectedRegionalDept != null ? 1 : 0);
 
-    final buscador = TextField(
+    final buscador = CampoBusqueda(
       controller: _busquedaController,
       onSubmitted: _aplicarBusqueda,
       textInputAction: TextInputAction.search,
-      style: TextStyle(fontSize: 14, color: Cristal.texto),
+      style: TextStyle(fontSize: 14),
       decoration: InputDecoration(
         hintText: mobile
             ? 'Número, objeto o contratista'
             : 'Buscar contrato: número, palabra del objeto o contratista '
                   '(se suma a los filtros)…',
-        hintStyle: TextStyle(fontSize: 13.5, color: Cristal.textoTenue),
-        prefixIcon: Icon(Icons.search_rounded, color: Cristal.texto),
+        hintStyle: TextStyle(fontSize: 13.5),
+        prefixIcon: Icon(Icons.search_rounded, color: CampoBusqueda.tinta),
         suffixIcon: ValueListenableBuilder<TextEditingValue>(
           valueListenable: _busquedaController,
           builder: (context, valor, _) =>
@@ -1717,7 +1753,6 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                 ),
         ),
         filled: true,
-        fillColor: Cristal.campo,
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(vertical: 14),
         border: OutlineInputBorder(
@@ -3302,193 +3337,27 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
   // PESTAÑA 2: CONTRATOS (DISCRIMINADOS POR MODALIDAD + HISTORIAL COMPLETO PAGINADO)
   // ===========================================================================
 
-  // ---------------------------------------------------------------------------
-  // Reporte de contratos (PDF y hoja de cálculo)
-  // ---------------------------------------------------------------------------
-
-  /// Unidades de contratación por regional, para el criterio exacto.
-  final Map<String, Future<List<UnidadContratacion>>> _unidadesReporte = {};
-
-  Future<List<UnidadContratacion>> _unidadesPara(String? regional) =>
-      _unidadesReporte.putIfAbsent(
-        regional ?? '',
-        () => ReporteContratosService.unidades(
-          nit: _nitEntidad.replaceAll(RegExp(r'[^0-9]'), ''),
-          departamento: regional,
-        ),
-      );
-
-  /// Unidad que corresponde al filtro de dependencia activo (el despacho de
-  /// la regional elegida en el SENA).
-  UnidadContratacion? _unidadSugerida(List<UnidadContratacion> unidades) {
-    if (_selectedDependencia != 'despacho' || _selectedRegionalDept == null) {
-      return null;
+  void _abrirOSeleccionarContrato(Map<String, dynamic> contrato) {
+    if (_seleccionReporte.activa) {
+      _seleccionReporte.alternar(contrato);
+      return;
     }
-    for (final u in unidades) {
-      if (u.esDespacho) return u;
-    }
-    return null;
-  }
-
-  /// Lo que contiene el reporte, tal como se lista en el PDF y en la hoja.
-  List<(String, String)> _criteriosReporte(
-    OpcionesReporte o,
-    UnidadContratacion? unidad,
-  ) {
-    final nit = _nitEntidad.replaceAll(RegExp(r'[^0-9]'), '');
-    return [
-      ('Entidad', widget.entity.name),
-      if (nit.isNotEmpty) ('NIT', nit),
-      if (unidad != null) ...[
-        if (_selectedRegionalDept != null)
-          ('Regional', _formatRegionalDisplayName(_selectedRegionalDept!)),
-        ('Unidad de contratación (SECOP II)', unidad.etiqueta),
-      ] else ...[
-        // Los filtros de la pantalla se suman, como en la lista.
-        if (_selectedRegionalDept != null)
-          ('Regional', _formatRegionalDisplayName(_selectedRegionalDept!)),
-        if (_selectedUnidad != null) ('Cuenta en SECOP II', _selectedUnidad!),
-        if (_dependenciaSeleccionada != null)
-          (
-            'Dependencia (por palabras del objeto)',
-            _nombreDependencia(_dependenciaSeleccionada!),
-          ),
-        if (_selectedModality != 'Todas') ('Modalidad', _selectedModality),
-        if (_busqueda.isNotEmpty) ('Búsqueda', '"$_busqueda"'),
-      ],
-      ('Periodo (fecha de firma)', periodoTexto(o.desde, o.corte)),
-      if (o.soloPrestacionServicios)
-        (
-          'Tipo',
-          'Prestación de servicios profesionales y de apoyo a la gestión',
-        ),
-    ];
-  }
-
-  /// Contratos con los filtros de la pantalla, todas las páginas.
-  Future<List<ContratoReporte>> _contratosConFiltros(
-    OpcionesReporte o,
-    void Function(String) progreso,
-  ) async {
-    final rango = (desde: o.desde, corte: o.corte);
-    // Búsqueda y filtros se suman, igual que en la lista de la pantalla.
-    final where = _buildEntityWhereClause(
-      onlyYear2026: false,
-      includeRegionalFilter: true,
-      customModalityName: _selectedModality,
-      unidad: _selectedUnidad,
-      dependencia: _selectedDependencia,
-      busqueda: _busqueda,
-      rango: rango,
-      soloPrestacionServicios: o.soloPrestacionServicios,
-    );
-    final whereEnc = Uri.encodeComponent(where);
-    final conteo = await _getSecop(
-      Uri.parse(
-        'https://www.datos.gov.co/resource/jbjy-vk9h.json?'
-        '\$select=count(*)%20as%20n&\$where=$whereEnc',
-      ),
-      timeout: const Duration(seconds: 30),
-    );
-    final agg = jsonDecode(conteo.body);
-    final total = agg is List && agg.isNotEmpty
-        ? int.tryParse('${agg.first['n'] ?? 0}') ?? 0
-        : 0;
-    if (total > maxFilasXlsx) {
-      throw ReporteException(
-        'Son ${_formatIntWithDots(total)} contratos. Acota el reporte (regional, dependencia, '
-        'modalidad o menos años): el máximo es ${_formatIntWithDots(maxFilasXlsx)}.',
-      );
-    }
-    const lote = 1000;
-    final filas = <ContratoReporte>[];
-    final vistos = <String>{};
-    for (var offset = 0; offset < total; offset += lote) {
-      progreso(
-        'Consultando contratos en SECOP II… ${_formatIntWithDots(math.min(offset + lote, total))} de ${_formatIntWithDots(total)}',
-      );
-      final r = await _getSecop(
-        Uri.parse(
-          'https://www.datos.gov.co/resource/jbjy-vk9h.json?'
-          '\$select=${ReporteContratosService.campos}&\$where=$whereEnc'
-          '&\$order=fecha_de_firma%20DESC,id_contrato'
-          '&\$limit=$lote&\$offset=$offset',
-        ),
-        timeout: const Duration(seconds: 40),
-      );
-      if (r.statusCode != 200) {
-        throw StateError('SECOP II respondió ${r.statusCode}');
-      }
-      for (final m in jsonDecode(r.body) as List<dynamic>) {
-        if (m is! Map) continue;
-        final c = ContratoReporte.fromSecop(Map<String, dynamic>.from(m));
-        // Datos Abiertos a veces repite un contrato.
-        if (vistos.add('${m['id_contrato'] ?? c.numero}')) filas.add(c);
-      }
-    }
-    return filas;
-  }
-
-  Future<void> _exportarReportePdf() async {
-    if (_generandoReporte) return;
-    final porPalabras = _dependenciaSeleccionada != null && _busqueda.isEmpty;
-    final o = await mostrarDialogoCristal<OpcionesReporte>(
-      context: context,
-      builder: (_) => DialogoReporte(
-        criterios: _criteriosReporte,
-        unidades: _busqueda.isEmpty
-            ? _unidadesPara(_selectedRegionalDept)
-            : null,
-        sugerida: _unidadSugerida,
-        exactoPorDefecto: porPalabras,
-        vigencia: _onlyCurrentYear2026 ? _activeBudgetYear : null,
-        descripcionFiltros: porPalabras
-            ? 'La dependencia se identifica por palabras clave del objeto del contrato: es una '
-                  'aproximación y puede dejar contratos por fuera.'
-            : 'Regional, dependencia, cuenta, modalidad y búsqueda que tienes '
-                  'aplicados en la lista, todos juntos.',
-      ),
-    );
-    if (o == null || !mounted) return;
-    final unidad = o.unidad as UnidadContratacion?;
-    final nit = _nitEntidad.replaceAll(RegExp(r'[^0-9]'), '');
-    final nombre =
-        unidad?.etiqueta ??
-        (porPalabras ? _nombreDependencia(_dependenciaSeleccionada!) : '');
-    setState(() => _generandoReporte = true);
-    await generarReporteContratos(
+    Navigator.push(
       context,
-      opciones: o,
-      obtener: unidad != null
-          ? (progreso) => ReporteContratosService.contratosDeUnidad(
-              nit: nit,
-              unidad: unidad,
-              desde: o.desde,
-              corte: o.corte,
-              soloPrestacionServicios: o.soloPrestacionServicios,
-              progreso: progreso,
-            )
-          : (progreso) => _contratosConFiltros(o, progreso),
-      entidad: widget.entity.name,
-      nit: nit,
-      titulo: [
-        o.formato.tituloDocumento,
-        if (nombre.isNotEmpty) nombre,
-      ].join(' · '),
-      criterios: _criteriosReporte(o, unidad),
-      notas: notasReporte(
-        o: o,
-        unidad: unidad,
-        dependenciaPorPalabras: unidad == null && porPalabras,
+      MaterialPageRoute<void>(
+        builder: (_) => DetalleContratoScreen(contrato: contrato),
       ),
-      alcanceArchivo: [
-        ?o.formato.prefijoArchivo,
-        if (nombre.isNotEmpty) nombre else ?_selectedRegionalDept,
-        '${o.desde}-${o.corte.year}',
-      ].join(' '),
     );
-    if (mounted) setState(() => _generandoReporte = false);
   }
+
+  Widget _casillaReporte(
+    Map<String, dynamic> contrato,
+  ) => CasillaSeleccionReporte(
+    seleccion: _seleccionReporte,
+    datos: contrato,
+    referencia:
+        '${contrato['referencia_del_contrato'] ?? contrato['id_contrato'] ?? 'contrato'}',
+  );
 
   Widget _buildContratosTab() {
     final filtrado = _hayFiltrosContratos;
@@ -3594,41 +3463,15 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                const SizedBox(width: 12),
-                _isMobile
-                    ? IconButton(
-                        tooltip: 'Exportar reporte (Excel o PDF)',
-                        onPressed: _generandoReporte || total == 0
-                            ? null
-                            : _exportarReportePdf,
-                        icon: Icon(
-                          Icons.picture_as_pdf_outlined,
-                          color: Cristal.texto,
-                        ),
-                      )
-                    : OutlinedButton.icon(
-                        onPressed: _generandoReporte || total == 0
-                            ? null
-                            : _exportarReportePdf,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Cristal.texto,
-                          side: BorderSide(color: Cristal.bordeFuerte),
-                          shape: const StadiumBorder(),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                        ),
-                        icon: const Icon(
-                          Icons.picture_as_pdf_outlined,
-                          size: 18,
-                        ),
-                        label: const Text(
-                          'Exportar reporte',
-                          style: TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                      ),
               ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: AccionesSeleccionReporte(
+              seleccion: _seleccionReporte,
+              alDescargar: () => _limpiarFiltros(despuesDelReporte: true),
+              ayuda: 'Marca contratos en esta página o cambia de búsqueda para sumar otros.',
             ),
           ),
           _responsiveTable(
@@ -3693,6 +3536,7 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
       color: Cristal.vidrioSuave,
       child: Row(
         children: [
+          if (_seleccionReporte.activa) const SizedBox(width: 48),
           Expanded(
             flex: 2,
             child: Text(
@@ -3779,15 +3623,13 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
     final firma = BanderasControl.fecha(c['fecha_de_firma']);
     return InkWell(
       hoverDuration: Cristal.micro,
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => DetalleContratoScreen(contrato: c)),
-      ),
+      onTap: () => _abrirOSeleccionarContrato(c),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (_seleccionReporte.activa) _casillaReporte(c),
             Text(
               objeto,
               maxLines: 3,
@@ -3924,16 +3766,12 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
 
     return InkWell(
       hoverDuration: Cristal.micro,
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => DetalleContratoScreen(contrato: c)),
-        );
-      },
+      onTap: () => _abrirOSeleccionarContrato(c),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13),
         child: Row(
           children: [
+            if (_seleccionReporte.activa) _casillaReporte(c),
             Expanded(
               flex: 2,
               child: Padding(
@@ -4341,16 +4179,15 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
 
     final filtro = SizedBox(
       width: _isMobile ? double.infinity : 300,
-      child: TextField(
+      child: CampoBusqueda(
         onChanged: (v) => setState(() => _filtroUnidades = v),
         style: const TextStyle(fontSize: 13),
         decoration: InputDecoration(
           hintText: 'Filtrar unidades (ej. Cesar, centro, apoyo)…',
-          hintStyle: TextStyle(fontSize: 12.5, color: Cristal.textoTenue),
+          hintStyle: TextStyle(fontSize: 12.5),
           prefixIcon: const Icon(Icons.filter_list_rounded, size: 18),
           isDense: true,
           filled: true,
-          fillColor: Cristal.campo,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
             borderSide: BorderSide(color: Cristal.borde),
@@ -5041,18 +4878,18 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final enProcesos = _selectedTabIndex == 4;
+    final nitProcesos = widget.entity.nit.replaceAll(RegExp(r'[^0-9]'), '');
     final contenido = switch (_selectedTabIndex) {
-      1 => _buildContratosTab(),
-      2 => _buildDependenciasTab(),
-      3 => _buildContratistasTab(),
-      // Procesos en cualquier estado (borrador, abiertos, en evaluación…),
-      // de la entidad y de la regional elegida.
-      4 => BuscadorProcesos(
-        key: ValueKey('procesos-$_nitEntidad-$_selectedRegionalDept'),
-        nitEntidad: _nitEntidad,
+      4 => ProcesosSection(
+        key: ValueKey('procesos-$nitProcesos-$_selectedRegionalDept'),
+        nitEntidad: nitProcesos.length >= 8 ? nitProcesos : '',
         departamento: _selectedRegionalDept ?? '',
         nombreEntidad: widget.entity.name,
       ),
+      1 => _buildContratosTab(),
+      2 => _buildDependenciasTab(),
+      3 => _buildContratistasTab(),
       _ => _buildResumenTab(),
     };
 
@@ -5071,17 +4908,28 @@ class _PerfilEntidadScreenState extends State<PerfilEntidadScreen> {
                 nombre: widget.entity.name,
               ),
             _buildProfileTabsBar(),
-            _buildBarraExploracion(),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: _isMobile
-                    ? const EdgeInsets.fromLTRB(12, 14, 12, 28)
-                    : const EdgeInsets.fromLTRB(32, 20, 32, 36),
-                child: CambioLiquido(
-                  clave: _selectedTabIndex,
-                  child: contenido,
+            if (!enProcesos)
+              _buildBarraExploracion()
+            else if (_tieneRegionales)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: SizedBox(width: 290, child: _selectorRegional()),
                 ),
               ),
+            Expanded(
+              child: enProcesos
+                  ? contenido
+                  : SingleChildScrollView(
+                      padding: _isMobile
+                          ? const EdgeInsets.fromLTRB(12, 14, 12, 28)
+                          : const EdgeInsets.fromLTRB(32, 20, 32, 36),
+                      child: CambioLiquido(
+                        clave: _selectedTabIndex,
+                        child: contenido,
+                      ),
+                    ),
             ),
           ],
         ),

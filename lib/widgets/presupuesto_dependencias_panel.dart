@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'campo_busqueda.dart';
 import '../data/estructura_sena.dart';
 import '../services/presupuesto_dependencias_service.dart';
 import '../services/reporte_contratos_service.dart';
@@ -602,19 +603,18 @@ class _PresupuestoDependenciasPanelState
               ),
               SizedBox(
                 width: mobile ? double.infinity : 290,
-                child: TextField(
+                child: CampoBusqueda(
                   onChanged: (v) => setState(() => _filtro = v),
                   style: const TextStyle(fontSize: 13),
                   decoration: InputDecoration(
                     hintText: 'Buscar dependencia (ej. despacho, Cesar)…',
                     hintStyle: TextStyle(
                       fontSize: 12.5,
-                      color: Cristal.textoTenue,
+                      color: CampoBusqueda.tinta,
                     ),
                     prefixIcon: const Icon(Icons.search_rounded, size: 18),
                     isDense: true,
                     filled: true,
-                    fillColor: Cristal.campo,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: BorderSide(color: Cristal.borde),

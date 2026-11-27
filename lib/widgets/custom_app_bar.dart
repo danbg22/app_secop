@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'campo_busqueda.dart';
 import '../screens/perfil_usuario_screen.dart';
 import '../services/auth_service.dart';
 import 'user_profile_header_action.dart';
@@ -122,16 +123,13 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     constraints: const BoxConstraints(maxWidth: 480),
                     child: SizedBox(
                       height: 38,
-                      child: TextField(
+                      child: CampoBusqueda(
                         controller: searchController,
                         onSubmitted: onSearchSubmitted,
-                        style: TextStyle(fontSize: 13, color: Cristal.texto),
+                        style: TextStyle(fontSize: 13),
                         decoration: InputDecoration(
                           hintText: 'Busca contratos, entidades...',
-                          hintStyle: TextStyle(
-                            color: Cristal.textoSuave,
-                            fontSize: 13,
-                          ),
+                          hintStyle: TextStyle(fontSize: 13),
                           prefixIcon: IconButton(
                             tooltip: 'Buscar en SECOP + SIGEP',
                             padding: EdgeInsets.zero,
@@ -139,12 +137,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                 onSearchSubmitted?.call(searchController!.text),
                             icon: Icon(
                               Icons.search_rounded,
-                              color: Cristal.texto,
+                              color: CampoBusqueda.tinta,
                               size: 19,
                             ),
                           ),
                           filled: true,
-                          fillColor: Cristal.campo,
                           contentPadding: const EdgeInsets.symmetric(
                             vertical: 0,
                             horizontal: 12,

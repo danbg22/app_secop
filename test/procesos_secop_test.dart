@@ -116,6 +116,48 @@ void main() {
     setUp(DatosAbiertos.limpiarCache);
     tearDown(() => DatosAbiertos.clientePruebas = null);
 
+    testWidgets(
+      'la ficha reutiliza el listado y limita sus procesos a la regional',
+      (tester) async {
+        final consultas = <Uri>[];
+        DatosAbiertos.clientePruebas = MockClient((request) async {
+          consultas.add(request.url);
+          return respuesta(const []);
+        });
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ProcesosSection(
+                nombreEntidad: 'SENA',
+                nitEntidad: '899999034',
+                departamento: 'Cesar',
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Ver abiertos'), findsOneWidget);
+        expect(find.text('Todos los estados'), findsOneWidget);
+        expect(find.text('Entidad o NIT'), findsNothing);
+        await tester.tap(find.byTooltip('Filtrar por tipo de proceso'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Licitación pública'));
+        await tester.pumpAndSettle();
+
+        expect(consultas, isNotEmpty);
+        for (final uri in consultas) {
+          final where = uri.queryParameters[r'$where'];
+          expect(where, contains("nit_entidad in ('899999034'"));
+          expect(where, contains("departamento_entidad = 'Cesar'"));
+        }
+        expect(
+          consultas.last.queryParameters[r'$where'],
+          contains("modalidad_de_contratacion in ('Licitación pública'"),
+        );
+      },
+    );
+
     test('recorre el historial por páginas sin imponer un periodo', () async {
       DatosAbiertos.clientePruebas = MockClient((request) async {
         final params = request.url.queryParameters;
